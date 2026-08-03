@@ -18014,3 +18014,275 @@ warning**.
   between an operator dropping the file and the new supervisor's first log line.
 * The corroboration reads only the last 200 driver-log lines; h3's and gemini's `TIERED OK` sit 1
   line from the end, so >200 appended lines would flip COMPLETE back to MISSING.
+
+---
+
+## 125. RUN 17 (2026-08-03) — THE NUMBER THE WRITE-UP WILL QUOTE FOR "WHICH MODELS CAN AUTHOR REWARD CODE" IS WRONG, AND THE STATUS PAGE TOLD TAMER THE SEED LADDER HAD NOT STARTED
+
+**PAST.** RUN 16 closed at 12:30Z with preflight OK on all 16 checks, drift 0, seven record layers
+RC=0 at 8,302 records, and `docs/RUN17_SESSION_PROMPT.md` written. Its central finding was that
+*every* defect it met had one shape: **absent or unknown data silently becoming a definite verdict.**
+
+**PRESENT (this session).** Campaign healthy throughout: preflight VERDICT **OK**, freeze
+`3ca6f01ab772` **MATCHES**, drift **0** on both arms, `sci=OK`, all seven record layers **RC=0**,
+`crash_watchdog` CLEAN, `line_balance` CLEAN, ten lines fresh (0.1–2.4 min) and the two STALE ones
+correctly excluded because they are COMPLETE. Records 8,873 -> 9,048 during the session; spend
+$45.4831 -> $45.4853. **I am the only LIVE session on the campaign** (the two that were live at my
+start went stale within 40 minutes — no P216 recurrence).
+
+**FUTURE.** Nemotron's final search generation is in flight (125.5). The write-up session must
+receive 125.2 and 125.4 before it writes the authoring-reliability table.
+
+**THE SESSION'S OWN FINDING, and it is RUN 16's shape inverted:** where RUN 16 kept finding *unknown
+becoming a definite verdict*, every defect below is **a number that was measured correctly against
+the wrong population** — a marker set that structurally cannot hold the event being counted, a
+column that silently swept in the sealed test, a narrative measured on 2026-07-31 and still being
+published as *"right now"* on 2026-08-03. **A correct measurement of the wrong set is
+indistinguishable from a correct answer, and it does not even look like a bug.**
+
+### 125.1 THE READING GATE, ANSWERED FROM THE SOURCES
+
+All nine questions of `docs/RUN17_SESSION_PROMPT.md` §0.5 were answered from `CLAUDE.md`,
+`PREREGISTRATION.md` (§1, §2a, §5, §10, Amendment E1 at :385-405, the R101/R115 rows),
+`docs/HANDOFF.md` §1-§3, `docs/DEFERRED_FIXES_RUN4.md` and record §115-§124 before any substantive
+action. The two that governed everything afterwards: **the common rung is a MINIMUM over every
+registered arm of every line** (so gemini's completed 568 ladder raises the reported result by
+nothing while nemotron sits at zero), and **R115's registered justification is empirically false
+while its VALUE is protected** — which is why the correction is a disclosure and Tamer's decision,
+never an edit.
+
+### 125.2 D34 — THE PER-MODEL AUTHORING-RELIABILITY TABLE IS COMPUTED FROM A MARKER SET THAT *CANNOT* HOLD AN AUTHOR-SIDE REJECTION
+
+`scripts/campaign_guards.py::rejects_guard` is the panel whose own module comment calls it *"what
+should actually be read"*, and its numbers are what every handover brief quotes — including
+`docs/RUN17_SESSION_PROMPT.md` §2 (*"qwen3_5_9b 84 % reject, nemotron 19 %, glm 13 %…"*). It counts
+`<line>/_rejects/*.json`.
+
+**A read-only auditor supplied the structural proof, which is stronger than any count I had.**
+`_write_reject_marker` lives in `src/cluster/run_one.py:40-64` and runs **ON THE NODE**. The
+author-side gate is **DRIVER-side** (`src/cluster/campaign.py:906-916`): it writes the ledger row and
+`continue`s, so the candidate is **never shipped to a node** and no marker can ever be written.
+The guard is therefore not merely missing rows — **it is structurally blind to the entire
+author-side rejection class**, which is 97 of 272 permanent failures campaign-wide.
+
+Second defect: it globs `search_leg_*`, so **the CONFIRMATORY CORE LINE (`search/`, claude-opus-5)
+and `search_h3_singleshot/` have never appeared in the panel at all.**
+
+**THE CORRECTED TABLE** — `docs/ops/authoring_reliability.py`, built this session (selftest 10/10,
+every case proven to FAIL against a deliberately wrong implementation, exits 2 on an empty input):
+
+```
+line                              slots   lost accept PER-SLOT  PER-ATT | authAST authNoB nodeSbx nodeCtr |  guard%
+search_h3_singleshot                 30      0     30    0.00%    0.00% |       0       0       0       0 |  ABSENT
+search_leg_sonnet_5                 150      0    150    0.00%    0.00% |       0       0       0       0 |   0.00%
+search_leg_kimi_k3                  150      1    149    0.67%    0.67% |       0       0       0       1 |   0.67%
+search_leg_gpt_5_6_luna             150      4    146    2.67%    2.67% |       0       0       4       0 |   2.67%
+search_leg_haiku_4_5                150      6    144    4.00%    4.64% |       2       0       5       0 |   3.36%
+search_leg_gemini_2_5_flash         150     10    140    6.67%    7.89% |       4       4       2       2 |   2.78%
+search_leg_deepseek_v4_pro          150     12    138    8.00%    9.21% |       6       0       8       0 |   5.48%
+search_leg_qwen3_6_27b              150     16    134   10.67%   10.67% |       3       0      12       1 |   8.84%
+search  (CORE, claude-opus-5)       150     18    132   12.00%   14.29% |      21       0       1       0 |  ABSENT
+search_leg_glm_5_2                  150     25    125   16.67%   17.22% |       8       0      17       1 |  12.59%
+search_leg_nemotron_3_super         145     34    111   23.45%   25.50% |      12       2      22       2 |  18.38%
+search_leg_qwen3_5_9b               150    129     21   86.00%   86.27% |      34       1      90       7 |  84.21%
+```
+
+**EVERY SLOT COUNT LANDS ON EXACTLY 150 = 5 arms x 30 registered candidates** (nemotron 145, still
+mid-search; h3ss 30 by design). That eleven independent lines reconstruct the frozen budget to the
+unit is the strongest available evidence that the denominator is right — and it is also how the
+auditor caught the *per-attempt* denominator being biased HIGH: 17 slots campaign-wide hold BOTH a
+record and a permanent `author_reject` row, i.e. they were **re-authored after failing**, and the
+core line's `placebo` reads 26 + 7 = **33 attempts against a budget of 30** until the 3 overlaps are
+netted out. **Quote PER-SLOT.**
+
+**THE UNDERSTATEMENT IS NON-UNIFORM, WHICH IS THE POINT.** gemini-2.5-flash 2.78 % -> 6.67 % is a
+2.4x correction; sonnet-5 is unchanged at 0 %. A non-uniform bias does not shift a capability
+gradient, it **RE-ORDERS** it, and the ordering is the finding.
+
+**THE CONFIRMATORY AUTHOR SITS 8th OF 11, AND 21 OF ITS 22 FAILURES ARE OUR OWN ALLOWLIST.**
+Opus 5's core-line rejections are `author_reject: ast_gate` almost without exception. §87.2 already
+established the cause: `.resize` missing from a 338-name attribute allowlist cost 13 candidates
+campaign-wide, **12 of them on the CORE line**, direction unfavourable to us. **⛔ The core-line rate
+must never be quoted bare — report the author/node split and say WHOSE gate rejected it**, or the
+write-up will publish an allowlist gap as a capability measurement of its own confirmatory model.
+
+**⛔ NO CONFIRMATORY RESULT IS AFFECTED, and stating that precisely is half the finding.**
+`scripts/analyze_campaign.py:1062` reads `n_failed` from `failures.jsonl`, and
+`grep -rn "_rejects" scripts/analyze_campaign.py` returns **zero hits** — no analysis path touches
+the markers. **The defect is confined to the monitoring layer and to the prose that quotes it, which
+is exactly why it was dangerous: it reaches the PDF through the DOCUMENTATION.**
+
+Registered as **D34**; the auditor's second finding — `compute_accounting`'s `n_attempted` inheriting
+the same double-count and publishing `placebo = 33` against a registered budget of 30 — as **D35**.
+Both deferred: `scripts/**` is drift-fenced and the analysis does not run until the campaign ends.
+
+### 125.3 THE STATUS PAGE TOLD TAMER THE SEED LADDER "HAS NOT STARTED", AND COST 67.8 s PER MINUTE TO SAY IT
+
+`docs/RUN4_STATUS.md` is the one artifact Tamer actually reads, on his phone. It carried:
+
+> *"The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phase and **has not
+> started** … Only the 11 hand-written comparison rewards have been scored on sealed data. **The
+> LLM-written rewards have not been tested yet.**"*
+
+**Both sentences are false and had been for days.** gemini-2.5-flash and h3 have COMPLETED the full
+568-seed ladder; gpt-5.6-luna is at 542; four lines sit at 30; **7,444 sealed-test records exist**.
+Four lines have executed a C4 block. The page was telling him the phase the answer comes from had
+not begun while it was two thirds done.
+
+Three further stale claims, each contradicted by a measurement in this very record:
+*"there is room for 303 more of our jobs and we only have about 100 waiting"* (**544 queued**, and
+§120 proved 2,576 cores placeable and ungranted) · *"the timing model stops improving past ~4,600
+cores"* (§100: saturation is **3,235 at rung 568, 2,336 at 403**) · *"priority is already fixed and
+now above the cluster average"* (§121 measured `npprior` **0.500 for every job on the cluster**).
+
+**AND THE MECHANISM THAT PRODUCED IT WAS COSTING THE MONITORING ITSELF.** The page's stage table
+`json.load`ed **every** record in the archive to read two fields: **MEASURED 67.8 s at 9,027
+records**, run by `publish_loop.sh` roughly once a minute, growing linearly, **concurrently with
+`cycle.py`'s own full-archive sweep** which is already SWEEP-BOUND at 100-270 s. That is **P194 live
+— a monitor loading the monitor it runs beside** — on the machine whose cadence Tamer cares most
+about. It was also **wrong**: it matched the record's `arm` field campaign-wide, so the
+"candidates so far" column **added every sealed-test seed of the same arm** and published
+`distributional = 2,136` when only **1,516** search candidates exist in the entire campaign.
+
+**FIXED.** New `docs/ops/status_stage.py` reads the same facts from DIRECTORY NAMES, opens no file,
+costs **0.48 s** (a 141x reduction), and reports the search stage correctly at 1,420 candidates. It
+IMPORTS `line_balance.archive_depths` for the ladder rather than re-deriving it, so the `-winner`
+suffix strip that once manufactured 56 phantom arms cannot be got wrong twice, and an arm that is
+frozen with no directory yet counts as **0** instead of vanishing (the P215 blind spot). Selftest
+6/6, including the decisive case: **a sealed-test seed dir must NOT be counted as a search
+candidate.** The page now carries the live ladder with the common rung at the top, the corrected
+capacity account, and Tamer's two open decisions.
+
+### 125.4 `guard:truncation` — THE REGISTERED RE-TRIAGE TRIGGER HAD FIRED AND NOBODY EVALUATED IT
+
+`docs/ops/acknowledged_alarms.txt` pre-committed the consequence on 2026-07-31: *"RE-TRIAGE AGAIN IF
+… any single model exceeds ~1 % of its own calls"*, closing with *"NEAREST LIVE EDGE: nemotron at
+0.93 %."* RUN 16 measured the same seven truncations, reported them **run-wide** (0.24 %), and
+**never computed the per-model rate the trigger is defined on** — while editing that very file to
+add two other acknowledgements.
+
+**MEASURED 2026-08-03T13:13:18Z over all 2,951 ledger rows:** nemotron **5 of 289 = 1.730 %** —
+crossed. qwen3.6-27b 0.377 %, kimi-k3 0.353 %, **claude-opus-5 0 of 325**, run-wide 0.237 %.
+
+**ARM ATTRIBUTION, and the join was PROVEN rather than assumed** (the ledger carries no arm field, so
+any arm claim made from it alone is unsupported): from `llm_calls.jsonl`, nemotron placebo 3 /
+placebo_shuffled 1 / scalar_cvar5 1; kimi placebo_shuffled 1; qwen3.6-27b scalar_cvar5 1. **Zero on
+any `distributional` arm, zero on the confirmatory line.** The auditor independently verified the two
+files are the same population — per line the row counts match for all twelve lines, and for leg7 the
+multiset of `(tokens_in, tokens_out, stop_reason)` is identical, residual 0 in both directions over
+289 rows.
+
+**The pre-committed consequence is now owed and is a WRITE-UP obligation**, with an honest bound
+attached: a `length` call cannot be joined to a specific rejected candidate (`llm_calls.jsonl` has no
+candidate_id, `failures.jsonl` has no timestamp), so the exclusion is bounded at (line, arm) and
+nemotron's correction is **an upper bound of 2 candidates, 23.45 % -> 22.07 %**, not a point estimate.
+
+### 125.5 THE CRITICAL PATH ADVANCED DURING THIS SESSION — nemotron IS ON ITS FINAL GENERATION
+
+Watched first-hand rather than inferred, and it is the single most consequential fact for the ETA:
+
+```
+2026-08-03 00:39:02Z  scalar_cvar5_g4 submitted as 3 arrays (76452/76453/76454)
+2026-08-03 00:39 -> 07:46Z  0/3 done          <- ~7 h of pure QUEUE
+2026-08-03 12:54:58Z  g4 batch complete: {'ok': True, 'completed': 3, 'total': 3, 'exhausted': []}
+2026-08-03 12:55:16 -> 12:58:42Z  five authoring calls on leg7
+2026-08-03 12:59:15Z  scalar_cvar5_g5 submitted as 5 arrays (83088, 83089, 83090, ...)
+```
+
+**g5 is the LAST generation of the registered K=5 x 6, and all five candidates cleared the gate.**
+Per-generation wall-clock measured from the driver log: **g3 25.30 h, g4 12.27 h**, both dominated by
+queue rather than compute. When g5 returns, `scalar_cvar5` freezes, nemotron's fifth arm exists, and
+the line that has been pinning the COMMON RUNG for all twelve lines clears C2.
+
+Independently corroborating §123's "no waste" half: a full seed-hole audit over **every** test arm
+finds **zero holes on every completed ladder** — gemini 568 on all five arms, h3 568, every 30-seed
+line — with the 1,233 holes that do exist confined to the two lines mid-C4 (gpt 83, down from 455 in
+RUN 16; qwen3.5-9b 1,150 with 262 jobs = ~2,096 trainings in flight). **Nothing has been killed at
+walltime and silently dropped.**
+
+### 125.6 WHAT I CHECKED AND FOUND ALREADY CORRECT — recorded because overstating a risk is as inaccurate as understating one
+
+* **RUN 16's claim that nemotron's truncations are "4 on its CONTROL arms, none on its treatment
+  arm"** — I suspected it was unsupported, because the ledger has no arm field. **It is CORRECT**;
+  the join exists through `llm_calls.jsonl` and I confirmed it. Verified in the direction that made
+  me wrong.
+* **RUN17 §10c(D)'s "three base-prompt fallback records, all in qwen3_5_9b"** — reproduced exactly:
+  `placebo-g2-c2`, `scalar_cvar5-g3-c2`, `scalar_cvar5-g3-c4`, all on the qwen3.5-9b line.
+* **§118.2's D18 location** — my per-arm counts landed on glm-5.2/placebo_shuffled and
+  haiku-4.5/scalar independently, exactly as recorded.
+* **The 9,005-vs-8,947 record-count gap** between `run_record_layers.sh` and `session_preflight` —
+  reconciled EXACTLY: 56 `frozen*/…-winner/record.json` markers at depth 3 plus the 2 D18 nested dirs
+  at depth 5. Two labels, two populations, both correct.
+* **All five monitors that a reboot would NOT restore** are alive with start times
+  (crash_watchdog 02:51:59, loginnode_guard 02:28:29, myriad_watch 08-02 20:35:23, line_balance
+  05:44:12, watchdog_fenced 04:28:48).
+* **`reject_taxonomy.py`, written by someone else, independently reproduces 272 = 90 AST + 182
+  non-AST** — the cross-check that makes 125.2 a measurement rather than one script's opinion.
+
+### 125.7 MY OWN ERRORS THIS SESSION — P221 through P227
+
+**P221 (RUN 16's, recorded here because a trigger nobody re-runs is decoration).** The
+`guard:truncation` acknowledgement pre-committed a per-model 1 % trigger and named nemotron at 0.93 %
+as the nearest edge. RUN 16 measured the same seven truncations run-wide and **edited that very file
+the same day without evaluating the trigger.** **LESSON: when you re-measure a quantity an
+acknowledgement is defined on, you have re-armed its trigger and must evaluate it in the same pass.**
+
+**P222 — I MEASURED THE TRUNCATION RATE FROM A DIFFERENT RUN'S LEDGER AND GOT A CLEAN ZERO.** My
+first pass globbed `outputs/campaign_cluster/spend_ledger_*.jsonl` — a SIBLING directory whose name
+is a PREFIX of `outputs/campaign_cluster_run4/` — and reported **0 truncations in 925 calls**. Not
+reported, because 925 rows was implausible against a known ~2,900 and the rows carried **no
+`stop_reason` key at all**. **LESSON: a directory whose name is a prefix of the real one is the
+cheapest way to measure the wrong campaign, and the tell is the SCHEMA, not the value.**
+
+**P223 — I JOINED TWO DIFFERENT SETS OF SEVEN.** The ledger holds 7 `stop_reason=length` rows;
+`failures.jsonl` holds 7 `author_reject: no top-level 'reward' binding` rows. **They are disjoint
+populations** — the ledger's are nemotron 5 / kimi 1 / qwen3.6 1; the failures' are gemini 4 /
+nemotron 2 / qwen3.5-9b 1. I formed the hypothesis *"5 of nemotron's 25 rejects are cap-induced"*
+and it is false; reading the 25 marker files showed **zero** author-side entries among them.
+**LESSON: an equal cardinality is not a join. This is P211/P212's root cause in a new costume, and it
+is the fourth time this project has been bitten by a key whose semantics were not verified against
+the data.**
+
+**P224 — I RAN A `Win32_Process` CENSUS WHOSE PATTERN LIST WAS ON ITS OWN COMMAND LINE.** Every
+pattern matched my own query process, inflating every count by one and reporting `driver.py count=1`
+on a fleet of 21. **This is P207 exactly, in a project that documents the trap in
+`session_preflight.py:99-105` and has now committed it four times.** Fixed by moving the patterns
+into a file and excluding `$PID`.
+
+**P225 — AND THEN I READ THE CORRECTED CENSUS AS A DUPLICATE-MONITOR ALARM.** Seeing
+`.venv\Scripts\python.exe X.py` AND `Python311\python.exe X.py` for four monitors, I began writing up
+"two independent instances appending to one log". **False.** Creation times are identical to the
+second and the PPIDs chain: `nohup.exe -> venv launcher stub -> base interpreter`. One logical
+process each. **LESSON: overstating a risk is as inaccurate as understating one, and a process
+"duplicate" must be tested by PPID and creation time, never by count.**
+
+**P226 — I PUT UNESCAPED BACKTICKS IN AN UNQUOTED HEREDOC.** `docs/ops/publish_status.sh` renders
+`docs/RUN4_STATUS.md` through `cat <<EOF`, so bash performed command substitution on nine of my
+prose lines and **published a page with four mangled sentences** before I caught it. **This is the
+rule `docs/RUN17_SESSION_PROMPT.md` §10 states verbatim** — *"NEVER put backticks in a bash -c string
+or heredoc"* — annotated *"this bit twice in RUN 16"*. It has now bitten three times.
+
+**P227 — MY OWN NEW INSTRUMENT'S DOCSTRING CLAIMED MORE THAN THE DATA SUPPORTS.**
+`authoring_reliability.py` first described `failures.jsonl` as "the COMPLETE failure record". The
+auditor refuted it: **at least 16 node-reject EVENTS (15 qwen3.5-9b, 1 nemotron) exist only as a
+`_rejects/` marker with no ledger row**, because the ledger is one row per candidate SLOT, latest
+attempt wins. The two sets are **not nested in either direction**. Corrected in the docstring rather
+than quietly narrowed. **LESSON: the sentence that justifies a new instrument is exactly the sentence
+to send an auditor at.**
+
+**Also recorded, minor:** reading the lane board with `lanebus.py --as ops board` STAMPED A HEARTBEAT
+and registered this session as an ops lane, which `docs/RUN17_SESSION_PROMPT.md` says not to do. A
+read-only-looking command that writes presence state is the same class as P217's `qalter` probe.
+Harmless here — the classifications are abandoned — but a future session reading that board should
+not infer a lane discipline from it.
+
+### 125.8 THE AUDITOR WAS AGAIN THE HIGHEST-VALUE ACT OF THE SESSION
+
+One read-only auditor was sent at 125.2 and 125.4 before either was banked. It **confirmed the
+substance of all six claims and corrected four of my numbers** (the omitted rows are 74 ast_gate +
+7 no-binding, not 90; glm 17.22 % not 17.11 %; the ledger had moved to 2,951 rows and nemotron to
+289 calls within thirty minutes; and the per-attempt denominator is biased high by 17 re-authored
+slots), **supplied a structural proof I did not have** (markers are node-side by construction), and
+**found two defects I had not looked for** (the ≥16 marker-only node rejects, and `n_attempted`
+exceeding the registered budget). Every correction is folded into D34, D35, the instrument and this
+section. **Third consecutive session in which the auditor's findings outrank the author's.**

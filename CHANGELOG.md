@@ -3,6 +3,148 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-03c] ★★★★★ RUN 17 — **THE PER-MODEL AUTHORING-RELIABILITY TABLE IS COMPUTED FROM A MARKER SET THAT *STRUCTURALLY CANNOT* HOLD AN AUTHOR-SIDE REJECTION** · the confirmatory line has never appeared in that panel at all · **the status page was telling Tamer the seed ladder "has not started" while two lines had already finished the whole 568-rung thing** · and it cost 67.8 s of full-archive JSON parsing per minute to say so · a registered re-triage trigger had fired and nobody evaluated it · **nemotron reaches its FINAL search generation, live** · seven record layers RC=0 · seven of my own errors recorded
+
+**PAST.** RUN 16 closed at 12:30 UTC with preflight OK on all 16 checks, drift 0, seven record layers
+RC=0 at 8,302 records, and `docs/RUN17_SESSION_PROMPT.md` written. Its lesson was that every defect it
+met had ONE shape: **absent or unknown data silently becoming a definite verdict.**
+
+**PRESENT.** Tamer's standing brief again: *"very deeply and strictly monitor everything constantly
+and ensure absolutely everything is strictly absolutely flawless … constantly check each record, make
+sure every record individually is very strictly flawless, logical, meaningful … dont miss anything."*
+The campaign was healthy the whole session and stayed healthy; what was not flawless was **three
+numbers that had been measured correctly against the wrong population.** That is RUN 16's lesson
+inverted, and it is harder to see: *a correct measurement of the wrong set does not look like a bug.*
+Full detail in execution record **§125**; the new deferred items are **D34** and **D35**.
+
+**FUTURE.** Nemotron's last search generation (g5, five candidates, all gate-clean) is in flight; when
+it returns, the line that pins the COMMON RUNG for all twelve clears. The write-up session must
+receive ② and ④ below before it writes the authoring-reliability table.
+
+**LIVE, re-measured first-hand at session end:** records **9,067** (from 8,873) · spend
+**$45.4852** · freeze `3ca6f01ab772` **MATCHES** · **drift 0 on BOTH arms** · `sci=OK` · preflight
+**VERDICT OK** · seven record layers **RC=0** · `crash_watchdog` CLEAN · `line_balance` CLEAN ·
+10/12 lines running, 2 COMPLETE · **I was the only LIVE session on the campaign.**
+
+### ① D34 — THE GUARD COUNTS A MARKER THAT CAN NEVER BE WRITTEN FOR THE FAILURE CLASS IT REPORTS
+
+`scripts/campaign_guards.py::rejects_guard` — the panel its own module comment calls *"what should
+actually be read"*, and the source of the reject rates quoted in **every** handover brief including
+`RUN17_SESSION_PROMPT.md` §2 — counts `<line>/_rejects/*.json`.
+
+**A read-only auditor supplied the structural proof.** `_write_reject_marker` (`src/cluster/run_one.py:40-64`)
+runs **ON THE NODE**; the author-side gate is **DRIVER-side** (`src/cluster/campaign.py:906-916`) and
+`continue`s before the candidate is ever shipped. **A marker for an author-side rejection is therefore
+impossible**, and 97 of the campaign's 272 permanent failures are author-side. The guard also globs
+`search_leg_*`, so **the CONFIRMATORY core line and `h3_singleshot` have never been in the panel.**
+
+Corrected, per-slot (`docs/ops/authoring_reliability.py`, new, selftest 10/10, every case proven to
+FAIL against a wrong implementation, exits 2 on an empty input):
+
+```
+sonnet-5 0.00 | kimi-k3 0.67 | gpt-5.6-luna 2.67 | haiku-4.5 4.00 | gemini-2.5-flash 6.67
+deepseek-v4-pro 8.00 | qwen3.6-27b 10.67 | *** CORE / claude-opus-5 12.00 *** | glm-5.2 16.67
+nemotron-3-super 23.45 | qwen3.5-9b 86.00          (guard said 0 / 0.67 / 2.67 / 3.36 / 2.78 /
+                                                    5.48 / 8.84 / ABSENT / 12.59 / 18.38 / 84.21)
+```
+
+**Every slot count lands on exactly 150 = 5 arms x 30 registered candidates** — eleven independent
+lines reconstructing the frozen budget to the unit. The understatement is **NON-UNIFORM** (gemini
+2.4x, sonnet unchanged), so it **re-orders** a capability gradient rather than shifting it, and the
+ordering is the finding. **⛔ The core line's 12.00 % is 21/22 `author_reject: ast_gate` — largely OUR
+allowlist (§87.2: `.resize` missing from a 338-name list cost 12 core-line candidates, direction
+unfavourable to us). Never quote it bare.**
+
+**NO CONFIRMATORY RESULT IS AFFECTED:** `analyze_campaign.py:1062` reads the full `failures.jsonl`,
+and `grep -rn "_rejects" scripts/analyze_campaign.py` returns zero hits. The defect reaches the PDF
+only through the DOCUMENTATION — which is precisely why it was dangerous.
+
+### ② D35 — `compute_accounting` PUBLISHES MORE ATTEMPTS THAN THE FROZEN BUDGET ALLOWS
+
+Same auditor: `analyze_campaign.py:1069` sets `n_attempted = n_accepted + n_failed`, and the two sets
+overlap on **17 re-authored slots** campaign-wide, 4 on the core line. The report-only R35 accounting
+table will therefore state `placebo n_attempted = 33` against a **registered candidate budget of 30**.
+It gates nothing — but a reported number that exceeds the frozen budget is exactly what an adversarial
+examiner opens the appendix to check. Fix is the slot union; deferred with D32 to the pre-analysis pass.
+
+### ③ THE STATUS PAGE — TWO FALSE SENTENCES, THREE STALE ONES, AND A 141x COST
+
+`docs/RUN4_STATUS.md` is the one artifact Tamer reads. It said the seed ladder *"is the NEXT phase and
+**has not started**"* and that *"**the LLM-written rewards have not been tested yet**"*. Both false:
+gemini-2.5-flash and h3 have COMPLETED all 568 rungs, gpt is at 542, **7,444 sealed-test records
+exist**. It also carried three claims contradicted by this repo's own record — *"about 100 waiting"*
+(**544 queued**), *"stops improving past ~4,600 cores"* (§100: 3,235 / 2,336), *"priority now above
+the cluster average"* (§121: `npprior` is 0.500 for every job on the cluster).
+
+**And the mechanism was loading the monitoring it sits beside.** The stage table `json.load`ed EVERY
+record to read two fields — **MEASURED 67.8 s at 9,027 records**, once a minute, growing linearly,
+concurrently with `cycle.py`'s own SWEEP-BOUND archive walk. **P194 live.** It was also wrong: it
+matched `arm` campaign-wide and so swept in every sealed-test seed, publishing `distributional = 2,136`
+against 1,516 real search candidates. New `docs/ops/status_stage.py` reads directory names, opens no
+file, costs **0.48 s**, and IMPORTS `line_balance.archive_depths` rather than re-deriving the
+`-winner` join that once manufactured 56 phantom arms. Selftest 6/6. The page now carries the LIVE
+ladder with the common rung at the top, the corrected capacity account, and Tamer's two open decisions.
+
+### ④ `guard:truncation` — THE PRE-COMMITTED TRIGGER HAD FIRED AND WAS NEVER EVALUATED
+
+The acknowledgement pre-committed *"RE-TRIAGE AGAIN IF any single model exceeds ~1 % of its own
+calls"* and named nemotron at 0.93 % as the nearest edge. RUN 16 re-measured the same truncations,
+reported them run-wide (0.24 %), and **edited that very file the same day without computing the
+per-model rate the trigger is defined on.** Measured 2026-08-03T13:13:18Z over 2,951 ledger rows:
+**nemotron 5 of 289 = 1.730 %, crossed.** Arm split (join PROVEN, not assumed — the ledger has no arm
+field): placebo 3 / placebo_shuffled 1 / scalar_cvar5 1; **zero on any treatment arm, zero on `c1`**.
+The owed consequence is a write-up exclusion with an honest bound: **at most 2 candidates, 23.45 % ->
+22.07 %**, because a `length` call cannot be joined to a specific rejected candidate.
+
+### ⑤ THE CRITICAL PATH ADVANCED WHILE I WATCHED
+
+`scalar_cvar5_g4` completed 12:54:58Z (`{'ok': True, 'completed': 3, 'total': 3, 'exhausted': []}`),
+five authoring calls landed 12:55:16-12:58:42Z, and **`g5` — the LAST generation of the registered
+K=5 x 6 — was submitted at 12:59:15Z as five arrays, all five candidates gate-clean.** Per-generation
+wall-clock from the driver log: g3 **25.30 h**, g4 **12.27 h**, both dominated by QUEUE not compute.
+Independently corroborating §123: a full seed-hole audit over every test arm finds **zero holes on
+every completed ladder**; the 1,233 that exist are confined to the two lines mid-C4 and are covered by
+work already in flight (gpt is down from 455 holes to 83).
+
+### ⑥ WHAT I CHECKED AND FOUND ALREADY RIGHT
+
+Recorded because overstating a risk is as inaccurate as understating one: RUN 16's *"4 of nemotron's
+truncations on control arms, none on treatment"* (**correct** — the join exists through
+`llm_calls.jsonl`) · §10c(D)'s *"three base-prompt fallbacks, all qwen3.5-9b"* (**exact**) · §118.2's
+D18 location (**independently rediscovered** at glm/placebo_shuffled and haiku/scalar) · the
+9,005-vs-8,947 count gap (**reconciled exactly**: 56 frozen-winner markers + 2 nested D18 dirs) · all
+five reboot-fragile monitors alive with start times · `reject_taxonomy.py`, written by someone else,
+independently reproducing **272 = 90 AST + 182 non-AST**.
+
+### ⑦ MY OWN ERRORS — P221 THROUGH P227
+
+**P221** (RUN 16's) a re-measured quantity re-arms its acknowledgement's trigger, and it went
+unevaluated · **P222** I measured truncation from `outputs/campaign_cluster/` — a sibling whose name
+is a PREFIX of the real root — and got a clean 0/925; caught by the SCHEMA (no `stop_reason` key), not
+the value · **P223** I joined two disjoint sets that both happened to have SEVEN members and formed a
+false hypothesis about nemotron's rejects; **an equal cardinality is not a join** · **P224** a
+`Win32_Process` census whose pattern list was on its own command line matched itself — **P207 for the
+fourth time in a repo that documents the trap** · **P225** and I then read the corrected census as a
+duplicate-monitor alarm; it is `nohup -> venv stub -> base interpreter`, one process, provable by PPID
+and creation time · **P226** unescaped backticks in an unquoted heredoc **published a page with four
+mangled sentences** — the §10 rule that "bit twice in RUN 16" has now bitten three times ·
+**P227** my own new instrument's docstring claimed `failures.jsonl` was "the COMPLETE failure record";
+the auditor refuted it (**>=16 node-reject EVENTS exist only as markers** — the ledger is one row per
+SLOT, latest attempt wins). *Also minor: reading the lane board with `--as ops` stamped a heartbeat and
+registered this session as a lane, which the brief says not to do — a read-looking command that writes.*
+
+### ⑧ THE AUDITOR OUTRANKED THE AUTHOR, THIRD SESSION RUNNING
+
+One read-only auditor, sent before anything was banked, **confirmed the substance of all six claims,
+corrected four of my numbers, supplied a structural proof I did not have, and found two defects I had
+not looked for.** Every correction is folded into D34, D35, both new instruments and §125.
+
+**⚠ FLAGGED, NOT ACTIONED (belongs to the write-up session):** `docs/CITATION_WORK_MAP.md` — an ACTIVE
+176-line instrument for a direct Tamer instruction — was **UNTRACKED IN GIT**, i.e. one permitted
+`git clean -fd` from gone. Committed unchanged (protecting it is not editing it; RUN 16 set the
+precedent with `GRADE_95_MASTER_PLAN.md`), secret-scanned first. **Its CONTENT remains the write-up
+session's.**
+
 ## [2026-08-03b] ★★★★★ BUILDER / RUN 16 — **A COMPLETED LINE IS INDISTINGUISHABLE FROM A CRASHED ONE, AND THAT COST 278 POINTLESS REVIVALS AGAINST A PENALISED LOGIN NODE** · the fleet counter passed with 11 lines of 12 and would have passed with 1 · an orphaned `qacct` burning a 33 GB scan with nobody reading it · **`gemini-2.5-flash` FINISHES THE FULL 568-SEED LADDER, 2,840 records, all five arms balanced** · six record layers CLEAN · two of my own errors recorded
 
 **PAST.** RUN 15 closed at 6,403 records with `docs/RUN16_SESSION_PROMPT.md`, reporting twelve lines

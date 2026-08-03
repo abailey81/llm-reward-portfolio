@@ -187,6 +187,48 @@ reward_scale:WARN
 # nemotron must be reported with the truncated calls excluded and the exclusion stated in the text.
 # THE CAP STAYS AT 16,384 (registered R106; matching it across all eleven models is what makes the
 # cross-model comparison fair, and the ledger is append-only so this verdict cannot return green).
+#
+# ── ★★ THE 1 %-OF-OWN-CALLS TRIGGER HAS FIRED. Re-triaged 2026-08-03, RUN 17 (record s.125.2). ──
+# The entry above named nemotron at 0.93 % as "within a whisker" and pre-committed the consequence.
+# RUN 16 measured the same 7 truncations and reported them run-wide (0.24 %) WITHOUT evaluating the
+# per-model rate, so the trigger it was measuring against went unchecked. MEASURED AT
+# 2026-08-03T13:13:18Z over all 2,951 rows of `outputs/campaign_cluster_run4/spend_ledger_*.jsonl`
+# (every row carries `stop_reason`; total $45.4853 reconciles to the cycle log):
+#   nvidia/nemotron-3-super-120b-a12b   5 of 289 own calls = 1.730 %   <-- OVER 1 %, TRIGGER FIRED
+#   qwen/qwen3.6-27b                    1 of 265 own calls = 0.377 %
+#   moonshotai/kimi-k3-20260715         1 of 283 own calls = 0.353 %
+#   claude-opus-5 (CONFIRMATORY)        0 of 325 own calls = 0.000 %
+#   run-wide                            7 of 2,951         = 0.237 %
+# ⚠ THE DENOMINATOR IS LIVE, SO THE RATE IS A DATED MEASUREMENT, NOT A CONSTANT. An earlier reading
+# in this same session (5 of 284 = 1.761 %) was already stale within 30 minutes because nemotron
+# authored generation g5 in between. Every figure here carries its timestamp for that reason; the
+# TRIGGER is what is durable, and it is crossed on both readings.
+# ARM ATTRIBUTION, joined through `search*/*/llm_calls.jsonl` (the only file carrying BOTH the arm
+# path and `stop_reason`; the ledger has no arm field, so any arm claim made from the ledger alone
+# is unsupported):
+#   nemotron   placebo 3 | placebo_shuffled 1 | scalar_cvar5 1     -- ZERO on `distributional`
+#   kimi_k3    placebo_shuffled 1
+#   qwen3_6_27b scalar_cvar5 1
+# ✔ TRIGGER 3 IS STILL CLEAN: zero `length` rows on the confirmatory core line `c1`, and zero on any
+# TREATMENT arm anywhere, so H2's contrast and the numeracy-bottleneck headline are untouched.
+# ⚠ THE PRE-COMMITTED CONSEQUENCE IS NOW OWED, and it is an ANALYSIS/WRITE-UP obligation, not an ops
+# change: nemotron's per-model authoring-reliability figure must be reported with the truncated calls
+# EXCLUDED and the exclusion STATED in the text. Handed to the write-up session via execution record
+# s.125 and the CHANGELOG; `docs/ops/authoring_reliability.py` prints the `trunc` column per line so
+# the exclusion is computable rather than remembered.
+# ⚠ HONEST LIMIT ON WHAT CAN BE EXCLUDED: a `length` call cannot be joined to a specific REJECTED
+# candidate. `llm_calls.jsonl` carries no candidate_id and `failures.jsonl` carries no timestamp, so
+# the exclusion is bounded at the (line, arm) level, not the candidate level. Nemotron's 2
+# `author_reject: no top-level 'reward' binding (empty/refused/truncated completion)` rows sit on
+# `placebo` and `scalar_cvar5` -- both arms where a truncation occurred -- so AT MOST 2 of its 34
+# LOST registered candidates are cap-induced (per-slot 23.45 % -> 22.07 % as an UPPER-BOUND
+# correction). State the bound; do not state a point estimate the data cannot support.
+# ⚠ THE JOIN THAT MAKES THE ARM SPLIT LEGITIMATE WAS PROVEN, NOT ASSUMED (independent auditor,
+# 2026-08-03): per line, `llm_calls.jsonl` row count == ledger row count for all twelve lines, and
+# for leg7/nemotron the multiset of `(tokens_in, tokens_out, stop_reason)` is IDENTICAL across the
+# two files -- residual 0 in both directions over 289 rows. They are the same population.
+# ⚠ RE-TRIAGE AGAIN IF a `length` row ever appears on a `distributional` arm or on `c1`, or if a
+# FOURTH model truncates. THE CAP STILL STAYS AT 16,384 (registered R106).
 guard:truncation
 
 # capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a

@@ -2006,3 +2006,158 @@ the READER, never the archive.
 
 **VERIFICATION AFTER THE FIX:** re-run the two-line comparison above; the loader count must equal
 the on-disk count exactly.
+
+---
+
+## 24. D34 — `rejects_guard` COUNTS A MARKER SET THAT CANNOT HOLD AN AUTHOR-SIDE REJECT, AND NEVER LOOKS AT THE CONFIRMATORY LINE (found 2026-08-03, RUN 17, record §125)
+
+**File:** `scripts/campaign_guards.py::rejects_guard` (lines ~305-335) — **drift-fenced, NOT edited.**
+
+**WHY IT MATTERS MORE THAN A MONITORING NIT.** "Which models can write executable objective code at
+all" is a NAMED deliverable (the per-model authoring-reliability table — Raad/Stefan point 5, and the
+empirical half of the registered R87 capability gradient). This guard's own module comment calls
+itself *"what should actually be read"*, and its numbers are what every handover brief has quoted,
+including `docs/RUN17_SESSION_PROMPT.md` §2. **So a wrong number here reaches the write-up through
+the DOCUMENTATION, not through the code.**
+
+### THE STRUCTURAL PROOF (an independent auditor's, and it is stronger than the counts)
+
+`_write_reject_marker` lives in `src/cluster/run_one.py:40-64` and runs **ON THE NODE**. The
+author-side gate is **DRIVER-side**, `src/cluster/campaign.py:906-916`:
+
+```python
+if not ast_gate(src) or not defines_reward(src):
+    failed += 1
+    _ledger_failure(fail_ledger, {... "permanent": True,
+        "error": "author_reject: ast_gate (unsafe construct)" if not ast_gate(src) else
+                 "author_reject: no top-level 'reward' binding (empty/refused/truncated completion)"})
+    continue          # never ships to a node -> a marker is STRUCTURALLY IMPOSSIBLE
+```
+
+So the guard is not merely missing some rows: **it can never see an author-side rejection at all.**
+
+### THE COUNTS (2026-08-03)
+
+```
+permanent rows in  outputs/campaign_cluster_run4/search*/*/failures.jsonl : 272   (all permanent:true)
+markers in         outputs/campaign_cluster_run4/search*/_rejects/*.json  : 191
+rows with NO marker                                                       :  81   = 74 ast_gate + 7 no-binding
+by class (272 rows): author_ast_gate 90 | author_no_binding 7 | node_sandbox 161 | node_contract 14
+```
+
+`272 = 90 AST + 182 non-AST` reproduces `docs/ops/reject_taxonomy.py`'s independently-written
+headline **exactly** — that is the cross-check, not a restatement.
+
+**⚠ AND THE TWO SETS ARE NOT NESTED IN EITHER DIRECTION.** 16 of the 90 `ast_gate` rows DO have a
+same-`candidate_id` marker, but that marker carries a **node** error — a *different event on the same
+slot*. Conversely **at least 16 node-reject EVENTS exist only as a marker with no ledger row** (15
+qwen3.5-9b, 1 nemotron). `failures.jsonl` is therefore **one row per candidate SLOT, latest attempt
+wins** — NOT a complete record of failure *events*. Any "complete failure record" phrasing must be
+qualified; what is true is that it holds every PERMANENT per-slot outcome, including the author-side
+ones the markers structurally cannot hold.
+
+### THE SECOND DEFECT: SCOPE
+
+`root.glob("search_leg_*")` omits **`search/`** — the CONFIRMATORY CORE LINE, author
+`claude-opus-5` — **and `search_h3_singleshot/`**. Neither has ever appeared in the panel.
+
+### THE CORRECTED TABLE
+
+`docs/ops/authoring_reliability.py` (LLM arms only; selftest 10/10, every case mutation-proven to
+FAIL against a wrong implementation; exits 2 on an empty input set):
+
+```
+line                              slots   lost accept PER-SLOT  PER-ATT | authAST authNoB nodeSbx nodeCtr |  guard% trunc
+search_h3_singleshot                 30      0     30    0.00%    0.00% |       0       0       0       0 |  ABSENT     0
+search_leg_sonnet_5                 150      0    150    0.00%    0.00% |       0       0       0       0 |   0.00%     0
+search_leg_kimi_k3                  150      1    149    0.67%    0.67% |       0       0       0       1 |   0.67%     1
+search_leg_gpt_5_6_luna             150      4    146    2.67%    2.67% |       0       0       4       0 |   2.67%     0
+search_leg_haiku_4_5                150      6    144    4.00%    4.64% |       2       0       5       0 |   3.36%     0
+search_leg_gemini_2_5_flash         150     10    140    6.67%    7.89% |       4       4       2       2 |   2.78%     0
+search_leg_deepseek_v4_pro          150     12    138    8.00%    9.21% |       6       0       8       0 |   5.48%     0
+search_leg_qwen3_6_27b              150     16    134   10.67%   10.67% |       3       0      12       1 |   8.84%     1
+search  (CORE, claude-opus-5)       150     18    132   12.00%   14.29% |      21       0       1       0 |  ABSENT     0
+search_leg_glm_5_2                  150     25    125   16.67%   17.22% |       8       0      17       1 |  12.59%     0
+search_leg_nemotron_3_super         145     34    111   23.45%   25.50% |      12       2      22       2 |  18.38%     5
+search_leg_qwen3_5_9b               150    129     21   86.00%   86.27% |      34       1      90       7 |  84.21%     0
+```
+
+**EVERY SLOT COUNT IS EXACTLY 150 = 5 arms x 30 registered candidates** (nemotron 145, still
+mid-search; h3ss 30 by design). That the union of records and failure rows lands on the registered
+budget to the unit, on eleven independent lines, is the strongest available evidence that the
+denominator is the right one.
+
+**⚠ QUOTE `PER-SLOT`, NOT `PER-ATT`.** 17 slots campaign-wide hold BOTH a record.json and a permanent
+`author_reject` row: the slot was **re-authored** after failing, with a different `reward_source`
+hash. Counting those as lost is what makes the per-attempt column biased HIGH — the core line's
+`placebo` reads 26 accepted + 7 failed = **33 attempts against a registered budget of 30**, and
+subtracting its 3 overlaps lands it exactly on 30.
+
+**THE UNDERSTATEMENT IS NON-UNIFORM, WHICH IS WHY IT MATTERS.** gemini-2.5-flash 2.78 % -> 6.67 % is
+a **2.4x** correction while sonnet-5 is unchanged at 0 %. A non-uniform bias does not shift a
+capability gradient, it **re-orders** it — and the ordering is the finding.
+
+### THE RESULT THAT WILL SURPRISE A READER — and it is a finding, not a defect
+
+The CONFIRMATORY author sits **8th of 11** at 12.00 % per-slot, and **21 of its 22 failure rows are
+`author_reject: ast_gate`**. That is almost entirely OUR ALLOWLIST, not Opus 5's ability: execution
+record **§87.2** already established that `.resize` missing from a 338-name attribute allowlist cost
+13 candidates campaign-wide, **12 of them on the CORE line**, *direction unfavourable to us*, and
+that 12 of the 20 core-line `ast_gate` rejects examined then were exactly that. **⛔ Never quote a
+bare core-line rate; report the author/node split, and say whose gate rejected it.**
+
+### ⛔ THE CONFIRMATORY ANALYSIS IS NOT AFFECTED, and saying so precisely is the point of this entry
+
+`scripts/analyze_campaign.py:1062` reads `n_failed = _count_jsonl_lines(prov / "failures.jsonl")`,
+with `prov` from `_find_arm_provenance_dir` (`:974-985`) which probes `root/<arm>` then
+`root/search/<arm>` — the core line's real ledger. `grep -rn "_rejects" scripts/analyze_campaign.py`
+returns **zero hits**; repo-wide the only marker readers are `campaign.py`, `run_one.py`, `poll.py`,
+`killswitch.py` and `campaign_guards.py`. **The defect is confined to the monitoring layer and to the
+prose that quotes it.**
+
+### THE FIX (deferred; `scripts/**` is drift-fenced while the campaign is live)
+
+In `rejects_guard`: glob `search*` rather than `search_leg_*`; count from `*/failures.jsonl` (which
+`docs/ops/arm_coverage.py:82` already does); restrict both numerator and denominator to the five LLM
+arms, because the core line's four derivative-free optimiser arms (`random_search`, `bayes_opt`,
+`cma_es`, `tpe`) author no code and must never enter an authoring denominator; report per-SLOT with
+the truncated calls flagged.
+
+**UNTIL THEN, `docs/ops/authoring_reliability.py` IS THE READING OF RECORD.** Its case **E** pins
+this exact defect: an unmarked `author_ast_gate` failure must read 50 %, not the guard's 0 %.
+
+**VERIFICATION AFTER THE FIX:** `scripts/campaign_guards.py <root> rejects` must agree with
+`docs/ops/authoring_reliability.py` line for line, and both must reconcile against
+`analyze_campaign.compute_accounting`.
+
+---
+
+## 25. D35 — `compute_accounting`'s `n_attempted` EXCEEDS THE REGISTERED CANDIDATE BUDGET (found 2026-08-03, RUN 17, by the same auditor)
+
+**File:** `scripts/analyze_campaign.py:1069` — **drift-fenced, NOT edited. This one reaches a REPORTED TABLE.**
+
+```python
+"n_attempted": int(n_accepted + n_failed),
+```
+
+`n_accepted` counts search-candidate RECORDS and `n_failed` counts `failures.jsonl` ROWS, and the two
+sets **overlap on 17 re-authored slots campaign-wide, 4 of them on the core line**. So the
+compute-accounting table — a report-only R35 deliverable that goes into the PDF — will state
+
+```
+placebo        n_attempted = 33      against a REGISTERED candidate budget of 30
+scalar_cvar5   n_attempted = 31      against a REGISTERED candidate budget of 30
+```
+
+**A reported number that exceeds the frozen budget is exactly the kind of thing an adversarial
+examiner opens the appendix to check.** It touches NO confirmatory verdict — `n_attempted` feeds only
+the accounting table's own arithmetic and the matched-compute disclosure — but it makes a
+matched-budget claim look violated when it is not.
+
+**THE FIX:** `n_attempted` must be the SLOT count, `|ids(accepted) UNION ids(failed)|`, not the sum.
+`docs/ops/authoring_reliability.py::scan` implements exactly that and lands every completed leg on
+150 = 5 x 30, which is the acceptance test.
+
+**WHY DEFERRED:** `scripts/**` is drift-fenced while the campaign is live, and the analysis does not
+run until the campaign ends — so there is no reason to take drift now. **Fix it BEFORE the headline
+analysis, in the same pass as D32.**

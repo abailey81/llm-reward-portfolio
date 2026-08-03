@@ -113,20 +113,22 @@ for p in glob.glob(os.path.join(root,'driver_*.log')):
     if age>worst[1]: worst=(tag, age)
 print(('%d min (%s)' % (int(worst[1]), worst[0])) if worst[1]>=0 else '?')" 2>/dev/null || echo "?")
 
-# STAGE: furthest generation reached per arm, across all twelve lines
-stage=$(python -c "
-import glob, json
-from collections import defaultdict
-ARMS=('distributional','scalar','placebo','scalar_cvar5','placebo_shuffled')
-g=defaultdict(int); n=defaultdict(int)
-for p in glob.glob('outputs/campaign_cluster_run4/**/record.json', recursive=True):
-    try: r=json.load(open(p, encoding='utf-8'))
-    except Exception: continue
-    a=r.get('arm')
-    if a in ARMS and isinstance(r.get('generation'), int):
-        g[a]=max(g[a], r['generation']); n[a]+=1
-for a in ARMS:
-    print('| %s | g%d of 5 | %d |' % (a, g.get(a,0), n.get(a,0)))" 2>/dev/null || echo "| (stage scan unavailable) | | |")
+# STAGE + LADDER. Both now come from docs/ops/status_stage.py, which reads DIRECTORY NAMES and
+# opens no record at all.
+#
+# *** 2026-08-03 (RUN 17, record s.125.3). THE INLINE SCAN THIS REPLACES WAS BROKEN TWICE OVER. ***
+# (1) COST: it `json.load`ed EVERY record.json in the archive to read two fields -- MEASURED at
+#     67.8 s over 9,027 records, run roughly once a MINUTE by publish_loop.sh, growing linearly,
+#     CONCURRENTLY with cycle.py's own full-archive sweep (already SWEEP-BOUND at 100-270 s). That
+#     is P194 live: a monitor loading the monitor it runs beside. The replacement costs 0.48 s.
+# (2) CORRECTNESS: it matched the record's `arm` field campaign-wide, so the "candidates so far"
+#     column ADDED EVERY SEALED-TEST SEED of the same arm -- `distributional` published 2,136 when
+#     only 1,516 search candidates exist in the whole campaign. A search-stage column silently
+#     including test records made the search look ~40% further along than it is.
+stage=$(python docs/ops/status_stage.py --stage 2>/dev/null) || stage=""
+stage=${stage:-"| (stage scan unavailable) | | |"}
+ladder=$(python docs/ops/status_stage.py --ladder 2>/dev/null) || ladder=""
+ladder=${ladder:-"| (ladder unavailable this cycle) | | | | |"}
 
 # cluster side (best effort - a failed ssh must not stop the status publish)
 # ⚠ ConnectTimeout 20 -> 30 (2026-08-03). An explicit -o here OVERRIDES ~/.ssh/config, so this
@@ -163,7 +165,7 @@ import os, time
 p='docs/ops/watch/CYCLE_LOG.md'
 print(int((time.time()-os.path.getmtime(p))/60) if os.path.exists(p) else -1)" 2>/dev/null || echo "-1")
 if [ "$cage" -lt 0 ]; then cnote="no cycle log yet"
-elif [ "$cage" -gt 10 ]; then cnote="**last monitoring cycle was $cage min ago -- the 30-second cadence has lapsed**"
+elif [ "$cage" -gt 10 ]; then cnote="**last monitoring cycle was $cage min ago -- the loop has lapsed**"
 else cnote="last monitoring cycle $cage min ago"; fi
 
 cat > docs/RUN4_STATUS.md <<EOF
@@ -199,47 +201,81 @@ Per-rung ETAs from the registered model at the cores we actually hold:
 $etas
 \`\`\`
 
-### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
+### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
 
-**Yes, and the limit is our own experiment, not the cluster.** Checked at every layer:
+**Yes, and the reason changed.** This block used to say the limit was our own experiment having
+nothing more to submit. **That is no longer true and has been replaced with what was measured** -- we
+now hold a deep backlog we cannot place, and the binding constraint is UCL's fair-share policy, which
+is not ours to change.
 
-* **Right now (search phase):** there is room on pool d for **303 more of our jobs**, and we only have
-  about **100 waiting**. We are not being held back - we have nothing more to submit. During the search
-  each arm must wait for all 5 of its candidates to finish before it can write the next 5, so the
-  ceiling is the 6-round chain, not the hardware.
-* **Memory and disk block ZERO hosts.** Both were fixed/checked; neither costs us anything now.
-* **At the seed-ladder phase (where cores really matter):** we could place about **900 jobs (~7,200
-  cores)**, and the timing model stops improving past **~4,600 cores** - so we will have about **1.6x
-  more capacity than we can even use**.
-* **We have already proved it:** we held **over 1,000 cores for ~14 hours straight, peaking at 1,664** -
-  and that was while still carrying two problems that have since been fixed (a 19.5x oversized memory
-  request, and a priority setting that put us below every other user). Both are gone, so the ladder
-  should do better than that.
-* **Everything else has been tried and measured:** more threads makes it SLOWER (and would break
-  reproducibility), a wider pool buys 4% but reintroduces a hardware-mixing problem, and priority is
-  already fixed and now above the cluster average.
+* **The jobs ARE assignable and we still do not get the slots.** \`qalter -w p\` on a real pending job
+  returns *"found possible assignment with 8 slots"*; \`qquota -u ucestes\` is EMPTY, so no quota caps
+  us; every host has 105-167 GB free; **2,576 cores are placeable** -- and our core count stays
+  pinned. That combination has exactly one explanation: **functional fair-share by user**
+  (\`policy_hierarchy OSF\`, \`weight_tickets_functional 500000000\` against \`share 10000\`, 6+ active
+  users). More users on the cluster means a smaller share each, and that is the whole story.
+* **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.** \`qdel\` on our
+  own running jobs would destroy up to 15 h of irreplaceable work each; \`qalter\` on the parallel
+  environment is refused site-wide by the JSV; raising priority is operator-only; and **lowering our
+  own priority is permitted but INERT** (\`npprior\` is 0.500 for every job on the cluster, so the
+  weight cancels out) **and ONE-WAY** -- \`qalter -p 0\` is denied, so it cannot be undone. Widening the
+  pool buys 2-4% and memory 0.7%, and both need a twelve-line relaunch of a live campaign.
+* **And there is no waste to reclaim on the other side of the equation.** The 8.8% gate-failure rate
+  counts candidates rejected BEFORE any training is submitted (one LLM call, not a 15 h training),
+  and **zero trainings have been lost**: every completed ladder -- gemini's five arms and h3 -- has
+  568 seeds with **ZERO holes**, as does every 30-seed line.
+* **Memory and disk block ZERO hosts.** Memory was never scarce at all (160 GB free per host); the
+  three separate investigations that "fixed" it were fixing a non-problem.
 
-**Bottom line: buying more hardware cannot make this finish sooner.** The remaining wait is the
-experiment's own serial structure. The seed ladder is tiered (30 -> 189 -> ... -> 568) and the stop date
-is fixed, so if capacity ever fell short we would simply report at a lower rung - a valid, pre-registered
-result, never a failure.
+**Bottom line: buying more hardware cannot make this finish sooner, and neither can any setting we
+control.** The seed ladder is tiered (30 -> 189 -> ... -> 568), a truncated run banks the largest
+COMPLETED rung, and the stop date is fixed -- so if capacity ever fell short we would simply report at
+a lower rung, which is a valid pre-registered result, never a failure.
 
-## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
+**Why the cores figure sometimes FALLS while everything is healthy.** Two effects superimpose. A
+**completion wave**: every pack-8 job that exits releases 8 slots AND delivers 8 records at once, so
+*cores down with records up is throughput ARRIVING*, not leaving (measured 309 -> 437 -> 469 records/h
+while cores fell 2,320 -> 1,776). And **rising competition**: other users appearing takes share from
+us. A level read without its rate tells the opposite story, which is why the record count and its
+delta sit on every monitoring line below.
 
-Each line's LLM writes 5 reward programs, each is trained once and scored on validation data, the
-results are fed back, and it writes 5 more. Six rounds. A line finishes when its SLOWEST arm does.
-The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phase and has not started
--- that is the phase the experiment's answer comes from, and where thousands of cores get used.
+## Stage -- BOTH phases are running at once
 
-| arm | furthest generation | candidates so far |
+Two things happen per line. **SEARCH:** the LLM writes 5 reward programs, each is trained once and
+scored on validation data, the results are fed back, and it writes 5 more -- six rounds. **SEED
+LADDER:** once a line's five winners are frozen, they are re-trained on the SEALED data at 30, 100,
+189, 279, 340, 403 and finally 568 seeds. **The ladder is NOT a future phase -- it is running now,
+and two lines have already finished the whole thing.**
+
+| arm | furthest generation | search candidates so far |
 |---|---|---|
 $stage
 
+### The seed ladder, live -- and the top row IS the reported result
+
+Under the registered rule (R101) every model climbs ONE ladder together and the result is the
+**COMMON RUNG: the MINIMUM over every frozen arm of every line.** So work done by the deepest line
+adds NOTHING to the headline until the shallowest catches up, and the top row of this table is the
+number the dissertation reports.
+
+| line | **deepest rung ALL its arms have reached** | its best arm | frozen arms | note |
+|---|---|---|---|---|
+$ladder
+
+A line reading **0** is MID-FILL, not stuck: its \`distributional\` and \`scalar\` arms are tested last,
+behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
+line with zero jobs RUNNING **and** zero QUEUED -- \`docs/ops/line_balance.py\` watches exactly that
+and currently reads CLEAN.
+
 ## Results so far
 
-Only the 11 hand-written comparison rewards have been scored on sealed data (30 seeds each). **The
-LLM-written rewards have not been tested yet** -- that is the next phase, and it is the actual
-experiment. No hypothesis has been looked at.
+**No treatment outcome has been looked at, and none may be** -- the confirmatory analysis is
+pre-registered to run ONCE, at the end, at whatever rung is reached. Every monitoring instrument is
+effect-blind by construction.
+
+What IS reported below is the **hand-written comparison canon (H1)** -- 11 human-designed rewards,
+30 seeds each. These are the BASELINES the LLM is measured against, not the experiment. (LLM-arm
+sealed-test records also exist and are counted in the ladder above; their SCORES have not been read.)
 
 | | Sharpe | note |
 |---|---|---|
@@ -252,7 +288,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 30-second cycle ($cnote)
+## Monitoring -- the cycle ($cnote)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -294,6 +330,21 @@ exposure. Detail: record section 49.
 
 ## Needs Tamer
 
+* **\`qdel 66103 66104 66105 66106 66107 66108 73026 73027\`** -- eight dead jobs (6 \`sshorig\`, 2
+  \`cpuprobe13\`) that sit at the very TOP of our pending queue (priority 2.00440 against every real
+  job at 2.00430), each holding a scheduler RESERVATION, each demanding a host that is unavailable or
+  refuses us. **None can ever run**, and they occupy 8 of our 1,000-job cap. \`qdel\` is blocked for
+  the agent, so only you can clear them. Priced honestly: this buys **no ETA** while we are
+  core-limited rather than job-limited -- it removes a crash-loop risk if we approach the cap again.
+* **The R115 disclosure decision.** The frozen registration defends the 10% winner-eligibility floor
+  as *"THRESHOLD-INSENSITIVE ... a 96x EMPTY GAP"*. **That gap has since FILLED**: at the tier where
+  the rule acts, 15 of 60 (line, arm) groups now have a DIFFERENT eligible set across the band the
+  registration calls identical, and one frozen winner IS the 9.08% candidate. **The VALUE is safe** --
+  it was pre-committed before any campaign data existed and the rule never reads a performance number,
+  so it is not a forking path. What is wrong is the JUSTIFICATION, and both files are inside the
+  freeze hash, so it cannot be edited. **The choice is yours: a dated amendment row, or a stated
+  Limitation. The threshold itself must NOT be changed** -- that would turn a presentational fix into
+  a post-data forking path.
 * **A12 -- the public OSF/Zenodo DOI deposit** (about 10 minutes; everything is staged in
   docs/A12_DEPOSIT_PACKAGE.md). A registered freeze-day obligation that is currently unmet.
 
