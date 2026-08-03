@@ -180,6 +180,20 @@ verified against real UTC. **The escape hatch named a file that does not work:**
 `REVIVE_<line>` while the code tests `REVIVE_<safe>` (dots → underscores), so for **9 of 12 lines**
 following it literally would have done nothing, silently. It now prints the real filename.
 
+### ⑫ P210 — THE PANEL TAMER ACTUALLY READS COUNTED LOG FILES, NOT LINES
+
+`publish_status.sh` derived "lines up" from `ls driver_*.log | wc -l`. **A driver log exists forever
+once created**, so the phone panel printed **"12 / 12" permanently** and would have printed 12 / 12
+**with every line dead** — P203's defect in the most user-visible place, silently contradicting the
+new census which was correctly reporting `up=10`. Now counts RUNNING supervisors against the roster
+and NAMES any COMPLETE / REVIEW-GATE / MISSING line, via `session_preflight.py --line-summary`
+reusing the census predicate (one shared `_fleet_state()`), with a labelled fallback so a degraded
+mode is visible not silent. Live: **`10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)`**.
+
+*Four instruments counted this fleet and three could not detect a dead line. **P203, P209 and P210
+are one defect wearing three costumes** — when a counter is found wrong, audit every other place the
+same quantity is derived.*
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

@@ -62,7 +62,17 @@ print(f'{t:.4f}')" 2>/dev/null || echo "0")
 timeouts=$(grep -hcE 'ssh_timeout_diagnostic|TimeoutExpired' "$ROOT"/driver_*.log 2>/dev/null \
              | awk '{s+=$1} END{print s+0}')
 timeouts=${timeouts:-0}
+# P210 (2026-08-03): this used to be `ls "$ROOT"/driver_*.log | wc -l` -- it counted LOG FILES, and
+# a driver log exists FOREVER once created. So this panel printed "12 / 12" permanently and would
+# have printed "12 / 12" with every single line dead. It is the number Tamer reads to know the
+# campaign is alive, and it was structurally incapable of reporting a dead line: the P203 defect in
+# the most user-visible place. It now counts RUNNING supervisors against the roster and names any
+# line that is COMPLETE, at the REVIEW GATE, or MISSING -- reusing the census predicate rather than
+# re-deriving a fourth copy. Falls back to the old count if the helper cannot run, so the page never
+# breaks; the "(log files)" label makes that degraded mode obvious rather than silent.
 drivers=$(ls "$ROOT"/driver_*.log 2>/dev/null | wc -l)
+linestat=$(python docs/ops/session_preflight.py --line-summary 2>/dev/null) || linestat=""
+[ -z "$linestat" ] && linestat="$drivers / 12 (log files -- live census unavailable)"
 guards=$(python scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
 gnames=$(python scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
 # *** 2026-07-31 (record 76.4): the default was `none`, which is FALSE-REASSURING. `gnames` is only
@@ -146,7 +156,7 @@ back what it did.
 | | |
 |---|---|
 | elapsed | **$HM** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
-| lines up | **$drivers / 12**, all five arms submitted on **$armsfull of the 10 leg lines** (h3ss is single-arm by design) |
+| lines up | **$linestat**, all five arms submitted on **$armsfull of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **$freshest min** old (above ~30 would mean a line has stopped progressing) |
 | records archived | **$records** |
 | LLM calls / spend | $calls / **\$$spend** |

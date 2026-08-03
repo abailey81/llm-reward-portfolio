@@ -219,36 +219,13 @@ def _check_line_census(procs) -> None:
     INDEPENDENT observer, so reading the watchdog's own verdict would go blind the moment the
     watchdog itself died. If you change one predicate, re-check the other.
     """
-    launcher = os.path.join(REPO, "scripts", "mode_d_launch.ps1")
-    try:
-        with open(launcher, "r", encoding="utf-8", errors="replace") as fh:
-            src = fh.read()
-    except OSError as exc:
-        add("line_census", ATTN, f"cannot read the roster from mode_d_launch.ps1: {exc}")
+    roster, alive, states = _fleet_state()
+    if roster is None:
+        add("line_census", ATTN, f"could not determine the fleet: {alive}")
         return
-    m = re.search(r"\$lines\s*=\s*@\((.*?)\)", src, re.S)
-    if not m:
-        add("line_census", ATTN, "could not parse $lines from mode_d_launch.ps1 — roster unknown")
-        return
-    roster = re.findall(r'"([^"]+)"', m.group(1))
-    if not roster:
-        add("line_census", ATTN, "roster parsed as EMPTY from mode_d_launch.ps1")
-        return
-
-    alive = set()
-    for _pid, _ppid, nm, cl in procs:
-        if "powershell" in nm and re.search(r"-File .*mode_d_supervisor\.ps1", cl):
-            hit = re.search(r"-Line\s+(\S+)", cl)
-            if hit:
-                alive.add(hit.group(1))
-
-    out_dir = os.path.join(REPO, "outputs", "campaign_cluster_run4")
-    missing, complete, gate = [], [], []
-    for line in roster:
-        if line in alive:
-            continue
-        state = _line_terminal_state(out_dir, line)
-        {"COMPLETE": complete, "GATE": gate}.get(state, missing).append(line)
+    missing = sorted(k for k, v in states.items() if v == "MISSING")
+    complete = sorted(k for k, v in states.items() if v == "COMPLETE")
+    gate = sorted(k for k, v in states.items() if v == "GATE")
 
     bits = [f"roster={len(roster)} up={len(alive)}"]
     if complete:
@@ -263,6 +240,49 @@ def _check_line_census(procs) -> None:
     if gate:
         bits.append("-- a REVIEW-GATE line needs a human decision, not a relaunch")
     add("line_census", status, "  ".join(bits))
+
+
+def _fleet_state():
+    """(roster, alive, {absent_line: state}) or (None, reason, None).
+
+    Factored out so `_check_line_census`, `line_summary` and any future caller share ONE
+    derivation. Enumerates its own processes rather than taking `procs`, so it is usable from a
+    bare `--line-summary` invocation.
+    """
+    launcher = os.path.join(REPO, "scripts", "mode_d_launch.ps1")
+    try:
+        with open(launcher, "r", encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+    except OSError as exc:
+        return None, f"cannot read the roster from mode_d_launch.ps1: {exc}", None
+    m = re.search(r"\$lines\s*=\s*@\((.*?)\)", src, re.S)
+    if not m:
+        return None, "could not parse $lines from mode_d_launch.ps1 — roster unknown", None
+    roster = re.findall(r'"([^"]+)"', m.group(1))
+    if not roster:
+        return None, "roster parsed as EMPTY from mode_d_launch.ps1", None
+
+    try:
+        import psutil  # type: ignore
+    except Exception as exc:  # noqa: BLE001
+        return None, f"psutil unavailable: {exc}", None
+    alive = set()
+    for p in psutil.process_iter(["pid", "name", "cmdline"]):
+        try:
+            cl = " ".join(p.info.get("cmdline") or [])
+        except Exception:  # noqa: BLE001
+            continue
+        if p.info["pid"] == os.getpid():
+            continue
+        if "powershell" in (p.info.get("name") or "").lower() and \
+                re.search(r"-File .*mode_d_supervisor\.ps1", cl):
+            hit = re.search(r"-Line\s+(\S+)", cl)
+            if hit:
+                alive.add(hit.group(1))
+
+    out_dir = os.path.join(REPO, "outputs", "campaign_cluster_run4")
+    states = {ln: _line_terminal_state(out_dir, ln) for ln in roster if ln not in alive}
+    return roster, alive, states
 
 
 def _line_terminal_state(out_dir: str, line: str) -> str:
@@ -462,5 +482,35 @@ def main(argv: list[str]) -> int:
     return {OK: 0, ATTN: 1, FAIL: 2}[worst]
 
 
+def line_summary() -> int:
+    """One line of honest fleet accounting, for `publish_status.sh`'s phone panel.
+
+    ⚠ WHY (P210, 2026-08-03). That panel read its "lines up" from
+    `drivers=$(ls driver_*.log | wc -l)` — it counted LOG FILES, and a driver log exists forever
+    once created. **It therefore printed "12 / 12" permanently and would have printed "12 / 12"
+    with every single line dead.** It is the instrument Tamer actually reads to know the campaign is
+    healthy, and it was structurally incapable of reporting a dead line: P203's defect in the most
+    user-visible place. Reuses the census predicate rather than re-deriving a fourth copy.
+    """
+    roster, alive, states = _fleet_state()
+    if roster is None:
+        print("? / ?")
+        return 1
+    done = sorted(k for k, v in states.items() if v == "COMPLETE")
+    gate = sorted(k for k, v in states.items() if v == "GATE")
+    missing = sorted(k for k, v in states.items() if v == "MISSING")
+    bits = [f"{len(alive)} / {len(roster)} running"]
+    if done:
+        bits.append(f"{len(done)} COMPLETE ({', '.join(done)})")
+    if gate:
+        bits.append(f"{len(gate)} AT THE REVIEW GATE ({', '.join(gate)})")
+    if missing:
+        bits.append(f"**{len(missing)} MISSING ({', '.join(missing)})**")
+    print("; ".join(bits))
+    return 0
+
+
 if __name__ == "__main__":
+    if "--line-summary" in sys.argv[1:]:
+        raise SystemExit(line_summary())
     raise SystemExit(main(sys.argv[1:]))

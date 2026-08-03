@@ -17106,3 +17106,25 @@ the write-up's primary sources, a one-hour lie in a timestamp is not cosmetic. N
 nine of the twelve lines, following the instruction literally would have done **nothing, silently**.
 The message now prints the real filename and directory: `REVIVE_gemini-2_5-flash`, not
 `REVIVE_gemini-2.5-flash`.
+
+### 115.11 P210 — THE PANEL TAMER ACTUALLY READS COUNTED LOG FILES, NOT LINES
+
+`docs/ops/publish_status.sh` derived its headline "lines up" from
+`drivers=$(ls "$ROOT"/driver_*.log | wc -l)`. **It counted LOG FILES, and a driver log exists
+forever once created.** So the phone panel printed **"12 / 12" permanently** — and would have
+printed "12 / 12" with every single line dead. This is the number Tamer checks to know the campaign
+is alive, and it was structurally incapable of reporting a dead line: **P203's defect in the most
+user-visible place in the project.** It also silently contradicted the new census, which was
+correctly reporting `up=10`.
+
+It now counts RUNNING supervisors against the roster and NAMES any line that is COMPLETE, at the
+REVIEW GATE, or MISSING, via a new `session_preflight.py --line-summary` that reuses the census
+predicate rather than re-deriving a fourth copy. The fleet-state derivation was factored into one
+`_fleet_state()` shared by the census and the summary. It falls back to the old count if the helper
+cannot run, labelled `(log files -- live census unavailable)` so the degraded mode is visible rather
+than silent. Verified live: the panel now reads
+**`10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)`**.
+
+*Four instruments counted this fleet and three of them could not detect a dead line. The lesson is
+not "fix the counter" but: **when a defect is found in one counter, audit every other place the same
+quantity is derived** — P203, P209 and P210 are one defect wearing three costumes.*
