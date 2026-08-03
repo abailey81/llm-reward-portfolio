@@ -19403,3 +19403,88 @@ disagreement gets ignored** — re-run it once all three lines have settled and 
 FIVE FOUND MORE IN THE AUTHOR'S WORK THAN THE AUTHOR DID.** This session the auditor found a defect
 *inside the fix written to prevent that class of defect*, and a live false alarm on the operator's
 own status page. **Send one at anything substantial before banking it.**
+
+### 131.13 P234 / P235 — THE STATUS-PAGE ETA SHOWED YESTERDAY, AND MY FIX FOR IT WAS OPTIMISTIC BY ~2x
+
+**Tamer, on seeing the live page: *"please fix eta in the live status, make it very very very precise
+and accurate, its showing yesterday, the dates are wrong."*** He was right, and the fix took two
+attempts because the first one was wrong in three new ways.
+
+**P234 — THE ORIGINAL DEFECT.** `docs/ops/stage_eta.py` computed
+`eta = LAUNCH + timedelta(days=plan_lanes(...).makespan_days)`. `makespan_days` is the duration of
+the **whole campaign from a standing start**, so anchoring it to LAUNCH answers *"when would rung R
+have landed if the entire run had proceeded at today's core count since 2026-07-28 21:08?"* — a
+diagnostic, **not a calendar ETA**. Once elapsed (5.88 d) passed a rung's modelled makespan the
+answer moved into the past and stayed there. Verified first-hand in
+`git show 077995ac:docs/RUN4_STATUS.md`: rungs **30/100/189/279 printed `08-02`** and rung **340
+printed `08-03`**, on a page generated on **08-03**. **An ETA is a statement about the FUTURE.**
+
+**P235 — AND MY REPLACEMENT WAS WORSE IN A MORE DANGEROUS WAY, BECAUSE IT LOOKED RIGHT.** An auditor
+returned **2 CRITICAL and 4 MAJOR** within the hour. All three substantive ones are **one error**:
+*a ratio whose numerator and denominator come from different populations* — the same shape as D34
+and as the cycle-log rate this file's own docstring already condemned.
+
+1. **⚠⚠ CRITICAL — THE CLOCK WAS AN HOUR OUT.** I used `dt.datetime.utcnow().timestamp()`.
+   `utcnow()` returns a **naive** datetime holding UTC, and `.timestamp()` interprets a naive
+   datetime as **LOCAL**. Measured on this host: `utcnow().timestamp() - time.time() == -3600.0`
+   **exactly**. Every window cutoff sat an hour further back, so *"the last 1 h"* reported **the last
+   two hours divided by one** — over-stating the live rate by up to **2.6x**, on the row that serves
+   as the stall detector. **The output was internally impossible and I did not notice:** it claimed a
+   test-only 12 h rate ABOVE the pooled search+test rate in `CYCLE_LOG.md`, and test ⊂ pooled.
+2. **⚠⚠ CRITICAL — THE BACKLOG OMITTED 15 OF THE 71 REGISTERED TEST UNITS.** I summed
+   `line_balance.archive_depths()`, which enumerates **only arms carrying a `frozen*/` marker** — so
+   the **11 `baseline_*` H1-canon arms**, the **3 core DFO arms** (`bayes_opt`/`cma_es`/`tpe`) and
+   **nemotron's unfrozen `scalar_cvar5`** were invisible. `src/cluster/lanes.py` is explicit:
+   `_TEST_UNITS_PER_RUNG = 71`, and its own docstring records that the 11-member H1 canon sitting in
+   the per-rung denominator is *precisely the question amendment R111 had to answer*. Remaining at
+   rung 568 read **24,061 against a true ~32,239 — the headline was built on 75 % of the work.**
+3. **MAJOR — the rate counted work the backlog did not.** The mtime walk covered every `test*` cell
+   including the baselines while `remaining` excluded them.
+4. **MAJOR — total ÷ aggregate-rate hides serialisation, and not hypothetically.** Measured:
+   **80.6 % of the 12 h window came from `test_leg_gpt_5_6_luna`**, a line **8 records short of rung
+   568**, while ~20,000 records sit on lines that produced **zero** in the same window. That is the
+   pipelined line-major C4 path working as designed — but it means the rate's *composition* is not
+   representative of the remaining work. **`docs/ops/WITHDRAWN_CLAIMS.md` W3 withdrew an earlier
+   projection for EXACTLY this, produced by THIS FILE.** I re-created a withdrawn claim's defect in
+   the instrument that caused it.
+5. **MAJOR — no clamp to the critical-chain floor** the same output printed two lines below.
+6. **MAJOR — `cores='?'` (ssh failed) or `'0'` (all jobs queued) raised `ValueError`** and discarded
+   an empirical ETA that had **already been computed** — losing the panel exactly when the operator
+   most needs the throughput number.
+
+**THE FIX (gen 3).** ONE walk (`test_cells`) yields **both** sides of the ratio, so numerator ⊆
+denominator by construction and they cannot drift apart later · the clock is `time.time()` · windows
+are bounded at **both** ends, because this repo has already seen an mtime disagree with reality (the
+reboot left a driver log's mtime ~50 min behind its own content) · the backlog is **reconciled
+against the registered 71** and the shortfall is **added and reported**, never silently dropped ·
+every ETA is **clamped to the critical chain** · a bad core count costs the model table only · and
+the result publishes as a **RANGE with the line-concentration printed**, because a point estimate off
+a line-major peak is the exact thing W3 was withdrawn for.
+
+**LIVE RESULT, AND IT MATTERS:**
+```
+rung 568   remaining 32,239   earliest 2026-08-10 04:14   latest 2026-08-26 13:01
+12 h rate is 80% from ONE line (test_leg_gpt_5_6_luna); 3 lines contributed at all
+```
+**The pessimistic end sits ~11 h inside the Aug-27 stop.** My wrong number said 08-08 with ~19 days
+of margin and hid that entirely. The ladder still fits — but the margin at the slow end is hours,
+not weeks, and that is now visible on the page instead of being an artefact of an hour-wide clock
+error and a quarter of the work going uncounted.
+
+**⚠ AND MY FIRST SELFTEST FOR THE CLOCK BUG WAS ITSELF WRONG.** I wrote a case that **grepped this
+file's own source** for `utcnow().timestamp()` — and it FAILED, because the docstring legitimately
+quotes the bad call while explaining it. **A source scan is a claim about TEXT; the defect is about
+BEHAVIOUR.** Replaced with a real end-to-end control: build a temporary archive holding one record
+aged 1.5 h **by the true clock**, and assert `render()`'s own *"last 1 h"* row reads **zero** — which
+it would not have under the gen-2 cutoff. Selftest **27/27**, ruff clean.
+
+**ALSO FIXED IN THE CONSUMER.** `publish_status.sh` sliced the tool's output with `sed -n '3,12p'` —
+a claim about which LINES of another program's output matter, which any change to that program
+silently shifts. It now calls `--page`, so the contract is a flag. And it no longer sends the tool's
+stderr to `/dev/null`, which had been discarding the cause exactly when the tool failed.
+
+**⇒ THE LESSON, AND IT IS THE SESSION'S SECOND INSTANCE OF THE SAME SHAPE.** P230's fix contained a
+vacuous pass; P234's fix contained a 2x optimism. **Both times the fix was written quickly because
+the DIAGNOSIS was correct, and the diagnosis being correct is exactly what stops you re-checking the
+REPLACEMENT.** A correct diagnosis licenses nothing. **Six auditors, six sessions, and every one of
+them found more in the author's work than the author did.**
