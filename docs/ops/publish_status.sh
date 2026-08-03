@@ -328,7 +328,7 @@ Under the registered rule (R101) every model climbs ONE ladder together and the 
 adds NOTHING to the headline until the shallowest catches up, and the top row of this table is the
 number the dissertation reports.
 
-⚠ **THE TWO NUMBER COLUMNS ARE RECORD COUNTS, NOT REGISTERED RUNGS** (corrected 2026-08-03; the
+!! **THE TWO NUMBER COLUMNS ARE RECORD COUNTS, NOT REGISTERED RUNGS** (corrected 2026-08-03; the
 header used to say "rung" and it was wrong). A count can OVERSTATE the rung an arm actually banks,
 because an arm banks the largest rung whose WHOLE seed prefix it holds: \`gpt-5.6-luna\` held 567
 records with a frontier at seed 567 and banked **189**, not 568, because seeds 192 and 193 were
@@ -347,7 +347,7 @@ line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
 $lbverdict
 \`\`\`
 
-⚠ That line is now **read from the instrument on every publish**. It used to be the fixed sentence
+!! That line is now **read from the instrument on every publish**. It used to be the fixed sentence
 "and currently reads CLEAN" hardcoded in this script, which would have kept telling you CLEAN with a
 line genuinely stuck -- the same shape as the log-file counter P210 replaced. (Corrected 2026-08-03
 after an auditor found it; the alarm also gained a 45-minute dwell requirement that day, because a
