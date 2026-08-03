@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 02:39 UTC -- T+125h30m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 02:41 UTC -- T+125h32m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+125h30m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+125h32m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **6597** |
+| records archived | **6602** |
 | LLM calls / spend | 2946 / **$45.4831** |
 | transport timeouts | **31** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -72,11 +72,11 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 1650 |
-| scalar | g5 of 5 | 1056 |
+| distributional | g5 of 5 | 1651 |
+| scalar | g5 of 5 | 1058 |
 | placebo | g5 of 5 | 1187 |
 | scalar_cvar5 | g5 of 5 | 1154 |
-| placebo_shuffled | g5 of 5 | 1152 |
+| placebo_shuffled | g5 of 5 | 1154 |
 
 ## Results so far
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T02:25:32Z  RED  records=6544 (+2)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=54.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:26:56Z  RED  records=6548 (+4)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=21B  sweep=54.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:28:21Z  RED  records=6554 (+6)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.8m  drift=0  sci=OK  r115=21B  sweep=53.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:29:45Z  RED  records=6560 (+6)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=52.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:31:08Z  RED  records=6570 (+10)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.6m  drift=0  sci=OK  r115=21B  cores=2320  sweep=440.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:39:00Z  RED  records=6597 (+27)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=9.5m  drift=0  sci=OK  r115=21B  sweep=66.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T02:40:36Z  RED  records=6601 (+4)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=11.4m  drift=0  sci=OK  r115=21B  sweep=67.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
