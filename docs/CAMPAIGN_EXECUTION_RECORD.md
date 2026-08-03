@@ -19557,3 +19557,41 @@ removed, and the property is now pinned by selftest **H1**. Selftest **33/33**, 
 PROCESS, AND IT INHERITS THAT PROCESS'S QUANTUM.** Sampling a burst process faster than its burst
 period does not measure it more precisely — it measures the gaps. The 1 h row was not wrong as an
 observation; it was wrong as an INPUT, and I used it as one.
+
+### 131.15 CORRECTION TO §131.14 — I PUBLISHED A VOLATILE BOUND AS A SETTLED STATEMENT
+
+**§131.14 asserted:** *"403 — THE REGISTERED PRIMARY TARGET | 2026-08-08 | 2026-08-24 | **yes, under
+BOTH assumptions**"*. **That table overstates what the evidence supports, in four ways an auditor
+identified and I confirmed:**
+
+1. **NO GENERATED-AT STAMP.** An ETA is a function of the moment it was computed; a table without a
+   timestamp reads as a standing fact. The page it came from was generated 19:22 UTC.
+2. **SILENTLY ROUNDED.** The page read **08-23 21:53** for rung 403 and **09-01 20:29** for 568; I
+   wrote 08-24 and 09-02. Conservative in direction, but unstated — and the whole discipline here is
+   that a number arrives with its provenance.
+3. **THE BOUND IS VOLATILE.** Measured over ONE 30-minute interval (19:22 → 19:52) the go-forward
+   rate moved 46 → 53 rec/h and rung 403's latest moved **08-23 → 08-21**, rung 568's **09-01 →
+   08-29**. A "pessimistic bound" that swings 2–3.5 days in half an hour does not support the words
+   *"safe under BOTH assumptions"*.
+4. **AND IT WAS NOT A NO-REDIRECTION BOUND AT ALL** (§131.16 / P239): at the time it applied a
+   fleet-wide rate to a per-rung backlog, so it assumed one line would burn down a 32,000-record
+   backlog that includes 5,918 records for baselines whose line has **not entered C4** and 5,112 for
+   9 units with no directory at all.
+
+**THE CORRECTED STATEMENT, and it is deliberately weaker:**
+
+> As of **2026-08-03 20:1x UTC**, with the corrected per-rung model, rung **403** projects between
+> **08-08** (perfect redirection of freed slots) and **08-19** (finishing line's slots not reused),
+> and rung **568** between **08-10** and **08-26**. **Both fit the 27 Aug stop on today's rates.**
+> **But 92 % of the rung-568 backlog sits on cells that produced NOTHING in the measurement window**,
+> gated by the core line's C1 serial chain and the C3 review gate — and **no ETA column models when
+> that starts.** The right reading is therefore: *nothing currently indicates the primary target is
+> at risk, and the dominant uncertainty is a stage barrier rather than throughput.* Re-derive before
+> quoting; do not treat any of these dates as settled.
+
+**⇒ THE RULE THIS EARNS, and it belongs beside "never overstate the result": AN ESTIMATE INHERITS
+THE VOLATILITY OF ITS INPUTS.** Publishing a bound without its timestamp, its dispersion, or the
+assumption it rests on converts a live measurement into a claim — which is precisely the failure the
+project's own uncertainty discipline (CLAUDE.md, D1/D2: *every number arrives with its mechanism, its
+uncertainty and its counterfactual*) exists to prevent. **I applied that standard to the dissertation
+and not to my own operational reporting.**
