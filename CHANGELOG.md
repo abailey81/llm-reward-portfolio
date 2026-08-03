@@ -188,11 +188,70 @@ alike, so it cannot drift), prints the ratio so the number is checkable, and its
 which used to advise *"unless the archive moves"* — now carries the PROHIBITION instead. ruff clean;
 printed output re-checked ASCII-only after I put a non-ASCII glyph in a `print()` (the cp1251 rule).
 
-**FUTURE.** (1) **The disk ceiling is CLOSED** — the pagefile move is now OPTIONAL headroom, not a
-requirement. (2) **Tamer: the gateway test** for Myriad source-specificity, and a UCL report if it
-also resets. (3) Fix the D18 nested-dir admission in `load_campaign_records` before the headline
-analysis. (4) Cores work is blocked until ssh returns. (5) When the lines are next relaunched, fix
-D-RUN15-1 (the driver's startup path has no transport-outage tolerance).
+### ⑧ ★★★★★ THE OUTAGE IS RESOLVED — ROOT CAUSE WAS THE **VPN POOL**, AND MYRIAD WAS NEVER DOWN
+
+**RESOLVED 2026-08-03 00:31:59Z, after 7 h 24 m.** Every refused attempt originated from
+**`10.151.114.x`** (`.48`, later `.53`). A VPN reconnect that landed on **`10.151.109.237` — a
+DIFFERENT pool — restored all three login nodes instantly**, on the first probe.
+
+```
+before : 10.151.114.53  -> 193.60.252.107/.108/.109  RESET, no banner
+after  : 10.151.109.237 -> all three                 SSH-2.0-OpenSSH_7.4   SERVING
+```
+
+**⇒ the `10.151.114.0/24` VPN pool lost its route/ACL to `193.60.252.0/24` at 17:08:07Z.**
+**★ THE TRAP, AND IT COST US HOURS: a VPN reconnect only helps if it lands on a DIFFERENT /24.**
+Tamer's first reconnect went `.48 -> .53`, still inside `10.151.114.0/24`, and RUN 14 recorded that
+as "a new IP — still reset", which is what made a client-side cause look excluded. It was excluded
+for the wrong reason. **The recovery procedure is: reconnect, then CHECK THE /24.**
+
+**WHAT THE GATEWAY TUNNEL PROVED BEFORE THE FIX** (Tamer supplied his UCL password and explicitly
+ratified; one latched attempt, no retries, no key-fallback, password read from stdin so it never
+reached the process table or any file):
+
+```
+gateway auth SUCCEEDED -> tunnel to login12 -> SSH-2.0-OpenSSH_7.4, key auth accepted
+256 jobs RUNNING · 421 queued · 6,027 records in Scratch · 462 written in the last 2 h
+filesystem responsive 0.005 s
+```
+
+**So Myriad's sshd was healthy the whole time and the campaign never stopped producing.** That also
+answered the one question that could have turned this outage from "costs nothing" into "costs
+seeds" — whether jobs were stalled on a hung filesystem. They were not.
+Also ruled out first-hand: **`/etc/hosts.deny` is empty of entries with no `10.151.*` line**, so it
+was not TCP wrappers.
+
+**RECOVERY WAS AUTOMATIC AND COMPLETE:** the drivers resumed with no intervention, the backlog
+drained **4,733 -> 6,176 local records** within minutes, and the monitor printed its first positive
+delta in seven hours (`records=5484 (+751)`).
+**★ AND THE COMPRESSION DESIGN IS NOW PROVEN IN PRODUCTION:** records pulled *after* recovery come
+in with `compressed=True`, confirming the root-attribute → `.pull_tmp` inheritance → `os.rename`
+preservation chain works on live traffic, not only in the isolated test.
+
+**A TESTED FALLBACK IS KEPT** — `ssh myriadjump` (ProxyCommand via `ssh-gateway.ucl.ac.uk`,
+key-only, **0.20-0.23 s**) reaches login12 fully non-interactively.
+⚠ **Its ProxyCommand path MUST be Windows-style `C:/Users/...`.** My first version used `$HOME`,
+which Git Bash expands to `/c/Users/User`; Windows OpenSSH cannot resolve that, so **no key was
+offered** and ssh fell through to password prompts, producing a "Too many authentication failures"
+disconnect from a shared university gateway. That was my error, not a UCL block, and it is exactly
+the failure mode Tamer warned about ("if they have a protection system, be very careful"). The
+config block now pins `IdentitiesOnly yes` + `PreferredAuthentications publickey` + `BatchMode yes`,
+which bounds every connection to **at most one** authentication attempt.
+⚠ **The gateway is load-balanced** (`ejp-gateway01`/`02`, an F5 `.gtm.` VIP) with **per-node LOCAL
+homes**, so `authorized_keys` installed on one node is absent on the other. Eight concurrent
+installs all pinned to `gateway01`. The fallback therefore works today but is not guaranteed across
+a node change — it is a diagnostic escape hatch, not a production route, and 11 conn/min of
+automated traffic does not belong on a shared interactive jump host.
+**`Host myriad` was never modified — `ssh -G myriad` shows zero proxy directives**, so the twelve
+live driver lines ran untouched throughout.
+
+**FUTURE.** (1) **The disk ceiling is CLOSED** and (2) **the outage is CLOSED** — neither needs the
+pagefile move, which is now optional headroom. (3) Fix the D18 nested-dir admission in
+`load_campaign_records` before the headline analysis. (4) Cores work is now UNBLOCKED — re-measure
+placeable capacity. (5) When the lines are next relaunched, fix D-RUN15-1 (the driver's startup path
+has no transport-outage tolerance) — it is why `h3` and `nemotron` crash-looped for hours.
+(6) `scratchpad/rc_support_email.txt` was drafted and is **no longer needed to be sent**, but the
+pool-ACL finding is worth reporting to rc-support if it recurs.
 
 ## [2026-08-02f] ★★★★★ BUILDER / RUN 14 CLOSES — **SIX RECORD LAYERS, ALL CLEAN** · the identification itself audited for the first time · **DISM moved the result ceiling 189 → 340, and D29 alone now reaches 568** · a UCL-wide SSH outage, diagnosed and survived · nine of my own errors
 
