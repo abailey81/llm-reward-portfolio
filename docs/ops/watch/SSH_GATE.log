@@ -1,0 +1,19 @@
+2026-08-03T01:15:19Z  reclaimed slot-0 from dead pid 14436
+2026-08-03T01:15:19Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:19Z  reclaimed slot-1 from dead pid 37920
+2026-08-03T01:15:19Z  reclaimed slot-2 from dead pid 45792
+2026-08-03T01:15:19Z  reclaimed slot-3 from dead pid 45464
+2026-08-03T01:15:19Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:19Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:19Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:26Z  reclaimed slot-0 from dead pid 12764
+2026-08-03T01:15:26Z  reclaimed slot-1 from dead pid 45312
+2026-08-03T01:15:26Z  reclaimed slot-2 from dead pid 32220
+2026-08-03T01:15:26Z  reclaimed slot-3 from dead pid 44100
+2026-08-03T01:15:26Z  WAIT 11.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:26Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:26Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:15:26Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:16:59Z  reclaimed slot-0 from dead pid 43768
+2026-08-03T01:16:59Z  reclaimed slot-1 from dead pid 36256
+2026-08-03T01:16:59Z  reclaimed slot-3 from dead pid 28316
