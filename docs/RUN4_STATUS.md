@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 08:30 UTC -- T+131h21m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 08:31 UTC -- T+131h22m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+131h21m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+131h22m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **7542** |
+| records archived | **7554** |
 | LLM calls / spend | 2946 / **$45.4831** |
 | transport timeouts | **31** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **903** (267 running, 636 queued) |
+| cluster jobs | **902** (267 running, 635 queued) |
 | **cores computing** | **2136** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -72,11 +72,11 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 1840 |
-| scalar | g5 of 5 | 1251 |
-| placebo | g5 of 5 | 1361 |
-| scalar_cvar5 | g5 of 5 | 1337 |
-| placebo_shuffled | g5 of 5 | 1355 |
+| distributional | g5 of 5 | 1843 |
+| scalar | g5 of 5 | 1254 |
+| placebo | g5 of 5 | 1365 |
+| scalar_cvar5 | g5 of 5 | 1340 |
+| placebo_shuffled | g5 of 5 | 1358 |
 
 ## Results so far
 
@@ -95,7 +95,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 30-second cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the 30-second cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T08:18:34Z  RED  records=7472 (+28)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=21B  sweep=122.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T08:21:07Z  RED  records=7491 (+19)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0  sci=OK  r115=21B  sweep=68.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T08:22:46Z  RED  records=7499 (+8)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=69.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T08:24:26Z  RED  records=7510 (+11)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=65.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T08:26:02Z  RED  records=7524 (+14)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=123.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T08:28:35Z  RED  records=7536 (+12)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0  sci=OK  r115=21B  sweep=90.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T08:30:35Z  RED  records=7558 (+22)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=21B  sweep=116.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
