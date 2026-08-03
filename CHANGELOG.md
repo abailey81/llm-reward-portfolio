@@ -194,6 +194,54 @@ mode is visible not silent. Live: **`10 / 12 running; 2 COMPLETE (gemini-2.5-fla
 are one defect wearing three costumes** — when a counter is found wrong, audit every other place the
 same quantity is derived.*
 
+### ⑫ THE BOARD MADE MEANINGFUL: BOTH PERMANENT REDS RUN TO GROUND, AND THE BALANCE QUESTION ANSWERED (record s.116)
+
+**`guard:truncation` — THE HEADLINE FINDING IS SAFE.** It warns *"our cap is contaminating the
+authoring-reliability finding"* and has been CRITICAL for days. Measured: **7 truncations in 2,946
+calls = 0.238%**, all at exactly our 16,384 cap, **all SEARCH-tier, ZERO in the sealed test** — and
+**both anchors of the capability gradient have ZERO**: `qwen3_5_9b` (84% reject, the bottleneck
+anchor) 0/221 and `sonnet_5` (0% reject) 0/255. Real bounded disclosure: 5 of 7 are nemotron, 4 of
+those on its CONTROL arms with none on its treatment arm — an execution-quality asymmetry of the
+same class R115 exists to bound, and confined to search.
+
+**`guard:transport`** — 463 ERRORs / `worst_consecutive=240` are **cumulative-ever totals over an
+append-only ledger**, so it can never go green. Measured: **ZERO ERROR/CRITICAL in the last 2 h**;
+the 240 IS the resolved VPN-pool outage; the last 2 timeouts are the ssh-gate incident RUN 15 fixed.
+**Both guards are P205's shape: a cumulative counter used as a current-state alarm.** Both now
+acknowledged with the measurement and an explicit RE-TRIAGE TRIGGER.
+
+**★ `seed_alignment:CRITICAL` — NOT A FAULT, BUT THE MOST IMPORTANT NUMBER IN THE CAMPAIGN.**
+gemini 568 (COMPLETE) · h3 568 · gpt 106..125 · four lines at 30 · **core/deepseek/glm/kimi/nemotron
+have ELEVEN frozen arms at ZERO records, systematically `distributional` and `scalar`** ⇒ **COMMON
+RUNG = 0** (mid-fill; every block queued). The cluster showed why: **`leg6` held 2,320 of 2,336
+running slots — 99.3% — while NINE lines had zero** and 669 queued. That is s.105.7 at its extreme.
+**IS IT A THREAT? MEASURED: NO.** gemini climbed **rung 30 → 568 in 15.0 HOURS** with the cluster;
+nine lines need ~6-9 days against **~24 remaining**, and leg6's jobs carry h_rt=15h. The sentinel's
+`rung 403` forecast divides by the whole-campaign 56.3 rec/h, dragged down by search and the outage;
+the exclusive-cluster rate is ~180/h. **⇒ NO INTERVENTION** — the only lever on running jobs is
+`qdel`, which would destroy up to 15 h of irreplaceable in-flight work each.
+
+**BUILT `docs/ops/line_balance.py`** — separates **WAITING** (below the deepest rung but with work
+queued/running; benign and normal) from **STUCK** (below it with **zero running AND zero queued**;
+nothing will advance it, and since the common rung is a MINIMUM **one stuck line pins the reported
+result for everyone**). Non-saturating, reports the common rung POSITIVELY, one cheap `qstat` and
+**no `qacct`**, effect-blind, selftest 6/6, watching at 1800 s. Live: **CLEAN**.
+
+### ⑬ P211 — I MADE THE SAME JOIN MISTAKE THREE TIMES, AND THE THIRD WAS IN THE FIX
+
+Measuring the common rung I first dropped zero-record arms from their own denominator (a line with
+2 of 5 arms reported min 30, not 0), then joined `frozen_*/` to `test_*/` **without the `-winner`
+suffix**, manufacturing **56 phantom empty arms** — a number equal to the frozen-marker count, which
+should itself have been the tell. Both caught **before reporting**, by printing a sample of BOTH
+SIDES of the join. **Then `line_balance.py` did it again**: it read the batch tag from the driver
+log's `archives -> search_x/` line, which is **WRAPPED**, so every tag came back empty and **its
+first live run declared all twelve lines STUCK while 2,320 slots were running.**
+**THE REAL FIX WAS THE DEFAULT, NOT THE PARSER:** `jobs.get(tag, (0,0))` turned an unresolved tag
+into "zero jobs" into "STUCK". **Unknown is not zero.** It now reports UNDECIDED and never alarms
+on its own parsing failure — a monitor that cries wolf at itself is the very pathology being removed.
+*(Its selftest also passed 6/6 while the integrated run died on a REPO path needing three `dirname`s,
+not two — P193/P196, third occurrence.)*
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

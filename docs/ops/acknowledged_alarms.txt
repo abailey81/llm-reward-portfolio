@@ -246,3 +246,46 @@ capacity_accumulation:WARN
 # `scalar-g0-c2` at val_fitness 0.2704 with 0.00000 % fallback, so the floor is not even load-bearing
 # there. Zero breaches on the confirmatory core line; the trigger above has NOT fired.
 record_sanity:CRITICAL
+
+# ===== ADDED 2026-08-03 (RUN 16, execution record s.116) - BOTH RUN TO GROUND FIRST =====
+#
+# This file's header forbids adding a line to silence something not run to ground. Both entries
+# below were MEASURED before being written, and each carries its own RE-TRIAGE trigger.
+#
+# --- guard:transport -------------------------------------------------------------------------
+# CRITICAL is driven by CUMULATIVE-EVER counters over an APPEND-ONLY ledger: 463 ERROR lines,
+# 1 CRITICAL and `worst_consecutive=240` are totals since 2026-07-28 and can never return to
+# green, so this guard is structurally incapable of going OK again. Measured 2026-08-03:
+#   * ERROR/CRITICAL lines in the last 2 hours: ZERO.
+#   * worst_consecutive=240 IS the 7h24m VPN-pool outage (17:08:07Z -> 00:31:59Z 2026-08-03),
+#     diagnosed to a cause and RESOLVED - the 10.151.114.0/24 pool lost its route to
+#     193.60.252.0/24; a reconnect onto 10.151.109.237 restored all three login nodes.
+#   * The last two timeout events (01:23Z, 01:25Z) are the KNOWN ssh-gate --max-wait incident
+#     that RUN 15 already fixed by lowering the gate to 12 s.
+#   * The listed ERRORs are the already-handled per-unit crashes (bayes_opt, tpe, cma_es), all
+#     of which resumed - `crash_watchdog.py --once` reads CLEAN.
+# RE-TRIAGE TRIGGER: any NEW ERROR/CRITICAL in the last 2 hours, or timeout_events rising above
+# 31, or `crash_watchdog.py` reporting a dead unit. Remove this line if the guard is ever changed
+# to report a WINDOW rather than a cumulative total.
+guard:transport
+#
+# --- seed_alignment:CRITICAL ------------------------------------------------------------------
+# "paired contrasts will run on 30 common seeds although the deepest arm has 568". This is NOT a
+# fault - it is the campaign's DESIGN under R101, where the reported result is the COMMON rung and
+# the ladder is climbed line by line. It is structurally guaranteed to be CRITICAL from the moment
+# the first line runs ahead until the last line catches up, i.e. for essentially the whole
+# campaign, which is exactly the always-on alarm that let P202 hide for 31 hours.
+# Measured 2026-08-03 (join PROVEN against both sides, after a first attempt got it wrong):
+#   gemini-2.5-flash 568 (COMPLETE, all 5 arms) - h3 568 - gpt-5.6-luna 101..120 -
+#   haiku/qwen3.5-9b/qwen3.6-27b/sonnet-5 at 30 - core/deepseek/glm/kimi/nemotron have 11 frozen
+#   arms still at ZERO sealed-test records, systematically `distributional` and `scalar`.
+# The zeros are MID-FILL, not loss: those blocks are queued, and the arithmetic is comfortable -
+# gemini climbed rung 30 -> 568 in 15.0 HOURS once it held the cluster, so the nine remaining
+# lines need roughly 6-9 days of cluster time against ~24 days remaining.
+# ⚠ ACKNOWLEDGING THE ALARM DOES NOT MEAN IGNORING THE NUMBER. The common rung IS the reported
+# result and remains the single biggest lever on the grade; it is now tracked positively by
+# `docs/ops/line_balance.py` rather than as a permanent red light.
+# RE-TRIAGE TRIGGER: any line BELOW the deepest rung that has ZERO running AND ZERO queued jobs
+# (that line is stuck, not waiting, and one stuck line pins the common rung for everyone), or the
+# common rung failing to advance once the cluster is no longer monopolised by a single line.
+seed_alignment:CRITICAL

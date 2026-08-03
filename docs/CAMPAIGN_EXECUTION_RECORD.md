@@ -17128,3 +17128,133 @@ than silent. Verified live: the panel now reads
 *Four instruments counted this fleet and three of them could not detect a dead line. The lesson is
 not "fix the counter" but: **when a defect is found in one counter, audit every other place the same
 quantity is derived** — P203, P209 and P210 are one defect wearing three costumes.*
+
+---
+
+## 116. RUN 16 (2026-08-03, second pass) — THE TWO PERMANENTLY-RED SIGNALS RUN TO GROUND, AND THE BALANCE QUESTION ANSWERED WITH NUMBERS
+
+**PAST.** §115 fixed the h3 revival churn and the counters that hid it. Two guard verdicts and one
+sentinel CRITICAL were still red every cycle, and had been for days — the precise condition that let
+P202 survive 31 hours. Tamer's standing instruction is to monitor everything deeply and constantly,
+so the correct next move was not to add more monitors but to make the existing board MEAN something.
+
+### 116.1 `guard:truncation` — THE HEADLINE FINDING IS SAFE, AND THE GUARD IS OVERSTATED
+
+The guard prints *"TRUNCATION: our cap is contaminating the authoring-reliability finding"* and has
+been CRITICAL for days. **Measured: 7 truncations in 2,946 LLM calls = 0.238 %.** The guard fires on
+any truncation at all, over an append-only ledger, so it can never return green.
+
+The scientifically decisive question is not the count but WHERE they landed, because the
+authoring-reliability table is the numeracy-bottleneck headline:
+
+```
+line                        truncated / calls          reject rate
+nemotron_3_super                 5 / 284  (1.76%)          19%
+kimi_k3                          1 / 283  (0.35%)           1%
+qwen3_6_27b                      1 / 265  (0.38%)           9%
+qwen3_5_9b   <- BOTTOM ANCHOR    0 / 221  (0.00%)          84%
+sonnet_5     <- TOP ANCHOR       0 / 255  (0.00%)           0%
+```
+
+**BOTH ANCHORS OF THE CAPABILITY GRADIENT HAVE ZERO TRUNCATIONS**, all seven sit at exactly our
+16,384-token cap (so they are OUR cap, not provider-side), and **all seven are SEARCH-tier — zero in
+the sealed test.** The gradient that carries the finding is therefore untouched by our configuration.
+
+**THE BOUNDED DISCLOSURE THAT IS REAL.** Five of the seven are nemotron, and four of those five fall
+on its `placebo` / `placebo_shuffled` control arms while its `distributional` treatment arm has NONE.
+If a truncated response fails to author, nemotron's controls lost slightly more candidates than its
+treatment — an execution-quality asymmetry of the same class as the qwen3.5-9b R115 disclosure
+already on record. It is confined to the SEARCH tier, so it can only have influenced WHICH candidate
+was frozen, never the sealed-test comparison; and R115 exists precisely to bound that channel. Worth
+one honest sentence in the write-up, not a caveat on the finding.
+
+### 116.2 `guard:transport` — CUMULATIVE-EVER COUNTERS PRESENTED AS CURRENT STATE
+
+CRITICAL is driven by 463 ERROR lines, 1 CRITICAL and `worst_consecutive=240`, all **totals since
+2026-07-28 over an append-only ledger**, so the guard is structurally incapable of going green.
+Measured: **ZERO ERROR/CRITICAL lines in the last two hours**; `worst_consecutive=240` IS the 7h24m
+VPN-pool outage already diagnosed and resolved; the last two timeout events (01:23Z, 01:25Z) are the
+known ssh-gate `--max-wait` incident RUN 15 already fixed; and every listed crash resumed
+(`crash_watchdog --once` reads CLEAN).
+
+**BOTH GUARDS ARE THE SAME DEFECT SHAPE AS P205: a cumulative counter used as a current-state
+alarm.** Both are now acknowledged in `docs/ops/acknowledged_alarms.txt` with the measurement and an
+explicit RE-TRIAGE TRIGGER, which is exactly what that file exists for — its header forbids
+acknowledging anything not run to ground, and both now have been. `campaign_guards.py` is in
+`scripts/**` and drift-fenced, so recalibrating them to a WINDOW rather than a total is deferred.
+
+### 116.3 `seed_alignment:CRITICAL` — NOT A FAULT, BUT THE MOST IMPORTANT NUMBER IN THE CAMPAIGN
+
+*"paired contrasts will run on 30 common seeds although the deepest arm has 568 — 95 % of the sample
+is silently lost to misalignment."* This is the R101 design, not damage: the reported result IS the
+common rung, the ladder is climbed line by line, and the alarm is guaranteed CRITICAL from the moment
+the first line runs ahead until the last catches up.
+
+**THE MEASURED STATE** (join PROVEN against both sides — see 116.5):
+
+```
+gemini-2.5-flash   568  COMPLETE, all five arms      h3   568  COMPLETE
+gpt-5.6-luna       106..125                          haiku/qwen3.5-9b/qwen3.6-27b/sonnet-5   30
+core, deepseek, glm, kimi, nemotron   ELEVEN frozen arms still at ZERO sealed-test records,
+                                      systematically `distributional` and `scalar`
+=> COMMON RUNG = 0 (mid-fill, not loss: every one of those blocks is queued)
+```
+
+**AND THE CLUSTER SHOWED WHY:** `leg6` (gpt-5.6-luna) held **2,320 of the 2,336 slots we had
+running — 99.3 %** — while **nine lines had ZERO running** and 669 jobs queued behind it. That is
+the §105.7 submission-order defect at its extreme: the pipelined C4 path submits line-major, so one
+line's deep block outranks every other line's shallow block.
+
+**IS IT A THREAT TO THE GRADE? MEASURED: NO.** `gemini` climbed **rung 30 → 568 in 15.0 HOURS** once
+it held the cluster (568 records on one arm over a 37.8 h span; the 30→568 segment took 15.0 h).
+Nine remaining lines at that rate need roughly **6–9 days of cluster time against ~24 days
+remaining**, and leg6's jobs carry `h_rt=54000` (15 h) so the cluster releases on that timescale.
+**The sentinel's `rung_forecast => rung 403` is pessimistic** because it divides by the
+whole-campaign average (56.3 rec/h), which is dragged down by the C1 search phase and the outage;
+the exclusive-cluster rate measured on gemini is ~180 rec/h.
+
+**⇒ NO INTERVENTION. The only lever on the RUNNING jobs is `qdel`, which would destroy up to 15 h of
+in-flight work per job on irreplaceable data. Waiting is correct, and it is correct on measurement
+rather than on hope.** What matters is that a line never goes from WAITING to STUCK.
+
+### 116.4 WHAT WAS BUILT — `docs/ops/line_balance.py`
+
+Nothing distinguished a line that is WAITING (below the deepest rung but with work queued or
+running — benign, and the normal state under line-major submission) from one that is STUCK (below
+the deepest rung with **zero running AND zero queued** — nothing will ever advance it). Because the
+common rung is a MINIMUM, **one stuck line pins the reported result for the whole campaign**, and
+that alarm does not saturate: in a healthy campaign it is empty. It reports the common rung
+POSITIVELY so the number is tracked rather than merely alarmed about. One cheap `qstat`, **no
+`qacct`** (P204), effect-blind by construction, selftest 6/6, running on a 1,800 s watch.
+
+Live verdict: **CLEAN — every line below the deepest rung has work in flight or queued.**
+
+### 116.5 ⚠ P211 — I MADE THE SAME JOIN MISTAKE TWICE IN TEN MINUTES, AND CAUGHT IT ONLY BY VERIFYING
+
+Measuring the common rung, my first pass built each line's arm map with `if n: arms[arm] = n`, so an
+arm with ZERO sealed-test records was **dropped from its own denominator** — a line showing 2 of 5
+arms reported a minimum of 30 instead of 0. The second pass fixed that and then joined `frozen_*/`
+against `test_*/` **without noticing the `-winner` suffix**, matching nothing and manufacturing
+**56 phantom empty arms** — a number that is exactly the count of frozen-winner markers, which
+should itself have been the tell.
+
+**Both were caught before being reported, by printing a sample of BOTH SIDES of the join before
+trusting it.** That is now the rule: *a join is a claim about two datasets, and it must be proved
+against both before any number derived from it is believed.*
+
+**AND THE INSTRUMENT I BUILT TO FIX THIS MADE A THIRD VERSION OF THE SAME ERROR.** `line_balance.py`
+first read the batch tag from the driver log's `root-suffix ... archives -> search_x/` line — which
+is **WRAPPED** in the log, so the substring never appears contiguously. Every tag came back empty,
+every line then looked like it had zero jobs, and **the first live run declared all twelve lines
+STUCK while 2,320 slots were running.** `vanished_array_watch` already warns in writing that "every
+parsing failure this script has had came from that wrapping".
+
+**THE DEEPER FIX WAS NOT THE PARSER BUT THE DEFAULT.** The code did `jobs.get(tag, (0, 0))`, so an
+unresolved tag became "zero jobs" became "STUCK". **Unknown is not zero.** It now carries -1 for
+"cannot decide" and reports UNDECIDED, never an alarm, when the cluster is unreachable or a tag will
+not resolve. A monitor that cries wolf on its own parsing failure is worse than no monitor — it is
+the alarm-saturation pathology this whole session exists to remove, self-inflicted.
+
+*Also: its selftest passed 6/6 while the integrated run raised `FileNotFoundError` on a REPO path
+that took two `dirname`s where it needed three. P193/P196, third occurrence: a selftest that
+exercises helpers in isolation proves nothing about the wiring.*
