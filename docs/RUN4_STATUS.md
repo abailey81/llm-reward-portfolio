@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:58 UTC -- T+141h49m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 19:00 UTC -- T+141h51m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h49m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9635** |
+| stalest driver log | **3 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9637** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 124 -- a level with no rate; read the row above |
@@ -33,26 +33,26 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:59 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
-test tier: 8,108 records over 61 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-03 19:00 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
+test tier: 8,110 records over 61 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      54 records      54.0 rec/h
-    last  3 h     285 records      95.0 rec/h
-    last 12 h    2475 records     206.2 rec/h
-    last 24 h    4527 records     188.6 rec/h
+    last  3 h     282 records      94.0 rec/h
+    last 12 h    2468 records     205.7 rec/h
+    last 24 h    4524 records     188.5 rec/h
     12 h rate is 79% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
 
 EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE
     because the rate is line-concentrated (fast = 12 h @ 206 rec/h, slow = 1 h @ 54 rec/h):
      rung   remaining  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428  2026-08-03 21:03  2026-08-04 02:54  yes
-      100       4,278  2026-08-04 15:43  2026-08-07 02:12  yes
-      189       9,472  2026-08-05 16:54  2026-08-11 02:23  yes
-      279      14,872  2026-08-06 19:05  2026-08-15 06:23  yes
-      340      18,532  2026-08-07 12:50  2026-08-18 02:10  yes
-      403      22,312  2026-08-08 07:09  2026-08-21 00:10  yes
-      568      32,220  2026-08-10 07:12  2026-08-28 15:39  risk
+       30         428  2026-08-03 21:05  2026-08-04 02:56  yes
+      100       4,278  2026-08-04 15:48  2026-08-07 02:14  yes
+      189       9,470  2026-08-05 17:03  2026-08-11 02:22  yes
+      279      14,870  2026-08-06 19:18  2026-08-15 06:22  yes
+      340      18,530  2026-08-07 13:06  2026-08-18 02:09  yes
+      403      22,310  2026-08-08 07:29  2026-08-21 00:09  yes
+      568      32,218  2026-08-10 07:39  2026-08-28 15:38  risk
     (+10 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
@@ -209,12 +209,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T18:37:36Z  RED  records=9616 (+0)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=94.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T18:39:41Z  RED  records=9621 (+5)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=0.9m  drift=0  sci=OK  r115=22B  sweep=269.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T18:44:41Z  RED  records=9627 (+6)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=281.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T18:49:53Z  RED  records=9632 (+5)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=0.6m  drift=0  sci=OK  r115=22B  sweep=239.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T18:54:22Z  RED  records=9633 (+1)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=22B  sweep=118.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T18:56:51Z  RED  records=9635 (+2)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=3.3m  drift=0  sci=OK  r115=22B  sweep=128.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T18:59:30Z  RED  records=9637 (+2)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  sweep=94.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
