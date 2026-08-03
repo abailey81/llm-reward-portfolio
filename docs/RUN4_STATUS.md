@@ -1,6 +1,7 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 15:56 UTC -- T+138h47m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 16:00 UTC -- T+138h51m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,12 +10,12 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+138h47m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+138h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9341** |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9348** |
 | LLM calls / spend | 2951 / **$45.4853** |
-| transport health | **(transport health unavailable this cycle)** |
+| transport health | **timeouts 6h=81; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 116 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -22,13 +23,13 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **656** (197 running, 459 queued) |
-| **cores computing** | **1576** |
+| cluster jobs | **655** (196 running, 459 queued) |
+| **cores computing** | **1568** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @1576 cores              @830 cores   binding
+ rung             @1568 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
@@ -36,7 +37,7 @@ Per-rung ETAs from the registered model at the cores we actually hold:
   279            4.9 d  08-02            9.3 d  08-07   throughput
   340            5.9 d  08-03           11.1 d  08-09   throughput
   403            6.9 d  08-04           13.0 d  08-10   throughput
-  568            9.5 d  08-07           18.1 d  08-15   throughput
+  568            9.6 d  08-07           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
@@ -100,7 +101,13 @@ Under the registered rule (R101) every model climbs ONE ladder together and the 
 adds NOTHING to the headline until the shallowest catches up, and the top row of this table is the
 number the dissertation reports.
 
-| line | **deepest rung ALL its arms have reached** | its best arm | frozen arms | note |
+⚠ **THE TWO NUMBER COLUMNS ARE RECORD COUNTS, NOT REGISTERED RUNGS** (corrected 2026-08-03; the
+header used to say "rung" and it was wrong). A count can OVERSTATE the rung an arm actually banks,
+because an arm banks the largest rung whose WHOLE seed prefix it holds: `gpt-5.6-luna` held 567
+records with a frontier at seed 567 and banked **189**, not 568, because seeds 192 and 193 were
+missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py` (S15).
+
+| line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
 | test | **0** | 30 | 6 | 2 arm(s) still at zero |
 | deepseek_v4_pro | **0** | 30 | 5 | 2 arm(s) still at zero |
@@ -110,15 +117,25 @@ number the dissertation reports.
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **61** | 83 | 5 |  |
+| qwen3_5_9b | **62** | 86 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
 
 A line reading **0** is MID-FILL, not stuck: its `distributional` and `scalar` arms are tested last,
 behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
-line with zero jobs RUNNING **and** zero QUEUED -- `docs/ops/line_balance.py` watches exactly that
-and currently reads CLEAN.
+line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
+`docs/ops/line_balance.py` watches exactly that, and its live verdict is:
+
+```
+CLEAN -- every line below the deepest rung has work in flight or queued.
+```
+
+⚠ That line is now **read from the instrument on every publish**. It used to be the fixed sentence
+"and currently reads CLEAN" hardcoded in this script, which would have kept telling you CLEAN with a
+line genuinely stuck -- the same shape as the log-file counter P210 replaced. (Corrected 2026-08-03
+after an auditor found it; the alarm also gained a 45-minute dwell requirement that day, because a
+healthy line is legitimately job-less BETWEEN BATCHES for about 20 minutes.)
 
 ## Results so far
 
@@ -141,7 +158,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -158,12 +175,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T15:27:12Z  RED  records=9302 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.4m  drift=0  sci=OK  r115=21B  sweep=183.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:30:46Z  RED  records=9308 (+6)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.4m  drift=0  sci=OK  r115=21B  sweep=366.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:37:22Z  RED  records=9310 (+2)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.8m  drift=0  sci=OK  r115=21B  sweep=202.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:41:15Z  RED  records=9317 (+7)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=294.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:46:40Z  RED  records=9327 (+10)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=407.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:53:58Z  RED  records=9338 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=113.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T15:56:22Z  RED  records=9342 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.2m  drift=0  sci=OK  r115=21B  sweep=148.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -189,12 +206,13 @@ exposure. Detail: record section 49.
 
 ## Needs Tamer
 
-* **`qdel 66103 66104 66105 66106 66107 66108 73026 73027`** -- eight dead jobs (6 `sshorig`, 2
-  `cpuprobe13`) that sit at the very TOP of our pending queue (priority 2.00440 against every real
-  job at 2.00430), each holding a scheduler RESERVATION, each demanding a host that is unavailable or
-  refuses us. **None can ever run**, and they occupy 8 of our 1,000-job cap. `qdel` is blocked for
-  the agent, so only you can clear them. Priced honestly: this buys **no ETA** while we are
-  core-limited rather than job-limited -- it removes a crash-loop risk if we approach the cap again.
+* ~~`qdel` the eight dead jobs~~ **DONE 2026-08-03, on your ratification -- nothing needed from you.**
+  All eight (6 `sshorig`, 2 `cpuprobe13`) deleted, rc=0. **And `qdel` was never actually blocked** --
+  the brief had said so for three sessions and nobody had tested it. The proof they could never run
+  turned out to be mechanical rather than circumstantial: they requested parallel environment
+  `smp-[TBD]`, and `qconf -spl` has no such PE. Before 689 jobs / 1,480 slots, after 680 / 1,488,
+  zero error or held throughout. Priced honestly: **no ETA gain** (we sit well under the 1,000-job
+  cap); the value is crash-loop margin. Record section 126.1.
 * **The R115 disclosure decision.** The frozen registration defends the 10% winner-eligibility floor
   as *"THRESHOLD-INSENSITIVE ... a 96x EMPTY GAP"*. **That gap has since FILLED**: at the tier where
   the rule acts, 15 of 60 (line, arm) groups now have a DIFFERENT eligible set across the band the
