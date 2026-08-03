@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 14:40 UTC -- T+137h31m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 14:42 UTC -- T+137h33m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,9 +9,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+137h31m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+137h33m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (gpt-5_6-luna)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **9255** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport health | **timeouts 6h=81; worst streak 3/240 (1.2% to fatal), ops on core** |
@@ -141,7 +141,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -158,12 +158,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T14:14:24Z  RED  records=9195 (+17)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0  sci=OK  r115=21B  sweep=218.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:18:33Z  RED  records=9199 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=21B  sweep=182.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:22:06Z  RED  records=9216 (+17)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0  sci=OK  r115=21B  sweep=170.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:25:26Z  RED  records=9234 (+18)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=21B  sweep=376.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:32:13Z  RED  records=9239 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=21B  sweep=155.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:35:19Z  RED  records=9248 (+9)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0  sci=OK  r115=21B  sweep=159.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T14:38:29Z  RED  records=9255 (+7)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=3.1m  drift=0  sci=OK  r115=21B  sweep=296.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
