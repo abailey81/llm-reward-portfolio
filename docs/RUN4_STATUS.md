@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 07:25 UTC -- T+130h16m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 07:26 UTC -- T+130h17m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,7 +9,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+130h16m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+130h17m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
 | records archived | **7227** |
@@ -21,20 +21,20 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **936** (285 running, 651 queued) |
-| **cores computing** | **2280** |
+| cluster jobs | **936** (286 running, 650 queued) |
+| **cores computing** | **2288** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @2280 cores              @830 cores   binding
+ rung             @2288 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
   189            4.6 d  08-02            6.5 d  08-04   throughput
   279            4.6 d  08-02            9.3 d  08-07   throughput
   340            4.6 d  08-02           11.1 d  08-09   throughput
-  403            4.8 d  08-02           13.0 d  08-10   throughput
+  403            4.7 d  08-02           13.0 d  08-10   throughput
   568            6.6 d  08-04           18.1 d  08-15   throughput
 ```
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T07:14:54Z  RED  records=7202 (+2)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.2m  drift=0  sci=OK  r115=21B  sweep=65.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T07:16:30Z  RED  records=7205 (+3)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=71.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T07:18:12Z  RED  records=7209 (+4)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=21B  sweep=57.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T07:19:40Z  RED  records=7214 (+5)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=67.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T07:21:18Z  RED  records=7223 (+9)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=21B  sweep=129.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T07:23:57Z  RED  records=7227 (+4)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0  sci=OK  r115=21B  sweep=58.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T07:25:27Z  RED  records=7227 (+0)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=21B  sweep=62.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
