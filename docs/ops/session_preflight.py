@@ -169,15 +169,19 @@ def check_processes() -> None:
     add("processes", OK if (loops and sent and sups) else FAIL,
         f"driver-lines={len(drivers)} supervisors={len(sups)} cycle_loops={len(loops)} sentinel={len(sent)}")
     # ⚠ A DUPLICATE LOOP IS A PERSISTENT CONDITION, NOT A MOMENTARY ONE (P205b, 2026-08-03).
-    # This fired `2 cycle loops` three times on 2026-08-03 while only ONE bash process existed.
-    # The cause is a race this file's own docstring half-anticipates: `cycle_loop.sh` runs
-    # `out=$(python docs/ops/cycle.py ...)`, and a command-substitution subshell INHERITS the
-    # parent's command line, so it is briefly a second candidate. `census` drops a candidate whose
-    # PARENT is also a candidate — which fails in the instant the parent link is not yet
-    # resolvable. A second real loop is started deliberately and persists; a subshell lives for one
-    # sweep. So require the extras to have survived, and a genuine duplicate is still caught on the
-    # very next run. A FAIL that flickers teaches people to ignore FAILs, which is precisely the
-    # alarm-saturation failure that let P202 hide inside a permanently red `guards=2`.
+    # This fired `2 cycle loops` while only ONE independent loop existed. TWO sources, and the
+    # dominant one is the trap in this file's own docstring turned on this file:
+    #   (a) ANY shell whose command line merely MENTIONS cycle_loop.sh is a candidate — including
+    #       the shell an OPERATOR is using to grep for it. Measured 2026-08-03: pid 25040 up 55 h
+    #       (the real loop) plus a 1.0 s shell running the very query that was inspecting it. The
+    #       `os.getpid()` guard above excludes THIS process but not its parent shell.
+    #   (b) `cycle_loop.sh` runs `out=$(python docs/ops/cycle.py ...)`, and a command-substitution
+    #       subshell inherits its parent's command line. Those ARE dropped by the parent rule —
+    #       measured, both were children of 25040 — but only while the parent link resolves.
+    # Both are momentary; a second REAL loop is started deliberately and persists. So require the
+    # extras to have survived 60 s, and a genuine duplicate is still caught on the very next run.
+    # A FAIL that flickers teaches people to ignore FAILs, which is precisely the alarm-saturation
+    # failure that let P202 hide inside a permanently red `guards=2`.
     if len(loops) > 1:
         now, persistent = time.time(), []
         for pid in loops:
