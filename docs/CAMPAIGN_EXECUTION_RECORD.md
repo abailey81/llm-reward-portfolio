@@ -17346,3 +17346,117 @@ engineering decision is to **stop optimising the campaign and protect it instead
 is a MINIMUM, so a single line that dies and is not revived pins the reported result for everyone,
 however fast the other eleven run. That is precisely the failure mode of P202 (h3 revived 278 times
 while nobody counted the lines) and it is now watched on three independent layers.
+
+---
+
+## 118. RUN 16 — A SEVENTH RECORD LAYER, A PROVEN DEFECT IN THE HEADLINE CODE, AND A VACUOUS PASS OF MY OWN
+
+**Tamer's standing item (1):** *"constantly check each record, make sure every record individually is
+very strictly flawless, logical, meaningful."* Re-running the six layers is necessary and not
+sufficient; the harder question is **what NO layer checks.** Answering it required reading an actual
+record end to end rather than trusting the layer roster.
+
+### 118.1 S14 — LENGTH IS NOT PERIOD, AND NOTHING WAS CHECKING THE PERIOD
+
+Reading `test_leg_gemini_2_5_flash/distributional/distributional-s7/record.json` field by field
+surfaced `env_fingerprint.label`:
+
+```
+campaign:distributional:test[3835,5406)|dev=cpu
+```
+
+The **window bounds** are right there, and:
+
+* `record_science_audit` **S2** asserts every sealed-test series is the registered LENGTH (1571);
+* **S8** asserts every test record holds the MODAL number of steps.
+
+**NEITHER CHECKS THE BOUNDS — and `[3835,5406)` and `[3900,5471)` both have length 1571.** Two arms
+scored on different 1571-day periods would pass S2 and S8 while being completely incomparable. That
+would not corrupt any single record; it would corrupt the CONTRAST, which is worse, because every
+per-record check stays green. Comparability across arms at the same seed is the assumption **every
+paired H2 contrast rests on**, and it was unverified.
+
+Built **`docs/analysis/record_window_identity.py` (S14)**, which uses the same label to answer two
+more unasked questions: **W2** device homogeneity across the sealed test read FROM THE RECORDS
+(independent of the submission-time host fence, D15), and **W3** whether the label's arm agrees with
+the record's own `arm` field — a disagreement would put a treatment record into a control pool and
+silently poison the contrast.
+
+**MEASURED, and it is CLEAN on all three:**
+```
+sealed-test records inspected : 5,449
+W1 window : [3835,5406) length 1571 -- ONE window, ALL records, ALL TWELVE lines
+W2 device : {'cpu': 5449}     split: {'test': 5449}
+W3 label-arm vs record-arm mismatches : 0        unparseable labels : 0
+```
+Selftest **7/7 with mutation controls**, including the decisive one: **W1 fires on a second window of
+the SAME LENGTH 1571** — proving the layer catches exactly what S2 and S8 cannot. Effect-blind by
+construction (labels and arm names only; no metric is read).
+
+**All seven layers RC=0 at 7,000 records.**
+
+### 118.2 D32 — THE HEADLINE LOADER ADMITS THE D18 NESTED RECORDS TWICE, PROVEN BY EXECUTION
+
+The RUN16 brief carried this as an action item. It is now **measured rather than asserted**:
+
+```
+record.json on disk (ex .pull_tmp, ex h3_singleshot) : 6,407
+records returned by load_campaign_records           : 6,409
+difference                                          : +2   <- exactly the 2 nested dirs
+```
+
+`_walk` (`scripts/analyze_campaign.py:1152-1181`) loads a directory's record-bearing children via
+`load_all` keyed on `(directory, run_id)` — **and then recurses into those same children**, so a
+nested `x/x/record.json` is admitted again under `(.../x, x)`. **This is the identical failure mode
+the same function already fixed once** for `.pull_tmp` staging, whose own comment warns that
+duplication *"is the harder one to notice because the totals look BETTER, not worse"* and that a
+duplicate *"would enter that arm's PBO population and DSR multiplicity pool twice."*
+
+**Bounded, and the headline is untouched:** both are SEARCH tier, **zero in the sealed test**, both
+byte-identical, so no value diverges and no H2 contrast, CRN pairing or rung is affected. What they
+reach is PBO enumeration, DSR multiplicity pools and per-arm search statistics for
+`glm-5.2/placebo_shuffled` and `haiku-4.5/scalar`. Registered as **D32** with the exact one-condition
+fix; deferred because `scripts/**` is drift-fenced and the analysis does not run until the campaign
+ends. **⛔ Fix the READER, never the archive.**
+
+### 118.3 ⚠ P212 — I ALMOST REPORTED 831 DUPLICATES THAT WERE THE LOADER WORKING CORRECTLY
+
+Testing D32, my first probe counted records by `run_id` alone and reported **831 run_ids appearing up
+to 10 times**. I did not report it, because the number was absurd enough to interrogate — and
+`run_id` is **not globally unique**: every line has its own `distributional-g0-c0`. That is precisely
+why the loader keys on `(directory, run_id)`, and the function's own comment records the earlier
+incident where a global `run_id` key *"silently dropped every line but one — 732 records against
+2,260 on disk."* **I re-created, as a test, the exact bug the code under test was fixed to avoid.**
+
+The correct test compares the loader's output against the FILES ON DISK under the loader's own
+exclusion rules, which is what produced the clean +2 above. **Fourth instance this session of the
+same root cause: a key/join whose semantics I had not verified against the data.**
+
+### 118.4 ⚠⚠ P213 — MY OWN NEW LAYER RETURNED "CLEAN" HAVING INSPECTED ZERO RECORDS
+
+S14's first run inside the seven-layer harness printed:
+
+```
+sealed-test records inspected : 0
+  nothing to check
+----- L7_window_identity RC=0 (0s) -----
+```
+
+**A check that examined nothing and reported success.** Two independent defects, both mine:
+
+**(a) THE PATH.** `REPO = dirname(dirname(abspath(__file__)))` from `docs/analysis/` lands on
+`docs`, so ROOT pointed at a directory that does not exist. **This is the identical two-versus-three
+`dirname` mistake I had fixed in `docs/ops/line_balance.py` a few hours earlier in the same
+session.** The selftest never caught it because it passes `--root <tmp>`, so **the default path was
+never exercised** — P193/P196, fourth occurrence.
+
+**(b) THE FAR WORSE ONE: ZERO RECORDS RETURNED SUCCESS.** This is the P197 shape exactly — the
+defect an independent auditor had to catch when "determinism is MEASURED" was claimed from a check
+that compared nothing. **A vacuous pass is worse than a failure, because it BANKS a property that
+was never tested.** An empty scan now exits **2** and says outright that the invariants were never
+evaluated. Pinned as a permanent selftest case (7/7), and verified two ways: empty root → RC=2, real
+run from an unrelated working directory → RC=0 over 5,449 records.
+
+**THE STANDING RULE THIS EARNS:** *every check must fail loudly when its input set is empty. "Found
+nothing wrong" and "looked at nothing" are indistinguishable in a green board, and only one of them
+is true.*

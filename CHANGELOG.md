@@ -280,6 +280,49 @@ un-rerunnable campaign. **The correct decision is to stop optimising the campaig
 **The one thing that could still cost real time is a STUCK line** — the common rung is a MINIMUM, so
 one dead line pins the result for all twelve however fast the others run. Now watched on three layers.
 
+### ⑮ A SEVENTH RECORD LAYER (S14), A PROVEN DEFECT IN THE HEADLINE LOADER, AND A VACUOUS PASS OF MY OWN (record s.118)
+
+**S14 — LENGTH IS NOT PERIOD.** Reading a sealed-test record field by field surfaced
+`env_fingerprint.label = campaign:distributional:test[3835,5406)|dev=cpu`. S2 checks the series
+LENGTH is the registered 1571 and S8 checks the MODAL length — **neither checks the BOUNDS, and
+`[3835,5406)` and `[3900,5471)` both have length 1571.** Two arms scored on different periods would
+pass both while being incomparable, corrupting the CONTRAST while every per-record check stayed
+green. Built **`docs/analysis/record_window_identity.py`**, which also asks two more unasked
+questions: **W2** device homogeneity read FROM THE RECORDS (independent of the D15 host fence) and
+**W3** whether the label's arm agrees with the record's `arm` field (a mismatch would put a
+treatment record in a control pool). **MEASURED CLEAN on 5,449 records: ONE window [3835,5406)
+across all twelve lines, one device, ZERO arm mismatches, ZERO unparseable labels.** Selftest 7/7
+with mutation controls — decisively, **W1 fires on a second window of the SAME LENGTH 1571**.
+**All seven layers RC=0 at 7,000 records.**
+
+**D32 — THE HEADLINE LOADER DOUBLE-COUNTS, PROVEN BY EXECUTION:** `load_campaign_records` returns
+**6,409 against 6,407 record.json on disk — exactly +2**, the two D18 nested dirs. `_walk` loads a
+directory's children then **recurses into those same children**, re-admitting a nested `x/x` under a
+second `(directory, run_id)` key. **The same function already fixed this once** for `.pull_tmp`, and
+its own comment warns duplication *"is the harder one to notice because the totals look BETTER"* and
+that a duplicate *"would enter that arm's PBO population and DSR multiplicity pool twice"*. Bounded:
+both SEARCH-tier, **zero in the sealed test**, byte-identical ⇒ no H2 contrast, CRN pairing or rung
+affected. Registered **D32** with the one-condition fix; deferred (drift-fenced, analysis runs at the
+end). **⛔ Fix the READER, never the archive.**
+
+**⚠ P212 — I ALMOST REPORTED 831 DUPLICATES THAT WERE THE LOADER WORKING.** My first D32 probe
+counted by `run_id` alone — but `run_id` is **not globally unique** (every line has its own
+`distributional-g0-c0`), which is exactly why the loader keys on `(directory, run_id)`. **I
+re-created, as a test, the very bug the code under test was fixed to avoid.** Not reported, because
+831 was absurd enough to interrogate. Fourth instance this session of one root cause: **a key/join
+whose semantics I had not verified against the data.**
+
+**⚠⚠ P213 — MY OWN NEW LAYER RETURNED "CLEAN" HAVING INSPECTED ZERO RECORDS.** Its first harness run
+printed `records inspected : 0 ... RC=0`. Two defects, both mine: (a) `dirname(dirname(...))` from
+`docs/analysis/` lands on `docs` — **the identical two-vs-three mistake I had fixed in
+`line_balance.py` hours earlier** — and the selftest never caught it because it passes `--root`, so
+**the default path was never exercised** (P193/P196, 4th occurrence); (b) far worse, **zero records
+returned SUCCESS** — the P197 shape, the exact defect an auditor had to catch when "determinism is
+MEASURED" was claimed from a check that compared nothing. **A vacuous pass is worse than a failure:
+it BANKS a property that was never tested.** An empty scan now exits 2; pinned as a selftest case and
+verified both ways. **STANDING RULE EARNED: every check must fail loudly when its input set is empty
+— "found nothing wrong" and "looked at nothing" are indistinguishable in a green board.**
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

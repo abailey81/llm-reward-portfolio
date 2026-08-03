@@ -1950,3 +1950,59 @@ Three consecutive re-runs showed `cycle_loops=1`. **A flickering FAIL trains peo
 which is the exact failure this session exists to fix, so it should be hardened — the intended rule is
 that a duplicate loop is a PERSISTENT condition, so require the extra loop to be older than ~60 s.
 Left for the next session because an auditor was mid-review of that file.
+
+### D32 — `analyze_campaign.load_campaign_records` ADMITS THE D18 NESTED RECORDS TWICE (PROVEN 2026-08-03)
+
+**THIS IS IN THE CODE THAT PRODUCES THE HEADLINE**, so it must be closed before the confirmatory
+analysis is run. It is NOT a run-killer and does not touch the sealed test.
+
+**PROVEN BY EXECUTION, not by reading:**
+```
+record.json on disk (ex .pull_tmp, ex h3_singleshot) : 6,407
+records returned by load_campaign_records           : 6,409
+difference                                          : +2      <- exactly the 2 nested dirs
+nested dirs on disk:
+   search_leg_glm_5_2/placebo_shuffled/placebo_shuffled-g3-c4/placebo_shuffled-g3-c4
+   search_leg_haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3
+```
+
+**THE MECHANISM** (`scripts/analyze_campaign.py:1152-1181`). `_walk` loads a directory's
+record-bearing children via `load_all`, keying on `(directory, run_id)` — then RECURSES INTO THOSE
+SAME CHILDREN. A nested `x/x/record.json` is therefore admitted a second time under the key
+`(.../x, x)` instead of `(.../<arm>, x)`. Two distinct keys, one record, both kept.
+
+**⚠ THIS IS THE EXACT FAILURE MODE THE FILE ALREADY FIXED ONCE, IN THE SAME FUNCTION.** The
+dot-prefix skip at `:1170-1178` was added for `.pull_tmp` staging copies, and its own comment states
+the consequence: *"under `(directory, run_id)` both keys are distinct so BOTH load and the record is
+DUPLICATED. Duplication is the harder one to notice because the totals look BETTER, not worse
+(measured: `random_search-c11` returned twice, byte-identical, 1 spurious duplicate in 2,290 — and
+random_search is an H4 comparator, so it would enter that arm's PBO population and DSR multiplicity
+pool twice)."* **The nested case has identical consequences and was left open.**
+
+**BLAST RADIUS — bounded, and the headline is untouched.** Both duplicates are SEARCH tier and
+**ZERO are in the sealed test**, so no H2 contrast, no paired CRN comparison and no rung is affected.
+What they do reach is the search-tier population of `glm-5.2/placebo_shuffled` and
+`haiku-4.5/scalar`: PBO enumeration, DSR multiplicity pools, per-arm candidate statistics and the
+R115 counter distribution. Both copies are byte-identical, so no VALUE diverges — the defect is a
+double COUNT, not a disagreement.
+
+**THE FIX (one condition, in the recursion loop only).** A run directory is a LEAF: it must never be
+recursed into, because `load_all` has already taken it. In `_walk`'s child loop, alongside the
+existing dot-prefix and `_h3_singleshot` skips:
+
+```python
+if (child / _RECORD_NAME).is_file():
+    continue      # a record-bearing dir is a LEAF; load_all already took it. Recursing
+                  # into it re-admits any nested copy under a second (directory, run_id) key.
+```
+
+**WHY IT IS DEFERRED:** `scripts/**` is inside the live-run drift pathspec
+(`git diff <running-sha> HEAD -- src scripts config prompts` must stay empty), and the analysis is
+not run until the campaign completes, so there is no reason to take drift now.
+
+**⛔ DO NOT "FIX" IT BY DELETING THE NESTED DIRECTORIES.** The archive is irreplaceable, the copies
+are byte-identical, and `mirror_archive.ps1` carries a shrink guard that a deletion would trip. Fix
+the READER, never the archive.
+
+**VERIFICATION AFTER THE FIX:** re-run the two-line comparison above; the loader count must equal
+the on-disk count exactly.
