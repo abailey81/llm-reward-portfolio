@@ -43,9 +43,13 @@ So free slots come from `qhost -F slots` (`hc:slots`, the authoritative per-HOST
 work. Each input answers the question it is actually authoritative for.
 
 USAGE
-    ssh myriad "qhost -F slots" > /tmp/qh.txt
-    ssh myriad "qstat -f"       > /tmp/qf.txt
+    ssh myriad "qhost -F slots,memory,tmpfs" > /tmp/qh.txt     # <- ALL THREE (D33)
+    ssh myriad "qstat -f"                    > /tmp/qf.txt
     python docs/ops/placeable_capacity.py --qhost /tmp/qh.txt --qstat /tmp/qf.txt
+
+    ⚠ THE `-F` LIST MATTERS AND THIS USAGE BLOCK USED TO BE WRONG. It said `qhost -F slots`, which
+    exports ONLY the slots complex, so `hc:memory=` never appeared, every host parsed with zero
+    memory, and the tool reported that memory forbade EVERY job on the cluster. Ask for all three.
 
     --pack N   slots per training job (default 8, the live supervisor setting)
     --pools    comma-separated pool prefixes to report (default: every pool seen)
@@ -181,6 +185,33 @@ def main() -> int:
                  "slots_only": 0, "memcapped": 0}
     )
     need_mem = args.mem_per_slot_mb * args.pack
+
+    # ⚠ A TOOL THAT CANNOT SEE A RESOURCE MUST SAY SO, NOT FORBID (D33, 2026-08-03).
+    #
+    # `parse_qhost` reads `hc:memory=` / `hc:tmpfs=`, which only appear when qhost is asked for
+    # those complexes. This file's own `--help` said to pass `qhost -F slots` while the parser's
+    # docstring said `-F slots,memory,tmpfs`. Following the help, every host parsed with
+    # memory_mb = 0.0, `by_mem` came out 0, and the tool reported `memcap` forbidding EVERY
+    # slot-feasible job — i.e. "memory is why we cannot place work". Measured against SGE the same
+    # day: `hc:memory=160.000G` free PER HOST, and 105-167 GB physically free on all 227 d00a
+    # hosts. A 16 GB job fits everywhere with room for eight more.
+    #
+    # The "0 placeable" verdict was used across several sessions to price core levers. It happened
+    # to agree with the truth (we ARE fair-share saturated) but for an invented reason, and a right
+    # answer from a broken instrument is not evidence.
+    #
+    # This is the same shape as P211/P213: ABSENT DATA SILENTLY DEFAULTING TO THE MOST RESTRICTIVE
+    # VALUE. Unknown is not zero. So: if the input carries no memory complex at all, the memory
+    # gate is DISABLED, the fact is printed loudly, and the exit code is non-zero so the output
+    # cannot be mistaken for a verdict.
+    mem_seen = any(h.get("memory_mb", 0.0) > 0 for h in qhost.values())
+    tmpfs_seen = any(h.get("tmpfs_mb", 0.0) > 0 for h in qhost.values())
+    blind = []
+    if not mem_seen:
+        blind.append("memory")
+    if not tmpfs_seen:
+        blind.append("tmpfs")
+
     for host, pool in host_pool.items():
         row = agg[pool]
         row["hosts"] += 1
@@ -191,8 +222,11 @@ def main() -> int:
         free = int(h["slots"])
         row["free"] += free
         by_slots = free // args.pack
-        by_mem = int(h["memory_mb"] // need_mem) if need_mem > 0 else by_slots
-        by_tmp = int(h["tmpfs_mb"] // args.tmpfs_per_job_mb) if args.tmpfs_per_job_mb > 0 else by_slots
+        # D33: only gate on a resource the input can actually SEE.
+        by_mem = (int(h["memory_mb"] // need_mem)
+                  if (mem_seen and need_mem > 0) else by_slots)
+        by_tmp = (int(h["tmpfs_mb"] // args.tmpfs_per_job_mb)
+                  if (tmpfs_seen and args.tmpfs_per_job_mb > 0) else by_slots)
         jobs = min(by_slots, by_mem, by_tmp)
         row["slots_only"] += by_slots
         row["placeable"] += jobs
@@ -217,6 +251,17 @@ def main() -> int:
     print("'byslot' = jobs the SLOTS alone would allow; 'memcap' = how many of those memory/tmpfs")
     print("           forbids. A large memcap means pack width is NOT the binding lever here.")
     print("'CORES'  = placeable jobs x pack — the only figure that predicts throughput.")
+    if blind:
+        print()
+        print("*** THIS IS NOT A VERDICT (D33) ***")
+        print("  The qhost input carries NO %s complex, so that gate was DISABLED rather than"
+              % " or ".join(blind))
+        print("  applied. Every figure above is SLOTS-ONLY and OVERSTATES placeable capacity.")
+        print("  Re-run with:  ssh myriad \"qhost -F slots,memory,tmpfs\" > /tmp/qh.txt")
+        print("  Before this guard existed the missing complex silently became ZERO available,")
+        print("  and the tool reported that memory forbade every job on the cluster. Unknown is")
+        print("  not zero: a tool that cannot see a resource must say so, not forbid.")
+        return 2
     return 0
 
 

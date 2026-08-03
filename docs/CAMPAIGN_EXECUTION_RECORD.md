@@ -17669,3 +17669,33 @@ the execution record. **`docs/LANE_PROTOCOL.md` assigns ONE owner per path, but 
 sessions of the SAME lane from running at once**, and the shared paths here are the execution record
 and CHANGELOG — the write-up's primary sources. Renumbered to 120 rather than overwrite. **The
 protocol needs a single-writer check per lane, not just per path.**
+
+### 120.6 CORRECTION TO 120.2 — THE TOOL'S NUMBER WAS ALSO WRONG, AND IT MAKES THE PROOF STRONGER
+
+120.2 said `placeable_capacity.py`'s "0 placeable" was reached for the wrong reason but agreed with
+the truth. **Half of that is wrong.** After the D33 fix, re-run with the correct
+`qhost -F slots,memory,tmpfs`:
+
+```
+  pool  hosts blockd  free strand byslot memcap  jobs  CORES
+  b00a     16      4   235     27     26      0    26    208
+  d00a    242     15  1600    248    169      1   168   1344
+  d00b     17      1   248     24     28      0    28    224
+ TOTAL                                                  2576
+```
+
+**2,576 cores are PLACEABLE right now, not zero** — and `memcap` is 0 or 1 per pool, confirming
+memory constrained nothing at any point. The old verdict was not merely mis-reasoned; its headline
+figure was wrong by 2,576 cores.
+
+**AND THAT STRENGTHENS 120.1 RATHER THAN WEAKENING IT.** We hold ~2,336 cores with 698 jobs queued,
+and the cycle log shows the count pinned between 2,288 and 2,336 for HOURS. If 2,576 additional
+cores are physically placeable and our queue is 698 deep, then the only reason we do not have them
+is that the scheduler will not grant them. Combined with `qalter -w p` reporting "found possible
+assignment with 8 slots" and `qquota` reporting nothing, **the fair-share conclusion is now proven
+from two independent directions: the jobs are assignable, the capacity exists, and we still do not
+get it.** The ETA remains at its global minimum for our entitlement.
+
+*Lesson, and it is the session's recurring one: I reported "the conclusion is right, the reasoning is
+wrong" without re-deriving the conclusion's NUMBER. A broken instrument can be wrong about the
+reasoning AND the value; checking only one of them is checking half.*
