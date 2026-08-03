@@ -207,6 +207,18 @@ print(min(d) if d else '?')
 " 2>/dev/null)
 canon_depth=${canon_depth:-?}
 
+# MYRIAD MAINTENANCE COUNTDOWN (2026-08-03). Tamer confirmed the window was DELAYED from the usual
+# second Tuesday (Aug 11) to WEDNESDAY 2026-08-12, at risk all day from 08:00. It is on the page
+# because a planned outage that surprises the operator reads exactly like a failure, and the day's
+# alarms are all expected. Playbook: docs/ops/MAINTENANCE_2026-08-12.md
+maint_days=$("$PY" -c "
+import datetime as dt
+w = dt.datetime(2026, 8, 12, 8, 0, 0)
+d = (w - dt.datetime.utcnow()).total_seconds() / 86400.0
+print('IN PROGRESS or PASSED' if d < 0 else ('%.1f days' % d))
+" 2>/dev/null)
+maint_days=${maint_days:-?}
+
 # per-rung ETAs at the cores we actually hold (Tamer's standing reporting requirement)
 # ⚠ NO POSITIONAL SLICE (P234, 2026-08-03). This read `| sed -n '3,12p'` -- a claim about which
 # LINES of another tool's output happen to be the interesting ones. Any change to that tool silently
@@ -261,6 +273,7 @@ back what it did.
 | lines up | **$linestat**, all five arms submitted on **$armsfull of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **$stalest** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **$records** |
+| **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in $maint_days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | $calls / **\$$spend** |
 | transport health | **$thealth** |
 | transport timeouts (cumulative, ever) | $timeouts -- a level with no rate; read the row above |

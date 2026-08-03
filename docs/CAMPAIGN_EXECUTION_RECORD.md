@@ -19687,3 +19687,77 @@ resource-limited, and the registered PRIMARY target (rung 403) still projects in
 DIFFERENT QUESTIONS, and here they have different answers.** We are not using the cluster's spare
 capacity — and we could not use it if we had it, because the work that would consume it is behind a
 stage barrier. Answering only the first question would have produced a confident, wrong plan.
+
+### 131.17 MYRIAD MAINTENANCE 2026-08-12 — READINESS BUILT, AND THE DATE IN OUR OWN RUNBOOK WAS WRONG
+
+**Tamer: *"there would be technical works on myriad on 12th of august, are we fully ready for it?"***
+then, on my flagging that the 12th is a Wednesday: ***"they have delayed it, the maintenance will
+take place on 12th of august."***
+
+**⚠ CAUGHT BY CHECKING THE CALENDAR RATHER THAN ACCEPTING THE DATE.** The cluster MOTD states the
+standing rule — *"The second Tuesday of every month is a maintenance day, at risk all day from
+08:00"* — and **2026-08-12 is a WEDNESDAY**; the second Tuesday is the **11th**, which is exactly what
+`docs/CAMPAIGN_DAY_RUNBOOK` §8 recorded on 2026-07-18 (*"next: Aug 11"*). Raising the discrepancy is
+what surfaced that **UCL had delayed it** — so both the runbook date AND my assumption were wrong,
+in opposite directions. The runbook now carries an inline SUPERSEDED note rather than a silent edit.
+
+### 131.17a THE EXPOSURE, MEASURED
+
+The death clocks are `max_consecutive_errors = 240` against the live poll intervals:
+
+```
+TEST   lane: 240 x 180 s = 12.0 h
+SEARCH lane: 240 x  45 s =  3.0 h   <- 4x more fragile; killed core+nemotron in the Aug 3 outage
+```
+
+**THE KEY READINESS QUESTION IS THEREFORE WHICH LANE EACH LINE IS IN ON THE DAY**, and the answer is
+good: only the **core line** is still searching (`bayes_opt` 26/30, `cma_es` 28/30, `tpe` 25/30), and
+`tpe` — the slowest chain at ~7.24 h/candidate — has 5 left, i.e. **~36 h, clearing ~2026-08-05.**
+**By Aug 12 every line should be on the 12.0 h clock, not the 3.0 h one.**
+⚠ **CONFIRM rather than assume this on Aug 11** — it is the single fact the plan rests on.
+
+**★ AND THE CRITICAL PATH FROM RUN18 §5 HAS CLEARED:** `nemotron_3_super` now reads **5 of 5 arms
+frozen** — `scalar_cvar5` landed, so the g5 generation completed and the line that RUN 18 named as
+"THE ONE OPEN CAMPAIGN ITEM" is done.
+
+### 131.17b WHAT WAS ALREADY READY (verified, not assumed)
+
+| capability | evidence |
+|---|---|
+| Windows Update paused past the window | `PauseUpdatesExpiryTime = 2026-09-10` — the runbook §7 risk, closed |
+| Off-machine backup current | `D:\llm_rp_archive_mirror`, **10,191 records, 0.1 h old** |
+| Disk headroom | **38.9 GB free** against the 20 GB floor |
+| Stop lever quiesces EVERYTHING | supervisor `:270` and `watchdog_fenced:196` **both** exit on `STOP_CAMPAIGN` |
+| Resume proven | a **7 h 24 m VPN outage** and a **full reboot**, both recovered inside 5 days |
+| Lost seeds self-heal | repair rounds proven twice — gpt job 83464, deepseek job 85065 |
+| No resume stampede | supervisors stagger **3620-3820 s**, measured |
+| Timeline absorbs a lost day | rung 403 projects 08-08..08-18 against the 08-27 stop |
+
+### 131.17c THE ONE GENUINE HAZARD, AND WHY IT IS NOT THE OUTAGE
+
+**It is the UCL LOGIN-NODE PENALTY, not the downtime.** Every driver relaunch sha256-verifies
+**~36.8 MB of remote gold on the SHARED login node** (P202). If the login nodes stay UP while the
+scheduler is down — the normal maintenance shape — then twelve supervisors relaunching on a 600 s
+backoff reproduces **exactly** the pattern that earned the 2026-08-03 00:33:47Z penalty.
+
+**Registered position: RIDE IT** (`CAMPAIGN_DAY_RUNBOOK` §8: *"jobs may die and REQUEUE; the
+supervisor rides it"*), **with `STOP_CAMPAIGN` held as the escalation** if `loginnode_guard` reports
+OVER. The trade is stated honestly in the playbook: stopping costs nothing if a human is available to
+restart, and **costs more than a day if nobody is**, because nothing auto-resumes past a stop file.
+
+### 131.17d WHAT WAS BUILT
+
+* **`docs/ops/MAINTENANCE_2026-08-12.md`** — the playbook: what WILL happen and is expected (6 rows),
+  what would be a REAL fault (6 items), before/during/after command sets, the stop-lever trade table,
+  and the post-window S15 discriminator (a killed pack-8 job leaves holes below an arm's frontier,
+  and one hole DEMOTES that arm's banked rung — the common rung is a MINIMUM).
+* **A LIVE COUNTDOWN ON THE STATUS PAGE** — a Health row reading *"2026-08-12 from 08:00 UTC, at risk
+  all day (in 8.4 days)"* with the playbook path. **A planned outage that surprises the operator
+  reads exactly like a failure**, and every instrument will be red that day; the page now says so in
+  advance, on the device Tamer actually reads.
+* **The runbook corrected in place** with a visible SUPERSEDED note.
+
+**⇒ THE LESSON: A PLANNED OUTAGE IS AN ALARM-INTERPRETATION PROBLEM, NOT AN AVAILABILITY PROBLEM.**
+The machinery already absorbed a 7 h 24 m outage and a full reboot without losing a record. What it
+cannot do is tell an operator that a wall of red is *expected* — so the readiness work is almost
+entirely documentation and a countdown, not engineering.

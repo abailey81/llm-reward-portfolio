@@ -59,7 +59,9 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 #    On any reboot: just re-run the supervisor (idempotent).
 
 # 8. Cluster calendar (2026-07-18 audit): Myriad's maintenance day = the SECOND TUESDAY of
-#    every month (at-risk from 08:00; next: Aug 11). From a ~Jul-27 GO, tier-403 lands ~Aug 8-11
+#    every month (at-risk from 08:00; next: Aug 11).
+#    *** SUPERSEDED 2026-08-03: Tamer confirmed the August window was DELAYED to WEDNESDAY 2026-08-12. Use
+#    docs/ops/MAINTENANCE_2026-08-12.md, NOT the Aug 11 date above. *** From a ~Jul-27 GO, tier-403 lands ~Aug 8-11
 #    (L+13-14.5, R95) — STRADDLING Aug 11: treat it as a planned at-risk day — running
 #    jobs may die and REQUEUE (idempotent; no data loss by design); the supervisor rides it.
 #    Scratch headroom verified 2026-07-18: 97 MB used / 1 TB filesystem.
