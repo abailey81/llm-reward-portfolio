@@ -399,7 +399,11 @@ compact.exe (NTFS compression)       WORKS
 Dism.exe                             WORKS (session runs ELEVATED)
 Set-ScheduledTask                    WORKS      (the boot task was repointed in RUN 16)
 qalter -p <negative>                 PERMITTED but INERT, and ONE-WAY (qalter -p 0 is denied)
-qdel                                 BLOCKED
+qdel <explicit ids>                  ✅ WORKS — MEASURED 2026-08-03, RUN 17 (record §126.1).
+                                     This row said BLOCKED for three sessions and was never tested.
+                                     Eight dead jobs deleted first attempt, rc=0. NEVER `qdel -u`;
+                                     explicit ids only, and only after verifying state=qw, owner,
+                                     job name, and that the job can actually never run.
 taskkill /PID                        BLOCKED
 bash `kill <windows-pid>`            NO-OP  (Git Bash has its OWN pid namespace — it reports
                                             "No such process" and the target is UNTOUCHED)

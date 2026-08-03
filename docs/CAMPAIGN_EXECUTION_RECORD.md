@@ -18286,3 +18286,334 @@ slots), **supplied a structural proof I did not have** (markers are node-side by
 **found two defects I had not looked for** (the ≥16 marker-only node rejects, and `n_attempted`
 exceeding the registered budget). Every correction is folded into D34, D35, the instrument and this
 section. **Third consecutive session in which the auditor's findings outrank the author's.**
+
+---
+
+## 126. RUN 17 — THE TWO ITEMS THAT WERE TAMER'S ARE DONE ON HIS RATIFICATION, AND THE FIRST OF THEM PROVED ITSELF MECHANICALLY
+
+**Tamer, 2026-08-03:** *"Ultratgink, i ratify you do it on my behalf"*, against the two items this
+session had listed as his: the eight dead jobs, and the R115 disclosure decision. Both are done. The
+boundaries I did **not** cross under that ratification are listed at §126.4, because a delegation is
+only meaningful if its limits are recorded too.
+
+### 126.1 THE EIGHT JUNK JOBS — AND `qdel` WAS NEVER ACTUALLY BLOCKED
+
+`docs/RUN17_SESSION_PROMPT.md` §8 lists `qdel` as **BLOCKED** for the agent, inherited from RUN 16.
+That same section says *"test the specific command; do not assume"*, and RUN 15's identical
+"BLOCKED" claims about `New-Item -ItemType Junction` and `Stop-Process` were both **false when
+tested**. So it was tested. **It is not blocked.** All eight deleted, first attempt, rc=0.
+
+**THE PRE-DELETE GATE, all four verified first-hand before an irreversible action:**
+
+```
+1. state          all 8 `qw`, NONE running          -> zero in-flight work destroyed
+2. identity       sshorig x6 (08-01 16:07), cpuprobe13 x2 (08-02 12:28); owner ucestes
+3. not ours       no leg*/c1*/h3ss* name among them -> not a campaign job
+4. ★ schedulable? parallel environment: `smp-[TBD]*`
+                  `qconf -spl | grep -c TBD` = 0
+```
+
+**Point 4 is the one that matters and it is new.** Every prior session justified deleting these on
+the soft ground that they *"demand an unavailable or refused host"*. The real reason is mechanical:
+they request a parallel environment **that does not exist in the scheduler's configuration at all**.
+Our real jobs use `smp-[D]*`; `smp-[TBD]` is a literal placeholder that can never match a queue
+instance. **They were unschedulable by construction, and that is provable in one command** rather
+than argued from host availability.
+
+**MEASURED BEFORE AND AFTER:**
+```
+before  jobs=689  running=185  queued=504  running_slots=1480
+after   jobs=680  running=186  queued=494  running_slots=1488
+        0 error / held / suspended, before and after
+        our own real leg4 job is now the TOP of our pending queue
+```
+
+**HONEST PRICING, unchanged from §117: the ETA gain is ZERO.** We sit at 680 of the 1,000-job cap,
+so the eight slots buy nothing today; the value is the D23 crash-loop margin when the ladder submits
+at scale, and removing five permanently-dead jobs from the head of our own queue so no future
+session has to re-derive what they are.
+
+**⚠ A HYPOTHESIS OF MINE, RAISED AND THEN WITHDRAWN ON ITS OWN CONTROL.** I suspected the eight were
+consuming scheduler RESERVATIONS (`max_reservation 20`, and five of them outranked every real job we
+had). The test — `qstat -j <id> | grep -c reservation` — returned 0 on all eight. **It also returns
+0 on a healthy REAL pending job**, so the test distinguishes nothing and the hypothesis is neither
+confirmed nor refuted. Recorded as unresolved rather than reported as a negative: *a check that
+returns the same answer on the subject and on the control has measured nothing.*
+
+### 126.2 ⚠ A CORRECTION TO §121: `qalter -p` IS **NOT** INERT
+
+§121 (P217) concluded that lowering SGE priority is *"permitted but INERT"*, having observed
+`npprior 0.50000` on every job and the demoted job still sitting at pending position 1. **Measured
+today on the same job, two days later:**
+
+```
+66104..66108  prior 2.00640 - 2.00654     (untouched siblings)
+66103         prior 1.81126               <- the one RUN 16 set to -p -100
+```
+
+**The demotion DID land**, ~0.195 lower, and 66103 had moved from FIRST to LAST in our pending
+queue. §121's observation was correct at the instant it was taken and its conclusion was wrong:
+**the effect is real with a propagation delay**, not absent.
+
+**THIS CHANGES NO ACTION AND MUST NOT BE READ AS RE-OPENING THE LEVER.** Tamer's standing
+prohibition on lowering our own jobs' priority is unaffected; the operation remains **one-way**
+(`qalter -p 0` is denied to a normal user); and lowering our own priority could only ever make us
+slower. What changes is the record: an inherited "inert" is now known to be "delayed", and the
+standing rule's justification is the irreversibility, not the ineffectiveness.
+
+### 126.3 THE R115 DISCLOSURE — DECIDED, EVIDENCED, AND HANDED OVER
+
+Full detail in **`docs/R115_DISCLOSURE_2026-08-03.md`**; the measurement is §128.
+
+**DECISION: a STATED LIMITATION in the dissertation. Not an amendment. Threshold unchanged.**
+
+The amendment route is not a preference I declined — it is **mechanically unavailable**. Both
+`PREREGISTRATION.md` and `config/preregistration.yaml` sit inside the frozen canonical hash
+`3ca6f01ab772`; the hash is enforced by `enforce_freeze` on every launch, is a `session_preflight`
+invariant, and is stamped into per-record provenance. Moving it during a live, un-rerunnable
+campaign is precisely the irreversible action that must not be taken. **The governing precedent is
+ADR-058b / §90**: when hash-bound prose was found false (`PREREGISTRATION.md:3` still says
+"PRE-FREEZE … awaiting pilots"), the ruling was to state the correction **in the paper**, never to
+edit the frozen file. Same situation, same remedy.
+
+### 126.4 THE LIMITS I DID NOT CROSS UNDER THE RATIFICATION
+
+A general "do it on my behalf" is not a licence for everything adjacent, so the boundary is on the
+record:
+
+* **The R115 threshold was NOT changed** — changing a frozen value to match data observed afterwards
+  is the forking path the registration exists to forbid.
+* **No hash-bound file was edited.** `freeze.py --check` re-run at the end: `3ca6f01ab772` **MATCHES**.
+* **`paper/**` was NOT touched.** The disclosure prose is drafted in a doc I own and handed over; its
+  placement and final wording belong to the write-up session.
+* **No alternative-threshold sensitivity was run**, and it is refused on the record: evaluating the
+  counterfactual winners would require training rewards the registration never admitted on the
+  **sealed** leg. That is a design change and a second look, not a robustness check.
+* **`qdel` was used with EXPLICIT IDS ONLY**, never `-u`, and only after all four gate checks passed.
+* **No `src/scripts/config/prompts` edit**, so `RUNNING_SHA` is unmoved and no relaunch is owed.
+
+---
+
+## 127. RUN 17 — "THERE MIGHT BE A TIMEOUTS ISSUE": THERE WAS A BURST, IT WAS HARMLESS, AND THE REASON WE COULDN'T TELL IS THE REAL DEFECT
+
+**Tamer, mid-session:** *"I think there might be a time outs issue, and some other issues. Please
+very deeply investigate."*
+
+He was right that something was happening, and right that the instrumentation could not say whether
+it mattered.
+
+### 127.1 THE BURST — REAL, MEASURED, AND OVER
+
+```
+events per hour (local log clock = UTC+1)
+  08-02 10h  18 | 08-02 11h   6 | 08-02 18h  4 | 08-03 02h  2
+  08-03 11h  23 |             08-03 15h  57   <- the burst Tamer sensed
+minute by minute, 15:04 -> 15:12 local, then NOTHING
+affected: 6 lines simultaneously, every event `qstat -r` at exactly 120.0 s
+```
+
+**It was NOT us loading the login node** — `loginnode_guard` read 0.60-0.81 of our 6.0-core
+allowance throughout, "comfortable". Our `qstat -r` calls were timing out while our own footprint
+was minimal, which points at qmaster latency, not at our consumption. It ended on its own and has
+not recurred.
+
+### 127.2 WHY IT WAS HARMLESS, AND THE ONLY NUMBER THAT SAYS SO
+
+A timeout costs nothing on its own; it matters only through the **consecutive streak** it belongs
+to, because the driver crashes an arm when a streak reaches its bound. Read from the live code:
+
+```
+src/cluster/campaign.py:183   max_consecutive_errors = 240   (overrides driver.py's own default 72)
+src/cluster/driver.py:434     _outage_is_fatal = EITHER bound, whichever trips first
+live driver flags             --poll-secs 180 (test lane) | --search-poll-secs 45 (search lane)
+```
+
+**Worst streak anywhere during the burst: 3 of 240 = 1.2 % of the way to a crash.** Every line
+recovered within 2-3 cycles. The retry logic did exactly what it exists to do.
+
+### 127.3 ★★ THE FINDING THE BURST LED TO, WHICH IS MUCH LARGER THAN THE BURST
+
+Asking "how close has each line EVER come?" — a question the status page never posed — produced this:
+
+```
+core              240 / 240  (100.0%)   3.0 h down   2026-08-02 23:20:08Z   *** DIED (bayes_opt)
+nemotron-3-super  240 / 240  (100.0%)   3.0 h down   2026-08-02 20:06:45Z   *** DIED (scalar_cvar5)
+glm-5.2           149 / 240  ( 62.1%)   7.4 h down   survived
+deepseek-v4-pro   148 / 240  ( 61.7%)   7.3 h down   survived
+gemini-2.5-flash  148 / 240  ( 61.7%)   7.3 h down   survived
+```
+
+**THE SPLIT IS THE WHOLE FINDING, AND IT EXPLAINS BOTH OF THE CAMPAIGN'S OPEN CRASH MARKERS WITH ONE
+MECHANISM.** The two lines that DIED were in the **SEARCH** lane, where 240 failures at a 45 s poll
+is reached in **3.0 h**. The three that SURVIVED an outage **more than twice as long** were in the
+**TEST** lane, where the identical 240 is **12.0 h**. The 2026-08-02/03 VPN outage lasted 7 h 24 m —
+between the two — so it killed exactly the lines whose lane could not ride it out and spared the
+rest. Nothing about the lines differed; only their poll interval did.
+
+**This is the substance of D24, now quantified from two independent deaths.** D24 states the driver
+dies at 3.6 h rather than the advertised 12 h; the true figure is **3.0 h** (240 × 45 s), and D24's
+other half — that the docstring claims BOTH bounds while the code is an OR — is **stale**:
+`driver.py:435-437` now says EITHER/OR and matches the code.
+
+**⚠ AND THE RISK IS LIVE.** `nemotron` is in the SEARCH lane right now with its final generation
+(§125.5). Another transport outage longer than 3.0 h kills the critical path again.
+
+### 127.4 THE ACTUAL DEFECT: THE PUBLISHED NUMBER COULD NOT DISTINGUISH ANY OF THIS
+
+`docs/RUN4_STATUS.md` published **"transport timeouts: 58"**. That figure is:
+
+* **cumulative-ever over append-only logs**, so it can only rise — it went **58 → 116 inside this
+  one session**. This is the P205 / `guard:transport` antipattern, now found for the **FOURTH** time:
+  *a cumulative counter used as a current-state alarm*;
+* **a count of LINES, not events** — it greps two markers and sums them, and these logs wrap;
+* **severity-blind** — the streak, the only number that separates noise from a crash, appeared
+  nowhere.
+
+**BUILT: `docs/ops/transport_health.py`** (selftest 7/7, mutation-proven, exits 2 on an empty input).
+It reports events-in-window **with** the worst consecutive streak, the distance to the fatal bound in
+both counts and hours, the two counters kept separate (`pull` is the fatal path; `ops` is not), and
+the whole-campaign peak history above. Wired into the status page **beside** the cumulative figure
+rather than replacing it silently, with the old number relabelled as the level it is.
+
+**⚠ AND IT WAS BOUNDED BEFORE BEING WIRED INTO A LOOP.** Reading all 44 MB of driver logs cost 2.0 s
+and would rise forever — the same P194 shape this session found operating live in the status page.
+The windowed scan now reads a bounded 4 MB tail per log; only the session-level peak history reads
+whole files.
+
+### 127.5 "SOME OTHER ISSUES" — SWEPT, AND ONE OF MY OWN CONCERNS WITHDRAWN
+
+* **The cycle sweep is growing.** Fitted over **4,235 cycle lines**: `sweep = 14.25 s per 1,000
+  records`, and the median has gone 12.4 s → 36.9 s across the campaign's quarters. **I expected to
+  find it crossing the 900 s dead-cap before the ladder ends, and it does not**: the projection at
+  the full 42,128-record ladder is **581 s**, inside the cap. Recorded as a WITHDRAWN concern rather
+  than a finding.
+* **Today's 376.6 s outlier was MINE.** It sits far above the 112.5 s the fit predicts at this
+  archive size, and the sweep fell back to 155.2 s the moment my heavy archive scans stopped. **My
+  own measurement activity measurably degrades the monitoring loop I am supposed to be watching**,
+  which is why `transport_health` was bounded before wiring and why archive-wide scans should be
+  session-level, never per-cycle.
+* **Tamer's instruction channel** (`docs/REMOTE_CONTROL.md`) re-read: his standing entry asks for
+  *"the cores active, and current eta's"* on the status page. **Both are present and live.** No
+  unactioned instruction.
+* **The 8 junk jobs, disk (43.1 GB), mirror (0.1 h), `ram:CRITICAL`** (transient, from archive
+  scans; 7.2 GB free at check), **freeze, drift, all seven record layers** — all checked, all clean.
+
+---
+
+## 128. RUN 17 — R115 RE-DERIVED FROM SCRATCH, AND THE SENSITIVITY REACHES AN H2 TREATMENT ARM
+
+Full decision + publication-ready prose: **`docs/R115_DISCLOSURE_2026-08-03.md`**. Instrument:
+**`docs/analysis/r115_threshold_sensitivity.py`** (selftest 10/10, mutation-proven, exits 2 on an
+empty input set). This section records the measurement and what the audit changed.
+
+**WHY RE-DERIVE AT ALL.** The "15 of 60 groups" figure has been carried in five documents since
+§106.4 without anyone re-measuring it, and it is about to become a sentence in a dissertation. An
+inherited number is an assertion.
+
+### 128.1 THE POSITIVE CONTROL IS THE WHOLE REASON TO BELIEVE ANY OF IT
+
+At the frozen threshold the instrument must reproduce the ACTUAL frozen winner of every arm.
+**First run: 0 of 56.** I had joined on the marker's `run_id` — which is the marker's own name,
+`<arm>-winner` — instead of `candidate_id`, which names the source candidate. **The control caught
+my error before a single number left the machine.** Corrected: **56 of 56.**
+
+An auditor then went further and ran the **PRODUCTION** `scripts/run_campaign.py::select_winner`
+(and through it `src/io/results.py::load_all`) over all 60 arm roots: **0 record-set differences,
+0 winner differences** against my re-derivation, and 56/56 against the markers. `load_all` and a
+depth-1 directory walk see the identical set. That is the strongest validation available.
+
+### 128.2 THE MEASUREMENT
+
+```
+SEARCH-CANDIDATE TIER (where R115 acts): 60 groups, 1,520 candidates, 76 with non-zero fallback
+  worst trace 0.91925 %   mildest severe 49.98300 %   INSIDE the 1-35 % band: 21   (registration says 0)
+  groups whose ELIGIBLE SET varies across the band : 15 of 60
+  groups whose SELECTED WINNER varies              :  2 of 60
+```
+
+**Both winner-varying groups are on `qwen3_5_9b`, and one of them is `distributional` — an H2
+TREATMENT arm.** That is the part the inherited claim never said: §106.4 and every brief since
+record the `placebo_shuffled` case (the frozen winner IS the 9.08475 % candidate), but none frames
+the `distributional` arm's variation as threshold-dependence. Exact breakpoints in the disclosure.
+
+**★ AND THE FACT THAT BOUNDS EVERYTHING: THE CONFIRMATORY CORE LINE IS UNAFFECTED.** Across its 10
+selection groups and 262 candidates, **not one fell back on a single training step** — verified twice,
+the second time by raw text grep with no parsing at all, because a clean zero is the shape that is
+usually a measurement failure. R115 is entirely INERT on the confirmatory node.
+
+### 128.3 WHAT THE AUDIT CHANGED — five corrections, two of them material
+
+1. **⚠⚠ TIER CONFLATION, and it would have handed a referee the attack.** §106.4 records **88**
+   records in the gap (a re-measure today gives **142**) over ALL records; my **21** is the
+   SEARCH-CANDIDATE count. Printing 21 beside a recorded 88 without labelling the tier reads as a
+   self-contradiction. Both numbers are now printed WITH their tier.
+2. **⚠⚠ THE CORE-LINE ZERO IS NOT FINAL.** 3 of the 10 core groups — `bayes_opt`, `cma_es`, `tpe`,
+   the H4 optimiser baselines — have no frozen winner and are still writing. The claim is FINAL for
+   7 of 10, **including both H2 co-primaries**, and PROVISIONAL for 3. Re-run before submission.
+3. **The sampled grid was replaced by EXACT breakpoints.** The first version probed 70 evenly-spaced
+   points, which can only ever support *"no variation was observed between these points"*. It now
+   probes at every candidate's own fraction and just above it, enumerating every reachable partition.
+   The answer is unchanged (15 and 2) — but it is now PROVEN rather than sampled, and this number is
+   going into a PDF.
+4. **A wording risk closed.** "The RULE is effect-blind" is snappable, because `select_winner:737`
+   does read `val_fitness` — it is the argmax. The correct claim is that the **ELIGIBILITY FILTER**
+   is effect-blind, which a source-inspection test at `tests/test_winner_eligibility_floor.py:128-140`
+   already enforces.
+5. **A far stronger chronology argument than mtimes.** The auditor re-measured the surviving RUN 1
+   archive — the data that existed when 0.10 was chosen — and got **worst trace 0.41250 %, mildest
+   severe 39.40200 %, ZERO in [1 %, 35 %]**, reproducing the registration's own quoted figures
+   EXACTLY. **There was no in-band datum in existence to tune the value to.** (It also found the
+   registration's "613 counter-carrying records" no longer reproduces — the surviving archive holds
+   827 — which is now disclosed rather than left for an examiner to trip over.)
+
+**A minor one worth keeping:** my docstring credited depth-1 walking with excluding `.pull_tmp`
+staging copies. Right outcome, wrong mechanism — those dirs sit at the campaign ROOT and are excluded
+by the `startswith("search")` filter. A wrong reason is how the next person removes the wrong guard.
+
+### 128.4 ⚠ AND A METHOD ERROR OF MINE, RECORDED BECAUSE THIS REPO HAS THE LESSON ALREADY
+
+I first read the instrument's exit code through `| tail`, which reports **`tail`'s** status, not the
+script's — so it looked like 0 (claim holds) when the real exit is **1** (claim falsified). This is
+the same class as the 2026-07-24 false-green pytest lesson that `docs/HANDOFF.md` §5 already
+documents. **Redirect to a file and read the file.** Recorded in the disclosure's method notes so
+whoever re-runs it does not repeat it.
+
+### 128.5 P228 - THE BACKTICK RULE BIT ME A THIRD TIME IN ONE SESSION
+
+`docs/RUN17_SESSION_PROMPT.md` s.10 states it verbatim - *"NEVER put backticks/backslashes/$(...) in
+a bash -c string or heredoc - write to a FILE"* - annotated *"(This bit twice in RUN 16.)"*. It has
+now bitten me twice more in this session alone:
+
+* **P226** (already recorded at s.125.7): nine prose lines in `publish_status.sh`'s heredoc, which
+  PUBLISHED a page with four mangled sentences before I caught it.
+* **P228, now:** the `--suite-status` argument to `scripts/update_handoff.py` carried one
+  backticked word. Bash substituted it, printed `distributional: command not found`, and wrote
+  **"...and ONE IS , an H2 TREATMENT arm"** into `docs/HANDOFF.md` - deleting the single word that
+  identifies WHICH arm the R115 sensitivity reaches, in the one field the SessionStart hook shows
+  every future session. Repaired with the Edit tool (no shell) and the YAML block re-parsed to
+  confirm it still loads.
+
+**WHY IT KEEPS HAPPENING, stated so the next session can actually avoid it:** the rule is written
+about heredocs and `bash -c`, and I read it as being about those two constructs. **It is about ANY
+shell-quoted string**, including a long `--flag "..."` argument, and long prose arguments are exactly
+where backticks appear naturally because the prose is markdown. **The countermeasure is mechanical,
+not attentional: write the text to a FILE and pass the path, or use the Edit tool.** Four occurrences
+across two sessions is not a lapse of care, it is a missing mechanism.
+
+**AND THE SHAPE IS THE SESSION'S OWN THEME AGAIN:** a silent deletion. The command succeeded, the
+script reported success, and the only evidence was one line of stderr scrolling past. Nothing failed
+loudly. *A substitution that removes text is indistinguishable from text never written.*
+
+### 128.6 A SECOND SESSION IS LIVE, AND IT IS EDITING A SHARED FILE
+
+`writeup 8bee7914` is LIVE (seen 0.1 min ago) and has written a new `CHANGELOG.md` block while this
+session was also editing that file. **This is NOT the P216 double-ops case** - it is the write-up
+lane, which owns `paper/**`, and no campaign file is contested. But `CHANGELOG.md` and the cursor are
+SHARED, and my insert succeeded only because it was a read-then-write of the live file rather than a
+cached one.
+
+**Two consequences recorded:** (1) **re-read `CHANGELOG.md` immediately before every edit** - the
+HANDOFF s.1 rule exists for exactly this and is now live again; (2) their new block is labelled
+**`[2026-08-03a]`, which DUPLICATES RUN 15's block of the same name.** Flagged, deliberately NOT
+renumbered - it is their lane's content and silently renaming another session's entry is worse than
+a duplicate label.

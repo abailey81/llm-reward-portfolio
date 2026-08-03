@@ -3,6 +3,286 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-03a] ★★★★★ WRITE-UP LANE, 4th session (final block) — **THE TITLE WAS ITERATED FIFTEEN TIMES BEFORE ANYONE OPENED THE GUIDE THAT INVALIDATED HALF THE CANDIDATES** · a hostile re-mark returned 74 capped by communication · the exhibit built to prove the null was arguing against it · the multi-session model closed mid-session
+
+**PAST.** Continues `[2026-08-01p]` and `[2026-08-01q]` in the same session. Inherited: title unresolved
+with three live candidates, abstract at 610 words with a `[FROM CAMPAIGN]` slot, body at 17,817 against a
+hard 10,000, and an executable 8,674-word cut list banked in `GRADE_95_MASTER_PLAN` §24.5.
+
+**PRESENT.**
+
+### ① TAMER CLOSED THE COORDINATED-SESSION MODEL MID-SESSION
+
+His words: *"I am closing the idea of coordinated claude code sessions, it's gonna be only you, and the
+builder."* Immediate consequence handled: the PDF was in a deliberate **two-table-of-contents transient**
+that only ops could close. **I reverted my half** rather than leave it resting on a dissolving protocol —
+verified in the compiled PDF, exactly one ToC on page 13. I attempted ops' half myself and **the drift fence
+correctly refused me** (`scripts/**` owned, RUN 4 live, a non-owner edit turns a confirmatory campaign RED).
+I did not override it: *a mis-ordered Table of Contents is cosmetic; a red confirmatory campaign is not.*
+Both blocked one-line changes are now documented **at their own insertion points** rather than only on the
+bus, deliberately — a bus message dies with the protocol, a comment in the file does not. Ops then wired
+**Appendix F** before standing down, so the prompts-and-authored-code appendix now reaches the PDF.
+
+### ② ★ THE TITLE — AND THE PROCESS FAILURE THAT MADE IT COST FIFTEEN ROUNDS
+
+**REGISTERED:** `Downside Risk Measures in Language Model Reward Design for Deep Reinforcement Learning`,
+with two alternates recorded in the front matter so either substitutes in one edit.
+
+> ⚠ **THE FAILURE, AND IT IS THE MOST IMPORTANT THING IN THIS BLOCK.** Fifteen candidates were proposed and
+> rejected before anyone opened `MSc_Project_Guidelines_2025-2026.pdf`. **Page 8 requires the title to be
+> "brief and relevant, avoiding acronyms/abbreviations"** — which silently invalidated every candidate
+> containing "LLM" or "RL", a constraint recorded in **no** project document. The same read surfaced three
+> more binding facts nobody had banked: the topic *"must be related to finance"*, the research must be
+> *"centred around a specific question"*, and 70%+ dissertations are **published on the departmental
+> website**. All of it was one PDF page away the entire time. **This is now a standing rule in `CLAUDE.md`
+> (★★★ READ THE MARKING CRITERIA AND THE DISSERTATION GUIDE — FIRST-HAND, EVERY TIME).**
+
+**THE EVIDENCE BASE BUILT ALONG THE WAY** (master plan §24; two auditor sweeps over the corpus):
+
+- **Title anatomy, 206 of 211 titles extracted** by font geometry and cross-validated against PDF metadata:
+  mean **8.50** words, median 8; **55.3% are ≤8 words**; colon 44.7%; **question titles 1 of 206**;
+  *"Towards"* 2 of 206, **both 2026 preprints, zero in the canon**.
+- **Elite-tier grammar, n=47** (PDF-verified top journals plus record-known landmarks): mean **6.77** words,
+  median 7, **0 of 47 exceed 12**; colon 21.3% (elite-*journal* only: 8.3%); opens on an adjective 44.7% or a
+  bare noun 21.3%; connective census `in` 9 · `for` 8 · `from` 7 · `and` 7 · `with` 6 · `of` 5 · **`through`
+  0 · `by` 0**; **0 of 47 use three prepositions**.
+- ★ **THE HYPHENATE FINDING, which is what actually diagnosed the problem.** Elite titles carry **0.28**
+  hyphenated compounds each and **0 coined agentive hyphenates**; the other 157 carry 0.86 and **34**
+  (`LLM-Driven`, `-Guided`, `-Designed`, `-Written`…). Triple-barrelled coinages: **0 elite, 12 non-elite**.
+  A candidate reading *"Language-Model-Written"* was therefore all three violations at once — and that, not
+  its vocabulary, was why it read as an engineering report.
+- **`"All You Need"`: 0 of 206.** The template is absent from this literature and was steered away from.
+- **Zero titles anywhere in 211 contain** *null*, *equivalence*, *pre-registered*, *replication* or *no
+  effect*. The honest-negative tradition **never labels itself negative in the title**; it names the
+  quantity instead (*The Probability of Backtest Overfitting*, *A Test for Superior Predictive Ability*).
+- **The department's own exemplars** are far shorter than ours was: 9, 11 and 18 words — and **the 9-word one
+  was supervised by Okhrati**.
+
+**WHY THE CHOSEN TITLE.** *Downside risk measures* is a **named class** in finance (Fishburn's lower partial
+moments, Sortino, semi-variance, CVaR), echoing the register of Artzner's *Coherent Measures of Risk*; five
+of the six fed statistics are downside risk measures, so it slightly **under**-claims, which is the safe
+direction. It names the **manipulated variable**, so — unlike an earlier candidate — **it is not true of the
+placebo arm**. Zero hyphenated compounds, bare-noun opener, no colon, two prepositions, 12 words at the
+elite ceiling. **Honest residual, recorded not hidden:** at 12 words "brief" is satisfied in letter not
+spirit, and there is no budget left to signal the pre-registration or the placebo control.
+
+> ⚠ **A DEFECT IN MY OWN RECOMMENDATION, CAUGHT BY TESTING IT RATHER THAN DEFENDING IT.** I had recommended
+> *"Risk-Sensitive Deep Reinforcement Learning **from** Large Language Models"*. Checked against the corpus:
+> *Deep Reinforcement Learning **from** Human Preferences* (NIPS 2017), *MOTIF: Intrinsic Motivation **from**
+> Artificial Intelligence Feedback* (ICLR 2024) and *Online Intrinsic Rewards … **from** Large Language Model
+> Feedback* (ICLR 2025) all use that construction to mean **the model supplies the reward signal** — RLAIF.
+> Ours writes reward *source code* and never scores a trajectory. The title mis-filed the work into a
+> neighbouring literature, and it was **also true of the control group**. Withdrawn.
+
+### ③ A HOSTILE RE-MARK RETURNED **74**, CAPPED BY COMMUNICATION
+
+Marks for the Introduction and Abstract alone: **D1 86 · D2 82 · D3 76 · D4 74 → capped 74.** Verdict on
+journal-publishability: **No**, for three desk-rejection reasons — there is no result yet, the text
+contradicted itself six times in twelve pages, and the chapter failed the reporting standard its own §1.4
+announces.
+
+**Fifteen defects closed on the back of it.** The three worst: **three contradictory contribution counts**
+in one PDF (five in the abstract, six in the List of Tables, seven in Chapter 1); **C6 omitted the
+counterfactual that guts it** — a costless equal-weighted portfolio beats **all eleven** canon rewards even
+gross, which CH7's footnote stated and CH1 did not; and the chapter's **opening premise was overstated** —
+*"almost always a single number"* is contradicted by its own footnote quoting Eureka feeding per-component
+scalars at checkpoints. Also closed: the body sentence its own footnote retracted; a stale *Appendices A–E*
+roster after F was wired; `§C.5`→`§C.6`; *"the same information"*→*"the same set of numbers"*; the
+unsupported *"noise floor"* assertion given a measured referent; the `[FROM CAMPAIGN]` placeholder filled
+with a fact **I re-verified myself** (107 confirmatory-line records at generation ≥ 1, **zero un-fed**);
+CVaR, left-tail mass, left-tail skew and Deflated Sharpe glossed in plain English **before** the listing
+that uses them; `placebo_shuffled` and the mechanism layer **disclosed as report-only**; the
+multiplicity claim qualified to within-family; the corpus count restated as **211 swept / 196 read
+first-hand**; and both front-matter lists rebuilt from a scan of the real artefact.
+
+### ④ THE ABSTRACT, REWRITTEN AND REALIGNED
+
+| | Before | After |
+|---|---:|---:|
+| Words | 610 | **485** |
+| Em dashes | 1 | **0** |
+| Semicolons | 5 | **0** |
+| Longest sentence | **115 words** | 60 |
+| Mean sentence | 33.0 | 26.9 |
+
+Realigned to the registered title's vocabulary — it now says *downside risk measures* rather than *the lower
+tail of the realised outcome distribution* — so cover and abstract speak the same language. The
+contributions paragraph had been a single **115-word semicolon chain**; it is now four short sentences
+grouped **three methodological · two diagnostic · one empirical**. Still 485 against a 250–350 convention;
+the abstract is word-**excluded**, so this is a quality judgement, not a rule breach.
+
+### ⑤ THE HUMAN-BASELINE CANON, AND A CONTRADICTION FOUND WHILE DOCUMENTING IT
+
+Table 5 asserted *"four of the losers are explicitly risk-aware"*. **The verified count is eight of the ten**
+— variance, CVaR, differential Sharpe, differential downside ratio, quadratic utility, drawdown, downside
+semi-deviation and volatility scaling; only `raw_return` and `log_growth` do not penalise risk, and
+`log_growth` is implicitly risk-averse through the log's concavity. Chapter 6 already said eight, so **the
+document was contradicting itself**. Fixed at both sites, including the unwired `sections/` source so a
+later merge cannot reintroduce it. The correction makes the finding **stronger**: it is not naive designs
+being caught out by costs, it is eight explicitly risk-aware ones. The buy-and-hold mislabel was corrected
+in the same pass (`+1.283` is a **costless daily-rebalanced** equal-weighted portfolio; the drifting
+variant at `+1.258` also dominates, so the claim does not turn on the rebalancing convention).
+
+### VERIFICATION — real output, observed at close
+
+```
+scripts/build_paper.py     OK  paper/_build/dissertation.pdf (1089 KB), 271 pp, 0 missing characters, 0 U+FFFF
+scripts/check_citations.py 0 dangling · 0 verify-in-use · 0 literal VERIFY · 0 unused
+scripts/freeze.py --check  3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f  [MATCHES]
+scripts/word_budget.py     18,049   [FAIL vs 10,000]
+Title page                 renders on two lines, no mid-word hyphenation (first attempt broke "Reinforce-ment")
+```
+
+**MY OWN ERRORS IN THIS BLOCK — five.**
+
+| | The error | The lesson |
+|---|---|---|
+| **P176** | **Iterated a title fifteen times without opening the guide that governs titles.** The acronym ban invalidated whole families of candidate on page 8 | *Read the governing document before optimising against it.* Now a standing `CLAUDE.md` rule |
+| **P177** | Recommended a title that was **true of the control group** — it named the apparatus every arm shares and never the manipulated variable | *A title that describes your placebo is not describing your experiment.* Caught only by assessing my own recommendation adversarially |
+| **P178** | Recommended `from Large Language Models` without checking what that construction already means in the field. It means **RLAIF** — three corpus papers, two of them elite | *Test a phrase against the corpus before recommending it, not after* |
+| **P179** | Optimised increasingly hard on **grammar** — hyphens, connectives, word counts — and stopped asking whether the title described the study. Form-fitting quietly replaced meaning | *A title can satisfy every measurable rule and still be about the wrong thing.* Rich evidence makes this failure more likely, not less |
+| **P180** | Set the title on the title page as two bold lines; markdown joined them and LaTeX broke the word as **"Reinforce-ment"** across the line | *Check the rendered page, not the source.* Fixed with an explicit hard break |
+
+**FUTURE — handed to a new session.** Full brief: **`docs/WRITEUP_SESSION_PROMPT_2026-08-03.md`**.
+The binding breach is unchanged and unchanged in priority: **18,049 words against a hard 10,000**, with the
+line-anchored cut list in `GRADE_95_MASTER_PLAN` §24.5 reaching 8,674. Then: a **fresh adversarial re-mark**
+(the 74 predates fifteen fixes and is stale in our favour), the two null-exhibits the corpus does not supply
+(§24.3 items 2–3), and the ToC-order fix once `scripts/**` is writable.
+
+## [2026-08-03d] ★★★★★ RUN 17 (ratified pass) — **BOTH OF TAMER'S ITEMS DONE ON HIS RATIFICATION** · `qdel` was never actually blocked, and the eight junk jobs were unschedulable by a parallel environment THAT DOES NOT EXIST · **the R115 sensitivity reaches an H2 TREATMENT arm, and the confirmatory line is untouched** · **a timeouts burst investigated to the bottom: harmless, but it exposed that ONE VPN OUTAGE KILLED EXACTLY THE TWO LINES WHOSE LANE COULD NOT RIDE IT OUT** · two new instruments, both mutation-proven · an auditor corrected five of my numbers
+
+**PAST.** Earlier in this session (`[2026-08-03c]`) the authoring-reliability defect (D34/D35) and
+the false status-page narrative were found and fixed. Two items were listed as **Tamer's**: the eight
+dead jobs, and the R115 disclosure decision.
+
+**PRESENT.** Tamer: *"Ultratgink, i ratify you do it on my behalf"* — then, mid-turn: *"I think there
+might be a time outs issue, and some other issues. Please very deeply investigate."* All three are
+worked below. Detail: execution record **§126** (the ratified items), **§127** (timeouts), **§128**
+(R115). The boundaries I did **not** cross under a general ratification are recorded at §126.4.
+
+**FUTURE.** Nemotron's final search generation is in flight with **3 of 5 jobs already RUNNING** —
+far better than g4's 7-hour queue wait. When it returns, the line pinning the COMMON RUNG for all
+twelve clears C2.
+
+**LIVE at close:** records **9,255** · spend **$45.4852** · preflight **VERDICT OK** · freeze
+`3ca6f01ab772` **MATCHES** · **drift 0 on BOTH arms** · seven record layers RC=0 · `line_balance`
+CLEAN · `crash_watchdog` CLEAN · **no `src/scripts/config/prompts` change, so no relaunch is owed.**
+
+### ① THE EIGHT JUNK JOBS — DELETED, AND `qdel` WAS NEVER BLOCKED
+
+RUN17 §8 listed `qdel` as **BLOCKED**, inherited and never tested — exactly as RUN 15 had wrongly
+listed `New-Item -ItemType Junction` and `Stop-Process`. **Tested: it works.** All eight deleted,
+first attempt, rc=0. §8 corrected.
+
+**The gate before an irreversible action, all four verified first-hand:** state `qw` (none running,
+so zero in-flight work destroyed) · identity (`sshorig` ×6, `cpuprobe13` ×2, owner `ucestes`) · not a
+campaign job · **and the one that is new and decisive — they request parallel environment
+`smp-[TBD]*`, and `qconf -spl | grep -c TBD` = 0.** They were **unschedulable by construction**,
+provable in one command, where every prior session had argued it from host availability.
+
+```
+before  jobs=689 running=185 queued=504 slots=1480
+after   jobs=680 running=186 queued=494 slots=1488     0 error/held/suspended throughout
+```
+**Honest pricing unchanged: the ETA gain is ZERO** (we sit at 680 of the 1,000 cap). The value is
+D23 margin and a queue whose head is no longer five dead jobs.
+
+**⚠ A hypothesis of mine, WITHDRAWN on its own control:** I suspected the eight were consuming
+scheduler reservations. The test returned 0 on all eight — **and 0 on a healthy real job**, so it
+distinguishes nothing. Recorded as unresolved, not reported as a negative.
+
+**⚠ AND A CORRECTION TO §121:** it concluded `qalter -p` is *"permitted but INERT"*. Measured today:
+the job RUN 16 demoted sits at `prior 1.81126` against its untouched siblings at `2.00640-2.00654`,
+and had moved from FIRST to LAST. **The demotion landed; the effect is DELAYED, not absent.** No
+action changes — the standing prohibition rests on irreversibility, not ineffectiveness.
+
+### ② R115 — DECIDED, RE-DERIVED, AND THE SENSITIVITY REACHES A TREATMENT ARM
+
+**DECISION: a STATED LIMITATION. Not an amendment. Threshold unchanged.** The amendment route is
+**mechanically unavailable**: both files are inside the frozen hash `3ca6f01ab772`, which
+`enforce_freeze` checks on every launch and which is stamped into per-record provenance. The
+governing precedent is **ADR-058b / §90** — when hash-bound prose was found false, the ruling was to
+state the correction *in the paper*, never to edit the frozen file.
+
+**RE-DERIVED FIRST-HAND** (`docs/analysis/r115_threshold_sensitivity.py`, selftest 10/10). Its
+positive control **failed first (0 of 56)** because I joined on the marker's `run_id` instead of
+`candidate_id` — **the control caught my error before a number left the machine**. Corrected: 56/56,
+and an auditor then ran the **production** `select_winner` over all 60 arm roots for 0 diffs.
+
+```
+21 of 1,520 search candidates INSIDE the band the registration calls EMPTY
+15 of 60 groups have a threshold-varying ELIGIBLE SET
+ 2 of 60 have a threshold-varying WINNER -- both on qwen3.5-9b, and ONE IS `distributional`
+```
+
+**The `distributional` case is the genuinely new finding**: §106.4 and every brief since record the
+`placebo_shuffled` case, but none frames the **H2 treatment arm** as threshold-dependent.
+
+**★ AND THE FACT THAT BOUNDS IT ALL: the CONFIRMATORY core line is untouched** — across 10 groups and
+262 candidates, **not one fell back on a single training step**, verified twice, the second time by
+raw grep because a clean zero is the shape that is usually a measurement failure. R115 is INERT there.
+
+### ③ THE TIMEOUTS — A REAL BURST, HARMLESS, AND IT EXPOSED SOMETHING MUCH BIGGER
+
+**The burst was real:** 57 events in the 15:00 local hour against 1-23 in every prior hour, six lines
+at once, every one `qstat -r` at exactly 120.0 s. **Not us** — `loginnode_guard` read 0.60-0.81 of
+our 6.0-core allowance throughout. It ended on its own.
+
+**Why it was harmless:** a timeout matters only through its consecutive STREAK. **Worst streak
+anywhere: 3 of 240 = 1.2 % of the way to a crash.**
+
+**★★ BUT ASKING "HOW CLOSE HAS EACH LINE EVER COME?" — a question nothing had ever posed — GAVE THIS:**
+
+```
+core              240/240  3.0 h down   *** DIED (bayes_opt)
+nemotron-3-super  240/240  3.0 h down   *** DIED (scalar_cvar5)
+glm-5.2           149/240  7.4 h down   survived
+deepseek-v4-pro   148/240  7.3 h down   survived
+gemini-2.5-flash  148/240  7.3 h down   survived
+```
+
+**The split explains BOTH of the campaign's open crash markers with ONE mechanism.** The two that
+DIED were in the **SEARCH** lane, where 240 failures at a 45 s poll is **3.0 h**. The three that
+SURVIVED an outage **twice as long** were in the **TEST** lane, where the identical 240 is **12.0 h**.
+The 7 h 24 m VPN outage fell between the two. Nothing about the lines differed — only their poll
+interval. **This is D24's substance, quantified from two deaths, and the risk is LIVE: nemotron is in
+the search lane right now.**
+
+**The actual defect was the instrumentation.** The page published *"transport timeouts: 58"* — a
+**cumulative-ever** counter (58 → 116 within one session), counting **lines not events**, with the
+streak nowhere. That is the P205/`guard:transport` antipattern for the **FOURTH** time.
+
+### ④ BUILT, BOTH MUTATION-PROVEN AND BOUNDED BEFORE WIRING
+
+* **`docs/ops/transport_health.py`** (7/7) — events *with* the worst streak, distance to fatal in
+  counts and hours, the two counters kept separate, and the whole-campaign peak history. Wired into
+  the status page **beside** the old number, which is relabelled rather than silently dropped.
+  **Bounded to a 4 MB log tail first**: reading all 44 MB cost 2.0 s and rises forever — the same
+  P194 shape this session found operating live.
+* **`docs/analysis/r115_threshold_sensitivity.py`** (10/10) — and its sampled grid was **replaced by
+  exact breakpoints** on the auditor's objection, because *"no variation observed between 70 points"*
+  is not a claim that belongs in a PDF. Answer unchanged (15 and 2); now proven.
+
+### ⑤ "SOME OTHER ISSUES" — SWEPT, AND ONE CONCERN OF MINE WITHDRAWN
+
+Fitted over **4,235 cycle lines**: the sweep grows **14.25 s per 1,000 records**. **I expected to
+find it crossing the 900 s dead-cap before the ladder ends. It does not** — the projection at the full
+42,128-record ladder is **581 s**, inside the cap. Withdrawn as a concern. **And today's 376.6 s
+outlier was MINE**: it sits far above the fit, and the sweep fell back to 155.2 s the moment my
+archive scans stopped. *My own measurement activity measurably degrades the loop I am watching* —
+which is why the new instrument was bounded before it was wired. Tamer's instruction channel re-read:
+his standing ask (cores + ETAs on the status page) is present and live; nothing unactioned.
+
+### ⑥ THE AUDITOR CORRECTED FIVE OF MY NUMBERS — FOURTH SESSION RUNNING
+
+Two were material and would have damaged the disclosure: **tier conflation** (my search-tier 21 beside
+the record's all-tier 88 reads as a contradiction unless both are labelled) and **the core-line zero
+is not final** (3 of 10 groups are still writing; it is final for 7, including both H2 co-primaries).
+It also replaced my timestamp chronology with a far stronger argument — **the surviving RUN 1 archive
+reproduces the registration's own 0.41 %/39.40 % figures exactly, with ZERO in-band**, so there was no
+in-band datum in existence to tune the value to. **My own method error:** I read the instrument's exit
+code through `| tail`, which reports `tail`'s status — the repo already documents that lesson.
+
 ## [2026-08-03c] ★★★★★ RUN 17 — **THE PER-MODEL AUTHORING-RELIABILITY TABLE IS COMPUTED FROM A MARKER SET THAT *STRUCTURALLY CANNOT* HOLD AN AUTHOR-SIDE REJECTION** · the confirmatory line has never appeared in that panel at all · **the status page was telling Tamer the seed ladder "has not started" while two lines had already finished the whole 568-rung thing** · and it cost 67.8 s of full-archive JSON parsing per minute to say so · a registered re-triage trigger had fired and nobody evaluated it · **nemotron reaches its FINAL search generation, live** · seven record layers RC=0 · seven of my own errors recorded
 
 **PAST.** RUN 16 closed at 12:30 UTC with preflight OK on all 16 checks, drift 0, seven record layers

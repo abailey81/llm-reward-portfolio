@@ -62,6 +62,18 @@ print(f'{t:.4f}')" 2>/dev/null || echo "0")
 timeouts=$(grep -hcE 'ssh_timeout_diagnostic|TimeoutExpired' "$ROOT"/driver_*.log 2>/dev/null \
              | awk '{s+=$1} END{print s+0}')
 timeouts=${timeouts:-0}
+# *** 2026-08-03 (RUN 17, record s.127). THE COUNTER ABOVE IS A LEVEL WITH NO RATE AND NO SEVERITY.
+# It is CUMULATIVE-EVER over append-only logs, so it can only rise (58 -> 116 inside one session)
+# and cannot distinguish a dead campaign from a healthy one -- the P205 / `guard:transport`
+# antipattern, found for the FOURTH time. It also counts LINES, and these logs wrap.
+# A timeout only matters through the CONSECUTIVE STREAK it belongs to, measured against the bound
+# that actually kills an arm (240, from src/cluster/campaign.py:183 -- 3.0 h on the 45 s SEARCH
+# poll, 12.0 h on the 180 s TEST poll). That number is what `transport_health.py` reports, and it
+# is the one that would have said something useful while `core` and `nemotron` were dying.
+# Kept side by side deliberately: the cumulative figure stays visible but is now LABELLED as the
+# level it is, so removing it cannot be mistaken for hiding it.
+thealth=$(python docs/ops/transport_health.py --oneline 2>/dev/null) || thealth=""
+thealth=${thealth:-"(transport health unavailable this cycle)"}
 # P210 (2026-08-03): this used to be `ls "$ROOT"/driver_*.log | wc -l` -- it counted LOG FILES, and
 # a driver log exists FOREVER once created. So this panel printed "12 / 12" permanently and would
 # have printed "12 / 12" with every single line dead. It is the number Tamer reads to know the
@@ -185,7 +197,8 @@ back what it did.
 | stalest driver log | **$stalest** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **$records** |
 | LLM calls / spend | $calls / **\$$spend** |
-| transport timeouts | **$timeouts** |
+| transport health | **$thealth** |
+| transport timeouts (cumulative, ever) | $timeouts -- a level with no rate; read the row above |
 | guards | $( [ "$guards" -eq 0 ] && echo '**all six green**' || echo "**RC=$guards**, not green: $gnames" ) |
 
 ## Compute
