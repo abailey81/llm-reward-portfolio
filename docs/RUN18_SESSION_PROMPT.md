@@ -93,6 +93,24 @@ line** — a `Win32_Process` filter MATCHES ITS OWN QUERY. I committed that erro
 `docs/ops/session_preflight.py` as the authority; when a hand-rolled count disagrees with it, yours
 is wrong.
 
+### §0.45 ⚠ THE MONITORING LOOP HAD NOT PRODUCED A SINGLE LINE 8 MINUTES AFTER RESTART
+
+**Measured at 16:34:14Z: the last `CYCLE_LOG.md` line is still 16:11:20Z — 23 minutes old, and
+~8 minutes after five `cycle_loop` processes were started at 16:25:51Z.**
+
+Two readings, and **you must distinguish them before doing anything**:
+* **BENIGN** — the sweep is SWEEP-BOUND and was measured at **333.8 s** on the last pre-crash cycle,
+  so the first post-restart line is not due until roughly 16:31–16:33Z plus start-up. It may simply
+  be mid-sweep, and five loops racing makes each one slower.
+* **NOT BENIGN** — five concurrent loops are a known corruption source for this exact file (§124.5's
+  torn `sweep=1.23.4s` two-writer race), and a loop that is wedged writes nothing at all.
+
+**HOW TO TELL, cheaply and without ssh:** wait for one more minute and re-`tail`; if still nothing,
+check whether the `cycle.py` child processes are alive and burning CPU (mid-sweep) or idle (wedged).
+`session_preflight`'s `cycle_log` row computes its own adaptive dead-budget — **trust that row over
+any hand-rolled judgement**, and note it will read `dead > ~900s` because the pre-crash sweeps were
+long. **Reduce to ONE cycle loop either way.**
+
 ### §0.5 THE CAMPAIGN ITSELF WAS NEVER AT RISK, AND THIS IS THE REASSURING HALF
 
 **Myriad jobs run on COMPUTE NODES, not on this laptop.** A reboot kills the local drivers and
