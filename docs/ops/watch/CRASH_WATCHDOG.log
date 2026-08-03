@@ -1,0 +1,4 @@
+2026-08-03T01:51:32Z  DEAD UNIT *** NEW ***  core                   bayes_opt                crashed 2026-08-02T23:20:08Z, 2.5 h ago, no log activity and no newer records
+2026-08-03T01:51:32Z  => A UNIT DIED AND WILL NOT SELF-HEAL. campaign.py catches a per-unit crash without retrying, and the supervisor only relaunches a driver that EXITS -- a living driver with other healthy pipelines never does. Restarting that ONE line resumes it.
+2026-08-03T01:52:03Z  DEAD UNIT (known)      core                   bayes_opt                crashed 2026-08-02T23:20:08Z, 2.5 h ago, no log activity and no newer records
+2026-08-03T01:52:46Z  DEAD UNIT (known)      core                   bayes_opt                crashed 2026-08-02T23:20:08Z, 2.5 h ago, no log activity and no newer records

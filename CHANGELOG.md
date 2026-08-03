@@ -311,6 +311,42 @@ floor "comfortable" — the very state that produced the penalty. It probes via 
 (UNGATED) deliberately: measuring through the gate put the observer inside the mechanism it
 observes and produced empty readings (`PROBE-UNPARSED`).
 
+### ⑩ ★★★★★ A CRASHED UNIT THAT WENT UNNOTICED — THE MONITORING LESSON, AND THE WATCHDOG BUILT FOR IT
+
+**`core / bayes_opt` crashed at 2026-08-02T23:20:08Z during the outage and never resumed.** Found
+only because Tamer asked for a full campaign status. Search candidates at handover:
+`random_search 30/30 · tpe 22/30 · cma_es 18/30 · bayes_opt 25/30 (STUCK)` — and bayes_opt is an H4
+search-method comparator, so the comparison is unbalanced.
+
+**IT CANNOT SELF-HEAL, and the mechanism is worth stating exactly.** `src/cluster/campaign.py:1840-
+1845` catches a per-unit crash deliberately (*"one unit must not sink the ladder"*), records
+`ok: False`, and **does not retry**. The supervisor only relaunches a driver that **EXITS** — and the
+core driver is alive and healthy, still running `tpe` and `cma_es`. A crashed unit inside a living
+driver therefore stays dead indefinitely, silently, while the line looks fine. **Fix = restart the
+CORE line only**; process termination is blocked for the agent.
+
+**★ WHY IT WENT UNNOTICED, WHICH IS THE REAL FINDING.** The detection EXISTED:
+`campaign_guards.py` printed the crash and returned RC=2. But **`guards=2` has been continuously red
+for days** on an older unrelated issue ("truncation transport"), so a NEW fault inside that aggregate
+changed nothing observable. **Signal saturation, not blindness.**
+**⇒ THE RULE: an alarm that is always on is not an alarm. Every new monitor must alert on the DELTA.**
+
+**BUILT `docs/ops/crash_watchdog.py`** — finds units that crashed and never resumed, and tracks state
+between runs so a NEW death is loud even while older known ones persist. Running at 300 s.
+
+**★ AND IT CAUGHT MY OWN FALSE POSITIVE BEFORE I REPORTED IT.** A first sweep matched the crash's
+unit token EXACTLY against later activity and reported **7 unresumed crashes**. That is wrong: the
+crash line names the ARM (`[placebo]`) while subsequent work is logged under the BATCH
+(`leg4_leg_qwen3_5_9b_placebo_g3`), so exact matching cannot see the recovery — and
+`test_leg_qwen3_5_9b` demonstrably has all five arms at 30 sealed seeds. Re-tested with **two
+independent signals** (later log activity for any unit CONTAINING the arm, AND archived records newer
+than the crash), because each alone fails in a way that matters: log-exact gives false positives,
+records-alone gives false negatives (measured live — nemotron's `scalar_cvar5` had 0 newer records
+but was plainly active). **Corrected result: 1 dead, not 7.** 27 other crashes across five days all
+recovered via supervisor relaunches. The selftest pins both traps, plus a timestamp-format case —
+the first version parsed only the `|` log format and silently skipped every launch-day crash written
+in the older `,%f` format.
+
 **FUTURE.** (1) **The disk ceiling is CLOSED** and (2) **the outage is CLOSED** — neither needs the
 pagefile move, which is now optional headroom. (3) Fix the D18 nested-dir admission in
 `load_campaign_records` before the headline analysis. (4) Cores work is now UNBLOCKED — re-measure

@@ -16,3 +16,16 @@
 2026-08-03T01:28:32Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.50/6.0  mem=0.00GB  qacct=4  comfortable
 2026-08-03T01:28:35Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.44/6.0  mem=0.00GB  qacct=4  comfortable
 2026-08-03T01:28:45Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.48/6.0  mem=0.00GB  qacct=4  comfortable
+2026-08-03T01:30:33Z  WARN  node=login13.myriad.ucl.ac.uk     cores=2.78/6.0  mem=0.00GB  qacct=4  past 45% of the ceiling -- a burst from here would trip it
+2026-08-03T01:32:36Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.08/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:34:39Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.98/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:36:41Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.10/6.0  mem=0.00GB  qacct=2  comfortable
+2026-08-03T01:38:43Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.46/6.0  mem=0.00GB  qacct=2  comfortable
+2026-08-03T01:40:45Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.43/6.0  mem=0.00GB  qacct=2  comfortable
+2026-08-03T01:42:47Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.83/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:44:48Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.01/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:46:50Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.16/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:48:52Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.18/6.0  mem=0.00GB  qacct=3  comfortable
+2026-08-03T01:50:54Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.42/6.0  mem=0.00GB  qacct=2  comfortable
+2026-08-03T01:52:55Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.46/6.0  mem=0.00GB  qacct=2  comfortable
+2026-08-03T01:54:57Z  OK    node=login13.myriad.ucl.ac.uk     cores=1.38/6.0  mem=0.00GB  qacct=2  comfortable

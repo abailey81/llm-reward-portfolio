@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "b08ca3ca"
+  head: "08aab07e"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "outage resolved (VPN pool); disk ceiling gone (1.76:1); SSH admission gate ACTIVE on the live path, 0 connection failures"
+  suite_status: "RUN 15 closes: outage resolved (VPN pool), disk ceiling gone (1.75:1, rung 568 fits), SSH gate active, crash watchdog + login guard running; ONE open defect core/bayes_opt dead"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
