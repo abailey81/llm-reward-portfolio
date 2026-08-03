@@ -1898,7 +1898,13 @@ node whose overuse already auto-penalised this account once (00:33:47Z, 2026-08-
 while RUN 4 is live. `docs/ops/watchdog_fenced.ps1` carries the fix today and is the watchdog
 currently running.
 
-**⚠ THE FIX DOES NOT SURVIVE A REBOOT.** The boot task `LLMRewardCampaignResume` launches
+**✓ UPDATE 2026-08-03 (P208): THE REBOOT HOLE IS NOW CLOSED.** The boot task is a scheduled-task
+PROPERTY, not a drift-fenced file, so it was repointed at `docs\ops\watchdog_fenced.ps1` (verified
+byte-precise; every other component of the task unchanged). D31 stays OPEN as a CODE defect -- the
+repo watchdog is still absence-only -- but it is no longer one reboot away from voiding the fix, and
+the hand-relaunch procedure below is now a FALLBACK rather than a requirement.
+
+**⚠ HISTORICAL (superseded by the line above): THE FIX DID NOT SURVIVE A REBOOT.** The boot task `LLMRewardCampaignResume` launches
 `scripts\mode_d_watchdog.ps1`, NOT `docs/ops/watchdog_fenced.ps1`. **After any reboot the churn
 returns.** Until D31 lands, the reboot procedure must also, by hand:
 ```

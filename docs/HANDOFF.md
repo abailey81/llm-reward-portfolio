@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "5198633f"
+  head: "721046ed"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 16: P202 h3 completed-line churn (278 revivals) FIXED + selftest 21/21; P203 line census (11-of-12 read OK) FIXED; P204 orphaned qacct ssh / nested timeouts FIXED; P205 adaptive DEAD threshold. gemini-2.5-flash FINISHED THE FULL 568 LADDER (2,840 records, 5 arms balanced). Six record layers ALL RC=0 at 6,665+. Myriad 0 error jobs, 2,304 slots. D31 open: repo watchdog unfixed and it is what a REBOOT starts."
+  suite_status: "RUN 16 (post-audit): P202 completed-line churn FIXED and HARDENED after an independent auditor REFUTED the first predicate on this repo's own logs (P208: deepseek had TEN consecutive exit-0 and the ELEVENTH revival worked - D12's six legs). Suppression now needs THREE agreements: clean supervisor exit + anchored post-D12 wording + a campaign-level OK in the DRIVER log. Selftest 27/27 with the auditor's counterexamples pinned (docs/ops/test_watchdog_completion.ps1). P203 line census, P204 orphaned qacct, P205 adaptive DEAD threshold + dupes flicker, all fixed. BOOT TASK repointed at the fixed watchdog so a reboot no longer voids it. gemini-2.5-flash FINISHED THE FULL 568 LADDER (2,840 records). Six record layers ALL RC=0. PREFLIGHT VERDICT OK."
   gate_checks: 23
   backup_branch: backup-2026-08-03-run16
 ```

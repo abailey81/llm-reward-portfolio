@@ -98,6 +98,39 @@ function WLog([string]$m) {
 # ESCAPE HATCH: drop a file named REVIVE_<safe-line> in $OutDir to force revival
 # of a suppressed line, so the suppression is reversible without editing code.
 # ---------------------------------------------------------------------------
+# !! THE FIRST VERSION OF THIS PREDICATE WAS REFUTED BY AN INDEPENDENT AUDITOR, ON THIS
+# REPO'S OWN LOGS. It suppressed on ">=2 consecutive completions" alone, reasoning that an
+# action repeated with no effect cannot suddenly have one. THAT IS EMPIRICALLY FALSE HERE:
+# supervisor_deepseek-v4-pro.log carries TEN consecutive "driver exited 0" entries from
+# 2026-07-28 23:14:45 to 2026-07-29 00:01:55, and the ELEVENTH revival launched a driver
+# that then ran for a full day. Those are D12's own six legs. The rule would have killed
+# deepseek, glm-5.2, kimi-k3, nemotron-3-super, qwen3.5-9b and qwen3.6-27b permanently.
+#
+# So suppression now needs THREE independent things to agree, not one:
+#
+#   (1) THE SUPERVISOR ENDED CLEANLY. The log's last non-empty line must be
+#       "line supervisor exiting." A supervisor killed mid-attempt (reboot, host kill)
+#       writes NO outcome line, so the trailing outcomes would still be the PREVIOUS
+#       episode's - and a genuinely dead line would inherit an old completion pair.
+#
+#   (2) THE COMPLETION TEXT IS THE POST-D12 ONE, ANCHORED. Before D12 the supervisor
+#       could not tell completion from a review-gate stop and SAID SO:
+#           "driver exited 0 - LINE COMPLETE (or gate stop handled)."   <- ambiguous
+#           "driver exited 0 - LINE COMPLETE."                          <- post-D12, decisive
+#       Anchoring on the second form is not a string trick, it is causal: only the
+#       post-D12 supervisor is entitled to claim completion, because only it returns 3
+#       for a gate stop. Measured across all twelve logs, this separates them perfectly -
+#       the ambiguous text appears in EXACTLY D12's six legs and nowhere else; the
+#       decisive text appears only in h3 and gemini-2.5-flash, the two real completions.
+#
+#   (3) THE CAMPAIGN ITSELF AGREES, from a source the supervisor does not write. The
+#       driver log must carry a campaign-level success ("TIERED OK" / "SINGLE-SHOT OK").
+#       Measured: driver_deepseek-v4-pro.log has ZERO of these - the D12 legs reported
+#       complete having produced nothing, and it shows. gemini has 2, h3 has 279.
+#
+# Any one of the three failing means REVIVE. That is the D12 lesson honoured properly:
+# a completion claim is not self-certifying, so it must be corroborated rather than
+# merely repeated.
 function Get-LineTerminalState([string]$lineName) {
     # EXACTLY mode_d_supervisor.ps1:81 - deriving it any other way risks drifting
     # from the real log name, which would silently disable this whole check.
@@ -113,17 +146,29 @@ function Get-LineTerminalState([string]$lineName) {
     $outcomes = @($tail | Where-Object { $_ -match 'driver exited' })
     if ($outcomes.Count -eq 0) { return "REVIVE" }
 
-    if ($outcomes[-1] -match 'driver exited 3') { return "GATE" }
+    # Anchored: an unanchored 'driver exited 3' also matches 3221225786 (STATUS_CONTROL_C_EXIT)
+    # and every other code beginning with 3, and the failure direction is "stop reviving".
+    if ($outcomes[-1] -match 'driver exited 3 -') { return "GATE" }
 
-    # Count CONSECUTIVE trailing completions, not completions anywhere in the tail:
-    # a line that completed during some earlier episode and was later restarted by
-    # hand must still get its confirmation revival.
+    # (1) the supervisor must have terminated CLEANLY rather than been killed mid-attempt
+    $lastMeaningful = ($tail | Where-Object { $_.Trim() -ne "" } | Select-Object -Last 1)
+    if ($lastMeaningful -notmatch 'line supervisor exiting\.\s*$') { return "REVIVE" }
+
+    # (2) CONSECUTIVE trailing completions, in the decisive post-D12 wording only
     $consec = 0
     for ($i = $outcomes.Count - 1; $i -ge 0; $i--) {
-        if ($outcomes[$i] -match 'driver exited 0 - LINE COMPLETE') { $consec++ } else { break }
+        if ($outcomes[$i] -match 'driver exited 0 - LINE COMPLETE\.\s*$') { $consec++ } else { break }
     }
-    if ($consec -ge 2) { return "COMPLETE" }
-    return "REVIVE"
+    if ($consec -lt 2) { return "REVIVE" }
+
+    # (3) independent corroboration from the driver's own log, which the supervisor does
+    # not write. Tail only: the campaign emits its verdict at the end of a run.
+    $driverLog = Join-Path $outDir ("driver_{0}.log" -f $safe)
+    if (-not (Test-Path $driverLog)) { return "REVIVE" }
+    $dtail = @(Get-Content -Path $driverLog -Tail 200 -ErrorAction SilentlyContinue)
+    if (-not ($dtail | Where-Object { $_ -match 'TIERED OK|SINGLE-SHOT OK' })) { return "REVIVE" }
+
+    return "COMPLETE"
 }
 
 # Alert on the DELTA. An alarm that is always on is not an alarm - that is the
@@ -158,7 +203,10 @@ while ($true) {
         if ($alive -contains $ln) { continue }
         $state = Get-LineTerminalState $ln
         if ($state -eq "COMPLETE") {
-            Announce $ln $state ("LINE COMPLETE (confirmed twice): {0} - NOT reviving. Revival re-runs a driver that exits immediately, and each attempt re-verifies the remote gold on a shared login node. Drop REVIVE_<line> in the out dir to override." -f $ln)
+            # Name the ACTUAL filename: dots become underscores, so "gemini-2.5-flash" needs
+            # REVIVE_gemini-2_5-flash. Following a literal "REVIVE_<line>" would silently do
+            # nothing for 9 of the 12 lines.
+            Announce $ln $state ("LINE COMPLETE (corroborated: clean exit + 2 post-D12 completions + driver-level OK): {0} - NOT reviving. Revival re-runs a driver that exits immediately, and each attempt re-verifies the remote gold on a shared login node. To override, create the file '{1}' in {2}." -f $ln, ("REVIVE_" + ($ln -replace "[^a-zA-Z0-9_-]", "_")), $outDir)
         } elseif ($state -eq "GATE") {
             Announce $ln $state ("REVIEW GATE STOP: {0} - NOT reviving. THIS NEEDS A HUMAN: review the effect-blind report, then create TIER1_APPROVED_<line_tag> and re-run with --approve-tier1 --resume." -f $ln)
         } else {

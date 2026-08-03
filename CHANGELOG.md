@@ -125,6 +125,38 @@ confirmed running — the RUN 15 `bayes_opt` restart held.
 exactly: **568 records on each of all five arms, 2,840 total, perfectly balanced.** Rung 568 is the
 registered maximum. **No treatment outcome was read and none should be.**
 
+### ⑨ P208 — AN INDEPENDENT AUDITOR REFUTED MY SUPPRESSION RULE, ON THIS REPO'S OWN LOGS
+
+The fix above first shipped suppressing on **">=2 consecutive completions" alone**, argued from
+*"repeating an action that changed nothing cannot change anything."* A fresh read-only auditor
+**refuted that with evidence I had not looked for**, and I verified it first-hand before conceding:
+`supervisor_deepseek-v4-pro.log` carries **TEN consecutive** `driver exited 0` on 2026-07-28/29 and
+the **ELEVENTH** revival launched a driver that ran for a full day — same shape in glm-5.2, kimi-k3,
+nemotron-3-super, qwen3.5-9b, qwen3.6-27b. **Those are D12's six legs.** My rule would have declared
+all six permanently COMPLETE at their second completion. The premise was false on the exact incident
+whose lesson I claimed to honour. **The clearest possible vindication of "the author must not grade
+their own work."**
+
+**CORRECTED: suppression now needs THREE independent agreements**, each of which alone kills the
+counterexample — (1) the supervisor ended CLEANLY (`line supervisor exiting.`), (2) the completions
+use the ANCHORED post-D12 wording `LINE COMPLETE.` (the pre-D12 supervisor could not tell completion
+from a gate stop **and said so**: `LINE COMPLETE (or gate stop handled).` — measured, that text is in
+EXACTLY D12's six legs and nowhere else), and (3) the DRIVER log carries a campaign-level OK, which
+the supervisor does not write (`driver_deepseek-v4-pro.log` has **ZERO**; gemini 2, h3 279).
+**A completion claim is not self-certifying, so it must be CORROBORATED, not REPEATED.**
+Selftest **27/27**, the auditor's six counterexamples pinned as permanent regressions L1-L6.
+
+**ALSO FIXED FROM THE AUDIT:** unanchored `driver exited 3` matched `3221225786` → anchored · **my
+timeout fix had turned a REPORTED failure into a SILENT one** (`live_job_ids` had no `try/except`, so
+a 90 s timeout exited 1 and `cycle.py` alerts only on rc==1 AND "VANISHED") → now raises 99 · the
+escape-hatch message named the wrong filename for 9 of 12 lines · the `cycle_loop_dupes` FLICKER
+(P205b: a command-substitution subshell inherits its parent's command line) → extras must persist 60 s.
+
+**✓ THE REBOOT HOLE IS CLOSED.** The boot task is a scheduled-task PROPERTY, not a fenced file, so
+`LLMRewardCampaignResume` was repointed at `docs\ops\watchdog_fenced.ps1` (args 1011→1012 chars,
+delta exactly that one path; `mode_d_launch.ps1`, `cycle_loop.sh`, `publish_loop.sh` and both host
+exclusions all intact; `reboot_recovery` still passes). **Preflight VERDICT: OK across the board.**
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

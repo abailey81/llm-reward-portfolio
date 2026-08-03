@@ -168,10 +168,28 @@ def check_processes() -> None:
     sent = census(lambda nm, cl: "python" in nm and "sentinel.py" in cl)
     add("processes", OK if (loops and sent and sups) else FAIL,
         f"driver-lines={len(drivers)} supervisors={len(sups)} cycle_loops={len(loops)} sentinel={len(sent)}")
+    # ⚠ A DUPLICATE LOOP IS A PERSISTENT CONDITION, NOT A MOMENTARY ONE (P205b, 2026-08-03).
+    # This fired `2 cycle loops` three times on 2026-08-03 while only ONE bash process existed.
+    # The cause is a race this file's own docstring half-anticipates: `cycle_loop.sh` runs
+    # `out=$(python docs/ops/cycle.py ...)`, and a command-substitution subshell INHERITS the
+    # parent's command line, so it is briefly a second candidate. `census` drops a candidate whose
+    # PARENT is also a candidate — which fails in the instant the parent link is not yet
+    # resolvable. A second real loop is started deliberately and persists; a subshell lives for one
+    # sweep. So require the extras to have survived, and a genuine duplicate is still caught on the
+    # very next run. A FAIL that flickers teaches people to ignore FAILs, which is precisely the
+    # alarm-saturation failure that let P202 hide inside a permanently red `guards=2`.
     if len(loops) > 1:
-        add("cycle_loop_dupes", FAIL,
-            f"{len(loops)} cycle loops — two writers race the same '>>' append and TEAR lines "
-            f"in ALERTS.txt. Kill all but one.")
+        now, persistent = time.time(), []
+        for pid in loops:
+            try:
+                if now - psutil.Process(pid).create_time() > 60:
+                    persistent.append(pid)
+            except Exception:  # noqa: BLE001 — a vanished pid is exactly the transient case
+                continue
+        if len(persistent) > 1:
+            add("cycle_loop_dupes", FAIL,
+                f"{len(persistent)} cycle loops alive >60s — two writers race the same '>>' "
+                f"append and TEAR lines in ALERTS.txt. Kill all but one. pids={persistent}")
 
     _check_line_census(procs)
 
@@ -246,30 +264,59 @@ def _check_line_census(procs) -> None:
 def _line_terminal_state(out_dir: str, line: str) -> str:
     """Why is this line's supervisor absent? See _check_line_census for the three answers.
 
+    ⚠ THIS MIRRORS `docs/ops/watchdog_fenced.ps1::Get-LineTerminalState` AND MUST STAY IN STEP.
+    Read that function's header for the full reasoning; the short version is that suppressing a
+    line needs THREE independent agreements, because ">=2 consecutive completions" ALONE was
+    refuted on this repo's own logs: `supervisor_deepseek-v4-pro.log` carries TEN consecutive
+    `driver exited 0` entries on 2026-07-28/29 and the ELEVENTH revival launched a driver that
+    ran for a full day. Those are D12's six legs, which reported complete having produced nothing.
+
+      (1) the supervisor ended CLEANLY (last non-empty line is `line supervisor exiting.`), so a
+          supervisor killed mid-attempt cannot inherit an earlier episode's completion pair;
+      (2) the completions use the ANCHORED post-D12 wording `LINE COMPLETE.` — the pre-D12
+          supervisor could not tell completion from a gate stop and said so in its message
+          (`LINE COMPLETE (or gate stop handled).`), and that text appears in EXACTLY D12's six
+          legs and nowhere else;
+      (3) the driver's own log carries a campaign-level success, which the supervisor does not
+          write. `driver_deepseek-v4-pro.log` has ZERO; gemini has 2 and h3 has 279.
+
     Fail-safe: anything unreadable or unrecognised returns MISSING, so a parsing gap raises an
     alarm instead of quietly excusing a dead line.
     """
     safe = re.sub(r"[^a-zA-Z0-9_-]", "_", line)   # EXACTLY mode_d_supervisor.ps1:81
-    path = os.path.join(out_dir, f"supervisor_{safe}.log")
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(os.path.join(out_dir, f"supervisor_{safe}.log"),
+                  "r", encoding="utf-8", errors="replace") as fh:
             tail = fh.readlines()[-400:]
     except OSError:
         return "MISSING"
     outcomes = [ln for ln in tail if "driver exited" in ln]
     if not outcomes:
         return "MISSING"
-    if "driver exited 3" in outcomes[-1]:
+    # Anchored: a bare "driver exited 3" also matches 3221225786 (STATUS_CONTROL_C_EXIT) and
+    # every other code starting with 3, and the failure direction is "stop reviving".
+    if "driver exited 3 -" in outcomes[-1]:
         return "GATE"
-    # CONSECUTIVE trailing completions only: a line that completed in an earlier episode and was
-    # later restarted by hand must not be excused on the strength of that old history.
+    meaningful = [ln for ln in tail if ln.strip()]
+    if not meaningful or not meaningful[-1].rstrip().endswith("line supervisor exiting."):
+        return "MISSING"
     consec = 0
     for ln in reversed(outcomes):
-        if "driver exited 0 - LINE COMPLETE" in ln:
+        if ln.rstrip().endswith("driver exited 0 - LINE COMPLETE."):
             consec += 1
         else:
             break
-    return "COMPLETE" if consec >= 2 else "MISSING"
+    if consec < 2:
+        return "MISSING"
+    try:
+        with open(os.path.join(out_dir, f"driver_{safe}.log"),
+                  "r", encoding="utf-8", errors="replace") as fh:
+            dtail = fh.readlines()[-200:]
+    except OSError:
+        return "MISSING"
+    if not any(("TIERED OK" in ln or "SINGLE-SHOT OK" in ln) for ln in dtail):
+        return "MISSING"
+    return "COMPLETE"
 
 
 def check_reboot_recovery() -> None:

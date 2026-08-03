@@ -88,8 +88,20 @@ def live_job_ids() -> set[str]:
     # P204, same nesting invariant as _qacct_has_trace below: this must stay strictly under the
     # caller's timeout (cycle.py:907 = 300 s) or the outer kill orphans this ssh. 90 s matches the
     # timeout cycle.py already uses for its own direct `qstat` and is ~60x the measured 1.5 s cost.
-    out = subprocess.run(["ssh", "-o", "BatchMode=yes", "myriad", "qstat -u ucestes"],
-                         capture_output=True, text=True, timeout=90)
+    #
+    # ⚠ AND IT MUST NOT FAIL SILENTLY. Shortening the timeout moved WHICH timeout fires, and that
+    # changed how the failure is REPORTED. At 300 s the outer timeout won and cycle.py reported
+    # rc=99 -> "the blind-spot detector could not run". At 90 s an unguarded TimeoutExpired would
+    # propagate as a traceback and exit 1 -- and cycle.py:912 only alerts on rc==1 AND "VANISHED"
+    # in the output, while :918 only attends on rc not in (0,1). So the layer's own failure would
+    # have become INVISIBLE. Raising a distinct code keeps it on the ":918 attends" path, which is
+    # where "this check could not run" belongs. Found by an independent auditor, not by me.
+    try:
+        out = subprocess.run(["ssh", "-o", "BatchMode=yes", "myriad", "qstat -u ucestes"],
+                             capture_output=True, text=True, timeout=90)
+    except subprocess.TimeoutExpired:
+        print("UNKNOWN -- qstat timed out after 90 s; the purge blind spot is UNWATCHED this cycle")
+        raise SystemExit(99)
     ids = set()
     for ln in out.stdout.splitlines()[2:]:
         f = ln.split()

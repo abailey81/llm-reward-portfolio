@@ -16978,3 +16978,86 @@ the registered maximum. No treatment outcome was read and none should be.
 reboot reinstates the churn) · the transient `cycle_loop_dupes` false positive · `ssh_reaper` is in
 DRY RUN with a 3600 s minimum age, deliberately left off · line balance remains the binding lever on
 the reported rung, unchanged.
+
+### 115.8 P208 — AN INDEPENDENT AUDITOR REFUTED MY SUPPRESSION RULE ON THIS REPO'S OWN LOGS
+
+The P202 fix above shipped with a predicate that suppressed a line on **">=2 consecutive
+completions" alone**, justified by the argument that *"repeating an action that changed nothing
+cannot change anything."* A fresh read-only auditor was sent at that claim, and **refuted it with
+evidence I had not looked for.** I then verified its counterexample first-hand before conceding:
+
+```
+supervisor_deepseek-v4-pro.log
+  2026-07-28 23:14:45 .. 2026-07-29 00:01:55   TEN consecutive "driver exited 0"
+  2026-07-29 00:07:03                          the ELEVENTH revival launched a driver
+                                               that then ran for a FULL DAY
+same shape in glm-5.2, kimi-k3, nemotron-3-super, qwen3.5-9b, qwen3.6-27b
+```
+
+**Those are D12's six legs** — *"six legs reported complete on 2026-07-29 having produced nothing"*
+(`mode_d_supervisor.ps1:295`). **My rule would have declared all six permanently COMPLETE at their
+second completion and never revived them.** The premise was not merely unproven, it was false on the
+exact incident whose lesson I claimed to be honouring. **This is the clearest possible vindication of
+the standing rule that the author must not grade their own work.**
+
+**THE CORRECTED PREDICATE REQUIRES THREE INDEPENDENT AGREEMENTS**, and each one alone kills the
+counterexample:
+
+1. **THE SUPERVISOR ENDED CLEANLY** — the log's last non-empty line must be `line supervisor
+   exiting.` A supervisor killed mid-attempt writes no outcome line, so a genuinely dead line would
+   otherwise inherit an earlier episode's completion pair (the auditor's finding 1).
+2. **THE COMPLETION WORDING IS THE POST-D12 ONE, ANCHORED.** Before D12 the supervisor could not
+   distinguish completion from a gate stop **and said so in its own message**:
+   `LINE COMPLETE (or gate stop handled).` versus today's `LINE COMPLETE.` This is not a string
+   trick, it is causal — only the post-D12 supervisor is entitled to claim completion, because only
+   it returns 3 for a gate stop. **Measured across all twelve logs it separates them perfectly: the
+   ambiguous text appears in EXACTLY D12's six legs and nowhere else; the decisive text appears only
+   in h3 and gemini-2.5-flash.**
+3. **THE CAMPAIGN ITSELF AGREES, from a file the supervisor does not write** — the driver log must
+   carry a campaign-level success. `driver_deepseek-v4-pro.log` contains **ZERO** `TIERED OK` /
+   `SINGLE-SHOT OK`; gemini has 2 and h3 has 279. The D12 legs produced nothing, and it shows.
+
+Any one failing means REVIVE. **That is the D12 lesson honoured properly: a completion claim is not
+self-certifying, so it must be CORROBORATED rather than merely REPEATED.** Selftest is now **27/27**,
+with the auditor's six counterexamples pinned as permanent regressions (L1-L6) — including the case
+where D12's ten ambiguous completions are accompanied by a driver-level OK and must STILL revive.
+
+**THE OTHER AUDITOR FINDINGS, ALL FIXED THE SAME SESSION:**
+
+* **`driver exited 3` was UNANCHORED**, so `3221225786` (`STATUS_CONTROL_C_EXIT`) and every other
+  code beginning with 3 would have read as a review-gate stop — failure direction "silently stop
+  reviving". Now `driver exited 3 -`. Observed codes across all twelve logs are only `{-1, 0, 1}`, so
+  this was latent, not live.
+* **MY TIMEOUT FIX TURNED A REPORTED FAILURE INTO A SILENT ONE.** `live_job_ids()` had no
+  `try/except`: at 300 s the OUTER timeout won and `cycle.py` reported rc=99, *"the blind-spot
+  detector could not run"*. At 90 s an unguarded `TimeoutExpired` would exit 1 — and `cycle.py:912`
+  alerts only on rc==1 **AND** "VANISHED" in the output, while `:918` attends only on rc not in
+  (0,1). **An ssh-slow cycle would have gone completely silent.** Now raises 99 explicitly.
+  *A fix that moves WHICH error fires also moves HOW it is reported, and that has to be checked.*
+* **THE ESCAPE HATCH NAMED THE WRONG FILE FOR 9 OF 12 LINES.** The operator message said
+  `REVIVE_<line>` while the code tests `REVIVE_<safe>` (dots to underscores), so
+  `gemini-2.5-flash` actually needs `REVIVE_gemini-2_5-flash`. The message now prints the real
+  filename and directory.
+* **THE REBOOT HOLE IS CLOSED.** The auditor observed that the boot task is a scheduled-task
+  PROPERTY, not a drift-fenced file, so it can be repointed without touching `scripts/`.
+  `LLMRewardCampaignResume` now launches `docs\ops\watchdog_fenced.ps1` instead of the unfixed
+  `scripts\mode_d_watchdog.ps1`. Verified byte-precise: argument length 1011 -> 1012, delta exactly
+  the one path, with `mode_d_launch.ps1`, `cycle_loop.sh`, `publish_loop.sh` and both host
+  exclusions all still present, and `reboot_recovery` still passing. The original definition is
+  preserved in the session scratchpad. **D31 remains open as a CODE defect** — the repo watchdog is
+  still absence-only — but it is no longer one reboot away from voiding the fix.
+* **THE `cycle_loop_dupes` FLICKER IS FIXED** (P205b). It reported `2 cycle loops` three times while
+  exactly one bash process existed: the command-substitution subshell in `cycle_loop.sh` inherits its
+  parent's command line and is briefly a second candidate, and the "drop children of the same class"
+  rule fails in the instant the parent link is unresolvable. Extras must now have survived 60 s — a
+  real duplicate is started deliberately and persists, a subshell does not, and a genuine duplicate
+  is still caught on the very next run. **A FAIL that flickers teaches people to ignore FAILs**,
+  which is the same alarm-saturation pathology that let P202 hide inside a permanently red
+  `guards=2`.
+
+**REMAINING, ACCEPTED AND RECORDED:** `WATCHDOG_LINES.log` is written but polled by no instrument,
+and `session_preflight` rates `COMPLETE` as OK rather than ATTENTION — acceptable now that COMPLETE
+requires three-way corroboration, but it means a false COMPLETE would still show green. The adaptive
+cycle budget is capped at 900 s; if sweeps legitimately reach ~300 s at full C4 the cap will bind and
+`cycle_log` becomes a standing FAIL, which is the very pathology it was written to avoid — revisit
+the cadence then rather than widening the alarm again.
