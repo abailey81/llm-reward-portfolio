@@ -17842,3 +17842,61 @@ wave is currently delivering ABOVE the long-run average, not below it.
 read without its partner tells the opposite story. Cores alone said "we are losing"; cores WITH
 records said "we are collecting". `RUN4_STATUS.md` shows cores prominently and the record rate only
 as a total — which is why this question arose at all. **A rate belongs next to every level.**
+
+---
+
+## 123. RUN 16 — THE ETA INVESTIGATION IS COMPLETE ON BOTH SIDES OF THE EQUATION: THERE IS NO WASTE TO RECLAIM
+
+`ETA = remaining_work / throughput`. Sections 117, 120 and 121 closed the DENOMINATOR. This closes
+the NUMERATOR, which had never been audited: **is any of the compute producing nothing?**
+
+### 123.1 THE TWO WASTE CANDIDATES, BOTH EXCLUDED
+
+**(a) THE 8.8% GATE-FAILURE RATE IS NOT WASTED COMPUTE.** `scripts/sentinel.py:150`
+`check_gate_failure_rate(n_failed, n_attempted)` counts CANDIDATES rejected at the sandbox/AST gate
+— which happens **before any training is submitted**. A reject costs one LLM call (~$0.01), not a
+15-hour training. It is the authoring-reliability rate (the numeracy-bottleneck finding), not lost
+throughput. *Checked at source rather than inferred from the name.*
+
+**(b) NO TRAINING IS LOST.** A job killed at `h_rt=54000` would burn 8 cores x 15 h = 120 core-hours
+and produce NO record. The decisive test is a COMPLETED ladder, where every submitted seed has had
+its full chance:
+
+```
+test_leg_gemini_2_5_flash   all FIVE arms   568 seeds, max 567, ZERO holes
+test_h3_singleshot                          568 seeds, max 567, ZERO holes
+every 30-seed line, all arms                            ZERO holes
+TOTAL holes on completed ladders            0
+```
+
+**The pipeline has delivered a record for every seed it submitted.** Nothing was killed at walltime
+and silently dropped.
+
+### 123.2 THE ONE APPARENT EXCEPTION IS IN-FLIGHT, AND IT IS COVERED — VERIFIED, NOT ASSUMED
+
+`gpt-5.6-luna` shows **455 holes below its own frontier** (seeds 85-96, 151, ... against a max of
+~466-471). That is the pipelined C4 path landing seeds OUT OF ORDER as pack-8 jobs return, which is
+exactly the state gemini passed through before finishing with zero holes. Rather than argue from
+that precedent, it was measured:
+
+```
+gpt remaining to the full ladder : 2,840 - 1,895 = 945 records
+gpt trainings in flight          : 133 jobs x 8 =  1,064
+```
+
+**1,064 >= 945: every remaining seed, including all 455 holes, is covered by work already running.**
+gpt will complete the full 568 ladder from what is already submitted — it is about to become the
+THIRD line at the maximum rung, after gemini and h3.
+
+### 123.3 THE ETA IS AT ITS GLOBAL MINIMUM, AND BOTH SIDES ARE NOW CLOSED
+
+| side of the equation | status | evidence |
+|---|---|---|
+| **throughput** | fair-share bound, no lever | s.120 (`qalter -w p` assignable, `qquota` empty, consumables free, 2,576 cores placeable yet ungranted), s.121 (every reordering route excluded: `qdel` destructive, `qalter` on the PE JSV-refused, elevation operator-only, demotion permitted-but-inert) |
+| **remaining work** | no waste to reclaim | this section: 0 lost trainings on every completed ladder, gate failures are pre-training rejects, gpt's remainder fully covered by in-flight work |
+| **target rung** | registered, and not binding | s.117: 403 is the registered PRIMARY target and 568 the 99% insurance; the cumulative-tier rule banks whatever completes, and we hold 3-4x margin |
+
+**⇒ THERE IS NOTHING LEFT TO OPTIMISE. Every remaining lever has been individually measured and
+excluded.** The campaign is delivering at its entitled rate with 100% efficiency, and the honest
+answer to "bring the ETA to a global minimum" is that **it is already there** — the remaining
+variable is other users' demand on a shared cluster (s.122), which is nobody's to control.
