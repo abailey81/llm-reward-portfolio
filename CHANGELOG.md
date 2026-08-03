@@ -242,6 +242,44 @@ on its own parsing failure — a monitor that cries wolf at itself is the very p
 *(Its selftest also passed 6/6 while the integrated run died on a REPO path needing three `dirname`s,
 not two — P193/P196, third occurrence.)*
 
+### ⑭ ★★★★★ THE ETA, MODELLED FROM MEASUREMENT — THE DEADLINE IS NOT BINDING (record s.117)
+
+Tamer: *"speed up the ETA to an absolute minimum ... but dont cut science ... analyse absolutely all
+factors that make ETA longer."* Built the model rather than asserting one.
+
+**THE REGISTRATION ALREADY ANSWERS IT.** Amendment E1 gives each rung a MEANING: **30** = the
+distinction-bankable core, where the **CVaR-5% co-primary leg is ALREADY CONCLUSIVE**; **189** = the
+**Sharpe-leg TOST is decisive**; **403** = 95% assurance, named **THE PRIMARY TARGET**; 568 = 99%
+insurance. And *"the STOPPING tier is determined **EXOGENOUSLY by measured throughput**, never by
+inspecting results"* — so choosing the rung from throughput IS the registered procedure.
+
+```
+measured  1h 225.6/h | 3h 211.5/h | 12h 201.0/h | 24h 150.9/h (24h dragged down by the outage)
+rung  remaining   days      rung  remaining   days
+  30       150    0.03       340    16,717    3.29
+ 100     3,650    0.72       403    20,182    3.98  <- PRIMARY TARGET
+ 189     8,412    1.66       568    29,257    5.76  <- full ladder, 99%
+```
+Corrected for five arms with no directory yet and for search sharing the counter: **the FULL ladder
+is ~6-7 days against ~24 remaining — roughly 17 DAYS OF SLACK.**
+
+**EVERY LEVER, PRICED:** nemotron's serial search (15/30 candidates, g4 of the registered K=5x6) is
+**IRREDUCIBLE** — generations are sequential by design and parallelising them WOULD be cutting
+science · D30 pool widening **+2-4%** → REFUSE (twelve-line relaunch on an irreplaceable campaign) ·
+memory 2G→1.6G **+0.7%** → REFUSE · `qdel` the 8 junk jobs → **ZERO gain, we are CORE-limited not
+job-limited** · pack 8→4 → NEGATIVE at the cap · queue ordering (leg6 held 2,320 of 2,336 slots while
+nemotron's critical-path jobs sat behind ~600) → ~25 h, and the only levers are `qdel` or lowering our
+own SGE priority (a STANDING PROHIBITION) — **not justified against 17 days of slack** · stopping at
+403 saves 1.8 days but is **UNNECESSARY**, since the cumulative-tier rule banks 568 for free.
+
+**★ THE CONCLUSION: THE CAMPAIGN IS NO LONGER THE BINDING CONSTRAINT ON THE GRADE — THE WRITE-UP IS.**
+Line-major submission makes the common rung rise LATE but does not change total completion time (work
+is conserved), so with 4x margin the final result is identical either way. Every remaining lever is
+worth single digits of a quantity that already has 4x margin, and each costs a relaunch of a live,
+un-rerunnable campaign. **The correct decision is to stop optimising the campaign and protect it.**
+**The one thing that could still cost real time is a STUCK line** — the common rung is a MINIMUM, so
+one dead line pins the result for all twelve however fast the others run. Now watched on three layers.
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

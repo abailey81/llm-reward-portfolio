@@ -17258,3 +17258,91 @@ the alarm-saturation pathology this whole session exists to remove, self-inflict
 *Also: its selftest passed 6/6 while the integrated run raised `FileNotFoundError` on a REPO path
 that took two `dirname`s where it needed three. P193/P196, third occurrence: a selftest that
 exercises helpers in isolation proves nothing about the wiring.*
+
+---
+
+## 117. RUN 16 — THE ETA, MODELLED FROM MEASUREMENT: THE DEADLINE IS NOT BINDING, AND THE GRADE CONSTRAINT HAS MOVED TO THE WRITE-UP
+
+**Tamer, 2026-08-03:** *"you need to speed up the ETA to an absolute minimum so it would land as
+quick as possible, but dont cut science ... analyse absoluytely all factors that make ETA longer."*
+
+The honest answer required building the model rather than asserting one. Every number below is
+measured.
+
+### 117.1 WHAT THE REGISTRATION ACTUALLY REQUIRES — AND IT IS NOT 568
+
+Amendment E1 (`PREREGISTRATION.md:385-405`) fixes `tiers: [30, 100, 189, 279, 340, 403, 568]` and
+gives **each rung a pre-registered meaning**:
+
+```
+ 30  distinction-bankable core -- H2 + mechanism + H1 + H3 all complete, and the CVaR-5%
+     co-primary leg (sigma_D = 0.0015, rho = +0.47) is ALREADY CONCLUSIVE HERE
+100  sigma-precision insurance (the sigma_D estimate tightens to ~ +/-10%)
+189  Monte-Carlo point-estimate power -- THE SHARPE-LEG TOST IS DECISIVE
+279 / 340 / 403 / 568   80% / 90% / 95% / 99% equivalence assurance
+                        403 is named THE PRIMARY TARGET; 568 is 99% insurance
+```
+
+And critically: *"a truncated run falls back to the largest COMPLETED rung"*, and **"The STOPPING
+tier is determined EXOGENOUSLY by measured Myriad throughput against the deadline, never by
+inspecting results."** So choosing the stopping rung from throughput is not a liberty — **it is the
+registered procedure**, and this section performs it.
+
+### 117.2 THE MODEL, FROM MEASURED THROUGHPUT
+
+Sealed-test shortfall to each rung, summed over every arm of every line (arms already past a rung
+contribute zero), against the cycle log's own record counter:
+
+```
+measured throughput   last 1h 225.6/h | last 3h 211.5/h | last 12h 201.0/h | last 24h 150.9/h
+                      (the 24h figure is dragged down by the 7h24m outage)
+
+rung   remaining records   days @ 212/h
+  30              150          0.03     <- effectively banked
+ 100            3,650          0.72
+ 189            8,412          1.66     <- Sharpe-leg TOST decisive
+ 279           13,362          2.63
+ 340           16,717          3.29
+ 403           20,182          3.98     <- THE REGISTERED PRIMARY TARGET
+ 568           29,257          5.76     <- 99% assurance, the full ladder
+```
+
+⚠ **HONEST CAVEAT:** the 212/h counter includes SEARCH records while the shortfall is sealed-test
+only, so these days are mildly optimistic; and five arms have no directory yet (deepseek
+`distributional`/`scalar`, nemotron `scalar_cvar5` plus two), adding up to ~2,840 records at rung
+568. **Corrected, the full ladder is ~6-7 days.**
+
+**⇒ AGAINST ~24 DAYS TO THE 2026-08-27 STOP (the registration itself says 1 Sep), THERE IS ROUGHLY
+17 DAYS OF SLACK. THE DEADLINE IS NOT BINDING ON ANY RUNG, INCLUDING THE 99% ONE.**
+
+### 117.3 EVERY FACTOR THAT LENGTHENS THE ETA, PRICED
+
+| factor | worth | verdict |
+|---|---|---|
+| **nemotron's serial search** — `scalar_cvar5` is 15/30 candidates, at g4 of the registered K=5 x 6 | ~1-2 days on the critical path | **IRREDUCIBLE.** Generations are sequential BY DESIGN (each reflects on the last). Parallelising them would change the registered search protocol — this is "cutting science" and is refused. |
+| **fair-share saturation** — 2,336 slots, 26% of the cluster, 2.3x the next user, `qquota` shows nothing caps us | — | Already maximal. |
+| **D30 pool widening (b00a)** | +40..88 cores = **+2-4%** ≈ 0.15-0.25 days | **REFUSE.** Requires a twelve-line relaunch on a live irreplaceable campaign. Risk/benefit is indefensible against 17 days of slack. |
+| **memory 2G -> 1.6G/slot** | +16 cores = **+0.7%** ≈ 0.04 days | **REFUSE** (third time; measured maxvmem 11.4/16 GB on three jobs is not a distribution). |
+| **`qdel` the 8 junk jobs** (6 `sshorig`, 2 `cpuprobe13`) | frees 8 of 1000 cap slots | **ZERO ETA GAIN** — we are CORE-limited, not job-limited (990 jobs, 698 of them queued waiting for cores). |
+| **pack 8 -> 4** | halves reachable cores at the job cap | **NEGATIVE.** |
+| **queue ordering** — `leg6` held 2,320 of 2,336 slots while nemotron's critical-path jobs sat behind ~600 jobs from lines whose extra rungs add NOTHING to the common rung | ~25 h on the critical path | **NO ACTION.** The only levers are `qdel` (destroys up to 15 h of irreplaceable in-flight work per job) or lowering our own SGE priority (a STANDING PROHIBITION). 25 h against 17 days of slack does not justify breaking a safety rule. |
+| **stopping at 403 instead of 568** | 1.8 days | **UNNECESSARY.** The cumulative-tier rule banks whatever completes, so 568 is taken for free. Stopping early would be *cutting science for no deadline benefit*. |
+
+### 117.4 THE CONCLUSION THAT MATTERS
+
+**Total order matters less than it looks.** Line-major submission makes the COMMON RUNG rise late,
+but it does not change total completion time — work is conserved, and every line's ladder is the
+same size. Since completion lands at ~6-7 days against ~24, the FINAL result is identical either
+way. Reordering would buy earlier *partial* results, which has value only if the deadline binds.
+**It does not.**
+
+**⇒ THE CAMPAIGN IS NO LONGER THE BINDING CONSTRAINT ON THE GRADE. THE WRITE-UP IS.** Every
+remaining ops lever is worth single-digit percentages of a quantity that already has 4x margin,
+and each one costs a relaunch of a live, irreplaceable, un-rerunnable campaign. The correct
+engineering decision is to **stop optimising the campaign and protect it instead** — which is what
+`line_balance.py` (STUCK vs WAITING), `crash_watchdog.py` and the repaired counters now do.
+
+**THE ONE THING THAT COULD STILL COST REAL TIME** is not slowness but a STUCK line: the common rung
+is a MINIMUM, so a single line that dies and is not revived pins the reported result for everyone,
+however fast the other eleven run. That is precisely the failure mode of P202 (h3 revived 278 times
+while nobody counted the lines) and it is now watched on three independent layers.
