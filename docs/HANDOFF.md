@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "23bf0860"
+  head: "da84981e"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 18 second-half certification; 3,082 tests, zero F/E, PYTEST_RC read from the log)"
+  suite_status: "exit 0 (RUN 18 close; 3,082 tests, zero F/E, PYTEST_RC read from the log)"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```
