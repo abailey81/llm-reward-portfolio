@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:55 UTC -- T+141h47m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 18:57 UTC -- T+141h48m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h47m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h48m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **9634** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
@@ -33,26 +33,26 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:56 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
+generated 2026-08-03 18:57 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
 test tier: 8,106 records over 61 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      55 records      55.0 rec/h
-    last  3 h     287 records      95.7 rec/h
-    last 12 h    2482 records     206.8 rec/h
-    last 24 h    4532 records     188.8 rec/h
+    last  1 h      53 records      53.0 rec/h
+    last  3 h     284 records      94.7 rec/h
+    last 12 h    2476 records     206.3 rec/h
+    last 24 h    4529 records     188.7 rec/h
     12 h rate is 79% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
 
 EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE
-    because the rate is line-concentrated (fast = 12 h @ 207 rec/h, slow = 1 h @ 55 rec/h):
+    because the rate is line-concentrated (fast = 12 h @ 206 rec/h, slow = 1 h @ 53 rec/h):
      rung   remaining  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428  2026-08-03 21:00  2026-08-04 02:43  yes
-      100       4,278  2026-08-04 15:37  2026-08-07 00:43  yes
-      189       9,474  2026-08-05 16:44  2026-08-10 23:11  yes
-      279      14,874  2026-08-06 18:51  2026-08-15 01:22  yes
-      340      18,534  2026-08-07 12:32  2026-08-17 19:55  yes
-      403      22,314  2026-08-08 06:49  2026-08-20 16:38  yes
-      568      32,222  2026-08-10 06:43  2026-08-28 04:47  risk
+       30         428  2026-08-03 21:02  2026-08-04 03:02  yes
+      100       4,278  2026-08-04 15:41  2026-08-07 03:40  yes
+      189       9,474  2026-08-05 16:52  2026-08-11 05:43  yes
+      279      14,874  2026-08-06 19:03  2026-08-15 11:36  yes
+      340      18,534  2026-08-07 12:47  2026-08-18 08:39  yes
+      403      22,314  2026-08-08 07:06  2026-08-21 07:58  yes
+      568      32,222  2026-08-10 07:07  2026-08-29 02:55  risk
     (+10 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
@@ -192,7 +192,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
