@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:53 UTC -- T+141h44m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 18:55 UTC -- T+141h46m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h44m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h46m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9632** |
+| stalest driver log | **1 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9633** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 124 -- a level with no rate; read the row above |
@@ -33,26 +33,26 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:54 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
-test tier: 8,104 records over 61 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-03 18:55 UTC | elapsed 5.91 d | 23.2 d to the Aug-27 stop
+test tier: 8,105 records over 61 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      53 records      53.0 rec/h
-    last  3 h     288 records      96.0 rec/h
-    last 12 h    2485 records     207.1 rec/h
-    last 24 h    4536 records     189.0 rec/h
+    last  1 h      54 records      54.0 rec/h
+    last  3 h     287 records      95.7 rec/h
+    last 12 h    2483 records     206.9 rec/h
+    last 24 h    4534 records     188.9 rec/h
     12 h rate is 79% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
 
 EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE
-    because the rate is line-concentrated (fast = 12 h @ 207 rec/h, slow = 1 h @ 53 rec/h):
+    because the rate is line-concentrated (fast = 12 h @ 207 rec/h, slow = 1 h @ 54 rec/h):
      rung   remaining  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428  2026-08-03 20:58  2026-08-04 02:58  yes
-      100       4,278  2026-08-04 15:33  2026-08-07 03:37  yes
-      189       9,476  2026-08-05 16:39  2026-08-11 05:41  yes
-      279      14,876  2026-08-06 18:44  2026-08-15 11:34  yes
-      340      18,536  2026-08-07 12:24  2026-08-18 08:38  yes
-      403      22,316  2026-08-08 06:39  2026-08-21 07:57  yes
-      568      32,224  2026-08-10 06:30  2026-08-29 02:54  risk
+       30         428  2026-08-03 20:59  2026-08-04 02:50  yes
+      100       4,278  2026-08-04 15:35  2026-08-07 02:08  yes
+      189       9,475  2026-08-05 16:42  2026-08-11 02:23  yes
+      279      14,875  2026-08-06 18:48  2026-08-15 06:23  yes
+      340      18,535  2026-08-07 12:29  2026-08-18 02:09  yes
+      403      22,315  2026-08-08 06:46  2026-08-21 00:09  yes
+      568      32,223  2026-08-10 06:39  2026-08-28 15:38  risk
     (+10 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
