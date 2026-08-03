@@ -102,3 +102,17 @@ sentinel_events.jsonl
 # publisher can `git pull --rebase` with a clean tree
 docs/ops/watch/STATE.json
 docs/ops/watch/CYCLE_LOG.md
+
+# incremental-scan state for the record layers (2026-08-03, RUN 16). These are rewritten on
+# every pass, so tracking them would churn the tree the status publisher rebases against. They
+# were sitting UNTRACKED and permanently visible in `git status`, which is the same
+# alarm-saturation shape as a permanently red guard: standing noise masks a genuinely NEW
+# untracked file. Ignoring them makes `??` mean something again.
+docs/analysis/.record_validator_seen.json
+docs/analysis/.results_cycle_state.json
+docs/ops/watch/.crash_watchdog_state.json
+docs/ops/watch/.integrity_gate_last
+docs/ops/watch/.record_seal_state
+docs/ops/watch/.sandbox_gap_last
+docs/ops/watch/.science_audit_stamp
+docs/ops/watch/.sshgate/
