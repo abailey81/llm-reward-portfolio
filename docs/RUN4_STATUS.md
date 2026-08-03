@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 15:14 UTC -- T+138h05m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 15:15 UTC -- T+138h06m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,9 +9,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+138h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+138h06m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (gpt-5_6-luna)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **9287** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport health | **timeouts 6h=81; worst streak 3/240 (1.2% to fatal), ops on core** |
@@ -110,7 +110,7 @@ number the dissertation reports.
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **53** | 70 | 5 |  |
+| qwen3_5_9b | **54** | 71 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -141,7 +141,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -158,12 +158,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T14:47:25Z  RED  records=9263 (+6)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=6.6m  drift=0  sci=OK  r115=21B  sweep=174.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:50:50Z  RED  records=9274 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=14.3m  drift=0  sci=OK  r115=21B  sweep=398.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T14:57:59Z  RED  records=9274 (+0)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=17.3m  drift=0  sci=OK  r115=21B  sweep=162.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:01:12Z  RED  records=9277 (+3)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=234.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:05:36Z  RED  records=9280 (+3)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=248.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T15:10:15Z  RED  records=9284 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=21B  sweep=208.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T15:14:14Z  RED  records=9287 (+3)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=112.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
