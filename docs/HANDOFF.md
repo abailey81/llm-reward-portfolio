@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "58336d97"
+  head: "a16e3a87"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 16 final: P202 h3 completion-churn FIXED+HARDENED after an auditor REFUTED my first predicate (P208); suppression now needs 3 agreements, selftest 27/27. P203 line census, P204 orphaned qacct, P205 adaptive DEAD threshold, P209/P210 the counters the churn masked, P214 the D14 alert. NEW S14 record_window_identity (7th layer): all 5,449 sealed-test records share ONE window [3835,5406), one device, 0 arm mismatches. All seven layers RC=0. D32 proven (loader +2). D33 fixed (placeable_capacity forbade what it could not see; true figure 2,576 cores, not 0). ETA PROVEN fair-share-bound from SGE itself: jobs assignable, capacity exists, we still do not get it - ~6-7 days vs ~24 remaining. PRIORITY 5: 17 record-layer instruments incl. record_validator.py were UNTRACKED and are now committed. gemini-2.5-flash FINISHED the full 568 ladder (2,840 records). TAMER: qdel 66103-66108 73026 73027 (they hold the head of our queue with reserve:y)."
+  suite_status: "RUN 16 CLOSES -> docs/RUN17_SESSION_PROMPT.md. Records 8,827 (+2,424), preflight VERDICT OK on all 16, drift 0, freeze MATCHES, repro 8/0/0. gemini-2.5-flash AND h3 COMPLETE at the full 568 ladder (zero holes); gpt at 507-517, about to be third. NEMOTRON IS THE CRITICAL PATH (4/5 arms frozen, scalar_cvar5 search serial). ETA CLOSED BOTH SIDES: fair-share bound, no waste, ~6-7d vs ~24 remaining -> the WRITE-UP is now the binding constraint. Defects P202-P220 + D31/D32/D33; two auditors ran and the second proved P214 had blinded the board. PRIORITY 5 breach closed: 17 record-layer instruments were untracked. TAMER: qdel the 8 junk jobs; close the 2nd ops session."
   gate_checks: 23
   backup_branch: backup-2026-08-03-run16
 ```
