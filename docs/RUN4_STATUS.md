@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 19:57 UTC -- T+142h48m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 20:00 UTC -- T+142h51m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,13 +10,13 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+142h48m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+142h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **4 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9751** |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9786** |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=89; worst streak 3/240 (1.2% to fatal), ops on core** |
-| transport timeouts (cumulative, ever) | 147 -- a level with no rate; read the row above |
+| transport health | **timeouts 6h=92; worst streak 3/240 (1.2% to fatal), ops on core** |
+| transport timeouts (cumulative, ever) | 151 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
 ## Compute
@@ -33,29 +33,29 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 19:58 UTC | elapsed 5.95 d | 23.2 d to the Aug-27 stop
-test tier: 8,222 records over 62 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-03 20:01 UTC | elapsed 5.95 d | 23.2 d to the Aug-27 stop
+test tier: 8,265 records over 62 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     114 records     114.0 rec/h
-    last  3 h     263 records      87.7 rec/h
-    last 12 h    2372 records     197.7 rec/h
-    last 24 h    4593 records     191.4 rec/h
-    12 h rate is 73% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
+    last  1 h     154 records     154.0 rec/h
+    last  3 h     297 records      99.0 rec/h
+    last 12 h    2398 records     199.8 rec/h
+    last 24 h    4635 records     193.1 rec/h
+    12 h rate is 72% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
-    !! 73% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_gpt_5_6_luna) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
+    !! 72% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_gpt_5_6_luna) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE
-    earliest assumes the cluster REDIRECTS finishing slots (12 h @ 198 rec/h);
-    latest assumes it does NOT -- go-forward 12 h @ 53 rec/h (cells that keep producing):
+    earliest assumes the cluster REDIRECTS finishing slots (12 h @ 200 rec/h);
+    latest assumes it does NOT -- go-forward 12 h @ 56 rec/h (cells that keep producing):
      rung   remaining  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428  2026-08-03 22:08  2026-08-04 04:05  yes
-      100       4,278  2026-08-04 17:36  2026-08-07 05:11  yes
-      189       9,358  2026-08-05 19:18  2026-08-11 05:39  yes
-      279      14,758  2026-08-06 22:37  2026-08-15 12:11  yes
-      340      18,418  2026-08-07 17:08  2026-08-18 09:40  yes
-      403      22,198  2026-08-08 12:16  2026-08-21 09:27  yes
-      568      32,106  2026-08-10 14:23  2026-08-29 05:34  risk
+       30         428  2026-08-03 22:09  2026-08-04 03:37  yes
+      100       4,278  2026-08-04 17:25  2026-08-07 00:04  yes
+      189       9,315  2026-08-05 18:37  2026-08-10 17:37  yes
+      279      14,715  2026-08-06 21:39  2026-08-14 17:37  yes
+      340      18,375  2026-08-07 15:58  2026-08-17 10:41  yes
+      403      22,155  2026-08-08 10:53  2026-08-20 05:53  yes
+      568      32,063  2026-08-10 12:27  2026-08-27 14:01  risk
     (+9 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
@@ -154,7 +154,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **131** | 166 | 5 |  |
+| qwen3_5_9b | **134** | 178 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -195,7 +195,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
