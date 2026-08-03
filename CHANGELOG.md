@@ -3,7 +3,7 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
-## [2026-08-03a] ★★★★★ BUILDER / RUN 15 — **THE ARCHIVE MUST NOT MOVE TO D:, PROVED BY EXPERIMENT (it would silently delete every pulled record)** · Myriad diagnosed to a conclusion (ban and access-loss EXCLUDED by protocol) · C: and D: are ONE physical disk · +3.96 GB freed, ceiling 340 → 403 · six record layers re-run CLEAN · four inherited claims corrected, two of them mine
+## [2026-08-03a] ★★★★★ BUILDER / RUN 15 — **THE DISK CEILING IS GONE: FULL LADDER TO RUNG 568 WITH 8.7 GB OF MARGIN, NO REBOOT** · **the archive must NOT move to D:, proved by experiment (it would silently delete every pulled record)** · Myriad diagnosed to a conclusion (ban and access-loss EXCLUDED by protocol) · C: and D: are ONE physical disk · six record layers re-run CLEAN · four inherited claims corrected, two of them mine
 
 **PAST.** RUN 14 closed with `docs/RUN15_SESSION_PROMPT.md`, an SSH outage frozen at 4,733 records
 since 17:08:07Z, and D29 (the pagefile) named as the one action that reaches rung 568. Tamer's
@@ -140,12 +140,59 @@ relaunch. `h3` is in any case **COMPLETE (568/568 test records — the full ladd
 noise; `nemotron` was mid-work with 4 trainings pending, which are safe on the cluster and re-derived
 from disk on restart.
 
-**FUTURE.** (1) **Tamer: the pagefile** — one `Set-ItemProperty` + one reboot = rung 568, no ceiling;
-now is the cheapest possible reboot window because nothing is being pulled. (2) **Tamer: the gateway
-test** for source-specificity, and a UCL report if it also resets. (3) Verify all twelve lines return
-after that reboot (recovery is registered but has never been exercised). (4) Fix the D18 nested-dir
-admission in `load_campaign_records` before the headline analysis. (5) Cores work is blocked until
-ssh returns — nothing about the cluster can be measured from here.
+### ⑦ ★★★★★ THE CEILING IS GONE — NTFS COMPRESSION, NOT A REBOOT AND NOT A MOVE
+
+Tamer: *"move some additional stuff from c to d just in case"* / *"Dont stop until the ceiling issue
+is gone."* Moving was nearly exhausted, and the one big remaining target (the archive) is the
+prohibited one. **The answer was not to move the archive but to COMPRESS it.** Records are JSON;
+NTFS compression is transparent to every reader, changes no path, no content and no hash, and is
+reversible with `compact /u`.
+
+**THE DESIGN POINT, AND IT IS THE WHOLE TRICK.** Measured first (because compression semantics
+decide where the attribute must go):
+
+```
+new subdirectory inside a compressed parent  -> INHERITS
+new file inside a compressed directory       -> INHERITS
+file RENAMED into a compressed directory     -> DOES *NOT* inherit   <== decides the design
+```
+
+The pull commits by `os.rename` from `.pull_tmp.<pid>`, so compressing the leg directories alone
+would leave every FUTURE record uncompressed. **The attribute therefore has to sit on the archive
+ROOT** — `staging = local / f".pull_tmp.{pid}"` is created inside it, inherits compression, files are
+fetched into it already compressed, and the rename preserves that. Verified: the root carries the
+attribute.
+
+```
+archive        36,123 files compressed, ratio 1.7:1, +0.923 GB, 143 s   (100.0% coverage)
+.venv          62,696 files, 2.1:1, +0.967 GB      .claude 1.4:1 +0.338
+.vscode        1.8:1 +0.110                        AppData\Packages 1.7:1 +0.254
+```
+
+**INTEGRITY PROVED, NOT ASSUMED:** the same `record.json` hashes to `CA5CE6F5C513D04EEFD6EEA231BEBB44`
+before AND after compression while `Compressed=True`. All six record layers re-run and exit 0. The
+cycle sweep stayed in its 32-65 s band — **no new load on the monitor** (the P194 trap, avoided).
+
+```
+C: free 31.78 -> 39.25 decimal GB across the session (+7.47), AND each record now costs 1.76x less
+rung 568: needs 10.5 GB on disk, leaves 28.7 GB against the 20 GB floor -> MARGIN 8.7 GB
+docs/ops/disk_runway.py: "The full ladder fits above the floor on the CURRENT free space."
+EVERY RUNG READS ok. THE CEILING IS GONE WITH NO REBOOT AND NO TAMER ACTION.
+```
+
+**`docs/ops/disk_runway.py` FIXED IN THE SAME BREATH, because it would now have LIED.** It sized
+units with `os.path.getsize` — the LOGICAL length — which after compression overstates the footprint
+by the whole ratio and reported rung 568 as below the floor when it clears it by 8.7 GB. It now
+measures the ALLOCATED size via `GetCompressedFileSizeW` (correct for compressed and uncompressed
+alike, so it cannot drift), prints the ratio so the number is checkable, and its remediation text —
+which used to advise *"unless the archive moves"* — now carries the PROHIBITION instead. ruff clean;
+printed output re-checked ASCII-only after I put a non-ASCII glyph in a `print()` (the cp1251 rule).
+
+**FUTURE.** (1) **The disk ceiling is CLOSED** — the pagefile move is now OPTIONAL headroom, not a
+requirement. (2) **Tamer: the gateway test** for Myriad source-specificity, and a UCL report if it
+also resets. (3) Fix the D18 nested-dir admission in `load_campaign_records` before the headline
+analysis. (4) Cores work is blocked until ssh returns. (5) When the lines are next relaunched, fix
+D-RUN15-1 (the driver's startup path has no transport-outage tolerance).
 
 ## [2026-08-02f] ★★★★★ BUILDER / RUN 14 CLOSES — **SIX RECORD LAYERS, ALL CLEAN** · the identification itself audited for the first time · **DISM moved the result ceiling 189 → 340, and D29 alone now reaches 568** · a UCL-wide SSH outage, diagnosed and survived · nine of my own errors
 

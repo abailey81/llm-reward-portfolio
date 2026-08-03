@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-08-02"
-  head: "743fe1aa"
+  regenerated_utc: "2026-08-03"
+  head: "c14c5949"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "not re-run this session (no src/ change); six record layers ALL CLEAN 4,791; +3.96 GB freed, ceiling 340->403"
+  suite_status: "six record layers ALL CLEAN; archive NTFS-compressed 1.76:1; FULL LADDER to rung 568 fits, margin 8.7 GB"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
