@@ -795,48 +795,83 @@ def main() -> int:
     # self-heals and the marker disappears on the next clean pass; a marker that PERSISTS across
     # several cycles means the crash is deterministic and needs a human.
     for _m in sorted(ROOT.glob("ARM_CRASH_*.json")):
+        _p, _ts = None, None
         try:
             _p = json.loads(_m.read_text(encoding="utf-8"))
-            _arms = ", ".join(f"{k} ({v})" for k, v in sorted((_p.get("arms") or {}).items()))
-            _age = (time.time() - float(_p.get("ts", 0))) / 60.0
+            _arms_map = _p.get("arms") or {}
+            _arms = ", ".join(f"{k} ({v})" for k, v in sorted(_arms_map.items()))
+            _ts = float(_p["ts"])                                 # KeyError/TypeError => UNKNOWN
+            _age = (time.time() - _ts) / 60.0
         except Exception:                                        # noqa: BLE001 — torn = still real
-            _arms, _age = "(unreadable marker)", -1.0
-        # ⚠ HAS THE ARM RESUMED? A MARKER THAT PERSISTS IS NOT A CRASH THAT PERSISTS (P214).
+            _arms, _age, _arms_map = "(unreadable marker)", -1.0, {}
+        # ⚠⚠ THE FIRST VERSION OF THIS DOWNGRADE WAS WRONG AND AN AUDITOR PROVED IT ON THESE LOGS.
         #
-        # The marker clears only on a COMPLETE clean pass, and a pass can legitimately take 12h+
-        # when the line is starved of cores — so on a slow line the marker ages indefinitely while
-        # the work is in flight, and this alert kept asserting two things that were FALSE: "that
-        # line has stopped progressing" and "the crash is DETERMINISTIC". Measured 2026-08-03 on
-        # `leg_nemotron_3_super/scalar_cvar5`: marker age 512 min, yet SGE job 76452 was RUNNING
-        # with `cpu=06:36:48` on 8 slots. The crash was the resolved VPN outage; the driver had
-        # resumed hours earlier. Telling an operator a healthy arm "needs a human" is how a board
-        # earns the right to be ignored, which is the failure this whole session exists to remove.
+        # It asked "has the line's DRIVER LOG been written since the marker was stamped?" and read a
+        # fresh log as "the driver resumed and is working the arm". That inference is FALSE during a
+        # supervisor crash loop, because `scripts/mode_d_supervisor.ps1:286` pipes the driver through
+        # `Out-File -Append` — SO EVERY RELAUNCH WRITES THE LOG. Demonstrated on the very line this
+        # was written for: `supervisor_nemotron-3-super.log` records attempts 16..28 between
+        # 2026-08-02 23:37 and 2026-08-03 01:37, each `driver exited 1` after ONE TO TWO SECONDS
+        # (ssh exit 255, the VPN outage). For that whole window the marker was on disk, the driver
+        # log was fresh, THE ARM DID NOTHING, and the new code would have said "resumed and working".
+        # The code it replaced said RED, and was right.
         #
-        # The discriminator is local and free: if the line's DRIVER LOG has been written since the
-        # marker was stamped, the driver came back and is working the arm. No ssh, no qstat.
+        # That is the P211/P213/D33 shape in my own hand: AN INFERENCE FROM A PROXY PRESENTED AS AN
+        # OBSERVATION. A log mtime is evidence that a PROCESS ran, never that WORK advanced.
+        #
+        # ⚠ AND IT REMOVED THE ONLY COVER FOR THAT STATE. During a 600 s relaunch loop the
+        # `STALE_DRIVER_MINUTES = 30` check cannot fire either, because the relaunch refreshes the
+        # log every ten minutes. Before P214 the D14 RED was the sole alert covering a crash-looping
+        # line; the downgrade silently deleted it.
+        #
+        # THE HONEST DISCRIMINATOR IS THE ARCHIVE, NOT A LOG MTIME: has the CRASHED ARM produced a
+        # record since the marker was stamped? That is what "working" means, it cannot be forged by
+        # a relaunch, and it is still local and free.
         _line = _m.stem.replace("ARM_CRASH_", "")
-        _safe = re.sub(r"[^a-zA-Z0-9_-]", "_", _line.replace("leg_", "", 1))
         _resumed = False
-        for _cand in ROOT.glob("driver_*.log"):
-            if _cand.stat().st_mtime > float(_p.get("ts", 0)) + 60:
-                if _safe.replace("_", "") in _cand.stem.replace("_", "").replace("-", ""):
-                    _resumed = True
+        if _ts is not None and _arms_map:
+            # `leg_nemotron_3_super` -> search_leg_nemotron_3_super / test_leg_...; the core line
+            # carries no suffix, so fall back to the bare roots.
+            _roots = [ROOT / f"search_{_line}", ROOT / f"test_{_line}"]
+            if not any(r.is_dir() for r in _roots):
+                _roots = [ROOT / "search", ROOT / "test"]
+            _resumed = True                                       # ALL crashed arms must advance
+            for _arm in _arms_map:
+                _adv = False
+                for _r in _roots:
+                    _ap = _r / _arm
+                    if not _ap.is_dir():
+                        continue
+                    for _rec in _ap.glob("*/record.json"):
+                        try:
+                            if _rec.stat().st_mtime > _ts + 60:
+                                _adv = True
+                                break
+                        except OSError:
+                            continue
+                    if _adv:
+                        break
+                if not _adv:
+                    _resumed = False
                     break
         if _resumed:
             attention.append(
-                f"D14 marker still on disk for {_line}: {_arms}. Age {_age:.1f} min — but the "
-                f"line's driver log has been written SINCE the marker was stamped, so the driver "
-                f"resumed and is working the arm. The marker clears only on a COMPLETE clean pass, "
-                f"which on a core-starved line can take 12h+. INFORMATIONAL: confirm the arm has "
-                f"jobs (`python docs/ops/line_balance.py --once`) before treating this as a crash.")
+                f"D14 marker still on disk for {_line}: {_arms}. Age {_age:.1f} min — but EVERY "
+                f"crashed arm has ARCHIVED A NEW RECORD since the marker was stamped, so the work "
+                f"is genuinely advancing (this is the archive, not a log mtime, which a relaunch "
+                f"loop can forge). The marker clears only on a COMPLETE clean pass, which on a "
+                f"core-starved line can take 12h+. INFORMATIONAL: `python docs/ops/line_balance.py "
+                f"--once` shows the line's jobs.")
         else:
             alerts.append(
                 f"D14 CORE ARM CRASH on {_line}: {_arms}. The pass STOPPED "
                 f"before the H2 pair array rather than submitting it with a missing arm (which would "
                 f"have CRN-paired every seed against the wrong comparator set). The supervisor "
                 f"relaunches on its backoff and --resume re-runs only the crashed arm. Marker age "
-                f"{_age:.1f} min AND THE DRIVER LOG HAS NOT BEEN TOUCHED SINCE — the line has not "
-                f"come back on its own and needs a human.")
+                f"{_age:.1f} min AND NO CRASHED ARM HAS ARCHIVED A RECORD SINCE — the work has not "
+                f"advanced, so a fresh driver log would only mean the supervisor is relaunching. "
+                f"Needs a human. (An unreadable marker or one with no `ts` also lands here, "
+                f"deliberately: unknown is never downgraded.)")
 
     # 6. driver-log freshness
     now = time.time()

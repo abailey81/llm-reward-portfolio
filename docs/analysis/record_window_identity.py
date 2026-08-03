@@ -225,7 +225,16 @@ def _selftest() -> int:
 
 
 def report_rc(res: dict) -> int:
-    """report() without the printing, for the selftest."""
+    """report() without the printing, for the selftest.
+
+    ⚠ IT MUST AGREE WITH `report()` ON EVERY PATH, INCLUDING n == 0. It did not: `report()` returns
+    2 on an empty scan (P213) while this returned 0, because all four violation conditions are
+    false on empty counters. Six selftest cases route through here, so if any of their fixtures
+    ever stopped writing records they would have passed VACUOUSLY -- the P213 shape re-created
+    inside the harness built to prevent it. Found by an independent auditor.
+    """
+    if not res["n"]:
+        return 2
     if len(res["windows"]) > 1 or len(res["devices"]) > 1 or res["arm_mismatch"] or res["unparsed"]:
         return 1
     return 0

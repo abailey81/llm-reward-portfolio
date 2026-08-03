@@ -84,11 +84,34 @@ gnames=${gnames:-"(GUARD-NAME EXTRACTION FAILED -- read campaign_guards.py outpu
 armsfull=$(python docs/ops/arm_coverage.py 2>/dev/null | grep -c '5/5 arms submitted')
 armsfull=${armsfull:-?}
 
-# staleness of the freshest driver log: a line can hold its process and stop progressing (D14)
-freshest=$(python -c "
-import glob, os, time
-ts=[os.path.getmtime(p) for p in glob.glob('outputs/campaign_cluster_run4/driver_*.log')]
-print(int((time.time()-max(ts))/60) if ts else '?')" 2>/dev/null || echo "?")
+# ⚠ THIS ROW REPORTED THE **FRESHEST** LOG AND CALLED IT THE STALENESS ALARM (P218).
+#
+# It computed `(now - MAX(mtime))/60` -- the MINIMUM age across all driver logs -- and rendered it
+# under "above ~30 would mean a line has stopped progressing". That can only exceed 30 when EVERY
+# line is stale, so it was structurally incapable of reporting the one thing it claimed to report.
+# Measured 2026-08-03: it published **0.1 min** while driver_h3.log was 470.5 min and
+# driver_gemini-2_5-flash.log 446.0 min old. `cycle.py` correctly uses max(ages).
+#
+# It is the P210 shape ONE TABLE ROW BELOW the counter fixed earlier the same day, found by an
+# independent auditor. Now: the STALEST, and -- exactly as cycle.py does since P209 -- with lines
+# whose terminal state is COMPLETE excluded, because a finished ladder never writes again and would
+# otherwise pin this row red forever.
+stalest=$(python -c "
+import glob, os, sys, time
+sys.path.insert(0, 'docs/ops')
+try:
+    from session_preflight import line_terminal_state_by_tag as _st
+except Exception:
+    _st = None
+root='outputs/campaign_cluster_run4'
+worst=('', -1.0)
+for p in glob.glob(os.path.join(root,'driver_*.log')):
+    tag=os.path.basename(p)[len('driver_'):-len('.log')]
+    if _st is not None and _st(root, tag) == 'COMPLETE':
+        continue
+    age=(time.time()-os.path.getmtime(p))/60.0
+    if age>worst[1]: worst=(tag, age)
+print(('%d min (%s)' % (int(worst[1]), worst[0])) if worst[1]>=0 else '?')" 2>/dev/null || echo "?")
 
 # STAGE: furthest generation reached per arm, across all twelve lines
 stage=$(python -c "
@@ -157,7 +180,7 @@ back what it did.
 |---|---|
 | elapsed | **$HM** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **$linestat**, all five arms submitted on **$armsfull of the 10 leg lines** (h3ss is single-arm by design) |
-| freshest driver log | **$freshest min** old (above ~30 would mean a line has stopped progressing) |
+| stalest driver log | **$stalest** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **$records** |
 | LLM calls / spend | $calls / **\$$spend** |
 | transport timeouts | **$timeouts** |

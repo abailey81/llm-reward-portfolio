@@ -17900,3 +17900,117 @@ THIRD line at the maximum rung, after gemini and h3.
 excluded.** The campaign is delivering at its entitled rate with 100% efficiency, and the honest
 answer to "bring the ETA to a global minimum" is that **it is already there** — the remaining
 variable is other users' demand on a shared cluster (s.122), which is nobody's to control.
+
+---
+
+## 124. RUN 16 — A SECOND INDEPENDENT AUDIT, AND IT PROVED MY OWN P214 FIX HAD BLINDED THE BOARD
+
+The first auditor refuted the watchdog predicate (P208). Everything after that had gone unreviewed,
+so a second read-only auditor was sent at it. **It found six MAJORs. The worst was mine, and it had
+made the monitoring WORSE than before I touched it.**
+
+*(It also corrected my framing: I briefed it that "none of this has a test", which was already false
+— `docs/ops/test_session_preflight.py` was committed before it started. Noted; a brief that
+overstates the gap wastes an auditor's budget.)*
+
+### 124.1 P220 — MY P214 DOWNGRADE WAS DEFEATED BY A CRASH LOOP, PROVEN ON THESE LOGS
+
+P214 downgraded the D14 crash alert from RED to ATTENTION when *"the line's driver log has been
+written since the marker was stamped"*, reading a fresh log as **"the driver resumed and is working
+the arm."**
+
+**That inference is false during a supervisor crash loop**, because `mode_d_supervisor.ps1:286` pipes
+the driver through `Out-File -Append` — **so every relaunch writes the log**. The auditor demonstrated
+it on the very line the fix was written for:
+
+```
+supervisor_nemotron-3-super.log   attempts 16..28, 2026-08-02 23:37 -> 2026-08-03 01:37
+                                  each `driver exited 1` after ONE TO TWO SECONDS
+driver_nemotron-3-super.log       startup banners appended at each relaunch (ssh exit 255, VPN outage)
+```
+
+For that entire two-hour window the marker was on disk, **the driver log was fresh, the arm did
+NOTHING**, and my code would have printed *"resumed and working"*. **The code it replaced said RED,
+and was right.**
+
+**AND IT DELETED THE ONLY COVER FOR THAT STATE.** During a 600 s relaunch loop
+`STALE_DRIVER_MINUTES = 30` cannot fire either, because the relaunch refreshes the log every ten
+minutes. Before P214 the D14 RED was the *sole* alert covering a crash-looping line. **My fix removed
+it and replaced it with a reassurance.**
+
+This is the P211/P213/D33 shape in my own hand, and the sharpest statement of it yet:
+**a log mtime is evidence that a PROCESS ran, never that WORK advanced.**
+
+**THE CORRECTION: ask the ARCHIVE, which a relaunch cannot forge.** Has EVERY crashed arm archived a
+record since the marker's `ts`? Verified live — it now reads *"EVERY crashed arm has ARCHIVED A NEW
+RECORD since the marker was stamped"* for nemotron, which is true (`scalar_cvar5-g4-c2` at 08:30Z and
+`g4-c3` at 09:39Z, both after the 2026-08-02 20:06:45Z marker), and a crash loop with no new records
+now stays RED.
+
+Two sub-defects in the same block, both fixed:
+* **`_p` was referenced OUTSIDE the `try` that binds it.** A torn or deleted first marker raised an
+  uncaught `UnboundLocalError` — killing the monitoring loop before `STATE.json` and before the
+  `CYCLE_LOG` append. A *later* torn marker silently reused the PREVIOUS marker's dict, testing the
+  wrong timestamp and making a false claim about the wrong line. Reproduced, then fixed; both cases
+  now land in RED.
+* **`float(_p.get("ts", 0))`** — a marker missing `ts` defaulted to epoch 0, so every driver log was
+  "newer" and the alert was **ALWAYS** downgraded, printing an age of ~29.7 million minutes. Absent
+  became a definite verdict, again. Unknown now stays RED.
+
+### 124.2 P218 — THE STATUS PANEL REPORTED THE FRESHEST LOG AND CALLED IT THE STALENESS ALARM
+
+`publish_status.sh` computed `(now - MAX(mtime))/60` — the **minimum** age — and rendered it as
+*"above ~30 would mean a line has stopped progressing"*. It can exceed 30 only when EVERY line is
+stale. Measured: it published **0.1 min** while `driver_h3.log` was **470.5 min** and
+`driver_gemini-2_5-flash.log` **446.0 min** old.
+
+**This is the P210 shape ONE TABLE ROW BELOW the counter fixed earlier the same day.** Now the
+STALEST, with COMPLETE lines excluded exactly as `cycle.py` does since P209. Live: *"2 min
+(deepseek-v4-pro)"* instead of *"0.1"*.
+
+### 124.3 P219 — THE CENSUS COULD COUNT A DIFFERENT RUN'S SUPERVISOR AS THIS RUN'S LINE
+
+`_fleet_state` matched only the script name and `-Line`. `outputs/campaign_cluster_run2` and `_run3`
+both still exist on this box, and a leftover supervisor from either carries the SAME script and the
+SAME `-Line` names — so it would have been counted as this run's line being up, and the census would
+report a dead line as alive. Latent today (all ten carry `-OutDir ...run4`); now requires
+`campaign_cluster_run4` in the command line. Also `alive` was never intersected with the roster, so
+an off-roster supervisor could print *"13 / 12 running"* while the census still said OK — it is now
+intersected and any stray is reported as a **FAIL**, not dropped.
+
+### 124.4 D33 SECOND PASS — `any()` WAS THE WRONG QUANTIFIER
+
+The first D33 fix asked *"does ANY host carry memory?"* and then gated EVERY host on the number it
+had — so a **partially**-populated capture (the realistic one: a draining host, or one that joined
+between the two separate ssh snapshots) silently fed 0.0 for the missing hosts. Reproduced by the
+auditor: two identical 32-slot hosts, ONE missing the complex, **32 CORES with memcap=4, no warning,
+rc=0**. Now per-host tri-state — an unmeasured host is UNKNOWN, is not gated on a number that does
+not exist, and is COUNTED so the run exits 2. Verified: that case now gives 64 cores, **rc=2, with a
+warning**.
+
+### 124.5 TWO MORE VACUOUS PASSES, AND THE INSTRUMENT NOBODY READS
+
+* `line_balance.py` on an existing-but-empty root printed *"nothing to report"* and returned **0** —
+  the P213 shape, in a file written after P213. Now exits 2.
+* `record_window_identity.report_rc()` disagreed with `report()` at `n == 0` (0 versus 2). **Six
+  selftest cases route through `report_rc`**, so if any fixture ever stopped writing records they
+  would have passed vacuously — P213 re-created *inside the harness built to prevent it*. Now agrees.
+* A torn `sweep=1.23.4s` from the two-writer race would have crashed `session_preflight` on an
+  unguarded `float()` — the instrument that reports that race. Guarded.
+* **S14 and `line_balance` were wired into NOTHING** (`line_balance` appears only as text inside an
+  alert message). `docs/ops/run_record_layers.sh` now runs all seven layers in one command, kept
+  OUT of `cycle.py` deliberately: the sweep is already SWEEP-BOUND at ~200 s and adding five minutes
+  of full-archive walks to a two-minute loop is P194 exactly.
+
+### 124.6 STILL OPEN, RECORDED NOT FIXED
+
+* `check_processes` returns early when psutil is missing, so the `line_census` row is **absent
+  entirely** rather than reporting that it could not run — a check that is silent when it cannot run.
+* `line_balance`'s columns are labelled *rung* but hold **record counts** (392 is not a registered
+  rung). STUCK/WAITING is unaffected (monotone proxy) but the header claims the registered quantity.
+* `test_session_preflight.py` re-implements the roster regex inline, so a change to the production
+  regex would not fail the test.
+* The `REVIVE_<safe>` override exists only on the PowerShell side, so the two predicates disagree
+  between an operator dropping the file and the new supervisor's first log line.
+* The corroboration reads only the last 200 driver-log lines; h3's and gemini's `TIERED OK` sit 1
+  line from the end, so >200 appended lines would flip COMPLETE back to MISSING.

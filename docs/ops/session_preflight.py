@@ -104,8 +104,17 @@ def check_cycle_log() -> None:
     # lone anomaly still trips the alarm once, which is the correct outcome -- that sweep WAS wrong.
     # The cap is a backstop: if sweeps ever legitimately approach it, the cadence itself needs
     # revisiting rather than the alarm being widened again.
-    sweeps = sorted(float(x) for x in re.findall(r"sweep=([0-9.]+)s", CYCLE_LOG.read_text(
-        encoding="utf-8", errors="replace"))[-12:])
+    # ⚠ A TORN LINE MUST NOT CRASH THE INSTRUMENT THAT REPORTS TORN LINES. `cycle_loop_dupes`
+    # exists because two writers can race the same append; such a tear can yield `sweep=1.23.4s`,
+    # and an unguarded float() raises ValueError and kills session_preflight itself.
+    def _f(tok):
+        try:
+            return float(tok)
+        except ValueError:
+            return None
+    sweeps = sorted(v for v in (_f(x) for x in re.findall(
+        r"sweep=([0-9.]+)s", CYCLE_LOG.read_text(encoding="utf-8", errors="replace"))[-12:])
+        if v is not None)
     if sweeps:
         ref = sweeps[-2] if len(sweeps) >= 2 else sweeps[-1]
         budget = min(CYCLE_BUDGET_CAP_S, max(CYCLE_STALE_S, 3.0 * (ref + CYCLE_SLEEP_S)))
@@ -226,15 +235,20 @@ def _check_line_census(procs) -> None:
     missing = sorted(k for k, v in states.items() if v == "MISSING")
     complete = sorted(k for k, v in states.items() if v == "COMPLETE")
     gate = sorted(k for k, v in states.items() if v == "GATE")
+    # A value none of the three branches claims must not vanish -- that is how a finding becomes
+    # silence. `__stray__` is the off-roster supervisor pseudo-entry from `_fleet_state` (P219).
+    stray = states.get("__stray__", "")
 
     bits = [f"roster={len(roster)} up={len(alive)}"]
+    if stray:
+        bits.append("**" + stray + "** (a supervisor is running a line NOT on the roster)")
     if complete:
         bits.append("COMPLETE=" + ",".join(complete))
     if gate:
         bits.append("REVIEW-GATE=" + ",".join(gate))
     if missing:
         bits.append("MISSING=" + ",".join(missing))
-    status = FAIL if missing else (ATTN if gate else OK)
+    status = FAIL if (missing or stray) else (ATTN if gate else OK)
     if missing:
         bits.append("-- a MISSING line is dead with no recorded reason; relaunch it")
     if gate:
@@ -276,12 +290,29 @@ def _fleet_state():
             continue
         if "powershell" in (p.info.get("name") or "").lower() and \
                 re.search(r"-File .*mode_d_supervisor\.ps1", cl):
+            # ⚠ IT MUST BE **THIS RUN'S** SUPERVISOR (P219). The predicate used to match the script
+            # and `-Line` only. `outputs/campaign_cluster_run2` and `_run3` both still exist on this
+            # box, and a leftover supervisor from either carries the SAME script and the SAME -Line
+            # names -- so it would have been counted as this run's line being up, and the census
+            # would report a dead line as alive. Latent today (all ten carry -OutDir ...run4) and
+            # cheap to close, so closed.
+            if "campaign_cluster_run4" not in cl:
+                continue
             hit = re.search(r"-Line\s+(\S+)", cl)
             if hit:
                 alive.add(hit.group(1))
 
+    # ⚠ `alive` MUST BE A SUBSET OF THE ROSTER (P219). It was not intersected, so a supervisor
+    # carrying a -Line name that is not on the roster inflated the count and `line_summary` could
+    # print "13 / 12 running" while `_check_line_census` still reported OK with nothing MISSING.
+    # Anything alive but off-roster is a real anomaly, so it is surfaced rather than dropped.
+    stray = sorted(alive - set(roster))
+    alive &= set(roster)
+
     out_dir = os.path.join(REPO, "outputs", "campaign_cluster_run4")
     states = {ln: _line_terminal_state(out_dir, ln) for ln in roster if ln not in alive}
+    if stray:
+        states["__stray__"] = "STRAY:" + ",".join(stray)
     return roster, alive, states
 
 
@@ -499,6 +530,7 @@ def line_summary() -> int:
     done = sorted(k for k, v in states.items() if v == "COMPLETE")
     gate = sorted(k for k, v in states.items() if v == "GATE")
     missing = sorted(k for k, v in states.items() if v == "MISSING")
+    stray = states.get("__stray__", "")   # P219 pseudo-entry; never a roster line
     bits = [f"{len(alive)} / {len(roster)} running"]
     if done:
         bits.append(f"{len(done)} COMPLETE ({', '.join(done)})")
@@ -506,8 +538,10 @@ def line_summary() -> int:
         bits.append(f"{len(gate)} AT THE REVIEW GATE ({', '.join(gate)})")
     if missing:
         bits.append(f"**{len(missing)} MISSING ({', '.join(missing)})**")
+    if stray:
+        bits.append("**" + stray + "**")
     print("; ".join(bits))
-    return 0
+    return 1 if (missing or stray) else 0
 
 
 if __name__ == "__main__":

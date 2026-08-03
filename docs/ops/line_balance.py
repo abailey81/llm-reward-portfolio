@@ -191,8 +191,14 @@ def pipeline_state() -> list:
 def report(jobs: dict) -> int:
     depths = archive_depths()
     if not depths:
-        print("line_balance: no frozen arms found -- nothing to report")
-        return 0
+        # ⚠ ZERO IS NOT CLEAN (the P213 rule, applied here after an auditor found the same shape).
+        # An existing-but-empty root used to print "nothing to report" and return 0 -- a vacuous
+        # pass, while S14 returns 2 on exactly this shape. A check that examined nothing must not
+        # report success.
+        print("line_balance: *** CANNOT VOUCH FOR ANYTHING *** -- no frozen arms found under")
+        print("  %s" % ROOT)
+        print("  This is NOT a clean result: the common rung and STUCK/WAITING were never evaluated.")
+        return 2
 
     tags = batch_tag_map()
     rows = []

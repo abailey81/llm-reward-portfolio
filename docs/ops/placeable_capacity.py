@@ -136,7 +136,7 @@ def parse_qhost(path: str) -> dict[str, dict[str, float]]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--qhost", required=True, help="file holding the output of `qhost -F slots`")
+    ap.add_argument("--qhost", required=True, help="output of `qhost -F slots,memory,tmpfs` -- ALL THREE (D33)")
     ap.add_argument("--qstat", required=True, help="file holding the output of `qstat -f`")
     ap.add_argument("--pack", type=int, default=8, help="slots per training job (live default 8)")
     ap.add_argument("--pools", default="", help="comma-separated pool prefixes (default: all)")
@@ -182,7 +182,7 @@ def main() -> int:
 
     agg: dict[str, dict[str, int]] = defaultdict(
         lambda: {"hosts": 0, "blocked": 0, "free": 0, "placeable": 0, "frag": 0,
-                 "slots_only": 0, "memcapped": 0}
+                 "slots_only": 0, "memcapped": 0, "unmeasured": 0}
     )
     need_mem = args.mem_per_slot_mb * args.pack
 
@@ -222,11 +222,25 @@ def main() -> int:
         free = int(h["slots"])
         row["free"] += free
         by_slots = free // args.pack
-        # D33: only gate on a resource the input can actually SEE.
+        # ⚠ D33 SECOND PASS: THE QUANTIFIER MUST BE PER-HOST, NOT GLOBAL.
+        #
+        # The first fix asked `any(host has memory)` and then gated EVERY host on the number it
+        # had, so a PARTIALLY-populated input -- the realistic one, when a host is draining or
+        # joined between the two separate ssh snapshots -- silently fed 0.0 for the missing hosts
+        # and asserted, in the `memcap` column, that memory forbade jobs it never measured. An
+        # auditor reproduced it: two identical 32-slot hosts, ONE missing the complex, and the tool
+        # reported 32 CORES with memcap=4 and NO warning at rc=0. `all()` would be safer and still
+        # wrong; the correct shape is a per-host tri-state where an unmeasured host is UNKNOWN,
+        # is NOT gated on a number that does not exist, and is COUNTED so the run cannot pass as a
+        # verdict. Unknown is not zero -- the same rule as P211/P213 and the first D33 pass.
+        _mem_known = h.get("memory_mb", 0.0) > 0
+        _tmp_known = h.get("tmpfs_mb", 0.0) > 0
+        if not (_mem_known and _tmp_known):
+            row["unmeasured"] += 1
         by_mem = (int(h["memory_mb"] // need_mem)
-                  if (mem_seen and need_mem > 0) else by_slots)
+                  if (_mem_known and need_mem > 0) else by_slots)
         by_tmp = (int(h["tmpfs_mb"] // args.tmpfs_per_job_mb)
-                  if (tmpfs_seen and args.tmpfs_per_job_mb > 0) else by_slots)
+                  if (_tmp_known and args.tmpfs_per_job_mb > 0) else by_slots)
         jobs = min(by_slots, by_mem, by_tmp)
         row["slots_only"] += by_slots
         row["placeable"] += jobs
@@ -251,6 +265,16 @@ def main() -> int:
     print("'byslot' = jobs the SLOTS alone would allow; 'memcap' = how many of those memory/tmpfs")
     print("           forbids. A large memcap means pack width is NOT the binding lever here.")
     print("'CORES'  = placeable jobs x pack — the only figure that predicts throughput.")
+    _unmeasured = sum(r["unmeasured"] for r in agg.values())
+    if _unmeasured and not blind:
+        print()
+        print("*** PARTIAL INPUT -- NOT A VERDICT (D33) ***")
+        print("  %d host(s) carry NO memory/tmpfs complex in this qhost capture, so they were NOT"
+              % _unmeasured)
+        print("  gated on those resources -- they are UNKNOWN, not zero, and the figures above")
+        print("  therefore OVERSTATE placeable capacity for exactly those hosts.")
+        print("  Re-capture with:  ssh myriad \"qhost -F slots,memory,tmpfs\" > /tmp/qh.txt")
+        return 2
     if blind:
         print()
         print("*** THIS IS NOT A VERDICT (D33) ***")
