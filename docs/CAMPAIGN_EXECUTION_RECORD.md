@@ -19488,3 +19488,72 @@ vacuous pass; P234's fix contained a 2x optimism. **Both times the fix was writt
 the DIAGNOSIS was correct, and the diagnosis being correct is exactly what stops you re-checking the
 REPLACEMENT.** A correct diagnosis licenses nothing. **Six auditors, six sessions, and every one of
 them found more in the author's work than the author did.**
+
+### 131.14 P237 — WHY THE RATE COLLAPSED: A LINE HANDOVER, AND A TROUGH I HAD PRICED THE DEADLINE OFF
+
+**Tamer: *"why last hours records per hour became so low."*** Three candidate causes with opposite
+implications, so all three were measured rather than argued.
+
+**① NOT AN INSTRUMENT ARTEFACT — the first hypothesis, and it was REFUTED.** `record.json`'s mtime is
+the **cluster** write time (tar preserves it), so records produced remotely but not yet pulled would
+be invisible and the NEWEST window would be structurally biased low. **Measured instead of assumed:**
+for records arriving in the last 6 h the pull lag is **p50 27 s, p90 92 s, max 320 s**, and the mtime
+and ctime rates agree in every recent window — **1 h: 52 vs 56 · 3 h: 282 vs 283 · 6 h: 628 vs 629**.
+There is no hidden backlog; the drop is real. (The all-time p90 of 8,326 s is the resolved VPN
+outage, not current behaviour.)
+
+**② IT IS A LINE HANDOVER, exactly as the auditor predicted.** `test_leg_gpt_5_6_luna` produced
+**1,947 of the last 12 h's 2,468 records (79 %)** and has hit its ceiling: **567 / 566 / 567 / 566 /
+566** per arm — **eight records short of rung 568**. In the last 3 h it produced **zero**. The only
+line still archiving is `test_leg_qwen3_5_9b`. Meanwhile **340 `leg8_leg_sonnet_5` test jobs sit
+QUEUED** waiting for fair-share slots, and the other lines have essentially nothing running. The
+pipelined C4 path submits **line-major** by design, so the campaign runs as a relay — and this is the
+baton change.
+
+**③ AND THE 52 rec/h IS A TROUGH, NOT A TREND — WHICH MAKES IT MY DEFECT.** A test job is a **pack of
+8** with `h_rt = 15.0 h`, and its eight records land **together** when the job ends. The arrival
+process therefore has a **~15 h quantum**, and any window shorter than one job turnover samples the
+**gaps between bursts**. `qwen3_5_9b` alone has **196 running pack-8 jobs = 196 × 8 / 15.0 ≈ 104
+rec/h steady state**, against a 1 h reading of 52. **I had published that 1 h reading as the
+PESSIMISTIC BOUND of the ETA range**, which is how rung 568 came to read `2026-08-26` — hours from
+the stop, and fiction.
+
+**FIXED — `MIN_ETA_WINDOW_H = 12`.** Windows under one job turnover are still PRINTED (a genuinely
+stalled fleet shows up there first) but are **no longer allowed to price the deadline**.
+
+**AND THE RANGE NOW BRACKETS THE REAL UNCERTAINTY.** Taking fast and slow from two historical windows
+was **false precision**: they agreed to within 8 % while the tool simultaneously warned that 78 % of
+that rate was about to stop. The one thing that cannot be measured is whether the cluster
+**REDIRECTS** a finishing line's slots. So:
+
+```
+earliest = the full measured rate        -> assumes perfect redirection
+latest   = the GO-FORWARD rate, counting only cells that still owe more than one pack
+                                          -> assumes NO redirection at all
+```
+
+Both are measurements; **the gap between them IS the open question**, and it is now on the page with
+the concentration figure beside it.
+
+**⇒ THE LIVE CONSEQUENCE, AND IT IS THE WHOLE POINT OF FIXING THIS:**
+
+| rung | earliest | latest | fits Aug-27? |
+|---|---|---|---|
+| **403 — THE REGISTERED PRIMARY TARGET** | 2026-08-08 | **2026-08-24** | **yes, under BOTH assumptions** |
+| 568 — the 99 % insurance rung | 2026-08-10 | 2026-09-02 | **RISK** without redirection |
+
+**The registered primary target is safe on the pessimistic assumption; only the free insurance rung
+is exposed.** Under Amendment E1 the cumulative-tier rule falls back to the largest COMPLETED rung,
+so this is a bounded, pre-registered outcome and not a failure mode — but the broken ETA hid the
+distinction entirely, and the distinction is the only thing an operator would act on.
+
+**⚠ AND I NEARLY SHIPPED A MOJIBAKE.** Adding the handover warning I put a **U+26A0 into rendered
+page output** — `publish_status.sh` states its own rule in its header (*"ASCII ONLY. Non-ASCII
+mojibakes on his phone"*). Caught by checking before publishing; then, checking the page itself,
+**two more U+26A0 were already live** in emitted lines 331/350 from an earlier session. All three
+removed, and the property is now pinned by selftest **H1**. Selftest **33/33**, ruff clean.
+
+**⇒ THE LESSON, AND IT IS THE THIRD TIME TODAY IN THE SAME FILE FAMILY: A RATE IS A CLAIM ABOUT A
+PROCESS, AND IT INHERITS THAT PROCESS'S QUANTUM.** Sampling a burst process faster than its burst
+period does not measure it more precisely — it measures the gaps. The 1 h row was not wrong as an
+observation; it was wrong as an INPUT, and I used it as one.
