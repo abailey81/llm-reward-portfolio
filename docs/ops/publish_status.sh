@@ -195,6 +195,18 @@ run=$(echo "$CL"   | grep '^run='   | cut -d= -f2); run=${run:-?}
 qw=$(echo "$CL"    | grep '^qw='    | cut -d= -f2); qw=${qw:-?}
 cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 
+# THE H1 CANON'S LIVE SEED DEPTH (P240). The page used to assert "30 seeds each" as a flat design
+# claim. Amendment R111 registered that the canon CLIMBS the ladder, so 30 is its CURRENT depth, not
+# its target -- and a hardcoded depth beside a hand-carried Sharpe table is precisely how a page
+# keeps showing a number that stopped being true. Read from the archive on every publish.
+canon_depth=$("$PY" -c "
+import sys; sys.path.insert(0, 'docs/ops')
+import stage_eta as se
+d = [len(m) for (t, a), m in se.test_cells().items() if a.startswith('baseline_')]
+print(min(d) if d else '?')
+" 2>/dev/null)
+canon_depth=${canon_depth:-?}
+
 # per-rung ETAs at the cores we actually hold (Tamer's standing reporting requirement)
 # ⚠ NO POSITIONAL SLICE (P234, 2026-08-03). This read `| sed -n '3,12p'` -- a claim about which
 # LINES of another tool's output happen to be the interesting ones. Any change to that tool silently
@@ -360,7 +372,15 @@ pre-registered to run ONCE, at the end, at whatever rung is reached. Every monit
 effect-blind by construction.
 
 What IS reported below is the **hand-written comparison canon (H1)** -- 11 human-designed rewards,
-30 seeds each. These are the BASELINES the LLM is measured against, not the experiment. (LLM-arm
+currently at **${canon_depth:-?} seeds each** (read live from the archive on this publish). !! THE
+CANON IS NOT PINNED AT 30: amendment **R111** registered that it **CLIMBS THE SEED LADDER** with
+everything else, so its depth is a LIVE quantity and \`_TEST_UNITS_PER_RUNG = 71\` carries all 11 in
+the per-rung denominator. This line used to read "30 seeds each" as a flat design claim -- true as a
+count while the core line sits in C1, but wrong as a statement of the design, and it would have gone
+silently stale the moment that line enters C4.
+**=> THE SHARPE TABLE BELOW WAS MEASURED AT 30 SEEDS.** It is hand-carried prose, not recomputed on
+each publish, so once the number above moves past 30 the table is STALE until re-derived. These are
+the BASELINES the LLM is measured against, not the experiment. (LLM-arm
 sealed-test records also exist and are counted in the ladder above; their SCORES have not been read.)
 
 | | Sharpe | note |
@@ -443,6 +463,31 @@ dead lines every 300 s, the sentinel watches health. **Stop lever:** create the 
 
 Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md), newest sections last.
 EOF
+
+# ---- PAGE ASCII GATE (P241) --------------------------------------------------------------------
+# The header rule ("ASCII ONLY. Non-ASCII mojibakes on his phone") was broken FOUR times, twice by
+# the person fixing the previous breach. Enforce it on the artefact instead of on the author: read
+# back what was actually written and refuse to publish anything with a codepoint > 127.
+# Fails LOUD and leaves the last good page in place -- a stale correct page beats a fresh broken one.
+if ! "$PY" -c "
+import sys
+bad = []
+for n, line in enumerate(open('docs/RUN4_STATUS.md', encoding='utf-8'), 1):
+    for ch in line:
+        if ord(ch) > 127:
+            bad.append((n, hex(ord(ch)), line.strip()[:80]))
+            break
+if bad:
+    print('publish_status: FATAL - %d non-ASCII line(s) in the page:' % len(bad), file=sys.stderr)
+    for n, cp, s in bad[:5]:
+        print('  line %d (%s): %s' % (n, cp, s), file=sys.stderr)
+    sys.exit(1)
+"; then
+    echo "publish_status: REFUSING to commit a page with non-ASCII (it mojibakes on the phone)." >&2
+    echo "publish_status: the previous page is left in place. Fix the emitting line and re-run." >&2
+    git checkout -- docs/RUN4_STATUS.md 2>/dev/null || true
+    exit 1
+fi
 
 git add docs/RUN4_STATUS.md
 # P210, second site: this carried `$drivers/12` too, so every status commit in the git history

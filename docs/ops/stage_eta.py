@@ -340,11 +340,23 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         L.append(f"    cluster REDIRECTS freed slots, {fleet_rate:.0f} rec/h); latest excludes cells")
         L.append(f"    already within {PACK} of the ceiling ({goforward_rate:.0f} rec/h), i.e. assumes")
         L.append(f"    the finishing line's slots are NOT reused. Window {eh2} h:")
-        L.append(f"    {'rung':>5}  {'remaining':>10}  {'earliest (UTC)':<16}  {'latest (UTC)':<16}  Aug-27?")
+        # ⚠ THE -1h COLUMN EXISTS BECAUSE TAMER READ THE PAGE AND SAID THE REMAINING FIGURE "KEEPS
+        # BEING CONSTANT" (P240). It was not constant -- measured across published versions, rung
+        # 568 fell 32,037 -> 32,000 in 16 minutes -- but a 37-record move on a 32,000 figure is
+        # INVISIBLE, so a live number read as frozen. A quantity whose movement cannot be seen is
+        # indistinguishable from a hardcoded one, and this page has shipped genuinely hardcoded
+        # numbers before. Printing the DECREMENT makes "live" verifiable at a glance instead of
+        # requiring the reader to diff two page versions.
+        L.append(f"    {'rung':>5}  {'remaining':>10}  {'-1h':>6}  {'earliest (UTC)':<16}  "
+                 f"{'latest (UTC)':<16}  Aug-27?")
+        lo1 = now_epoch - 3600.0
         for rung in RUNGS:
             rem, _missing = backlog(rung, cells)
+            # how much this rung's backlog actually fell in the last hour
+            d1 = sum(sum(1 for m in mts if lo1 <= m <= now_epoch)
+                     for mts in cells.values() if len(mts) <= rung)
             if rem == 0:
-                L.append(f"    {rung:>5}  {rem:>10,}  {'REACHED':<16}  {'REACHED':<16}  yes")
+                L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'REACHED':<16}  {'REACHED':<16}  yes")
                 continue
             e_fast, _ = eta_from_rate(rem, fleet_rate, now, floor_left)
             e_slow, _ = eta_from_rate(rem, goforward_rate, now, floor_left)
@@ -356,7 +368,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
                 fits = "risk"
             else:
                 fits = "NO"
-            L.append(f"    {rung:>5}  {rem:>10,}  {cf:<16}  {cs:<16}  {fits}")
+            L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {cf:<16}  {cs:<16}  {fits}")
         L.append("    GATED = the relevant rate is zero, so no throughput number can date that row -- it is")
         L.append("    waiting on a stage barrier (C1 chain / C3 gate), not on cores.")
         _, missing = backlog(568, cells)
@@ -569,8 +581,12 @@ def selftest() -> int:
     #    2026-11-09 "NO" while rung 403 read 2026-08-19 "yes"). Arithmetic caught it, not a reviewer;
     #    pinning it here means arithmetic catches the next one too.
         import re as _re2
-        rows = _re2.findall(r"^\s+(\d+)\s+[\d,]+\s+(\S+ \S+|\S+)\s\s+(\S+ \S+|\S+)\s\s+\w+$",
-                            out_i, _re2.M)
+        # ⚠ columns: rung, remaining, -1h, earliest, latest, fits. J3 below asserts this parser
+        # actually matched -- it FIRED when the -1h column was added (P240), which is the whole
+        # reason it exists: without it J1/J2 would have passed VACUOUSLY on zero parsed rows.
+        rows = _re2.findall(
+            r"^\s+(\d+)\s+[\d,]+\s+\d+\s+(\S+ \S+|\S+)\s\s+(\S+ \S+|\S+)\s\s+\w+$",
+            out_i, _re2.M)
         seen_e: list[str] = []
         seen_l: list[str] = []
         for _rung, e, l_ in rows:
