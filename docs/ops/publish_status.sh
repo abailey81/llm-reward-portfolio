@@ -196,8 +196,19 @@ qw=$(echo "$CL"    | grep '^qw='    | cut -d= -f2); qw=${qw:-?}
 cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 
 # per-rung ETAs at the cores we actually hold (Tamer's standing reporting requirement)
-etas=$("$PY" docs/ops/stage_eta.py "${cores:-0}" 2>/dev/null | sed -n '3,12p')
-etas=${etas:-"  (eta model unavailable this cycle)"}
+# ⚠ NO POSITIONAL SLICE (P234, 2026-08-03). This read `| sed -n '3,12p'` -- a claim about which
+# LINES of another tool's output happen to be the interesting ones. Any change to that tool silently
+# shifts the window and the page renders the wrong rows with no error. `--page` makes the tool emit
+# exactly the block, so the contract is a FLAG rather than a line count.
+#
+# ⚠ AND STDERR IS KEPT (RUN 17 lesson 2). `2>/dev/null` discarded the diagnostic in precisely the
+# case where the tool had something to say -- that is how "(eta model unavailable this cycle)" sat on
+# the page for hours with the CAUSE thrown away. Capture first, judge after.
+etas=$("$PY" docs/ops/stage_eta.py --page "${cores:-0}" 2>/tmp/stage_eta.err)
+eta_rc=$?
+if [ "$eta_rc" -ne 0 ] || [ -z "$etas" ]; then
+    etas="  (eta unavailable this cycle, rc=$eta_rc) -- $(head -c 300 /tmp/stage_eta.err 2>/dev/null)"
+fi
 
 # BUDGET, read LIVE every publish. Tamer holds the balance and the top-up decision (his instruction,
 # 2026-07-31: "the budget is fine, I will just top up whenever needed, I watch the balance -- just
@@ -250,7 +261,11 @@ back what it did.
 | cluster jobs | **$jobs** ($run running, $qw queued) |
 | **cores computing** | **$cores** |
 
-Per-rung ETAs from the registered model at the cores we actually hold:
+Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
+we are actually achieving, anchored at the moment this page was generated. The registered model is
+kept beneath it as a **duration** and to name the binding constraint. *(Until 2026-08-03 this panel
+anchored the model's makespan to LAUNCH rather than to now, so it printed dates in the PAST -- it
+showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 \`\`\`
 $etas
