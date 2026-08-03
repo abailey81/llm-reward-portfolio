@@ -19761,3 +19761,68 @@ restart, and **costs more than a day if nobody is**, because nothing auto-resume
 The machinery already absorbed a 7 h 24 m outage and a full reboot without losing a record. What it
 cannot do is tell an operator that a wall of red is *expected* — so the readiness work is almost
 entirely documentation and a countdown, not engineering.
+
+### 131.18 RUN 18 CLOSES — THE HANDOVER, AND THE FIVE THINGS THAT WOULD MISLEAD A SUCCESSOR
+
+**Tamer: *"I want to transition into the next claude code session ... document absolutely everything
+from this session ... tell it to very deeply and extensively study absolutely all files in this
+dissertation so it has the comprehensive knowledge, and zero gaps in knowledge ... ensure extremely
+smooth transition ... Make sure you include my prompts on that everything should be flawless."***
+
+**BRIEF WRITTEN: `docs/RUN19_SESSION_PROMPT.md`.** It carries his flawlessness mandate verbatim, the
+zero-gaps reading instruction as a **numbered gate of ten questions answerable only from sources**,
+the state snapshot, the maintenance window, the closed ETA/cores question, all fourteen standing
+rules, every error P230–P243, and the open items disclosed rather than hidden.
+
+### 131.18a THE FIVE THINGS A SUCCESSOR WOULD GET WRONG WITHOUT BEING TOLD
+
+Each of these was a genuine misreading *by this session* before it was measured, which is why each
+is now §4 of the brief:
+
+1. **"OPUS HAS FINISHED"** — Tamer assumed it, and it is false. Its *authoring* is done
+   (`still to author $0.0000`), but **the core line has never entered C4** (`grep -c "C4"
+   driver_core.log` = **0**) and **`distributional` and `scalar`, the two H2 headline arms, hold ZERO
+   sealed-test records.** The confirmatory experiment is nearer its start than its end.
+2. **A FLAT NUMBER IS NOT A STALLED NUMBER.** Rung 30's remaining sat at **exactly 428 for 22+
+   minutes**. The cause is arithmetic, not a fault: **one training is 8.55 core-hours**, records land
+   on COMPLETION, and the only running work in that 428 was **3–4.6 h into its FIRST trainings**
+   (`0/60 done`). It moves in jumps of ~60. Those jobs had also queued **~34 h** first.
+3. **THE FLEET RATE AND A LOW RUNG'S BACKLOG ARE DISJOINT POPULATIONS.** ~208 rec/h is entirely
+   `qwen3_5_9b` above rung 430; **none of it touches rung 30.** Dividing one by the other is exactly
+   the defect an auditor caught (rung 30 mis-priced **56–86x**).
+4. **`distributional` + `scalar` ARE TESTED LAST ON EVERY LINE**, as an `h2_pair`. The arms carrying
+   the headline are always last, so the common rung stays low and then JUMPS.
+5. **ONLY ONE LINE IS PRODUCING.** `qwen3_5_9b` holds 196 of ~200 running jobs; nine lines are
+   6–44 h idle **with work queued**. `line_balance` reads CLEAN. Fair-share, not a fault.
+
+### 131.18b WHAT THE SUCCESSOR IS TOLD NOT TO RE-LITIGATE, AND WHY THAT IS SAFE
+
+The ETA/cores question is closed by **fourteen independent measurements** (§6 of the brief), three of
+them made only in this session: **memory is not a constraint** (262/262 d-pool hosts have ≥16 G
+free), **`snx` is not a constraint** (~9,990 advertised against the 1 we request), and **job-share is
+refused site-wide** (`js` absent from `jsv_allowed_mod = ac,h,i,e,o,j,M,N,p,w`).
+
+**This is a closure by ENUMERATION, not by fatigue** — which is the only kind that should bind a
+successor. Every mechanism that could cap us was named and tested individually, and the brief lists
+them so the next session can re-open any single one cheaply rather than re-deriving the whole
+question. **The one lever that remains is human: a request to UCL RC support.**
+
+### 131.18c THE HONEST CLOSING POSITION
+
+**Verified at close:** preflight **VERDICT OK** (all 17 rows, including the new `status_page` row) ·
+seven record layers **RC=0 at 10,291** · full suite **3,082 tests, PYTEST_RC=0** · selftests
+38/38 · 19/19 · 28/28 · S15 · transport_health, all RC=0 · drift **0** · freeze **MATCHES** · repro
+**8/0/0** · `line_balance` **CLEAN** · transport **2/240 (0.8 % to fatal)** · login node comfortable
+throughout · page **0 non-ASCII** · records **9,380 → 10,552** · backup pushed and current.
+
+**NOT claimed:** that everything is flawless. The brief's §10 lists what is **disclosed and open** —
+two untested code paths in `stage_eta.py`, a superseded comment block, death clocks that are lower
+bounds, a docstring advertising a runtime three times too fast, and 18 style-only lint items. **A
+handover that claims perfection teaches the successor to trust it; a handover that lists its own
+open edges teaches them to look.** The second is worth more, and it is the one this session leaves.
+
+**⇒ THE SINGLE MOST TRANSFERABLE FINDING, and it is why §11 of the brief exists: EIGHT AUDITORS RAN
+ACROSS EIGHT SESSIONS AND ALL EIGHT FOUND MORE THAN THE AUTHOR DID** — including a vacuous pass
+*inside* the fix written to prevent vacuous passes, a mutation control that was itself a tautology,
+and a "verified byte-identical" claim about a file that had never been modified. **The author must
+not grade their own work is not a formality here; it is the highest-yield action available.**
