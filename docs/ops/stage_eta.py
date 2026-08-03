@@ -1,36 +1,62 @@
-"""Per-rung ETAs for RUN 4 — MEASURED first, and never a date in the past.
+"""Per-rung ETAs for RUN 4 — MEASURED, population-consistent, and never a date in the past.
 
 Tamer asked for each stage's current ETA in every update.
 
-⚠⚠ WHAT WAS WRONG UNTIL 2026-08-03 (P234), AND IT IS WHY THE PAGE SHOWED YESTERDAY.
-This file computed ``eta = LAUNCH + timedelta(days=makespan_days)``. ``plan_lanes`` returns the
-makespan of the WHOLE campaign **from a standing start**, so anchoring it to LAUNCH answers
-*"when would rung R have landed if the entire run had proceeded at today's core count from
-2026-07-28 21:08?"* — a diagnostic, **not a calendar ETA**. Once elapsed time exceeded a rung's
-modelled makespan the answer moved into the PAST and stayed there: at 5.88 d elapsed, rungs 30, 100,
-189 and 279 all printed ``08-02`` on a page generated on ``08-03``, and rung 340 printed ``08-03``,
-i.e. "today" for work that is nowhere near done.
+=====================================================================================
+THREE GENERATIONS OF THIS FILE, AND WHAT EACH GOT WRONG. Read before changing anything.
+=====================================================================================
 
-**An ETA is a statement about the FUTURE. It is anchored at NOW, and it is never a past date.**
+**GEN 1 (until 2026-08-03) — P234: the page showed YESTERDAY.**
+It computed ``eta = LAUNCH + timedelta(days=makespan_days)``. ``plan_lanes`` returns the makespan of
+the WHOLE campaign **from a standing start**, so anchoring it to LAUNCH answers *"when would rung R
+have landed if the entire run had proceeded at today's core count since 2026-07-28 21:08?"* — a
+diagnostic, **not a calendar ETA**. Once elapsed (5.88 d) exceeded a rung's modelled makespan the
+answer moved into the past and stayed there: verified in ``git show 077995ac:docs/RUN4_STATUS.md``,
+rungs 30/100/189/279 all printed ``08-02`` and rung 340 printed ``08-03``, on a page generated 08-03.
 
-THE THREE NUMBERS THIS PRINTS, and why all three rather than one:
+**GEN 2 (same day) — P235: an empirical ETA that was optimistic by ~2x, in three independent ways.**
+An auditor took it apart within the hour. All three are fixed here and all three are the same
+underlying error — **a ratio whose numerator and denominator come from different populations**:
 
-  * **MEASURED THROUGHPUT** — test-tier records actually archived in the last 1/3/12/24 h, read from
-    record mtimes on disk. An OBSERVATION, not a model, and the only input that reflects fair-share
-    contention, the VPN outage and the reboot.
-  * **EMPIRICAL ETA** — ``now + remaining_records / measured_rate``, with remaining computed per
-    ``(line, arm)`` from the archive itself so work already done is subtracted. **This is the number
-    that actually predicts, and the one to quote.**
-  * **REGISTERED MODEL** — ``src/cluster/lanes.py``, reported as a **duration** plus the
-    critical-chain floor. Kept because it is the pre-registered, auditable model and it names the
-    BINDING constraint, which the empirical number cannot. It is deliberately no longer rendered as
-    a calendar date.
+  1. ⚠ **THE CLOCK WAS AN HOUR OUT.** ``dt.datetime.utcnow().timestamp()`` — ``utcnow()`` returns a
+     NAIVE datetime holding UTC, and ``.timestamp()`` interprets a naive datetime as **LOCAL**.
+     Measured on this host: ``utcnow().timestamp() - time.time() == -3600.0`` exactly. Every window
+     cutoff was pushed an hour further back, so "the last 1 h" reported **the last 2 hours of records
+     divided by 1**, over-stating the current rate by up to 2.6x — and the 1 h row is the operator's
+     stall detector. **Never build a window from ``utcnow().timestamp()``. Use ``time.time()``.**
+  2. ⚠ **THE BACKLOG OMITTED 15 OF THE 71 REGISTERED TEST UNITS.** It summed
+     ``line_balance.archive_depths()``, which enumerates only arms carrying a ``frozen*/`` marker —
+     so the 11 ``baseline_*`` H1-canon arms, the 3 core DFO arms (``bayes_opt``/``cma_es``/``tpe``)
+     and nemotron's unfrozen ``scalar_cvar5`` were **invisible**. ``lanes.py`` is explicit that the
+     per-rung denominator is ``_TEST_UNITS_PER_RUNG = 71``. Remaining at rung 568 was understated by
+     ~8,190 records, i.e. the headline ETA was built on ~75 % of the work.
+  3. ⚠ **THE RATE COUNTED WORK THE BACKLOG DID NOT.** The mtime walk covered every ``test*`` cell
+     including the baselines, while ``remaining`` excluded them — the exact defect this file's own
+     docstring condemned in the cycle log one paragraph earlier.
 
-⚠ REMAINING IS A RECORD COUNT, NOT A BANKED RUNG. ``archive_depths()`` returns ``{arm: n_records}``,
-and an arm holding n records can still bank a LOWER rung if a seed below its frontier is missing
-(S15 / ``record_seed_completeness.py``: gpt-5.6-luna held 2,832 records and banked 189). A count is
-the right quantity for "how much work is left" and the WRONG quantity for "what rung do we report".
-Both are printed, labelled, and must not be swapped.
+**GEN 3 (this file).** One walk produces BOTH sides of the ratio, so numerator ⊆ denominator by
+construction; the clock is ``time.time()``; the backlog is reconciled against the registered 71 and
+the shortfall is added and REPORTED rather than silently dropped.
+
+=====================================================================================
+THE HONEST CAVEAT THAT SURVIVES, AND WHY THIS PUBLISHES A RANGE
+=====================================================================================
+**Total-remaining ÷ aggregate-rate is only valid if the rate's COMPOSITION is representative of the
+remaining work, and right now it is not.** Measured 2026-08-03: 80.6 % of a 12 h window came from
+``test_leg_gpt_5_6_luna``, a line sitting 8 records short of rung 568 — i.e. most of the rate is
+attributable to a line that stops contributing within the hour, while ~20,000 records sit on lines
+that produced ZERO in the same window. That is the pipelined line-major C4 path working as designed
+(``line_balance.py``), not a fault — but it means a single point estimate is a guess.
+
+This is not a hypothetical: ``docs/ops/WITHDRAWN_CLAIMS.md`` W3 withdrew *"rung 403 lands 08-09,
+rung 568 lands 08-13"* for **exactly this** — a projection off a transient peak, produced by this
+file. So this prints a **RANGE** (fast = the best window, slow = the most pessimistic), reports the
+**concentration** so the reader can see when one line dominates, and **clamps every ETA to the
+registered critical-chain floor**, which no throughput number can beat.
+
+⚠ REMAINING IS A RECORD COUNT, NOT A BANKED RUNG. An arm holding n records can still bank a LOWER
+rung if a seed below its frontier is missing (S15: gpt-5.6-luna held 2,832 records and banked 189).
+A count is right for "how much work is left" and WRONG for "what rung do we report".
 
 Usage:
     python stage_eta.py <measured_cores> [modelled_cores]
@@ -42,11 +68,12 @@ from __future__ import annotations
 import datetime as dt
 import os
 import sys
+import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)
 
-from src.cluster.lanes import plan_lanes  # noqa: E402
+from src.cluster.lanes import _TEST_UNITS_PER_RUNG, plan_lanes  # noqa: E402
 
 LAUNCH = dt.datetime(2026, 7, 28, 21, 8, 58)   # supervisors up, UTC
 STOP = dt.datetime(2026, 8, 27)                # R109 exogenous stop
@@ -54,150 +81,189 @@ RUNGS = [30, 100, 189, 279, 340, 403, 568]     # the registered assurance ladder
 CHAIN_THREADS = 8                              # --search-threads 8 (R107)
 WINDOWS_H = (1, 3, 12, 24)                     # throughput windows, hours
 DEFAULT_ROOT = os.path.join(REPO, "outputs", "campaign_cluster_run4")
+REGISTERED_UNITS = _TEST_UNITS_PER_RUNG        # 71 = 9 core + 50 leg + 11 H1 canon + 1 H3
 
 
-def test_record_mtimes(root: str = DEFAULT_ROOT) -> list[float]:
-    """Epoch mtimes of every TEST-tier record.json under ``root``.
+def test_cells(root: str = DEFAULT_ROOT) -> dict[tuple[str, str], list[float]]:
+    """{(test_dir, arm): [record mtimes]} for the TEST tier — ONE walk, BOTH sides of the ratio.
 
-    Test-tier ONLY, deliberately: the cycle log's ``records=`` counter pools search and test, so a
-    rate derived from it burns down a test-tier backlog with a search-inflated numerator and yields
-    an ETA that is optimistic by construction. Reading mtimes off disk needs no history file and is
-    exact for any window.
+    Enumerating from the ARCHIVE rather than from ``frozen*/`` markers is what fixes gen-2 defect 2:
+    the 11 ``baseline_*`` arms and the not-yet-frozen arms have records but no marker, so a
+    marker-driven enumeration cannot see them. Returning the mtimes alongside the count is what fixes
+    defect 3 — the rate and the backlog are then computed over the SAME cells by construction, and
+    they cannot drift apart later.
+
+    Test-tier only, deliberately: the cycle log's ``records=`` pools search and test, so a rate taken
+    from it burns down a test backlog with a search-inflated numerator.
     """
-    out: list[float] = []
+    out: dict[tuple[str, str], list[float]] = {}
     if not os.path.isdir(root):
         return out
     for d in sorted(os.listdir(root)):
-        if not d.startswith("test"):
+        if not d.startswith("test") or not os.path.isdir(os.path.join(root, d)):
             continue
         base = os.path.join(root, d)
-        if not os.path.isdir(base):
-            continue
-        for dirpath, _dirnames, filenames in os.walk(base):
-            if "record.json" not in filenames:
+        for arm in sorted(os.listdir(base)):
+            arm_dir = os.path.join(base, arm)
+            if not os.path.isdir(arm_dir) or arm.startswith((".pull_tmp", "_quarantine")):
                 continue
-            parts = dirpath.replace("\\", "/").split("/")
-            if any(s.startswith((".pull_tmp", "_quarantine")) for s in parts):
-                continue
-            try:
-                out.append(os.stat(os.path.join(dirpath, "record.json")).st_mtime)
-            except OSError:
-                continue
+            mts: list[float] = []
+            for dirpath, _dirnames, filenames in os.walk(arm_dir):
+                if "record.json" not in filenames:
+                    continue
+                parts = dirpath.replace("\\", "/").split("/")
+                if any(s.startswith((".pull_tmp", "_quarantine")) for s in parts):
+                    continue
+                try:
+                    mts.append(os.stat(os.path.join(dirpath, "record.json")).st_mtime)
+                except OSError:
+                    continue
+            out[(d, arm)] = mts
     return out
 
 
-def throughput(mtimes: list[float], now_epoch: float,
+def throughput(cells: dict, now_epoch: float,
                windows_h: tuple[int, ...] = WINDOWS_H) -> dict[int, tuple[int, float]]:
-    """{window_hours: (records_in_window, records_per_hour)}."""
+    """{window_hours: (records_in_window, records_per_hour)}.
+
+    ⚠ BOUNDED AT BOTH ENDS. An upper bound matters because this repo has already seen an mtime that
+    disagreed with reality (the reboot left ``driver_nemotron-3-super.log`` with an mtime ~50 min
+    behind its own content). A future-stamped file would otherwise be counted in EVERY window and
+    inflate every rate.
+    """
     out: dict[int, tuple[int, float]] = {}
+    allm = [m for mts in cells.values() for m in mts]
     for h in windows_h:
-        cutoff = now_epoch - h * 3600.0
-        n = sum(1 for m in mtimes if m >= cutoff)
+        lo = now_epoch - h * 3600.0
+        n = sum(1 for m in allm if lo <= m <= now_epoch)
         out[h] = (n, n / h)
     return out
 
 
-def remaining_records(rung: int, depths: dict) -> int:
-    """Test records still owed to reach ``rung`` on EVERY (line, arm).
+def backlog(rung: int, cells: dict, registered_units: int = REGISTERED_UNITS) -> tuple[int, int]:
+    """(records_owed, units_not_yet_on_disk) to reach ``rung`` on EVERY registered test unit.
 
-    ``max(0, ...)`` per arm, never a signed sum: an arm that has overshot cannot pay for an arm that
+    ``max(0, ...)`` per cell, never a signed sum: an arm that has overshot cannot pay for an arm that
     is behind, because the reported result is a MINIMUM over arms (R101), not a total.
+
+    A unit with no directory yet owes a FULL rung. Counting only what is on disk is how gen 2 lost
+    15 of 71 units; the shortfall is added here and reported by the caller.
     """
-    total = 0
-    for per_arm in depths.values():
-        for n in per_arm.values():
-            total += max(0, rung - n)
-    return total
+    owed = sum(max(0, rung - len(mts)) for mts in cells.values())
+    missing = max(0, registered_units - len(cells))
+    return owed + missing * rung, missing
 
 
-def eta_from_rate(remaining: int, rate_per_h: float, now: dt.datetime):
-    """(eta_datetime, days) anchored at NOW, or (None, None) when it cannot be projected."""
-    if remaining <= 0:
-        return now, 0.0
+def eta_from_rate(remaining: int, rate_per_h: float, now: dt.datetime, floor_days: float = 0.0):
+    """(eta, days) anchored at NOW and never earlier than the critical-chain floor.
+
+    ``floor_days`` is the registered serial chain: a throughput number cannot beat it however many
+    cores arrive, so an ETA that ignores it is arithmetic detached from the model printed beneath it.
+    """
     if rate_per_h <= 0:
-        return None, None
-    days = remaining / rate_per_h / 24.0
+        return (None, None) if remaining > 0 else (now + dt.timedelta(days=max(0.0, floor_days)),
+                                                   max(0.0, floor_days))
+    days = max(remaining / rate_per_h / 24.0 if remaining > 0 else 0.0, max(0.0, floor_days))
     return now + dt.timedelta(days=days), days
 
 
-def _depths(root: str) -> dict:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import line_balance as _lb
-    prev = _lb.ROOT
-    try:
-        _lb.ROOT = root
-        return _lb.archive_depths()
-    finally:
-        _lb.ROOT = prev
+def concentration(cells: dict, now_epoch: float, hours: int) -> list[tuple[str, int]]:
+    """[(test_dir, records_in_window)] sorted desc — how concentrated the rate is by LINE."""
+    lo = now_epoch - hours * 3600.0
+    per: dict[str, int] = {}
+    for (d, _arm), mts in cells.items():
+        per[d] = per.get(d, 0) + sum(1 for m in mts if lo <= m <= now_epoch)
+    return sorted(((k, v) for k, v in per.items() if v), key=lambda kv: -kv[1])
 
 
-def render(measured: int, modelled: int = 830, root: str = DEFAULT_ROOT, page: bool = False) -> str:
-    now = dt.datetime.utcnow()
-    now_epoch = now.timestamp()
+def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
+           page: bool = False) -> str:
+    # ⚠ ONE CLOCK, AND IT IS time.time(). See gen-2 defect 1.
+    now_epoch = time.time()
+    now = dt.datetime.utcfromtimestamp(now_epoch)
     elapsed_d = (now - LAUNCH).total_seconds() / 86400.0
     days_left = (STOP - now).total_seconds() / 86400.0
 
-    mtimes = test_record_mtimes(root)
-    tp = throughput(mtimes, now_epoch)
-    depths = _depths(root)
+    cells = test_cells(root)
+    tp = throughput(cells, now_epoch)
+    on_disk = sum(len(m) for m in cells.values())
+
+    chain = plan_lanes(rung=568, cpu_cores=modelled, chain_threads=CHAIN_THREADS)
+    floor_total = chain.critical_chain_days
+    floor_left = max(0.0, floor_total - elapsed_d)
 
     L: list[str] = []
     L.append(f"generated {now:%Y-%m-%d %H:%M} UTC | elapsed {elapsed_d:.2f} d | "
-             f"{days_left:.1f} d to the Aug-27 stop | {len(mtimes)} test records on disk")
+             f"{days_left:.1f} d to the Aug-27 stop")
+    L.append(f"test tier: {on_disk:,} records over {len(cells)} of the {REGISTERED_UNITS} "
+             f"registered units (lanes.py _TEST_UNITS_PER_RUNG)")
     L.append("")
-    L.append("MEASURED test-tier throughput (from record mtimes -- an observation, not a model):")
+    L.append("MEASURED test-tier throughput (record mtimes; an observation, not a model):")
     for h in WINDOWS_H:
         n, r = tp[h]
         L.append(f"    last {h:>2} h   {n:>5} records   {r:>7.1f} rec/h")
 
-    # THE PROJECTION RATE: the 12 h window unless it is empty, then the widest window that is not.
-    # A 1 h window is noisy (pack-8 batches land in bursts) and a 24 h one is stale across an outage;
-    # 12 h spans a full batch turnover. Stated in the output so the reader knows which was used.
-    rate_h = 12
-    if tp[12][0] == 0:
-        for h in (24, 3, 1):
-            if tp[h][0] > 0:
-                rate_h = h
-                break
-    rate = tp[rate_h][1]
+    conc = concentration(cells, now_epoch, 12)
+    if conc:
+        top, topn = conc[0]
+        tot12 = sum(v for _, v in conc) or 1
+        L.append(f"    12 h rate is {100.0 * topn / tot12:.0f}% from ONE line ({top}); "
+                 f"{len(conc)} line(s) contributed at all")
 
+    rates = [(h, tp[h][1]) for h in WINDOWS_H if tp[h][0] > 0]
     L.append("")
-    L.append(f"EMPIRICAL ETA -- remaining work / the measured {rate_h} h rate, anchored at NOW:")
-    L.append(f"    {'rung':>5}  {'remaining':>10}  {'days':>6}  {'ETA (UTC)':<16}  fits Aug-27?")
-    for rung in RUNGS:
-        rem = remaining_records(rung, depths)
-        eta, days = eta_from_rate(rem, rate, now)
-        if rem == 0:
-            L.append(f"    {rung:>5}  {rem:>10,}  {0.0:>6.2f}  {'REACHED':<16}  yes")
-        elif eta is None:
-            L.append(f"    {rung:>5}  {rem:>10,}  {'--':>6}  {'NO RATE':<16}  "
-                     f"0 records in every window -- cannot project")
-        else:
-            fits = "yes" if eta <= STOP else "NO -- past the stop"
-            L.append(f"    {rung:>5}  {rem:>10,}  {days:>6.2f}  {eta:%Y-%m-%d %H:%M}  {fits}")
+    if not rates:
+        L.append("EMPIRICAL ETA -- UNAVAILABLE: zero test records in every window, so no rate can be")
+        L.append("    measured. This is a BLIND state, not a fast one.")
+    else:
+        fast_h, fast_r = max(rates, key=lambda kv: kv[1])
+        slow_h, slow_r = min(rates, key=lambda kv: kv[1])
+        L.append("EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE")
+        L.append(f"    because the rate is line-concentrated (fast = {fast_h} h @ {fast_r:.0f} rec/h,"
+                 f" slow = {slow_h} h @ {slow_r:.0f} rec/h):")
+        L.append(f"    {'rung':>5}  {'remaining':>10}  {'earliest (UTC)':<16}  {'latest (UTC)':<16}  Aug-27?")
+        for rung in RUNGS:
+            rem, missing = backlog(rung, cells)
+            e_fast, d_fast = eta_from_rate(rem, fast_r, now, floor_left)
+            e_slow, d_slow = eta_from_rate(rem, slow_r, now, floor_left)
+            if rem == 0:
+                L.append(f"    {rung:>5}  {rem:>10,}  {'REACHED':<16}  {'REACHED':<16}  yes")
+                continue
+            fits = "yes" if e_slow <= STOP else ("risk" if e_fast <= STOP else "NO")
+            L.append(f"    {rung:>5}  {rem:>10,}  {e_fast:%Y-%m-%d %H:%M}  {e_slow:%Y-%m-%d %H:%M}"
+                     f"  {fits}")
+        _, missing = backlog(568, cells)
+        if missing:
+            L.append(f"    (+{missing} registered unit(s) have no directory yet; each owes a FULL "
+                     f"rung and is counted above)")
 
     L.append("")
     L.append("REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:")
-    L.append(f"    {'rung':>5}  {'@%d cores' % measured:>14}  {'@%d cores' % modelled:>14}   binding")
-    for rung in RUNGS:
-        cells = []
-        binding = ""
-        for cores in (measured, modelled):
-            p = plan_lanes(rung=rung, cpu_cores=cores, chain_threads=CHAIN_THREADS)
-            cells.append(f"{p.makespan_days:8.1f} d")
-            binding = p.binding
-        L.append(f"    {rung:>5}  {cells[0]:>14}  {cells[1]:>14}   {binding}")
+    if measured is None:
+        L.append("    (core count unavailable this cycle -- the model table needs it; the EMPIRICAL")
+        L.append("     block above does NOT and is unaffected)")
+    else:
+        L.append(f"    {'rung':>5}  {'@%d cores' % measured:>14}  {'@%d cores' % modelled:>14}   binding")
+        for rung in RUNGS:
+            cellrow = []
+            binding = ""
+            for cores in (measured, modelled):
+                p = plan_lanes(rung=rung, cpu_cores=cores, chain_threads=CHAIN_THREADS)
+                cellrow.append(f"{p.makespan_days:8.1f} d")
+                binding = p.binding
+            L.append(f"    {rung:>5}  {cellrow[0]:>14}  {cellrow[1]:>14}   {binding}")
 
-    p = plan_lanes(rung=568, cpu_cores=modelled, chain_threads=CHAIN_THREADS)
     L.append("")
-    L.append(f"    saturation: more than ~{p.saturation_cores:.0f} cores buy NOTHING at rung 568")
-    L.append(f"    critical-chain floor: {p.critical_chain_days:.2f} d (serial, immune to more cores)")
+    L.append(f"    saturation: more than ~{chain.saturation_cores:.0f} cores buy NOTHING at rung 568")
+    L.append(f"    critical-chain floor: {floor_total:.2f} d total, {floor_left:.2f} d still to run")
+    L.append("    (serial by design, immune to more cores; every ETA above is clamped to it)")
     if not page:
-        for n in p.notes:
+        for n in chain.notes:
             L.append(f"    * {n}")
     L.append("")
-    L.append("    NOTE: 'remaining' is a RECORD COUNT, not a banked rung. An arm can hold n records")
-    L.append("    and still bank a lower rung if a seed below its frontier is missing (S15).")
+    L.append("    NOTE: 'remaining' is a RECORD COUNT, not a banked rung -- an arm can hold n records")
+    L.append("    and still bank lower if a seed below its frontier is missing (S15). And the range")
+    L.append("    assumes the measured rate survives the line-major handover, which is an assumption.")
     return "\n".join(L)
 
 
@@ -210,49 +276,101 @@ def selftest() -> int:
 
     now = dt.datetime(2026, 8, 3, 18, 0, 0)
 
-    # A. AN ETA IS NEVER IN THE PAST -- the whole point of P234.
+    # A. AN ETA IS NEVER IN THE PAST (P234).
     eta, days = eta_from_rate(1000, 100.0, now)
     ck("A1 eta is in the future", eta > now, True)
-    ck("A2 days matches remaining/rate", round(days, 6), round(1000 / 100.0 / 24.0, 6))
+    ck("A2 days = remaining/rate", round(days, 6), round(1000 / 100.0 / 24.0, 6))
+    ck("A3 zero remaining is now", eta_from_rate(0, 100.0, now), (now, 0.0))
+    ck("A4 zero rate cannot fabricate a date", eta_from_rate(500, 0.0, now), (None, None))
 
-    # B. Nothing remaining => REACHED, anchored at now, never a past date.
-    ck("B1 zero remaining is now", eta_from_rate(0, 100.0, now), (now, 0.0))
-    ck("B2 negative remaining is now", eta_from_rate(-5, 100.0, now), (now, 0.0))
+    # B. THE CRITICAL-CHAIN CLAMP: throughput cannot beat the registered serial floor.
+    e, d = eta_from_rate(1, 1e9, now, floor_days=2.0)
+    ck("B1 clamped to the floor", round(d, 6), 2.0)
+    ck("B2 clamp moves the date", e, now + dt.timedelta(days=2.0))
+    ck("B3 floor does not shorten a longer projection",
+       round(eta_from_rate(24000, 100.0, now, floor_days=1.0)[1], 4), round(24000 / 100 / 24, 4))
 
-    # C. A dead rate must not fabricate a date.
-    ck("C1 zero rate yields no eta", eta_from_rate(500, 0.0, now), (None, None))
-    ck("C2 negative rate yields no eta", eta_from_rate(500, -1.0, now), (None, None))
+    # C. THE BACKLOG COVERS ALL REGISTERED UNITS, INCLUDING THOSE WITH NO DIRECTORY (gen-2 defect 2).
+    cells = {("test_a", "x"): [0.0] * 40, ("test_a", "y"): [0.0] * 10}
+    ck("C1 overshoot does not offset a laggard", backlog(30, cells, registered_units=2), (20, 0))
+    ck("C2 all met is zero", backlog(10, cells, registered_units=2), (0, 0))
+    ck("C3 MISSING units owe a full rung",
+       backlog(30, cells, registered_units=4), (20 + 2 * 30, 2))
+    ck("C4 registered count is the live 71", REGISTERED_UNITS, 71)
+    # MUTATION CONTROL for defect 2: the gen-2 rule (on-disk cells only) UNDER-counts, and must differ.
+    gen2 = sum(max(0, 30 - len(m)) for m in cells.values())
+    ck("C5 gen-2 rule under-counted", gen2, 20)
+    ck("C6 production DISAGREES with the gen-2 rule when units are missing",
+       backlog(30, cells, registered_units=4)[0] != gen2, True)
 
-    # D. remaining is a per-arm max(0), never a signed sum: an overshooting arm must not pay for a
-    #    lagging one, because the reported result is a MINIMUM over arms (R101).
-    d = {"test_a": {"x": 40, "y": 10}}
-    ck("D1 overshoot does not offset a laggard", remaining_records(30, d), 20)
-    ck("D2 all met is zero", remaining_records(10, d), 0)
-    ck("D3 empty depths is zero", remaining_records(30, {}), 0)
-    ck("D4 two lines add up", remaining_records(30, {"a": {"x": 0}, "b": {"y": 10}}), 50)
-
-    # E. throughput counts only what falls inside each window.
+    # D. WINDOWS ARE BOUNDED AT BOTH ENDS (gen-2 defect 1's sibling).
     base = now.timestamp()
-    mt = [base - 600, base - 3600 * 2, base - 3600 * 20, base - 3600 * 100]
-    tp = throughput(mt, base)
-    ck("E1 1h window", tp[1][0], 1)
-    ck("E2 3h window", tp[3][0], 2)
-    ck("E3 12h window", tp[12][0], 2)
-    ck("E4 24h window", tp[24][0], 3)
-    ck("E5 rate is per hour", round(tp[24][1], 6), round(3 / 24, 6))
-    ck("E6 empty input is zero, not a crash", throughput([], base)[12], (0, 0.0))
+    c = {("t", "a"): [base - 600, base - 3600 * 2, base - 3600 * 20, base + 3600]}
+    tp = throughput(c, base)
+    ck("D1 1h window", tp[1][0], 1)
+    ck("D2 3h window", tp[3][0], 2)
+    ck("D3 24h window", tp[24][0], 3)
+    ck("D4 a FUTURE mtime is excluded from every window",
+       all(tp[h][0] != 4 for h in WINDOWS_H), True)
+    ck("D5 empty input is zero, not a crash", throughput({}, base)[12], (0, 0.0))
 
-    # F. MUTATION CONTROL: the pre-fix rule (LAUNCH + makespan) produced a PAST date for any rung
-    #    whose modelled makespan is under the elapsed time. Pin that it DID, and that we no longer do.
-    pre_fix_eta = LAUNCH + dt.timedelta(days=4.6)          # rung 30's measured makespan
-    ck("F1 the pre-fix anchor WAS in the past", pre_fix_eta < now, True)
-    ck("F2 production anchors at now instead", eta_from_rate(1, 1.0, now)[0] >= now, True)
-    ck("F3 production DISAGREES with the pre-fix anchor",
-       eta_from_rate(1, 1.0, now)[0] != pre_fix_eta, True)
+    # E. THE CLOCK BUG ITSELF, pinned BEHAVIOURALLY so it cannot come back (gen-2 defect 1).
+    #    ⚠ My first attempt here GREPPED THIS FILE'S OWN SOURCE for "utcnow().timestamp()" and
+    #    failed, because the docstring above legitimately quotes the bad call while explaining it.
+    #    A source scan is a claim about TEXT; the defect is about BEHAVIOUR. So this builds a real
+    #    archive with one record aged 1.5 h by the TRUE clock and asserts render() does not count it
+    #    in the 1 h window. Under the gen-2 bug the cutoff sat 2 h back and it WOULD have counted --
+    #    which is exactly how "last 1 h" over-reported the live rate by 2.6x.
+    skew = dt.datetime.utcnow().timestamp() - time.time()
+    ck("E1 utcnow().timestamp() is NOT a valid epoch here (skew proves the trap is real)",
+       abs(skew) > 1.0, True)
 
-    # G. A larger rung can never owe less work than a smaller one.
-    d2 = {"a": {"x": 5, "y": 100}}
-    ck("G1 monotone in rung", remaining_records(568, d2) > remaining_records(30, d2), True)
+    import json as _json
+    import shutil as _shutil
+    import tempfile as _tempfile
+    tmp = _tempfile.mkdtemp(prefix="stage_eta_selftest_")
+    try:
+        cand = os.path.join(tmp, "test_leg_x", "distributional", "c0")
+        os.makedirs(cand)
+        rec = os.path.join(cand, "record.json")
+        with open(rec, "w", encoding="utf-8") as fh:
+            _json.dump({"arm": "distributional"}, fh)
+        aged = time.time() - 1.5 * 3600.0          # 1.5 h old by the TRUE clock
+        os.utime(rec, (aged, aged))
+        c2 = test_cells(tmp)
+        ck("E2 the fixture is discovered as one cell", len(c2), 1)
+        tp2 = throughput(c2, time.time())
+        ck("E3 a 1.5 h-old record is OUT of the 1 h window", tp2[1][0], 0)
+        ck("E4 and IN the 3 h window", tp2[3][0], 1)
+        out_e = render(1000, root=tmp, page=True)
+        ck("E5 render()'s own 1 h row reads zero (end-to-end clock control)",
+           "last  1 h       0 records" in out_e, True)
+    finally:
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+    # F. GENUINE MUTATION CONTROL AT THE render() LEVEL: no printed date may precede now.
+    #    Gen 2's case F only checked a hand-built datetime and would have passed if render()
+    #    reintroduced LAUNCH + makespan. This one reads the real output.
+    import re as _re
+    try:
+        out = render(1000, page=True)
+        dates = _re.findall(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", out)
+        gen_line = dates[0] if dates else None
+        past = [d for d in dates[1:]
+                if dt.datetime.strptime(d, "%Y-%m-%d %H:%M") < dt.datetime.utcfromtimestamp(
+                    time.time()) - dt.timedelta(minutes=2)]
+        ck("F1 render() emits a generated-at stamp", gen_line is not None, True)
+        ck("F2 render() emits NO date before now", past, [])
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"F render() raised: {type(exc).__name__}: {exc}")
+
+    # G. A missing core count must NOT destroy the empirical block (auditor MAJOR 6).
+    try:
+        out_nc = render(None, page=True)
+        ck("G1 renders without cores", "EMPIRICAL ETA" in out_nc or "UNAVAILABLE" in out_nc, True)
+        ck("G2 says the model table needs cores", "core count unavailable" in out_nc, True)
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"G render(None) raised: {type(exc).__name__}: {exc}")
 
     for line in ok:
         print("  pass  " + line)
@@ -262,15 +380,30 @@ def selftest() -> int:
     return 1 if bad else 0
 
 
+def _parse_cores(tok: str | None):
+    """A bad core count must cost the MODEL TABLE ONLY, never the empirical block (auditor MAJOR 6).
+
+    The publisher passes `?` when its ssh failed and `0` when every job is queued; the old code
+    turned both into a ValueError that discarded an ETA already computed.
+    """
+    if tok is None:
+        return None
+    try:
+        v = int(tok)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
 def main(argv: list[str]) -> int:
     args = list(argv[1:])
     if "--selftest" in args:
         return selftest()
     page = "--page" in args
     positional = [a for a in args if not a.startswith("--")]
-    measured = int(positional[0]) if positional else 20
-    modelled = int(positional[1]) if len(positional) > 1 else 830
-    print(render(measured, modelled, page=page))
+    measured = _parse_cores(positional[0]) if positional else None
+    modelled = _parse_cores(positional[1]) if len(positional) > 1 else 830
+    print(render(measured, modelled or 830, page=page))
     return 0
 
 
