@@ -1,0 +1,3 @@
+2026-08-03T01:02:11Z  OK    node=login13.myriad.ucl.ac.uk     cores=2.52/6.0  mem=0.00GB  qacct=4  comfortable
+2026-08-03T01:03:12Z  WARN  node=login13.myriad.ucl.ac.uk     cores=2.75/6.0  mem=0.00GB  qacct=4  past 45% of the ceiling -- a burst from here would trip it
+2026-08-03T01:03:30Z  WARN  node=login13.myriad.ucl.ac.uk     cores=2.73/6.0  mem=0.00GB  qacct=4  past 45% of the ceiling -- a burst from here would trip it
