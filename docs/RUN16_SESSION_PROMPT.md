@@ -82,6 +82,59 @@ verification. Every claim in this document was measured. Where RUN 15 was wrong,
 
 ---
 
+## §0.5 ⛔⛔⛔ MANDATORY READING — **DO NOT TAKE A SUBSTANTIVE ACTION UNTIL YOU HAVE READ THESE**
+
+**Tamer's instruction, verbatim:** *"study all documents in this project very extensively before you
+act. You must have an extremely comprehensive knowledge and 0 gaps"* and *"make sure the prompt
+really forces the next claude code session to study absolutely all files."*
+
+**THIS IS A GATE, NOT A SUGGESTION.** This session is the one that must FIX everything, on a live
+irreplaceable campaign where a wrong action is unrecoverable. **Reading is cheaper than a mistake.**
+Almost every error in §9 — mine and RUN 14's — was committed by someone who acted on an inherited
+summary instead of the source. **Read the source.**
+
+### TIER 1 — READ IN FULL, FIRST, BEFORE ANY ACTION (non-negotiable)
+| file | lines | why |
+|---|---|---|
+| **this file** | ~600 | the brief; §0 is the operating contract |
+| **`CLAUDE.md`** | 921 | LAW. the ★ PRIORITIES, the four authorities, Okhrati's six duties, the absolute rules |
+| **`docs/HANDOFF.md`** §1-§3 | 134 | current state, standing orders, **the authority map (one owner per truth)** |
+| **`memory/session-current-focus.md`** ▶ NOW | short | the live cursor |
+| **`PREREGISTRATION.md`** | 1,061 | THE FROZEN CONTRACT. hypotheses, arms, seeds, fitness, analysis plan, every amendment (R1…R115). **You cannot judge whether anything is "flawless" without it** |
+| **`docs/DEFERRED_FIXES_RUN4.md`** | 1,876 | every known-open defect **and the standing PROHIBITION** (never junction the archive) |
+| **`docs/LANE_PROTOCOL.md`** | 274 | you are not the only session; `paper/**` is NOT yours |
+
+### TIER 2 — READ BEFORE TOUCHING THE THING THEY DESCRIBE
+| file | lines | read before… |
+|---|---|---|
+| **`docs/CAMPAIGN_EXECUTION_RECORD.md`** | **16,810** | any ops decision. **§20 is the DEFECT LEDGER (P1…P201) — every mistake ever made here, with root cause and lesson.** Read §20 in full; the rest by section as needed. Do not repeat a numbered defect |
+| **`CHANGELOG.md`** | **23,526** | anything. Read `[2026-08-03a]` (this session) and `[2026-08-02d/e/f]` in full; earlier by search |
+| `docs/RUN15_SESSION_PROMPT.md` | 534 | context on what was superseded — **but §9 here lists six of its claims that are FALSE** |
+| `src/cluster/driver.py`, `campaign.py`, `poll.py` | — | any transport/queue/pull change. **`poll.py:305` and `campaign.py:1840` are the two that bite** |
+| `config/preregistration.yaml`, `config/campaign.yaml` | — | any parameter question. **hash-bound; do not edit** |
+| `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md` | — | any load-bearing claim (grade A/B/C + fragility per decision) |
+| `docs/GRADE_95_MASTER_PLAN.md`, `docs/V2_WRITE_TIME_REGISTRY.md` | — | anything touching the PDF (**writeup lane owns these**) |
+| `../00_planning/FINAL_PLAN_FOR_CLAUDE_CODE_DETAILED.md` | 530 | the authoritative design spec |
+| `../00_planning/DISSERTATION_ALIGNMENT_AND_GUIDELINES.md` | — | the IFTE0008 rubric of record |
+
+### TIER 3 — THE INSTRUMENTS. **READ THE DOCSTRING BEFORE YOU TRUST THE OUTPUT.**
+`docs/analysis/` holds **21** instruments, `docs/ops/` holds **56**, `src/cluster/` **16** modules.
+Every instrument's module docstring states **what it actually checks and what it does NOT** — that
+distinction is exactly where RUN 14 went wrong (it reported "determinism is MEASURED" from a check
+that compared nothing). **A passing check tells you what it TESTED, not what you hoped it tested.**
+The six record layers are listed in §10b; run all six every session.
+
+### ⛔ THE READING GATE — ANSWER THESE FROM THE SOURCES BEFORE ACTING
+If you cannot answer any of them, **you have not read enough:**
+1. What are the **four authorities**, and what happens when they conflict? (`CLAUDE.md`)
+2. What is **H2**, and why is the fed tail **ENDOGENOUS** rather than an exogenous measurement?
+3. Why is **R115's registered justification false**, and why must the threshold NOT be changed?
+4. What does `poll.py:305` rely on, and what happens if the archive is junctioned?
+5. Why is `guards=2` **not** a live signal?
+6. What is the **common seed rung**, and why does gemini's 549-seed lead not raise the result?
+7. Which paths are **drift-fenced**, and what does editing one cost?
+8. Why must you **never** read a treatment arm's sealed-test outcome?
+
 ## §1 YOUR FIRST COMMANDS
 
 ```bash
@@ -93,8 +146,10 @@ python docs/ops/session_preflight.py --full      # 0 clear · 1 ATTENTION · 2 F
 ssh -o BatchMode=yes myriad "hostname"           # transport (goes through the SSH GATE now)
 ```
 
-Then say **"Resuming from: … — next: …"** and CONTINUE. Read order after that: `docs/HANDOFF.md` §1
-→ `memory/session-current-focus.md` (▶ NOW) → `CLAUDE.md` → CHANGELOG `[2026-08-03a]`.
+Then say **"Resuming from: … — next: …"** and CONTINUE.
+⛔ **BUT DO THE §0.5 MANDATORY READING FIRST.** These commands tell you the machine's STATE; they do
+not tell you the DESIGN, the FROZEN CONTRACT, or the 201 defects already catalogued. Acting on state
+alone is how every error in §9 happened.
 
 **MONITORING MANDATE:** read the cycle log on the FIRST tool call of every batch. `>2 min` old ⇒ the
 loop is DEAD. `RED` is normal. **`drift=0` and `sci=OK` are the only two that must never change.**
@@ -409,6 +464,29 @@ editing ~/.ssh/config                allowed after Tamer's explicit ratification
   Change the value AND restart, or the cadence silently stays what it was.
 - **END-OF-WORK, all four:** `python scripts/update_handoff.py` · a SHORT cursor ▶ NOW entry ·
   a DETAILED CHANGELOG block even with no commits · push the backup branch.
+
+### ★★★ THE DOCUMENTATION DUTY — IT IS WRITE-UP RAW MATERIAL, NOT HOUSEKEEPING
+**Tamer's stated reason: *"document absolutely everything as this would help me for the write up."***
+`docs/CAMPAIGN_EXECUTION_RECORD.md` and `CHANGELOG.md` are the PRIMARY SOURCES CH4/CH6/CH7 are
+written from. **Anything not written down is lost to the dissertation.** Three mandatory rules:
+1. **PAST · PRESENT · FUTURE, every time** — what the state WAS, what you did and found NOW, what
+   happens NEXT, so the arc can be reconstructed without asking anyone.
+2. **EVERY MISTAKE IS RECORDED, INCLUDING YOUR OWN** — root cause · how it was actually found · the
+   fix · the lesson. The canonical form is execution-record **§20 (P1…P201)**; follow that shape and
+   allocate the next P-number. **Never quietly drop an error you made.** Okhrati rewards exactly this
+   maturity, and a defect nobody wrote down gets rediscovered the expensive way.
+3. **WRITE IT AS IT HAPPENS** — numbers, commands and real output go in while still verifiable. A
+   measurement reconstructed from memory is an assertion, and assertions do not survive peer review.
+
+### ★★★ AND THE VERIFICATION DUTY THAT THIS SESSION FAILED
+**A green check proves execution, not truth.** After every result, interrogate the result: sanity-
+check magnitude/sign/units; **cross-check against an INDEPENDENT route** (agreement between two
+derivations is evidence, one derivation repeated is not); check internal consistency across code,
+config, CHANGELOG, HANDOFF and the paper; and ask whether the conclusion FOLLOWS from the evidence.
+**A surprising result is an obligation to investigate, never a result to report as-is** — and when a
+script returns a surprising NEGATIVE, suspect the script first: it is a claim about your own code
+before it is a claim about the world. **The author must not grade their own work** — for substantial
+multi-file work, have a fresh read-only auditor subagent check it against the criteria.
 
 ---
 

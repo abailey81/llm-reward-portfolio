@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "08aab07e"
+  head: "1b8f9da2"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 15 closes: outage resolved (VPN pool), disk ceiling gone (1.75:1, rung 568 fits), SSH gate active, crash watchdog + login guard running; ONE open defect core/bayes_opt dead"
+  suite_status: "RUN 15 closes -> docs/RUN16_SESSION_PROMPT.md (662 lines, mandatory-reading gate). Core line restarted, bayes_opt resumed at c25."
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
