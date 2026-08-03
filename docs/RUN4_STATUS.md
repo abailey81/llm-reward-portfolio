@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 03:34 UTC -- T+126h25m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 03:35 UTC -- T+126h26m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+126h25m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+126h26m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **6757** |
+| records archived | **6764** |
 | LLM calls / spend | 2946 / **$45.4831** |
 | transport timeouts | **31** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,20 +21,20 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **979** (291 running, 688 queued) |
-| **cores computing** | **2328** |
+| cluster jobs | **979** (292 running, 687 queued) |
+| **cores computing** | **2336** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @2328 cores              @830 cores   binding
+ rung             @2336 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
   189            4.6 d  08-02            6.5 d  08-04   throughput
   279            4.6 d  08-02            9.3 d  08-07   throughput
   340            4.6 d  08-02           11.1 d  08-09   throughput
-  403            4.7 d  08-02           13.0 d  08-10   throughput
+  403            4.6 d  08-02           13.0 d  08-10   throughput
   568            6.4 d  08-04           18.1 d  08-15   throughput
 ```
 
@@ -73,8 +73,8 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | arm | furthest generation | candidates so far |
 |---|---|---|
 | distributional | g5 of 5 | 1678 |
-| scalar | g5 of 5 | 1089 |
-| placebo | g5 of 5 | 1215 |
+| scalar | g5 of 5 | 1091 |
+| placebo | g5 of 5 | 1216 |
 | scalar_cvar5 | g5 of 5 | 1184 |
 | placebo_shuffled | g5 of 5 | 1197 |
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T03:23:15Z  RED  records=6719 (+5)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=53.8m  drift=0  sci=OK  r115=21B  sweep=55.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:24:41Z  RED  records=6728 (+9)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=55.2m  drift=0  sci=OK  r115=21B  sweep=66.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:26:18Z  RED  records=6734 (+6)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=57.7m  drift=0  sci=OK  r115=21B  sweep=111.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:27:25Z  RED  records=6735 (+7)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=21B  sweep=64.5s  p209-verify
 2026-08-03T03:28:39Z  RED  records=6736 (+1)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=54.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:30:04Z  RED  records=6746 (+10)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0  sci=OK  r115=21B  cores=2320  sweep=289.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T03:35:24Z  RED  records=6763 (+17)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=21B  sweep=57.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
