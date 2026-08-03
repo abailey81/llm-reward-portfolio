@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 12:52 UTC -- T+135h43m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 12:54 UTC -- T+135h45m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+135h43m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+135h45m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **8970** |
+| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **8975** |
 | LLM calls / spend | 2946 / **$45.4831** |
 | transport timeouts | **58** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **712** (165 running, 547 queued) |
+| cluster jobs | **711** (165 running, 546 queued) |
 | **cores computing** | **1320** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -72,11 +72,11 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 2120 |
-| scalar | g5 of 5 | 1527 |
-| placebo | g5 of 5 | 1657 |
-| scalar_cvar5 | g5 of 5 | 1628 |
-| placebo_shuffled | g5 of 5 | 1638 |
+| distributional | g5 of 5 | 2122 |
+| scalar | g5 of 5 | 1530 |
+| placebo | g5 of 5 | 1658 |
+| scalar_cvar5 | g5 of 5 | 1629 |
+| placebo_shuffled | g5 of 5 | 1640 |
 
 ## Results so far
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T12:33:13Z  RED  records=8920 (+18)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=21B  sweep=163.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T12:36:27Z  RED  records=8921 (+1)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0  sci=OK  r115=21B  sweep=137.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T12:39:14Z  RED  records=8924 (+3)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=21B  sweep=273.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T12:44:17Z  RED  records=8953 (+29)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=21B  sweep=262.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T12:49:10Z  RED  records=8960 (+7)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=21B  sweep=124.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T12:51:45Z  RED  records=8970 (+10)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.3m  drift=0  sci=OK  r115=21B  sweep=120.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T12:54:16Z  RED  records=8979 (+9)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=5.7m  drift=0  sci=OK  r115=21B  sweep=124.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -133,7 +133,7 @@ remaining exposure):
 
 ```
   anthropic   spent $ 36.7418  + still to author $  0.0000  = $ 36.7418   credited $ 28.1500   margin $  -8.5918 (-31%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  8.7413  + still to author $  0.0100  = $  8.7513   credited $ 19.3100   margin $ +10.5587 (+55%)  comfortable
+  openrouter  spent $  8.7415  + still to author $  0.0100  = $  8.7516   credited $ 19.3100   margin $ +10.5584 (+55%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
