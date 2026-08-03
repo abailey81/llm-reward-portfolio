@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:21 UTC -- T+141h12m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 18:22 UTC -- T+141h13m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h12m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h13m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9607** |
+| stalest driver log | **1 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9609** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 124 -- a level with no rate; read the row above |
@@ -23,8 +23,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **619** (197 running, 422 queued) |
-| **cores computing** | **1576** |
+| cluster jobs | **619** (198 running, 421 queued) |
+| **cores computing** | **1584** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -33,32 +33,32 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:21 UTC | elapsed 5.88 d | 23.2 d to the Aug-27 stop | 8082 test records on disk
+generated 2026-08-03 18:22 UTC | elapsed 5.88 d | 23.2 d to the Aug-27 stop | 8082 test records on disk
 
 MEASURED test-tier throughput (from record mtimes -- an observation, not a model):
-    last  1 h     206 records     206.0 rec/h
-    last  3 h     390 records     130.0 rec/h
+    last  1 h     204 records     204.0 rec/h
+    last  3 h     387 records     129.0 rec/h
     last 12 h    2562 records     213.5 rec/h
-    last 24 h    4792 records     199.7 rec/h
+    last 24 h    4785 records     199.4 rec/h
 
 EMPIRICAL ETA -- remaining work / the measured 12 h rate, anchored at NOW:
      rung   remaining    days  ETA (UTC)         fits Aug-27?
-       30         308    0.06  2026-08-03 19:47  yes
-      100       3,108    0.61  2026-08-04 08:54  yes
-      189       6,993    1.36  2026-08-05 03:06  yes
-      279      11,043    2.16  2026-08-05 22:04  yes
-      340      13,788    2.69  2026-08-06 10:56  yes
-      403      16,623    3.24  2026-08-07 00:12  yes
-      568      24,056    4.69  2026-08-08 11:01  yes
+       30         308    0.06  2026-08-03 19:49  yes
+      100       3,108    0.61  2026-08-04 08:55  yes
+      189       6,993    1.36  2026-08-05 03:07  yes
+      279      11,043    2.16  2026-08-05 22:05  yes
+      340      13,788    2.69  2026-08-06 10:57  yes
+      403      16,623    3.24  2026-08-07 00:14  yes
+      568      24,056    4.69  2026-08-08 11:02  yes
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung     @1576 cores      @830 cores   binding
+     rung     @1584 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           4.6 d           6.5 d   throughput
       279           4.9 d           9.3 d   throughput
-      340           5.9 d          11.1 d   throughput
-      403           6.9 d          13.0 d   throughput
+      340           5.8 d          11.1 d   throughput
+      403           6.8 d          13.0 d   throughput
       568           9.5 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
@@ -186,7 +186,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
