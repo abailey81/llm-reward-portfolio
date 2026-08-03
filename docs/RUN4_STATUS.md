@@ -95,7 +95,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 30-second cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the 30-second cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T03:24:41Z  RED  records=6728 (+9)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=55.2m  drift=0  sci=OK  r115=21B  sweep=66.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:26:18Z  RED  records=6734 (+6)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=57.7m  drift=0  sci=OK  r115=21B  sweep=111.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:27:25Z  RED  records=6735 (+7)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=21B  sweep=64.5s  p209-verify
 2026-08-03T03:28:39Z  RED  records=6736 (+1)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=54.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:30:04Z  RED  records=6746 (+10)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0  sci=OK  r115=21B  cores=2320  sweep=289.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T03:35:24Z  RED  records=6763 (+17)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=21B  sweep=57.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T03:36:52Z  RED  records=6774 (+11)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=21B  sweep=161.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
