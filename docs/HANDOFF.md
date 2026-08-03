@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "721046ed"
+  head: "58336d97"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 16 (post-audit): P202 completed-line churn FIXED and HARDENED after an independent auditor REFUTED the first predicate on this repo's own logs (P208: deepseek had TEN consecutive exit-0 and the ELEVENTH revival worked - D12's six legs). Suppression now needs THREE agreements: clean supervisor exit + anchored post-D12 wording + a campaign-level OK in the DRIVER log. Selftest 27/27 with the auditor's counterexamples pinned (docs/ops/test_watchdog_completion.ps1). P203 line census, P204 orphaned qacct, P205 adaptive DEAD threshold + dupes flicker, all fixed. BOOT TASK repointed at the fixed watchdog so a reboot no longer voids it. gemini-2.5-flash FINISHED THE FULL 568 LADDER (2,840 records). Six record layers ALL RC=0. PREFLIGHT VERDICT OK."
+  suite_status: "RUN 16 final: P202 h3 completion-churn FIXED+HARDENED after an auditor REFUTED my first predicate (P208); suppression now needs 3 agreements, selftest 27/27. P203 line census, P204 orphaned qacct, P205 adaptive DEAD threshold, P209/P210 the counters the churn masked, P214 the D14 alert. NEW S14 record_window_identity (7th layer): all 5,449 sealed-test records share ONE window [3835,5406), one device, 0 arm mismatches. All seven layers RC=0. D32 proven (loader +2). D33 fixed (placeable_capacity forbade what it could not see; true figure 2,576 cores, not 0). ETA PROVEN fair-share-bound from SGE itself: jobs assignable, capacity exists, we still do not get it - ~6-7 days vs ~24 remaining. PRIORITY 5: 17 record-layer instruments incl. record_validator.py were UNTRACKED and are now committed. gemini-2.5-flash FINISHED the full 568 ladder (2,840 records). TAMER: qdel 66103-66108 73026 73027 (they hold the head of our queue with reserve:y)."
   gate_checks: 23
   backup_branch: backup-2026-08-03-run16
 ```
