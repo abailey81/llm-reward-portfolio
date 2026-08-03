@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 21:12 UTC -- T+144h03m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 21:13 UTC -- T+144h04m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+144h03m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+144h04m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **0 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **10002** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=41; worst streak 2/240 (0.8% to fatal), pull on core** |
@@ -33,30 +33,30 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 21:12 UTC | elapsed 6.00 d | 23.1 d to the Aug-27 stop
+generated 2026-08-03 21:13 UTC | elapsed 6.00 d | 23.1 d to the Aug-27 stop
 test tier: 8,471 records over 62 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     171 records     171.0 rec/h
+    last  1 h     170 records     170.0 rec/h
     last  3 h     403 records     134.3 rec/h
-    last 12 h    2144 records     178.7 rec/h
-    last 24 h    4706 records     196.1 rec/h
+    last 12 h    2135 records     177.9 rec/h
+    last 24 h    4703 records     196.0 rec/h
     12 h rate is 59% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 59% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_gpt_5_6_luna) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- earliest = total remaining / the whole fleet's rate (assumes the
-    cluster REDIRECTS freed slots, 179 rec/h); latest excludes cells
+    cluster REDIRECTS freed slots, 178 rec/h); latest excludes cells
     already within 8 of the ceiling (73 rec/h), i.e. assumes
     the finishing line's slots are NOT reused. Window 12 h:
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428       0  2026-08-03 23:36  2026-08-04 03:02  yes
-      100       4,278       0  2026-08-04 21:09  2026-08-06 07:29  yes
-      189       9,181      41  2026-08-06 00:36  2026-08-09 02:16  yes
-      279      14,509     171  2026-08-07 06:25  2026-08-12 02:50  yes
-      340      18,169     171  2026-08-08 02:54  2026-08-14 04:41  yes
-      403      21,949     171  2026-08-09 00:03  2026-08-16 08:10  yes
-      568      31,857     171  2026-08-11 07:31  2026-08-21 23:08  yes
+       30         428       0  2026-08-03 23:38  2026-08-04 03:03  yes
+      100       4,278       0  2026-08-04 21:16  2026-08-06 07:30  yes
+      189       9,181      40  2026-08-06 00:50  2026-08-09 02:17  yes
+      279      14,509     170  2026-08-07 06:46  2026-08-12 02:51  yes
+      340      18,169     170  2026-08-08 03:21  2026-08-14 04:42  yes
+      403      21,949     170  2026-08-09 00:35  2026-08-16 08:11  yes
+      568      31,857     170  2026-08-11 08:17  2026-08-21 23:09  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+9 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
@@ -207,7 +207,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
