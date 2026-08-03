@@ -80,6 +80,21 @@ STOP = dt.datetime(2026, 8, 27)                # R109 exogenous stop
 RUNGS = [30, 100, 189, 279, 340, 403, 568]     # the registered assurance ladder
 CHAIN_THREADS = 8                              # --search-threads 8 (R107)
 WINDOWS_H = (1, 3, 12, 24)                     # throughput windows, hours
+#: ⚠⚠ THE SHORTEST WINDOW AN ETA MAY BE BUILT FROM (P237, 2026-08-03).
+#: Records do not arrive smoothly: a test job is a PACK OF 8 seeds with ``h_rt = 15.0 h``, and its 8
+#: records land together when the job ends. So the arrival process has a ~15 h quantum, and any
+#: window shorter than one job turnover samples the GAPS BETWEEN BURSTS rather than the rate.
+#: MEASURED 2026-08-03 while Tamer asked why the rate had collapsed: the 1 h window read 52 rec/h
+#: and the 3 h read 94 rec/h against a 12 h reading of 206 rec/h — and the line then carrying the
+#: campaign had **196 running pack-8 jobs**, i.e. a steady state of 196x8/15.0 = **104 rec/h**. The
+#: 52 was a trough between bursts, and I had published it as the PESSIMISTIC BOUND of the ETA range,
+#: which put rung 568 at 2026-08-26 — hours from the stop, and fiction.
+#: Short windows remain PRINTED, because a genuinely stalled fleet shows up there first. They are
+#: just not allowed to price the deadline.
+MIN_ETA_WINDOW_H = 12
+#: A cell within one pack of its target stops contributing almost immediately, so its share of a
+#: window is rate that will NOT persist. Quantified and disclosed rather than silently trusted.
+PACK = 8
 DEFAULT_ROOT = os.path.join(REPO, "outputs", "campaign_cluster_run4")
 REGISTERED_UNITS = _TEST_UNITS_PER_RUNG        # 71 = 9 core + 50 leg + 11 H1 canon + 1 H3
 
@@ -210,17 +225,61 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         L.append(f"    12 h rate is {100.0 * topn / tot12:.0f}% from ONE line ({top}); "
                  f"{len(conc)} line(s) contributed at all")
 
-    rates = [(h, tp[h][1]) for h in WINDOWS_H if tp[h][0] > 0]
+    # ⚠ ETA BOUNDS COME ONLY FROM WINDOWS >= MIN_ETA_WINDOW_H (P237). Shorter windows are printed
+    # above as a stall indicator and are deliberately NOT allowed to price the deadline: the arrival
+    # quantum is a 15 h pack-8 job, so a 1 h reading measures the gap between bursts.
+    rates = [(h, tp[h][1]) for h in WINDOWS_H if tp[h][0] > 0 and h >= MIN_ETA_WINDOW_H]
+    short = [(h, tp[h][1]) for h in WINDOWS_H if h < MIN_ETA_WINDOW_H]
+    if short:
+        L.append(f"    (windows under {MIN_ETA_WINDOW_H} h are a STALL INDICATOR ONLY and do not "
+                 f"price the ETA -- the arrival quantum is a 15 h pack-{PACK} job)")
+
+    # HANDOVER RISK: how much of the ETA window came from cells about to stop contributing.
+    if rates:
+        eh = min(h for h, _ in rates)
+        lo = now_epoch - eh * 3600.0
+        ending = tot = 0
+        ending_lines: dict[str, int] = {}
+        for (d, _arm), mts in cells.items():
+            k = sum(1 for m in mts if lo <= m <= now_epoch)
+            tot += k
+            if k and (568 - len(mts)) <= PACK:
+                ending += k
+                ending_lines[d] = ending_lines.get(d, 0) + k
+        if tot and ending:
+            who = ", ".join(sorted(ending_lines, key=lambda x: -ending_lines[x])[:2])
+            L.append(f"    !! {100.0 * ending / tot:.0f}% of the {eh} h window came from cell(s) now "
+                     f"within {PACK} records of rung 568 ({who}) -- that rate STOPS. The ETA below "
+                     f"assumes the cluster redirects those slots; it is an assumption, not a "
+                     f"measurement.")
+
     L.append("")
     if not rates:
         L.append("EMPIRICAL ETA -- UNAVAILABLE: zero test records in every window, so no rate can be")
         L.append("    measured. This is a BLIND state, not a fast one.")
     else:
+        # ⚠⚠ THE TWO BOUNDS BRACKET THE ONE THING WE CANNOT MEASURE: whether the cluster REDIRECTS
+        # the slots of a line that has just finished (P237). Taking fast and slow from two
+        # historical windows is FALSE PRECISION when both contain the same finishing line -- they
+        # agreed to within 8% while the tool simultaneously warned that 78% of that rate was about
+        # to stop. So:
+        #   FAST  = the full measured rate            -> assumes perfect redirection
+        #   SLOW  = the go-forward rate, counting ONLY cells that still owe more than one pack
+        #           -> assumes NO redirection at all
+        # Both are measurements; the truth is between them, and the gap IS the open question.
         fast_h, fast_r = max(rates, key=lambda kv: kv[1])
-        slow_h, slow_r = min(rates, key=lambda kv: kv[1])
+        eh2 = min(h for h, _ in rates)
+        lo2 = now_epoch - eh2 * 3600.0
+        cont = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
+                   for mts in cells.values() if (568 - len(mts)) > PACK)
+        slow_r = cont / eh2
+        slow_lbl = f"go-forward {eh2} h @ {slow_r:.0f} rec/h (cells that keep producing)"
+        if slow_r <= 0:
+            slow_r, slow_lbl = fast_r, "no continuing cell produced in the window"
         L.append("EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE")
-        L.append(f"    because the rate is line-concentrated (fast = {fast_h} h @ {fast_r:.0f} rec/h,"
-                 f" slow = {slow_h} h @ {slow_r:.0f} rec/h):")
+        L.append(f"    earliest assumes the cluster REDIRECTS finishing slots "
+                 f"({fast_h} h @ {fast_r:.0f} rec/h);")
+        L.append(f"    latest assumes it does NOT -- {slow_lbl}:")
         L.append(f"    {'rung':>5}  {'remaining':>10}  {'earliest (UTC)':<16}  {'latest (UTC)':<16}  Aug-27?")
         for rung in RUNGS:
             rem, missing = backlog(rung, cells)
@@ -371,6 +430,47 @@ def selftest() -> int:
         ck("G2 says the model table needs cores", "core count unavailable" in out_nc, True)
     except Exception as exc:  # noqa: BLE001
         bad.append(f"G render(None) raised: {type(exc).__name__}: {exc}")
+
+    # H. THE PAGE IS ASCII-ONLY, and this is not a style rule: non-ASCII MOJIBAKES on Tamer's phone
+    #    (publish_status.sh states it in its header). I broke this while adding the handover warning
+    #    -- a single U+26A0 went straight into rendered page output -- so it is pinned here.
+    try:
+        page_out = render(1000, page=True)
+        non_ascii = sorted({ch for ch in page_out if ord(ch) > 127})
+        ck("H1 page output is pure ASCII", non_ascii, [])
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"H1 render raised: {type(exc).__name__}: {exc}")
+
+    # I. THE ETA MAY NOT BE PRICED OFF A SUB-QUANTUM WINDOW (P237).
+    #    A fixture whose last hour is EMPTY but whose 12 h is busy must still produce an ETA: under
+    #    the pre-fix rule the 1 h window (rate 0, or a trough) was eligible and drove the pessimistic
+    #    bound, which is how rung 568 came to read 2026-08-26.
+    ck("I1 the floor is at least one job turnover", MIN_ETA_WINDOW_H >= 12, True)
+    import shutil as _sh2
+    import tempfile as _tf2
+    tmp2 = _tf2.mkdtemp(prefix="stage_eta_window_")
+    try:
+        cand = os.path.join(tmp2, "test_leg_y", "scalar", "c0")
+        os.makedirs(cand)
+        base_t = time.time()
+        # 200 records spread 2..11 h ago: the 12 h window is busy, the 1 h window is EMPTY.
+        for i in range(200):
+            p = os.path.join(cand, f"r{i}")
+            os.makedirs(p)
+            f = os.path.join(p, "record.json")
+            open(f, "w", encoding="utf-8").close()
+            aged = base_t - (2 * 3600 + (i / 200.0) * 9 * 3600)
+            os.utime(f, (aged, aged))
+        c3 = test_cells(tmp2)
+        tp3 = throughput(c3, time.time())
+        ck("I2 fixture: 1 h window is empty", tp3[1][0], 0)
+        ck("I3 fixture: 12 h window is busy", tp3[12][0] > 100, True)
+        out_i = render(1000, root=tmp2, page=True)
+        ck("I4 an ETA is still produced from the 12 h window",
+           "EMPIRICAL ETA" in out_i and "UNAVAILABLE" not in out_i, True)
+        ck("I5 the sub-quantum caveat is stated", "STALL INDICATOR ONLY" in out_i, True)
+    finally:
+        _sh2.rmtree(tmp2, ignore_errors=True)
 
     for line in ok:
         print("  pass  " + line)
