@@ -19300,3 +19300,106 @@ way, which is what makes it worth naming:**
 > command line must not be trusted to report which interpreter is running. In every one of the three,
 > the instrument had a correct *idea* — and the ENCODING threw away the distinction it depended on.
 > **Reserve a value for "I could not tell", and make it impossible to confuse with an answer.**
+
+### 131.12 !!!! THE AUDITOR AGAIN OUTRANKED THE AUTHOR — AND ONE FINDING WAS LIVE ON TAMER'S PHONE
+
+**FIFTH CONSECUTIVE SESSION.** §131.1–§131.11 above were written BEFORE the read-only auditor
+returned. It confirmed every claim I made and then found more, including **one MAJOR that was
+actively corrupting the operator-facing status page** and **one MAJOR proving my own P230 fix did not
+achieve the invariant its docstring asserted.**
+
+**⚠⚠ F-1 — P230 DID NOT ACHIEVE ITS OWN STATED INVARIANT.** My docstring claimed *"OK must mean every
+hard invariant was READ and read zero."* What it actually enforced was *"every hard-zero counter
+parsed as zero"* — **and every counter parses as zero when the tools walked ZERO RECORDS.** Point
+either archive walker at an empty or renamed root and it exits 0, prints `0 records`, every
+`_HARD_ZERO` field parses as `0`, and my new token still returned **OK**. The auditor demonstrated it
+by execution, not by argument. **`sw_records` and `ra_records` were already being EXTRACTED and
+PRINTED and had never once been CHECKED** — a decoration sitting where a gate belonged. **FIXED:**
+new `_WITNESS_COUNTS`; a record count that is `None` or `0` makes the token `BLIND(n/8+norec)`
+regardless of the invariant counters. Selftest extended to **19/19** with case **H3 pinning the FIRST
+version of my own fix returning OK on an empty archive and H3b asserting production now disagrees**
+— a mutation control against my own previous answer, which is the only kind that would have caught
+this. *I fixed a vacuous-pass defect and left a vacuous-pass defect one level underneath it.*
+
+**⚠⚠ F-2 — P231 WAS STILL LIVE IN `publish_status.sh`, AND IT WAS PUTTING A FALSE ALARM ON THE ONE
+PAGE TAMER READS FROM HIS PHONE.** I fixed the interpreter in `cycle_loop.sh` and stopped. The
+publisher is started by the **same boot-task line** and had the identical bare `python` at **13
+sites**. Measured damage on the page as generated at 17:21Z:
+
+```
+| lines up | **** ? / ? **  <- a roster line is MISSING or a stray is present**
+(eta model unavailable this cycle)
+```
+
+Neither was true. `session_preflight._fleet_state` returns `(None, "psutil unavailable")`,
+`--line-summary` exits 1, and `publish_status.sh` wraps rc=1 in the MISSING/stray banner; `stage_eta`
+died on `import src`. **An operator-facing page that INVENTS an alarm is worse than one that omits a
+number** — and this is the page whose whole purpose is to let Tamer check the campaign without
+asking. **FIXED:** pinned (13 replacements, asserted by count so a partial rewrite was impossible)
+and the publisher restarted, since an edit to a running loop is inert. **VERIFIED LIVE — the page now
+reads** `10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)` **with the full per-rung ETA table
+restored.**
+
+**THE LESSON I SHOULD HAVE DRAWN MYSELF, and the auditor names it exactly:** F-7 (below) is not
+pedantry precisely because *following the correct launch chain is what reveals F-2*. I diagnosed the
+interpreter defect correctly, fixed the instance in front of me, and **never asked what else that
+launcher starts.** RUN 16's standing rule already covers it — *"grep for every other place the same
+quantity is derived"* — and I applied it to a quantity but not to a **launch path**.
+
+**THE OTHER FINDINGS, all confirmed first-hand and all fixed:**
+
+* **F-3 (MAJOR, forward-looking)** — the `sandbox_gap` call used a flat **180 s** timeout against a
+  scan measured at **49 s / 9,528 records = 5.1 ms/record**, which crosses 180 s at **~35,000
+  records** — *inside* the registered ~39,760-training ladder. The check would have expired quietly
+  before the campaign ended, leaving only an ATTN line. **Raised to 900 s**, matching the sweep cap.
+  I had just rewritten that call site without revisiting its budget.
+* **F-4 (MINOR)** — my new `try` wrapped the whole of `scan()` while its message blamed the
+  allowlist, so **one malformed record would have been reported as "could not determine the
+  SAFE_BUILTINS allowlist"** — a cause never checked, in a repo whose standard is *"a surprising
+  negative is a claim about my own instrument first."* `_safe_names()` is now hoisted and guarded
+  alone; per-record failures are caught, COUNTED and NAMED instead of aborting the scan.
+* **F-5 (MINOR)** — the verdict cache read `int((...splitlines() or ["0"])[0])`, so an **empty stamp
+  file** (a write torn between `mkdir` and `write_text`) read as **CLEAN** for up to 600 s, and a
+  non-integer first line raised, was swallowed, and skipped the check with nothing appended to
+  alerts. Both are "absent reads as zero" — **the same defect P230 fixed one function away.**
+  Unreadable now yields 98, which routes to the not-clean branch.
+* **F-7 (MINOR, a factual error of mine)** — my P231 comment blamed `mode_d_launch.ps1`, which
+  contains no reference to bash, python or this loop; it starts only the twelve supervisors. The
+  loop is started by `install_onstart_task.ps1`. **Corrected in the comment**, with the reason it
+  matters written next to it.
+* **F-10 (MINOR)** — `run_record_layers.sh` carried `[ -x "$PY" ] || PY=python`: **the exact silent
+  fallback `cycle_loop.sh` condemns in bold, two files away.** These are the eight layers that
+  certify an irreplaceable archive; running them under an interpreter that cannot `import src` is
+  not a degraded check, it is no check. **Now fails loud with exit 2.**
+* **F-6, F-8, F-9 (accepted, recorded, not "fixed")** — the fail-loud message goes to `/dev/null`
+  under the boot task, so absence (not the message) is the real signal there; `test_cycle.py`
+  exercises the predicate but not the CALL SITE, and `pyproject.toml`'s `testpaths = ["tests"]`
+  means pytest never collects it (matching the local convention set by
+  `docs/ops/test_session_preflight.py`) — **it is now COMMITTED, which closes the loss risk that
+  mattered**; and two of my measured claims were looser than I stated (below).
+
+**⚠ TWO OF MY OWN NUMBERS CORRECTED — both were stated more tightly than the evidence supports:**
+
+1. **"3 green-but-blind cycles in 4,774" is a LOWER BOUND, not a count.** The only detector available
+   in `CYCLE_LOG.md` is `sci=OK` beside `r115=None`, which sees **sw-side blindness only**. A cycle
+   in which just the `ra_*` fields failed would have printed `sci=OK` with a numeric `r115` and left
+   **no trace at all**. The true figure is **≥ 3**.
+2. **"`psutil unavailable` appears exactly twice" counts DEDUPE EVENTS, not cycles.** `ALERTS.txt` is
+   content-deduped by `cycle_loop.sh`, so the condition actually persisted across **every cycle from
+   ~16:25Z to the ~17:00Z relaunch**. The *timing* claim (both occurrences post-reboot, none in the
+   preceding 139 h) holds and is what the argument rests on — but "twice" must not be read as
+   frequency.
+
+**⚠ AND ONE PRE-EXISTING FAILING SELFTEST SURFACED, NOT CAUSED BY THIS SESSION.**
+`docs/ops/test_session_preflight.py` exits **1** — `25 passed, 3 failed`, the three being the
+`watchdog_fenced` predicate and *"real log agrees for h3 / gemini-2_5-flash"* (got `MISSING`, want
+`COMPLETE`). **That is the reboot artefact written up at §131.6**, and by the time of this addendum
+h3 had already returned to `COMPLETE` and `stalest` had collapsed **896.1 m → 2.8 m**, exactly as
+predicted. Recorded because **a failing selftest left sitting in the tree is how a genuinely new
+disagreement gets ignored** — re-run it once all three lines have settled and confirm it returns to
+28/28.
+
+**⇒ THE STANDING RULE HOLDS, AND IT IS NOT A FORMALITY: FIVE AUDITORS ACROSS FIVE SESSIONS, AND ALL
+FIVE FOUND MORE IN THE AUTHOR'S WORK THAN THE AUTHOR DID.** This session the auditor found a defect
+*inside the fix written to prevent that class of defect*, and a live false alarm on the operator's
+own status page. **Send one at anything substantial before banking it.**
