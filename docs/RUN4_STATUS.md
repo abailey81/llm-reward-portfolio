@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 17:10 UTC -- T+140h01m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 17:13 UTC -- T+140h04m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+140h01m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+140h04m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **** ? / ? **  <- a roster line is MISSING or a stray is present**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **881 min (h3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9505** |
+| stalest driver log | **883 min (h3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9515** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport health | **timeouts 6h=64; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 122 -- a level with no rate; read the row above |
@@ -23,8 +23,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **640** (187 running, 453 queued) |
-| **cores computing** | **1496** |
+| cluster jobs | **637** (185 running, 452 queued) |
+| **cores computing** | **1480** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
@@ -109,7 +109,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **84** | 115 | 5 |  |
+| qwen3_5_9b | **88** | 116 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -167,12 +167,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T16:49:06Z  RED  records=9466 (+21)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=863.0m  drift=0  sci=OK  r115=21B  sweep=530.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T16:59:46Z  RED  records=9482 (+16)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=871.1m  drift=0  sci=OK  r115=21B  sweep=142.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:02:38Z  RED  records=9498 (+16)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=874.6m  drift=0  sci=OK  r115=21B  sweep=156.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:05:45Z  RED  records=9501 (+3)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=876.5m  drift=0  sci=OK  r115=21B  sweep=92.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:07:48Z  RED  records=9505 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=879.6m  drift=0  sci=OK  r115=21B  sweep=159.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:10:57Z  RED  records=9509 (+4)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=882.2m  drift=0  sci=OK  r115=21B  sweep=111.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T17:13:19Z  RED  records=9515 (+6)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=884.4m  drift=0  sci=OK  r115=21B  sweep=123.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
