@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 13:14 UTC -- T+136h05m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 13:19 UTC -- T+136h10m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+136h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+136h10m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9030** |
+| stalest driver log | **2 min (gpt-5_6-luna)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9050** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport timeouts | **58** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,68 +21,113 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **710** (172 running, 538 queued) |
-| **cores computing** | **1376** |
+| cluster jobs | **709** (173 running, 536 queued) |
+| **cores computing** | **1384** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @1376 cores              @830 cores   binding
+ rung             @1384 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
   189            4.6 d  08-02            6.5 d  08-04   throughput
   279            5.6 d  08-03            9.3 d  08-07   throughput
   340            6.7 d  08-04           11.1 d  08-09   throughput
-  403            7.9 d  08-05           13.0 d  08-10   throughput
-  568           10.9 d  08-08           18.1 d  08-15   throughput
+  403            7.8 d  08-05           13.0 d  08-10   throughput
+  568           10.8 d  08-08           18.1 d  08-15   throughput
 ```
 
-### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
+### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
 
-**Yes, and the limit is our own experiment, not the cluster.** Checked at every layer:
+**Yes, and the reason changed.** This block used to say the limit was our own experiment having
+nothing more to submit. **That is no longer true and has been replaced with what was measured** -- we
+now hold a deep backlog we cannot place, and the binding constraint is UCL's fair-share policy, which
+is not ours to change.
 
-* **Right now (search phase):** there is room on pool d for **303 more of our jobs**, and we only have
-  about **100 waiting**. We are not being held back - we have nothing more to submit. During the search
-  each arm must wait for all 5 of its candidates to finish before it can write the next 5, so the
-  ceiling is the 6-round chain, not the hardware.
-* **Memory and disk block ZERO hosts.** Both were fixed/checked; neither costs us anything now.
-* **At the seed-ladder phase (where cores really matter):** we could place about **900 jobs (~7,200
-  cores)**, and the timing model stops improving past **~4,600 cores** - so we will have about **1.6x
-  more capacity than we can even use**.
-* **We have already proved it:** we held **over 1,000 cores for ~14 hours straight, peaking at 1,664** -
-  and that was while still carrying two problems that have since been fixed (a 19.5x oversized memory
-  request, and a priority setting that put us below every other user). Both are gone, so the ladder
-  should do better than that.
-* **Everything else has been tried and measured:** more threads makes it SLOWER (and would break
-  reproducibility), a wider pool buys 4% but reintroduces a hardware-mixing problem, and priority is
-  already fixed and now above the cluster average.
+* **The jobs ARE assignable and we still do not get the slots.**  on a real pending job
+  returns *"found possible assignment with 8 slots"*;  is EMPTY, so no quota caps
+  us; every host has 105-167 GB free; **2,576 cores are placeable** -- and our core count stays
+  pinned. That combination has exactly one explanation: **functional fair-share by user**
+  (,  against , 6+ active
+  users). More users on the cluster means a smaller share each, and that is the whole story.
+* **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.**  on our
+  own running jobs would destroy up to 15 h of irreplaceable work each;  on the parallel
+  environment is refused site-wide by the JSV; raising priority is operator-only; and **lowering our
+  own priority is permitted but INERT** ( is 0.500 for every job on the cluster, so the
+  weight cancels out) **and ONE-WAY** --  is denied, so it cannot be undone. Widening the
+  pool buys 2-4% and memory 0.7%, and both need a twelve-line relaunch of a live campaign.
+* **And there is no waste to reclaim on the other side of the equation.** The 8.8% gate-failure rate
+  counts candidates rejected BEFORE any training is submitted (one LLM call, not a 15 h training),
+  and **zero trainings have been lost**: every completed ladder -- gemini's five arms and h3 -- has
+  568 seeds with **ZERO holes**, as does every 30-seed line.
+* **Memory and disk block ZERO hosts.** Memory was never scarce at all (160 GB free per host); the
+  three separate investigations that "fixed" it were fixing a non-problem.
 
-**Bottom line: buying more hardware cannot make this finish sooner.** The remaining wait is the
-experiment's own serial structure. The seed ladder is tiered (30 -> 189 -> ... -> 568) and the stop date
-is fixed, so if capacity ever fell short we would simply report at a lower rung - a valid, pre-registered
-result, never a failure.
+**Bottom line: buying more hardware cannot make this finish sooner, and neither can any setting we
+control.** The seed ladder is tiered (30 -> 189 -> ... -> 568), a truncated run banks the largest
+COMPLETED rung, and the stop date is fixed -- so if capacity ever fell short we would simply report at
+a lower rung, which is a valid pre-registered result, never a failure.
 
-## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
+**Why the cores figure sometimes FALLS while everything is healthy.** Two effects superimpose. A
+**completion wave**: every pack-8 job that exits releases 8 slots AND delivers 8 records at once, so
+*cores down with records up is throughput ARRIVING*, not leaving (measured 309 -> 437 -> 469 records/h
+while cores fell 2,320 -> 1,776). And **rising competition**: other users appearing takes share from
+us. A level read without its rate tells the opposite story, which is why the record count and its
+delta sit on every monitoring line below.
 
-Each line's LLM writes 5 reward programs, each is trained once and scored on validation data, the
-results are fed back, and it writes 5 more. Six rounds. A line finishes when its SLOWEST arm does.
-The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phase and has not started
--- that is the phase the experiment's answer comes from, and where thousands of cores get used.
+## Stage -- BOTH phases are running at once
 
-| arm | furthest generation | candidates so far |
+Two things happen per line. **SEARCH:** the LLM writes 5 reward programs, each is trained once and
+scored on validation data, the results are fed back, and it writes 5 more -- six rounds. **SEED
+LADDER:** once a line's five winners are frozen, they are re-trained on the SEALED data at 30, 100,
+189, 279, 340, 403 and finally 568 seeds. **The ladder is NOT a future phase -- it is running now,
+and two lines have already finished the whole thing.**
+
+| arm | furthest generation | search candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 2134 |
-| scalar | g5 of 5 | 1540 |
-| placebo | g5 of 5 | 1668 |
-| scalar_cvar5 | g5 of 5 | 1637 |
-| placebo_shuffled | g5 of 5 | 1651 |
+| distributional | g5 of 5 | 307 |
+| scalar | g5 of 5 | 284 |
+| placebo | g5 of 5 | 277 |
+| scalar_cvar5 | g5 of 5 | 272 |
+| placebo_shuffled | g5 of 5 | 280 |
+
+### The seed ladder, live -- and the top row IS the reported result
+
+Under the registered rule (R101) every model climbs ONE ladder together and the result is the
+**COMMON RUNG: the MINIMUM over every frozen arm of every line.** So work done by the deepest line
+adds NOTHING to the headline until the shallowest catches up, and the top row of this table is the
+number the dissertation reports.
+
+| line | **deepest rung ALL its arms have reached** | its best arm | frozen arms | note |
+|---|---|---|---|---|
+| test | **0** | 30 | 6 | 2 arm(s) still at zero |
+| deepseek_v4_pro | **0** | 30 | 5 | 3 arm(s) still at zero |
+| glm_5_2 | **0** | 30 | 5 | 2 arm(s) still at zero |
+| kimi_k3 | **0** | 30 | 5 | 2 arm(s) still at zero |
+| nemotron_3_super | **0** | 30 | 4 | 2 arm(s) still at zero |
+| haiku_4_5 | **30** | 30 | 5 |  |
+| qwen3_6_27b | **30** | 30 | 5 |  |
+| sonnet_5 | **30** | 30 | 5 |  |
+| qwen3_5_9b | **30** | 40 | 5 |  |
+| gpt_5_6_luna | **542** | 555 | 5 |  |
+| test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
+| gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
+
+A line reading **0** is MID-FILL, not stuck: its  and  arms are tested last,
+behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
+line with zero jobs RUNNING **and** zero QUEUED --  watches exactly that
+and currently reads CLEAN.
 
 ## Results so far
 
-Only the 11 hand-written comparison rewards have been scored on sealed data (30 seeds each). **The
-LLM-written rewards have not been tested yet** -- that is the next phase, and it is the actual
-experiment. No hypothesis has been looked at.
+**No treatment outcome has been looked at, and none may be** -- the confirmatory analysis is
+pre-registered to run ONCE, at the end, at whatever rung is reached. Every monitoring instrument is
+effect-blind by construction.
+
+What IS reported below is the **hand-written comparison canon (H1)** -- 11 human-designed rewards,
+30 seeds each. These are the BASELINES the LLM is measured against, not the experiment. (LLM-arm
+sealed-test records also exist and are counted in the ladder above; their SCORES have not been read.)
 
 | | Sharpe | note |
 |---|---|---|
@@ -95,7 +140,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 30-second cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -112,12 +157,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T12:56:51Z  RED  records=8987 (+8)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.9m  drift=0  sci=OK  r115=21B  sweep=251.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:01:33Z  RED  records=9001 (+14)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.8m  drift=0  sci=OK  r115=21B  sweep=133.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:04:17Z  RED  records=9006 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=21B  sweep=154.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:07:21Z  RED  records=9016 (+10)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=128.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:10:00Z  RED  records=9027 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=245.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:14:36Z  RED  records=9032 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=106.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T13:16:53Z  RED  records=9043 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=97.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -143,6 +188,21 @@ exposure. Detail: record section 49.
 
 ## Needs Tamer
 
+* **`qdel 66103 66104 66105 66106 66107 66108 73026 73027`** -- eight dead jobs (6 `sshorig`, 2
+  `cpuprobe13`) that sit at the very TOP of our pending queue (priority 2.00440 against every real
+  job at 2.00430), each holding a scheduler RESERVATION, each demanding a host that is unavailable or
+  refuses us. **None can ever run**, and they occupy 8 of our 1,000-job cap. `qdel` is blocked for
+  the agent, so only you can clear them. Priced honestly: this buys **no ETA** while we are
+  core-limited rather than job-limited -- it removes a crash-loop risk if we approach the cap again.
+* **The R115 disclosure decision.** The frozen registration defends the 10% winner-eligibility floor
+  as *"THRESHOLD-INSENSITIVE ... a 96x EMPTY GAP"*. **That gap has since FILLED**: at the tier where
+  the rule acts, 15 of 60 (line, arm) groups now have a DIFFERENT eligible set across the band the
+  registration calls identical, and one frozen winner IS the 9.08% candidate. **The VALUE is safe** --
+  it was pre-committed before any campaign data existed and the rule never reads a performance number,
+  so it is not a forking path. What is wrong is the JUSTIFICATION, and both files are inside the
+  freeze hash, so it cannot be edited. **The choice is yours: a dated amendment row, or a stated
+  Limitation. The threshold itself must NOT be changed** -- that would turn a presentational fix into
+  a post-data forking path.
 * **A12 -- the public OSF/Zenodo DOI deposit** (about 10 minutes; everything is staged in
   docs/A12_DEPOSIT_PACKAGE.md). A registered freeze-day obligation that is currently unmet.
 
