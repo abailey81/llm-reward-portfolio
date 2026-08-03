@@ -96,7 +96,12 @@ for a in ARMS:
     print('| %s | g%d of 5 | %d |' % (a, g.get(a,0), n.get(a,0)))" 2>/dev/null || echo "| (stage scan unavailable) | | |")
 
 # cluster side (best effort - a failed ssh must not stop the status publish)
-CL=$(ssh -o BatchMode=yes -o ConnectTimeout=20 myriad 'Q=$(qstat -u ucestes | tail -n +3); echo "jobs=$(echo "$Q" | grep -c .)"; echo "run=$(echo "$Q" | awk "\$5==\"r\"" | grep -c .)"; echo "qw=$(echo "$Q" | awk "\$5 ~ /qw/" | grep -c .)"; echo "cores=$(echo "$Q" | awk "\$5==\"r\" {s+=\$9} END {print s+0}")"' 2>/dev/null)
+# ⚠ ConnectTimeout 20 -> 30 (2026-08-03). An explicit -o here OVERRIDES ~/.ssh/config, so this
+# value alone decided whether the publisher survived the SSH admission gate's queue. At 20 it did
+# not: queued publishes died at the banner and the page showed `? cores` -- which is exactly what
+# Tamer saw. The gate's --max-wait was also lowered to 12 so no caller can be starved; this is the
+# belt to that braces, because this is the one page he actually watches.
+CL=$(ssh -o BatchMode=yes -o ConnectTimeout=30 myriad 'Q=$(qstat -u ucestes | tail -n +3); echo "jobs=$(echo "$Q" | grep -c .)"; echo "run=$(echo "$Q" | awk "\$5==\"r\"" | grep -c .)"; echo "qw=$(echo "$Q" | awk "\$5 ~ /qw/" | grep -c .)"; echo "cores=$(echo "$Q" | awk "\$5==\"r\" {s+=\$9} END {print s+0}")"' 2>/dev/null)
 jobs=$(echo "$CL"  | grep '^jobs='  | cut -d= -f2); jobs=${jobs:-?}
 run=$(echo "$CL"   | grep '^run='   | cut -d= -f2); run=${run:-?}
 qw=$(echo "$CL"    | grep '^qw='    | cut -d= -f2); qw=${qw:-?}
