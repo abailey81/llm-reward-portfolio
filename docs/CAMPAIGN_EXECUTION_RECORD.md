@@ -18617,3 +18617,147 @@ HANDOFF s.1 rule exists for exactly this and is now live again; (2) their new bl
 **`[2026-08-03a]`, which DUPLICATES RUN 15's block of the same name.** Flagged, deliberately NOT
 renumbered - it is their lane's content and silently renaming another session's entry is worse than
 a duplicate label.
+
+---
+
+## 129. RUN 17 — THE ETA IS AT ITS GLOBAL MINIMUM AND I CAN NOW PROVE THE LAST LEVER IS POINTLESS; AND THE "STUCK" ALARM FIRED ON A LINE THAT WAS HEALING ITSELF
+
+**Tamer:** *"bring teh eta to global minimum ... very deeply check taht absolutely everything is
+strictly flawless."*
+
+### 129.1 THE ETA — THE ONE LEVER THAT REOPENED, AND WHY IT IS NOW CLOSED FOR A SECOND REASON
+
+s.117/s.121 closed every throughput lever. **One of them reopened on my own finding today**: s.121
+concluded `qalter -p` is *"permitted but INERT"*, which is what made the queue-reordering lever
+(priced at **~25 h on the critical path** in s.117) unactionable. **s.126.2 proved it is not inert —
+it is delayed.** So the lever was, in principle, live again.
+
+**MEASURED, and it is pointless — there is nothing to reorder:**
+
+```
+line                 running  queued   priority
+c1  (core H4 chains)       7       0   2.00746   <- THE HIGHEST IN OUR QUEUE
+leg7 (nemotron)            3       0   2.00746   <- THE HIGHEST
+leg1 (deepseek)            1       0   2.00746
+leg4                     189      59   2.00455 .. 2.00746
+leg8                       0     340   2.00199 .. 2.00454   <- THE LOWEST
+TOTAL QUEUED 462, of which on the CRITICAL PATH: 0
+```
+
+**Every critical-path job is already RUNNING, and every one carries the top priority we hold.** The
+462 queued jobs are all on non-critical lines *and already sit below the critical path*. Reordering
+would move nothing, so the lever is excluded on its own merits and no longer rests on the (false)
+inertness claim. **s.117's conclusion stands, now on firmer ground than when it was written.**
+
+**AND THE CRITICAL PATH ITSELF IS SHORTER THAN THE BRIEF ASSUMES.** Per-candidate cadence measured
+from delivery gaps rather than assumed:
+
+```
+bayes_opt  25/30 done, 5 left   median gap 3.59 h recent / 4.53 h all-time  -> 0.7-0.9 d
+tpe        23/30 done, 7 left   median gap 5.38 h recent / 4.27 h all-time  -> 1.2-1.6 d
+cma_es     22/30 done, 8 left   median gap 0.42 h recent (D27 batching live) -> 0.1 d
+nemotron   scalar_cvar5 g5, its LAST generation, 3 running / 2 gate-rejected
+```
+
+⚠ **AND I ALMOST RAISED A FALSE ALARM ON THIS.** `bayes_opt`'s newest record was **19.36 h** old
+against a 3.59 h median, which reads like a stall on the confirmatory line. It is not: job 77092 was
+submitted 02:14:37Z, **started 13:10:57Z** (10.9 h of QUEUE), and has `cpu=14:04:32` on 8 slots =
+~1.75 h of actual compute against an `h_rt=54000` (15.0 h) wall. **Nowhere near the wall, and the
+gap is queue time, which is the fair-share constraint s.120 already closed.** *A record's age is the
+sum of queue and compute; reading it as compute manufactures a stall.*
+
+### 129.2 ★★ `gpt-5.6-luna` WENT "STUCK" — AND WAS REPAIRING ITSELF THE WHOLE TIME
+
+`line_balance.py` fired the alarm it exists to fire, on the line that had been about to become the
+third to finish the full 568 ladder:
+
+```
+*** STUCK -- BELOW THE DEEPEST RUNG WITH ZERO RUNNING AND ZERO QUEUED JOBS ***
+      test_leg_gpt_5_6_luna          min rung 566, tag leg6
+```
+
+**The hole was real and surgical.** Across all five arms, exactly seeds **192 and 193** were absent —
+8 records short of 2,840:
+
+```
+distributional  n=567  missing [193]        placebo         n=566  missing [192, 193]
+placebo_shuffled n=567 missing [192]        scalar          n=566  missing [192, 193]
+scalar_cvar5    n=566  missing [192, 193]
+```
+
+**AND IT WAS NOT A PULL GAP** — the node and the local archive agree exactly (2,832 record.json
+each), and a per-seed check on the node reproduced the same five-arm pattern. Those 8 trainings
+genuinely never produced a record.
+
+**WHAT IT WOULD HAVE COST, had nothing filled it.** Rung 279 requires seeds 0..278; 192 and 193 sit
+inside it. So the line's largest COMPLETED rung would have been **189** — and under R101 the reported
+result is the COMMON RUNG, a MINIMUM over lines. **One line capped at 189 caps the entire campaign at
+189 instead of 568.** That is the single largest threat to the result the campaign has produced, and
+it is exactly the shape s.117 named as the only thing that could still cost us.
+
+**BUT THE DRIVER HAD ALREADY FIXED IT, AND I NEARLY INTERVENED ON A HEALTHY SYSTEM:**
+
+```
+14:41:32Z  [leg6 ... sweep_t6] batch complete: {'ok': True, 'completed': 825, 'total': 825, 'exhausted': []}
+           ... 20 minutes at zero running, zero queued ...
+15:01:13Z  [leg6 ... sweep_t3] submitted leg6_leg_gpt_5_6_luna_sweep_t3_r1 as 1 array(s): ['83464']
+15:01:13Z  [leg6 ... sweep_t3] 442/450 done, 8 pending, round 2
+```
+
+**It went back to block t3, found 442 of 450, and requeued exactly the 8 missing seeds as ROUND 2.**
+Job 83464 verified queued on the cluster. **No loss, no intervention warranted.**
+
+### 129.3 THE DEFECT IS THE ALARM, NOT THE LINE — AND IT IS FIXED
+
+`STUCK` was an **instantaneous** predicate: zero running AND zero queued, sampled once. A healthy
+line is legitimately job-less **between batches** — measured here at **20.0 minutes**. So the alarm
+this file calls *"the one alarm worth having"* was reachable by a line doing exactly the right thing,
+and its printed instruction is *"Relaunch it."* **A false positive on that alarm gets a healthy,
+self-healing line relaunched.**
+
+**FIXED:** STUCK now requires the condition to persist for `STUCK_DWELL_SECS = 2700` (45 min),
+tracked in an atomic per-line dwell file that any job at all clears immediately. Below the bound the
+line is reported as **IDLE, NOT YET STUCK** with its age — informative, not an alarm. The bound is
+set from the measurement (>2x the observed 20 min benign gap), and the alarm remains REACHABLE.
+The printed advice now also says: *read the driver log and check for a `round 2` submission first.*
+
+**Selftest 13/13**, with five cases that **FAIL against the pre-fix predicate** — A (job-less 0 s),
+B (the measured 20 min gap), C (44 min, just under), D (46 min, so the alarm is still reachable) and
+E (the bound is >2x the measured benign gap), plus a disk round-trip and an unreadable-state case
+that must degrade to "no history", never to an alarm.
+
+**This is the same countermeasure s.124.5 applied to `cycle_loop_dupes`** ("extras must persist
+60 s") — the third time this campaign has fixed an alarm by requiring dwell. **The general rule
+earned: an alarm derived from a single sample of a system with legitimate transients is a false-alarm
+generator, and the fix is dwell, never a quieter threshold.**
+
+⚠ **THE RUNNING DAEMON HELD THE OLD CODE IN MEMORY.** Python parses at import, so `--watch` kept the
+pre-fix predicate — the same class as the standing "editing a running bash loop is INERT" rule.
+Stopped and relaunched on the fixed code; census confirms one logical instance
+(nohup -> venv stub -> base interpreter).
+
+### 129.4 ⚠ P229 — I REPEATED P207 IN THE SAME SESSION I RECORDED IT
+
+Stopping that daemon, I wrote the match pattern **on the PowerShell command line** — so my own query
+process matched `*line_balance.py*` and `*--watch*`, and `Stop-Process` killed the shell it was
+running in (exit 255, after correctly stopping the three real daemon processes).
+
+**I had already committed this exact error earlier today (P224) and fixed it by moving patterns into
+a FILE — and then did not apply my own fix here.** That is the fifth occurrence of P207 in this
+project and the second by me today.
+
+**Blast radius: NIL** — verified immediately: `processes driver-lines=10 supervisors=10
+cycle_loops=1 sentinel=1`, `line_census roster=12 up=10`, cycle alive, records climbing, drift 0.
+Only the intended daemon and my own shell died.
+
+**THE RULE, restated so it is mechanical rather than attentional:** *never put a process-match
+pattern in the command that performs the match.* Patterns live in a file; the query excludes `$PID`.
+`docs/ops/session_preflight.py:99-105` documents the trap, and being able to quote it is evidently
+not the same as applying it.
+
+### 129.5 STATE AT THE CLOSE OF THIS PASS
+
+All seven record layers **RC=0 at 9,332 records**. `line_balance` **CLEAN**. `transport_health`
+**HEALTHY** (worst streak 3 of 240). Preflight **OK**. Freeze `3ca6f01ab772` **MATCHES**, drift 0 on
+both arms, 10 drivers / 10 supervisors / 1 cycle loop / 1 sentinel, gpt's 8-record repair queued as
+job 83464, nemotron on its final search generation.

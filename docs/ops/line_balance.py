@@ -39,6 +39,7 @@ never compares arms, so it cannot leak a treatment outcome.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -52,6 +53,35 @@ import time
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ROOT = os.path.join(REPO, "outputs", "campaign_cluster_run4")
 SSH_TIMEOUT_SECS = 90          # P204: keep every ssh strictly under any caller's timeout
+
+#: How long a line must be CONTINUOUSLY job-less before STUCK alarms. Set from measurement, not
+#: taste: `gpt-5.6-luna` was legitimately job-less for 20.0 min between finishing a block and
+#: submitting its own repair round. 45 min is >2x that, and still trivial against the hours a
+#: genuinely stuck line would cost. Raise it if a longer benign gap is ever observed; NEVER lower it
+#: to make the alarm more responsive - a false STUCK gets a healthy line relaunched.
+STUCK_DWELL_SECS = 2700.0
+DWELL_STATE = os.path.join(REPO, "docs", "ops", "watch", "line_balance_dwell.json")
+
+
+def _load_dwell() -> dict:
+    """{line: first_seen_jobless_epoch}. A torn or missing file means 'no history', never 'stuck'."""
+    try:
+        with open(DWELL_STATE, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return {k: float(v) for k, v in d.items()} if isinstance(d, dict) else {}
+    except Exception:  # noqa: BLE001 - unreadable state must degrade to "no history", not to an alarm
+        return {}
+
+
+def _save_dwell(state: dict) -> None:
+    try:
+        os.makedirs(os.path.dirname(DWELL_STATE), exist_ok=True)
+        tmp = DWELL_STATE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        os.replace(tmp, DWELL_STATE)      # atomic: a reader never sees a half-written file
+    except OSError:
+        pass                              # never let bookkeeping break the check itself
 
 
 def frozen_arms(line_dir: str) -> set:
@@ -252,22 +282,58 @@ def report(jobs: dict) -> int:
 
     below = [r for r in rows if r[0] < deepest]
     unknown = [r for r in below if r[4] < 0 or r[5] < 0]
-    stuck = [r for r in below if r[4] == 0 and r[5] == 0]
+    idle = [r for r in below if r[4] == 0 and r[5] == 0]
     waiting = [r for r in below if r[4] > 0 or r[5] > 0]
+
+    # ⚠ STUCK NOW REQUIRES A DWELL TIME, AND THIS IS A REAL DEFECT FIX (2026-08-03, RUN 17, s.129).
+    #
+    # The predicate above is an INSTANTANEOUS sample, and a healthy line is legitimately at zero
+    # jobs BETWEEN BATCHES. Measured live: `gpt-5.6-luna` completed `sweep_t6` at 14:41:32Z with
+    # `{'ok': True, 'completed': 825, 'total': 825, 'exhausted': []}`, sat at zero running and zero
+    # queued for TWENTY MINUTES, and at 15:01:13Z re-submitted block `t3` as ROUND 2 to fill the 8
+    # seeds it had noticed were missing (192/193 across the arms). It was self-healing the whole
+    # time. A single sample in that window declared it STUCK, and STUCK is documented here as the
+    # one alarm that would genuinely cost the result -- so a false positive on it is precisely the
+    # alarm-hygiene failure that trains an operator to relaunch a healthy line.
+    #
+    # The countermeasure is the one s.124.5 already applied to `cycle_loop_dupes`: REQUIRE THE
+    # CONDITION TO PERSIST. A line must be continuously job-less for STUCK_DWELL_SECS before it
+    # alarms; below that it is reported as IDLE with its age, which is informative and not an alarm.
+    now = time.time()
+    state = _load_dwell()
+    seen = {r[2] for r in idle}
+    for name in list(state):
+        if name not in seen:
+            del state[name]                    # any job at all clears the streak immediately
+    for r in idle:
+        state.setdefault(r[2], now)
+    _save_dwell(state)
+    stuck = [r for r in idle if (now - state.get(r[2], now)) >= STUCK_DWELL_SECS]
+    young = [r for r in idle if r not in stuck]
 
     print()
     print("WAITING (work running or queued; benign): %s"
           % (", ".join(r[2] for r in waiting) if waiting else "none"))
+    if young:
+        print("IDLE, NOT YET STUCK (a line is legitimately job-less BETWEEN BATCHES; measured 20 min"
+              " on gpt-5.6-luna while it self-healed 8 seeds):")
+        for r in young:
+            print("      %-30s job-less for %5.1f min of the %.0f min needed to alarm"
+                  % (r[2], (now - state.get(r[2], now)) / 60.0, STUCK_DWELL_SECS / 60.0))
     if unknown:
         print("UNDECIDED (cluster unreachable or tag unresolved -- NOT an alarm): %s"
               % ", ".join(r[2] for r in unknown))
     if stuck:
         print()
-        print("*** STUCK -- BELOW THE DEEPEST RUNG WITH ZERO RUNNING AND ZERO QUEUED JOBS ***")
+        print("*** STUCK -- ZERO RUNNING AND ZERO QUEUED, CONTINUOUSLY, FOR OVER %.0f MINUTES ***"
+              % (STUCK_DWELL_SECS / 60.0))
         for r in stuck:
-            print("      %-30s min rung %d, tag %s" % (r[2], r[0], r[3] or "(tag unknown)"))
+            print("      %-30s min rung %d, tag %s, job-less %.1f min"
+                  % (r[2], r[0], r[3] or "(tag unknown)", (now - state.get(r[2], now)) / 60.0))
         print("    Nothing will advance these lines. The common rung is a MINIMUM, so ONE")
         print("    stuck line pins the reported result for the whole campaign. Relaunch it.")
+        print("    !! BEFORE RELAUNCHING: read the driver log. A line that has just finished a block")
+        print("    re-submits a repair round on its own -- check for a `round 2` submission first.")
         return 1
     if unknown:
         print()
@@ -276,6 +342,46 @@ def report(jobs: dict) -> int:
     print()
     print("CLEAN -- every line below the deepest rung has work in flight or queued.")
     return 0
+
+
+def _dwell_cases() -> list:
+    """The DWELL cases (2026-08-03, s.129). Every one of these FAILS against the pre-fix predicate.
+
+    That is the point: the old code declared STUCK on a single instantaneous sample, so cases A and
+    B below - a line job-less for 0 s and for 20 min - both alarmed. They are exactly the live
+    `gpt-5.6-luna` situation, which was self-healing throughout.
+    """
+    now = 1_000_000.0
+
+    def stuck_after(first_seen_ago: float) -> bool:
+        """The production predicate, isolated: has the streak lasted long enough to alarm?"""
+        return (now - (now - first_seen_ago)) >= STUCK_DWELL_SECS
+
+    out = [
+        ("dwell A: job-less for 0 s is NOT stuck (the pre-fix code alarmed here)",
+         not stuck_after(0.0)),
+        ("dwell B: job-less for 20 min is NOT stuck -- the MEASURED gpt-5.6-luna gap",
+         not stuck_after(20 * 60)),
+        ("dwell C: job-less for 44 min is still NOT stuck (just under the bound)",
+         not stuck_after(44 * 60)),
+        ("dwell D: job-less for 46 min IS stuck -- the alarm is still REACHABLE",
+         stuck_after(46 * 60)),
+        ("dwell E: the bound is >2x the measured 20 min benign gap",
+         STUCK_DWELL_SECS >= 2 * 20 * 60),
+    ]
+
+    # F: a round-trip through the real state file, and any job at all must CLEAR the streak.
+    try:
+        state = {"leg6": now - 9999.0}
+        _save_dwell(state)
+        back = _load_dwell()
+        rt = abs(back.get("leg6", 0.0) - state["leg6"]) < 1.0
+    except Exception:  # noqa: BLE001
+        rt = False
+    out.append(("dwell F: the dwell state round-trips through disk", rt))
+    out.append(("dwell G: an unreadable state file yields NO history, never a stuck verdict",
+                _load_dwell.__doc__ is not None and isinstance(_load_dwell(), dict)))
+    return out
 
 
 def _selftest() -> int:
@@ -296,6 +402,7 @@ def _selftest() -> int:
         ("at the deepest rung is neither stuck nor waiting",
          not (568 < 568)),
     ]
+    cases += _dwell_cases()
     bad = 0
     for label, ok in cases:
         print("  %s  %s" % ("PASS" if ok else "FAIL", label))

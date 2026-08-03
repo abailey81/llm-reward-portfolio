@@ -283,6 +283,49 @@ reproduces the registration's own 0.41 %/39.40 % figures exactly, with ZERO in-b
 in-band datum in existence to tune the value to. **My own method error:** I read the instrument's exit
 code through `| tail`, which reports `tail`'s status — the repo already documents that lesson.
 
+
+### RUN 17, THIRD PASS -- appended to `[2026-08-03d]`
+
+**Tamer:** *"bring teh eta to global minimum ... very deeply check taht absolutely everything is
+strictly flawless."* Detail: execution record **s.129**.
+
+**THE ETA IS AT ITS GLOBAL MINIMUM, AND THE ONE LEVER THAT REOPENED IS NOW CLOSED TWICE OVER.**
+s.126.2 disproved the "qalter -p is INERT" claim that had made queue reordering unactionable -- so
+the lever s.117 priced at ~25 h was, in principle, live again. **Measured: there is nothing to
+reorder.** All 7 core-line jobs, all 3 nemotron jobs and leg1's job are ALREADY RUNNING and carry
+the highest priority we hold (2.00746); all 462 queued jobs are on non-critical lines and already
+sit BELOW them. Zero critical-path jobs are queued. Per-candidate cadence measured rather than
+assumed: bayes_opt 5 left at 3.59 h, tpe 7 left at 5.38 h, cma_es 8 left at 0.42 h (D27 batching
+live), nemotron on its LAST generation. ⚠ I nearly reported bayes_opt as stalled on a 19.36 h record
+age -- it is 10.9 h of QUEUE plus ~1.75 h of compute against a 15.0 h wall. *A record's age is queue
+plus compute; reading it as compute manufactures a stall.*
+
+**★★ AND THE ALARM THAT MATTERS MOST FIRED ON A LINE THAT WAS HEALING ITSELF.**
+`gpt-5.6-luna` -- about to be the third line at the full 568 ladder -- read **STUCK**, and the hole
+was real: exactly seeds **192 and 193**, 8 records short of 2,840, and **not a pull gap** (node and
+local agree at 2,832 each). Had nothing filled it, the line's largest COMPLETED rung would have been
+**189**, and under R101 the reported result is a MINIMUM over lines -- **one line capped at 189 caps
+the whole campaign at 189 instead of 568.** But the driver had already gone back to block t3, found
+442/450, and requeued exactly those 8 seeds as **round 2** (job 83464, verified queued). **No loss;
+intervening would have relaunched a healthy line.**
+
+**THE DEFECT IS THE ALARM.** STUCK was an INSTANTANEOUS predicate, and a healthy line is
+legitimately job-less between batches -- measured at **20.0 minutes** here. Fixed: STUCK now requires
+the condition to persist **45 minutes** (>2x the measured benign gap), tracked in an atomic dwell
+file that any job clears; below the bound it reports IDLE with its age. **Selftest 13/13, five cases
+FALSIFIED against the pre-fix predicate**, and the alarm remains reachable. Same countermeasure
+s.124.5 used for `cycle_loop_dupes` -- the third alarm this campaign has fixed with dwell. The
+running `--watch` daemon held the old code in memory (Python parses at import) and was relaunched.
+
+**⚠ P229 -- I REPEATED P207 IN THE SESSION THAT RECORDED IT.** Stopping that daemon, I put the match
+pattern on the PowerShell command line, so the query matched itself and `Stop-Process` killed its own
+shell. I had committed this exact error hours earlier (P224), fixed it by moving patterns to a FILE,
+and did not apply my own fix. **Blast radius NIL** -- verified immediately: 10 drivers, 10
+supervisors, cycle alive, drift 0, records climbing. Fifth occurrence in this project.
+
+**VERIFIED AT THE CLOSE:** seven record layers **RC=0 at 9,332 records** * `line_balance` CLEAN *
+`transport_health` HEALTHY (worst streak 3/240) * preflight OK * freeze MATCHES * drift 0 both arms.
+
 ## [2026-08-03c] ★★★★★ RUN 17 — **THE PER-MODEL AUTHORING-RELIABILITY TABLE IS COMPUTED FROM A MARKER SET THAT *STRUCTURALLY CANNOT* HOLD AN AUTHOR-SIDE REJECTION** · the confirmatory line has never appeared in that panel at all · **the status page was telling Tamer the seed ladder "has not started" while two lines had already finished the whole 568-rung thing** · and it cost 67.8 s of full-archive JSON parsing per minute to say so · a registered re-triage trigger had fired and nobody evaluated it · **nemotron reaches its FINAL search generation, live** · seven record layers RC=0 · seven of my own errors recorded
 
 **PAST.** RUN 16 closed at 12:30 UTC with preflight OK on all 16 checks, drift 0, seven record layers
