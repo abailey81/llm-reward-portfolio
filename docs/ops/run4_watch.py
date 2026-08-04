@@ -110,6 +110,11 @@ def collision_guard(root: Path) -> tuple[int, list[str]]:
     return (2 if foreign else 0), out
 
 
+#: A line needs at least this many generation>0 candidates before a per-line ratio means anything
+#: (P309). Without it, the very first archived candidate of a fresh line reads 0/1 = 0% and alarms.
+_REFLECTION_MIN_N = 10
+
+
 def reflection_guard(root: Path, floor: float = 0.80) -> tuple[int, list[str]]:
     """Fraction of generation>0 candidates actually SHOWN a reflection block.
 
@@ -138,7 +143,25 @@ def reflection_guard(root: Path, floor: float = 0.80) -> tuple[int, list[str]]:
     lines = [f"reflection_shown={shown}/{total} ({frac:.1%}) floor={floor:.0%}"]
     for sub in sorted(per_root):
         lines.append(f"  {sub}: {per_root_shown[sub]}/{per_root[sub]}")
-    return (2 if frac < floor else 0), lines
+    # ⚠⚠ P309 (RUN 22 pass 3, 2026-08-04) -- THE VERDICT WAS A FLEET MEAN, SO ONE LINE'S TOTAL
+    # FAILURE COULD NOT TRIP IT, AND THE PER-LINE NUMBERS WERE COMPUTED AND THEN THROWN AWAY.
+    # This function's own docstring names the defect class as "a resource shared by twelve
+    # concurrent lines, keyed by an identifier unique only WITHIN one line" -- and it then
+    # aggregated over exactly those twelve. MEASURED on the live archive: 1141/1144 = 99.7%, with
+    # the largest single line holding 125 of 1,144. So a line falling to ZERO still reads
+    # 1016/1144 = 88.8% = "ok", and TWO ENTIRE LINES must fail before the fleet floor is breached.
+    # The RUN 1 incident this guard exists to catch (241 prompts, 10 with the preamble) was a
+    # PER-LINE event. The fleet floor stays exactly where it is -- this ADDS a per-line floor
+    # rather than moving anything, so nothing is weakened.
+    starved = sorted(sub for sub in per_root
+                     if per_root[sub] >= _REFLECTION_MIN_N
+                     and per_root_shown[sub] / per_root[sub] < floor)
+    if starved:
+        lines.append(f"  *** PER-LINE STARVATION on {len(starved)} line(s): "
+                     + ", ".join(f"{s} {per_root_shown[s]}/{per_root[s]}" for s in starved))
+        lines.append("      The fleet mean can be healthy while a single line's reflection loop is")
+        lines.append("      OFF. The RUN 1 incident was per-line; so is this check now.")
+    return (2 if (frac < floor or starved) else 0), lines
 
 
 def truncation_guard(root: Path) -> tuple[int, list[str]]:
@@ -191,6 +214,9 @@ def truncation_guard(root: Path) -> tuple[int, list[str]]:
 #: the totals are the real ones.
 _LEVEL_A = re.compile(r"\|\s*(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s*\|")          # "| WARNING |"
 _LEVEL_B = re.compile(r"\d{2}:\d{2}:\d{2}(?:,\d+)?\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s")
+#: A new LOG RECORD starts with a date; anything else is a hard-wrapped continuation of the one
+#: above it (P309-b). Both log formats in these files begin the same way, so one pattern covers both.
+_RECORD_START = re.compile(r"^\d{4}-\d\d-\d\d ")
 
 
 def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, list[str]]:
@@ -206,7 +232,7 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
     that actually invalidated a run lives in `collision_guard`, where it belongs.
     """
     levels: Counter[str] = Counter()
-    timeouts = diag = 0
+    timeouts = diag = timeout_mentions = 0
     worst_consecutive = 0
     child_exited: Counter[str] = Counter()
     err_samples: list[str] = []
@@ -215,7 +241,26 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
             text = log.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        for line in text.splitlines():
+        # ⚠⚠ P309-b -- THE D9 DIAGNOSTIC REGEX MATCHED NOTHING, FOR THE WHOLE CAMPAIGN.
+        # The PowerShell host that runs the supervisor HARD-WRAPS the driver log, and
+        # `src/cluster/submit.py:135-140` emits one message whose `child_already_exited=` lands on
+        # the NEXT physical line. Iterating physical lines therefore searched for it on a line that
+        # never contains it: `grep -c "ssh_timeout_diagnostic.*child_already_exited"` returns
+        # **0 across all twelve logs**, while the value is present **173 times (164 False, 9 True)**.
+        # The panel printed an EMPTY dict, and 164 False is an ACTIONABLE conclusion -- the remote
+        # command genuinely hung, so the search moves cluster-side -- that this instrument has never
+        # once delivered.
+        #
+        # Rejoining continuations first is the same idiom `vanished_array_watch` and
+        # `transport_health` already use; this file simply never received it. Level counting is
+        # unaffected because a continuation line carries no level token and was never counted.
+        _recs: list[str] = []
+        for _ln in text.splitlines():
+            if _RECORD_START.match(_ln) or not _recs:
+                _recs.append(_ln)
+            else:
+                _recs[-1] += " " + _ln.strip()
+        for line in _recs:
             for pat in (_LEVEL_A, _LEVEL_B):
                 m = pat.search(line)
                 if m:
@@ -223,8 +268,20 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
                     if m.group(1) == "ERROR" and len(err_samples) < 5:
                         err_samples.append(f"{log.name}: {line.strip()[:150]}")
                     break
-            if "timed out after" in line:
+            # P309-b, AND MY FIRST VERSION OF THIS FIX WAS ITSELF WRONG -- RECORDED BECAUSE THE
+            # CORRECTION IS THE POINT. I widened the test to the UNION of "timed out after",
+            # "ssh_timeout_diagnostic" and "TimeoutExpired", which took the count 113 -> 351 and
+            # made it LESS accurate, not more: those three phrases mark different things, and a
+            # union over-counts exactly as the sibling's 179 double-counts six retry notes.
+            #
+            # `ssh_timeout_diagnostic` is emitted ONCE PER TIMEOUT EVENT, so it is the authoritative
+            # marker and the ground truth is 173. The looser phrases appear in retry notes and in
+            # the pull's own message too, so they are MENTIONS, not events. Both are reported, each
+            # under the name of what it actually is.
+            if "ssh_timeout_diagnostic" in line:
                 timeouts += 1
+            elif "timed out after" in line or "TimeoutExpired" in line:
+                timeout_mentions += 1
             c = re.search(r"\((\d+) consecutive", line)
             if c:
                 worst_consecutive = max(worst_consecutive, int(c.group(1)))
@@ -237,6 +294,8 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
     lines = [
         f"levels={dict(levels)} (both log formats counted)",
         f"timeout_events={timeouts} worst_consecutive={worst_consecutive} diagnostics={diag}",
+        f"  (+{timeout_mentions} looser 'timed out' MENTIONS in retry notes and the pull's own "
+        f"message -- counted separately because they are NOT one-per-event)",
     ]
     for s in err_samples:
         lines.append(f"  ERROR: {s}")
@@ -280,6 +339,14 @@ EXPECTED_PASS_RATE = {
     "deepseek_v4_pro": 1.00,
 }
 
+#: P310: the reject rate above which NO capability gradient is a plausible explanation, applied to
+#: every leg that has no MEASURED expectation of its own. It is deliberately far above the
+#: registered weakest anchor (qwen3.5-9b, measured ~83% reject) so it can only ever fire on the
+#: DEFECT this guard exists to separate from the finding -- our machinery rejecting everything.
+#: It is a BACKSTOP, not a per-model expectation, and it must never be tuned downward to make a
+#: leg "look" thresholded: the honest state for those six legs is un-thresholded, and the row says so.
+_UNIVERSAL_REJECT_BACKSTOP = 0.95
+
 
 def rejects_guard(root: Path) -> tuple[int, list[str]]:
     """Per-line reject rate, read against each model's MEASURED expectation.
@@ -308,7 +375,35 @@ def rejects_guard(root: Path) -> tuple[int, list[str]]:
             if reject_rate > exp_reject + 0.35 and attempted >= 10:
                 rc = 2
                 note += "  *** far worse than its measured baseline"
+        else:
+            # ⚠⚠ P310 (RUN 22 pass 3) -- SIX OF TEN LEGS COULD NEVER RAISE THIS GUARD.
+            # `EXPECTED_PASS_RATE` holds FOUR keys from the 2026-07-25 gate campaign; for the other
+            # six `exp_pass` is None and the `rc = 2` branch above is simply unreachable. Measured
+            # live: glm_5_2 13% reject, nemotron_3_super 19%, plus gpt_5_6_luna, haiku_4_5, kimi_k3
+            # and sonnet_5 -- 60% of the leg population -- while the docstring promises "read
+            # against each model's MEASURED expectation" and warns that "deepseek at 83% reject
+            # would be the study broken". A collapse on any of the six printed `[rejects] ok`.
+            #
+            # ⛔ THE FIX IS NOT TO INVENT EXPECTATIONS. Those four numbers were MEASURED, and
+            # fabricating six more would be worse than the gap. Two honest things are done instead:
+            # the absence is stated in the row, and a UNIVERSAL BACKSTOP catches only the DEFECT
+            # case this guard's own docstring names -- "our machinery rejecting everything" -- at a
+            # rate no capability gradient explains. The registered weakest anchor, qwen3.5-9b, was
+            # measured at ~83% reject, so the backstop sits well clear of the science and cannot
+            # misfire on the finding the campaign exists to produce.
+            note = " (NO measured expectation -- not thresholded per-model)"
+            if reject_rate >= _UNIVERSAL_REJECT_BACKSTOP and attempted >= 10:
+                rc = 2
+                note += (f"  *** >= {_UNIVERSAL_REJECT_BACKSTOP:.0%} REJECT: no capability gradient "
+                         "explains this; suspect the machinery, not the model")
         lines.append(f"{leg}: rejects={markers} records={records} reject_rate={reject_rate:.0%}{note}")
+    _unthresholded = sorted(sub.name.replace("search_leg_", "")
+                            for sub in root.glob("search_leg_*")
+                            if sub.name.replace("search_leg_", "") not in EXPECTED_PASS_RATE)
+    if _unthresholded:
+        lines.append(f"  NOTE: {len(_unthresholded)} leg(s) carry NO measured expectation and are "
+                     f"covered only by the {_UNIVERSAL_REJECT_BACKSTOP:.0%} backstop: "
+                     + ", ".join(_unthresholded))
     if not lines:
         lines.append("no leg candidates resolved yet")
     return rc, lines

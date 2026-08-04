@@ -105,6 +105,7 @@ USAGE::
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import subprocess
 import sys
@@ -131,6 +132,15 @@ LEDGER_PATH = Path(__file__).resolve().parent / "watch" / "COMPUTE_LEDGER.jsonl"
 #: Minimum gap between snapshots. The query costs ~72 s on a SHARED login node, so this is a
 #: courtesy limit as much as an efficiency one. ``--force`` overrides it for a deliberate reading.
 MIN_SNAPSHOT_GAP_S = 6 * 3600
+
+#: P311. Beyond this age a `--report` reading is stale enough to mislead a reader who assumes it is
+#: current. Deliberately generous relative to MIN_SNAPSHOT_GAP_S: the point is not to nag on a
+#: routine gap, it is to stop a DAYS-old lower bound being quoted as the campaign's compute.
+_STALE_REPORT_H = 12.0
+#: The pack depth every driver actually requests (`--pack 8`, verified on the live command lines).
+#: `mean_slots_per_task` is documented as a cross-check against exactly this; nothing compared them.
+_EXPECTED_PACK = 8
+_PACK_TOLERANCE = 2.5
 
 #: Bound on the ssh call. Generous because the scan is genuinely slow, but finite so this can never
 #: wedge a caller.
@@ -296,6 +306,40 @@ def _report(path: Path = LEDGER_PATH) -> int:
     print(f"\n  LATEST: {latest.cpu_hours:,.0f} CPU-hours "
           f"({latest.cpu_hours/24:,.0f} CPU-days, {latest.cpu_hours/24/365:.2f} CPU-years)")
     print(f"  scope : {latest.get('scope_note', 'n/a')}")
+
+    # ⚠⚠ P311 (RUN 22 pass 3) -- "LATEST" CARRIED NO AGE, ON A NUMBER THAT REACHES THE DISSERTATION.
+    # This module's own docstring says a mid-campaign snapshot is a LOWER BOUND over COMPLETED jobs
+    # only. Printed without its age, a reading taken days ago reads as current. Found at 67,166
+    # CPU-hours from a single snapshot **~88 h old** against a MIN_SNAPSHOT_GAP_S of 6 h, i.e. the
+    # figure covered roughly four of the campaign's seven elapsed days and understated by about
+    # that ratio. Okhrati explicitly docks missing or wrong wall-clock compute reporting, so this
+    # is grade-relevant rather than cosmetic -- and the fix is to SAY the age, never to guess a
+    # correction: an extrapolated compute figure would be a fabrication.
+    try:
+        _age_h = (_dt.datetime.now(_dt.timezone.utc)
+                  - _dt.datetime.fromisoformat(str(rows[-1]["ts"]).replace("Z", "+00:00"))
+                  ).total_seconds() / 3600.0
+    except (KeyError, ValueError, TypeError):
+        _age_h = None
+    if _age_h is None:
+        print("  age   : UNKNOWN -- the snapshot timestamp did not parse, so this figure cannot be "
+              "dated. Treat it as unverified, never as current.")
+    else:
+        print(f"  age   : {_age_h:,.1f} h old")
+        if _age_h > _STALE_REPORT_H:
+            print(f"  *** STALE: older than {_STALE_REPORT_H:.0f} h. This is a LOWER BOUND over jobs "
+                  "COMPLETED BY THAT MOMENT and understates the campaign by roughly the elapsed")
+            print("      share since. RE-SNAPSHOT before any write-up quotes it. Do NOT extrapolate.")
+
+    # P311, second half: `mean_slots_per_task` is documented at :205-213 as a cross-check that
+    # "must land near the packing depth we actually requested" -- and NOTHING in this file ever
+    # compared it to anything. A cross-check nobody performs is a comment, not a check.
+    _pack = latest.mean_slots_per_task
+    if _pack and abs(_pack - _EXPECTED_PACK) > _PACK_TOLERANCE:
+        print(f"  *** PACKING MISMATCH: mean_slots_per_task={_pack:.2f} against the requested "
+              f"pack depth {_EXPECTED_PACK} (tolerance {_PACK_TOLERANCE}). Either the accounting "
+              "columns are being read wrong or the jobs did not get the width they asked for; "
+              "both make the CPU-hours figure untrustworthy.")
     return 0
 
 
