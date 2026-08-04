@@ -3,6 +3,153 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04h] ★★★★★ RUN 22 (OPS), pass 1 — **THE PACK-4 LEVER THE HANDOVER BRIEF HANDED ME AS AN EXECUTABLE PROCEDURE IS REFUTED AT THE SCHEDULER, AND ROLLING IT WOULD HAVE DRIVEN A LIVE CAMPAIGN INTO A HARD JOB CAP** · the vanished-array watcher had a second, better witness sitting unused in the `qstat` it already ran · **and my fix for that removed the noise that had been masking a FAIL-OPEN, which an auditor found within the hour — the fourth time in this project**
+
+### WHERE THIS SESSION STARTED
+
+RUN 21 closed at 21:25Z with the board reading **ATTN**, `preflight` 16 OK / 1 ATTENTION, the common
+rung at 0, T+168 h, and a handover brief whose §6 carried a starred, executable **pack-4 procedure**
+described as *"the one genuine, science-safe lever"* worth +17%, *"deferred to this session"* by Tamer.
+Tamer's standing directive, twice stated, was *"make sure we also get the maximum cores possible, we
+fell very badly"* and *"minimise the ETA to an absolute minimum"*.
+
+**Nothing was rolled. Here is why, and the whole of it is measurement.**
+
+### 1. THE CORES DIRECTIVE — TWO INDEPENDENT REFUTATIONS OF PACK 4, AND A CORRECTION TO MY OWN FIRST READING
+
+**(a) THE JOB CAP.** `qconf -sconf global` reads **`max_u_jobs 1000`** and `qconf -ssconf` reads
+**`maxujobs 1000`**. Our live job count was **563 and climbing** at pack 8. The same work at pack 4 is
+**~1,126 jobs — over a hard cap**, and drivers submit whole tiers rather than a metered buffer, so
+they would have driven us into it and `qsub` would have begun FAILING on an irreplaceable campaign.
+**The brief's "~672 jobs, the defensible middle" was computed for ONE 2,690-unit tier; the cap is
+per-USER across every tier of every line.** ⭐ **AND IT INVERTS THE RECOMMENDATION:**
+`src/cluster/lanes.py:290` already states that *"`maxujobs = 1000` at 8 cores/job structurally permits
+~8,000 cores"* — **pack 4 would HALVE our structural ceiling to 4,000.** Pack 8 is not a legacy
+setting to reverse; it is the setting that maximises slots per unit of the scarce resource.
+
+**(b) WE CANNOT TAKE THE CORES WE ALREADY HAVE.** Measured in one minute at 21:56Z: **1,552 placeable
+cores free in our own `smp-D` pool** (`placeable_capacity`, d00a 1,328 + d00b 224), **4,632 slots of
+our own work queued**, **zero `Eqw`/`hqw`**, **`qquota` EMPTY** — and running **flat at ~1,192 across
+a full `schedule_interval` of 0:10:0**. Over the following 30 minutes, sampled every 3 minutes:
+running went **1,144 → 1,216 (+72)** while queued went **2,800 → 5,384 (+2,584)**. **We absorb ~144
+slots/hour and queue thousands.** ⇒ **`placeable_capacity` measures what the CLUSTER CAN ACCEPT and is
+silent on what FAIR SHARE WILL GIVE US. RUN 21 read the first as the second.** Pack 4 recovers +340
+*stranded* cores while we are not being given the 1,552 *unstranded* ones. The fourteen RUN 20
+measurements were right.
+
+**(c) ⚠ AND I HAD TO CORRECT MY OWN CONCLUSION FIFTEEN MINUTES AFTER WRITING IT.** I first read
+`stage_eta`'s `rung 568 … Aug-27? risk` and concluded an RC allocation request had become urgent.
+**Then I did the arithmetic and it does not support that.** Remaining 27,335 test records against 530 h
+to the stop needs **51.6 rec/h**; at today's depressed **1,184 cores** we produce **125.7 rec/h** and
+rung 568 lands **2026-08-13, fourteen days early**. The only branch that misses is `stage_eta`'s
+`latest` at 49 rec/h — and **49 rec/h implies 461 producing cores**, which is a MEASUREMENT of a 12 h
+window in which every still-owing line sat in a tier TAIL, not a forecast. **Overstating a risk is as
+inaccurate as understating one.** No RC request escalated; Tamer's standing "no RC request" stands.
+
+**(d) SO THE REAL CONSTRAINT IS THE TAIL, AND IT IS NOW MEASURED PER JOB.** `qwen3_6-27b` owes 2,571
+units and holds **1,927 of them behind EIGHT straggler jobs** (t2 3r, t3 1Rr, t4 1Rr+1r, t6 2r),
+because `driver.py:550-553` requeues a tier only when NO job of it is alive. 75% of a line's owed work
+held hostage by 8 packs. That repair is **drift-fenced** and already registered; `qdel`-ing a straggler
+to force the drain is a standing prohibition.
+
+### 2. P305 — THE VANISHED-ARRAY WATCHER HAD A BETTER WITNESS AND WAS THROWING IT AWAY
+
+The board had read **ATTN since 20:59Z** because `vanished_array_watch` exited 2 over five
+`qwen3_6-27b` tiers carrying **2,233 pending units** it could not resolve. RUN 21 was right to make
+them visible; it left the tool unable to ever resolve them.
+
+⚠ **THE OBVIOUS DISCRIMINATOR WAS REFUTED BEFORE IT WAS USED, AND THIS IS THE PART WORTH KEEPING.**
+"`round 0` means never submitted" is FALSE — `round` counts REQUEUES — and a sweep over all twelve
+driver logs found **180 blocks reporting `round 0` while carrying a submission record**. Building on it
+would have blinded the detector across those 180 blocks.
+
+**THE SOUND WITNESS IS THE JOB NAME**, taken from the cluster instead of parsed from a hard-wrapped
+log. `live_job_ids()` became `live_jobs() -> (ids, names)` off one `qstat -u ucestes -xml` (**`-xml` is
+required: plain `qstat` truncates `JB_name` to ten characters, P276**), plus `block_is_alive_by_name`
+matching `name == blk or name.startswith(blk + "_")`. **The underscore is load-bearing**: a bare
+`startswith` makes `c1_tpe_c1` match `c1_tpe_c12_p01` — the substring class that let `crash_watchdog`
+recover `scalar` from `scalar_cvar5`.
+
+⭐ **AND RUNNING IT CORRECTED ME.** I had told Tamer those four tiers were "not yet submitted, mid-ramp".
+They were **running**. Their submission lines are absent because `driver.py:272` **dedupes by job NAME,
+so a supervisor-restarted driver ADOPTS its existing jobs and never re-logs a submission**. ⇒ **After
+every supervisor restart the log route is blind to the adopted work by construction.** The fix is worth
+more than I claimed, not less.
+
+**Live: rc=2 → rc=0**, all 23 blocks resolved, four "by NAME", each independently confirmed against my
+own `qstat -xml`. **The board went ATTN → OK at 22:02:41Z on the next ssh-gated cycle.**
+
+### 3. P305-b — AN AUDITOR AT MY OWN FIX FOUND A FAIL-OPEN IN IT, WITHIN THE HOUR
+
+**F1, CRITICAL.** The `unresolved` list's own declaration names three untested states; **only one ever
+appended.** "unparsed timestamp" and "qacct unreachable" fell through to `exit(0)` under the banner
+*"no vanished arrays detected"*. **Pre-existing — and P305 is what made it bite, because the chronic
+rc=2 had been masking it.** Live instance: `leg10_leg_kimi_k3_h2_pair_test`, arrays gone, **17.5 h old,
+past the 15 h `h_rt`**, reported all-clear. ⭐ **The operational half was chased to ground rather than
+left as a code fix: that block is BENIGN** — kimi's `h2_pair` holds **31 records on both arms**, so the
+arrays COMPLETED (the P186 case), and the line has since entered C4 with **340 sweep jobs queued**.
+Nothing vanished; the instrument still could not tell, and that is what was fixed.
+
+**F2, MAJOR.** `ET.fromstring(out.stdout or "<x/>")` turned a FAILED `qstat` into a well-formed EMPTY
+document — zero jobs, **every pending block reading VANISHED** — **directly beneath a comment of mine
+saying it must not do that.** `out.returncode` was never inspected. Now `rc != 0 or empty -> exit 99`.
+
+**F3, MAJOR.** My own new `--live-names` hook **bypassed the offline guard** and could fire the real
+heavy `qacct` ssh (six scans of a 33 GB accounting file on a login node, the P204 abuse). **The selftest
+could never have caught it, because cases G/H use a fixture with no array ids.**
+
+**F4/F5, MINOR.** The all-clear line claimed *"every batch resolved to a job id"* while four had
+resolved by NAME; three stale `cycle.py:9xx` comment references corrected to `:1455/:1460/:1466/:1480`.
+
+**VERIFICATION.** ruff clean, **selftest 10/10**. ⭐ **Case E's expected exit code changed 0 → 2, and
+that change IS the falsification — the old case asserted the fail-open.** ⚠ **Case J failed first for
+the wrong reason**: it reused case A's fixture, which case C unlinks, so it read the fresh log, landed
+in the grace window and reported "benign" — a green with nothing to do with the guard under test. Given
+its own fixture. ⭐⭐ **The two error paths recorded earlier this session as "verified by reading, not
+execution" are now proven by EXECUTION**, by stubbing ssh in a scratchpad copy.
+
+### 4. SWEEP-1 — DISCRIMINATED OVER 4,647 CYCLES, AND MY FIRST READING OF MY OWN REGRESSION WAS WRONG
+
+The ssh-gated layer costs **+7.7 s median**, not hundreds — refuted as the cause. Archive size fits
+`sweep ≈ −44.2 + 22.65 s per 1,000 records`, **R² = 0.722**, and that **22.65 ms/record independently
+reproduces the 22.3 ms/record measured by timing the three layers directly.** ⚠ **The delta split
+looked decisive and was confounded**: cycles with ≥25 new records sweep **328.0 s** against **18.4 s**,
+an 18× gap — but adding `delta` to a JOINT fit moves R² from **0.722 to 0.725** and prices a new record
+at **0.29 s**. Almost all of it was archive size wearing a different hat, because busy cycles are also
+late cycles. **The unconfoundable comparison survives**: high-vs-low delta *within* archive bands gives
+**1.2× → 1.5× → 1.6× → 2.3×**. ⚠ **The MECHANISM is NOT discriminated and is not asserted** —
+per-record work and disk contention both predict it. **It dates the failure**: ~42,400 records on a
+median cycle, **~30,000 on a busy one (~8 August)**, and the false "loop is DEAD" fires on the worst
+cycle. **Not the 28 h the row carried from a two-point extrapolation.**
+
+### 5. THE REST OF THE BOARD, ALL GREEN
+
+Seven record layers **ALL RC=0** on 14,594 records · `instrument_agreement --deep` **7/8 hold** (A7
+informational: 4 lines below the 30-seed cross-model floor, normal mid-campaign) · `science_plausibility`
+**PLAUSIBLE**, B2/B4/B5/B6/B7/B8/B9 all zero violations · `blind_quality_report` rc=0 with effect-blindness
+re-proven over its own AST · `line_balance` **CLEAN** · `occupancy_watch` rc=0 · drift **0** · freeze
+**MATCHES** · reproducibility **8/0/0** · disk 39.1 GB · spend $45.5019 unchanged.
+**Tamer's seed question re-verified as §4 requires: 90 exhausted-retry ledgers, ZERO matching
+`sweep|_test` — no sealed-test seed is permanently lost.** `loader_collision_watch` confirms **D49**
+unchanged and correctly registered as a fenced deferred fix.
+
+**Also measured and PROVEN BENIGN:** 68 `drain with NO qacct trace` requeue events across all twelve
+driver logs, but the distribution is **13 (07-30) · 39 (07-31) · 9 (08-01) · 1 (08-02) · 2 (08-03) ·
+~4 today** — a ramp-era phenomenon, not an ongoing leak. Tier submission cadence measured for the first
+time: **sonnet 7.5 min for six tiers, haiku 40 min, qwen3.5-9b 55 min** — the shape a session must know
+before reading a low occupancy ratio as a stall.
+
+### 6. WHAT HAPPENS NEXT
+
+The 30-minute deep-check loop is **re-armed** at `7,37 * * * *` with the STEP 0–6 contract.
+**Do not re-litigate cores** until the one number that decides it exists: **the 24 h record rate over a
+window in which sonnet-5 and gpt-5.6-luna contribute nothing** — the rate the OWING lines sustain once
+out of their tails. Near the fleet rate means ~14 days of slack; near 49 rec/h means the tail is costing
+the campaign and the fenced `driver.py` repair becomes a deploy-window priority. **Never propose a pack
+change without re-reading `max_u_jobs` and the live job count in the same breath.** Still open and
+unstarted: the SWEEP-1 incremental implementation (dated ~8 August), the `src/inference` coverage gap,
+and the un-audited ops monitors.
+
 ## [2026-08-04g] ★★★★★ RUN 21 (OPS), pass 1 — **THE LIVE BOARD HAD BEEN PRINTING "THE SCIENCE AUDIT COULD NOT RUN" ON EVERY OTHER SSH CYCLE WHILE THE AUDIT WAS RETURNING CLEAN** · the backup row cried "NO REMOTE AT ALL" on a 77-second publisher race · **and my own first fix for the first defect turned a false alarm into a fail-open, which an auditor found within the hour**
 
 ### WHAT THE STATE WAS

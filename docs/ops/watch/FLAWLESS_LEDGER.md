@@ -345,6 +345,69 @@ CRN homogeneity every paired contrast rests on, and `t00a` is AMD, which the det
 excludes by name. **15 blocked hosts on `d00a`** are disabled or in alarm and are UCL RC's to clear.
 Self-elevating fair share is operator-only; lowering our own priority is a standing prohibition.
 
+### ⛔⛔ 2026-08-04 21:52 UTC (RUN 22 pass 1) — **PACK 4 IS REFUTED AT THE SCHEDULER. DO NOT ROLL IT.**
+### AND THE HANDOVER BRIEF'S JOB ARITHMETIC WAS WRONG IN THE DANGEROUS DIRECTION.
+
+**The RUN 22 brief hands this session an executable pack-4 procedure and calls ~672 jobs "the
+defensible middle" against "a registered 1,000-job working cap". I went to measure the cap rather
+than quote it, and the lever does not survive the measurement.**
+
+| fact | measured value | how |
+|---|---|---|
+| `max_u_jobs` (global config) | **1000** | `qconf -sconf global` |
+| `maxujobs` (scheduler config) | **1000** | `qconf -ssconf` |
+| our live job count | **563, and climbing** (546 three minutes earlier) | `qstat -u ucestes -xml` |
+| `schedule_interval` | **0:10:0** | `qconf -ssconf` |
+| `Eqw` / `hqw` | **0 / 0** | `qstat -u ucestes` census |
+| `qquota -u ucestes` | **EMPTY** | no quota applies to us |
+
+**FINDING 1 — THE 672 FIGURE IS PER-TIER; THE CAP IS PER-USER ACROSS EVERY TIER OF EVERY LINE.**
+The brief computed ~672 jobs for ONE 2,690-unit tier. The live fleet-wide count at pack 8 is **563**
+and rising as drivers submit. The same work at pack 4 is **~1,126 jobs — OVER a HARD 1,000 cap.**
+Drivers submit whole tiers rather than a metered buffer, so they would drive us into the cap and
+`qsub` would begin FAILING on a live, irreplaceable campaign. That is not a cost to weigh against
++17%; it is a submission-failure mode.
+
+**FINDING 2 — AND IT INVERTS THE RECOMMENDATION. UNDER A PER-*JOB* CAP, A WIDER PACK IS STRICTLY
+BETTER.** `src/cluster/lanes.py:290` already states it: *"SGE's `maxujobs = 1000` at 8 cores/job
+structurally permits ~**8,000** cores"*. At pack 4 that structural ceiling **HALVES to 4,000**. The
+placeable-core table prices only the numerator (what the cluster can accept) and is silent on the
+denominator (how many jobs we are allowed to express it in). **Pack 8 is not a legacy setting to be
+reversed; it is the setting that maximises slots per unit of the scarce resource.**
+
+**FINDING 3 — PLACEMENT IS NOT WHAT BINDS TONIGHT ANYWAY.** `schedule_interval` is **ten minutes**,
+which explains the dispatch curve exactly: held slots rise in bursts (`1,144 → 1,160 → 1,184 → 1,192`
+over 9 min) rather than continuously. We were reading a scheduling cadence as a capacity ceiling.
+
+⇒ **THE PACK-WIDTH QUESTION IS CLOSED AGAINST ACTION, ON MEASUREMENT RATHER THAN ON CAUTION.**
+`placeable_capacity` at pack 4 shows a real +340 cores in `smp-D` (1,592 → 1,932, re-measured 21:35Z
+this session, d00a 1,368→1,680 and d00b 224→252), and that gain is **unreachable**: we cannot express
+it in jobs. ⚠ Re-open ONLY if `max_u_jobs` changes or a driver gains metered submission.
+
+### ⭐ WHAT IS ACTUALLY LEFT ON THE ETA, AND IT IS NOT CORES — the falsifiable rule for the next pass
+
+**The ladder is genuinely at RISK and that part of the brief is right.** `stage_eta` 21:40Z: rung 568
+`remaining 27,335 · earliest 08-10 20:43 · latest 2026-08-28 06:23 · Aug-27? **risk**`. Making the
+stop needs **51.6 rec/h** sustained; the post-handover branch estimates **49**. We hold ~1,190 cores
+against `cpu_saturation_cores` **~3,235**, so cores DO still help — `lanes.py` says *"PUSH FOR IT:
+every core up to ~3,235 shortens the campaign"*.
+
+**THE BINDING MECHANISM IS THE TIER TAIL, MEASURED PER JOB THIS PASS.** `qwen3_6-27b` owes 2,571
+units. Its tiers t2/t3/t4/t6 hold **1,927 pending units behind EIGHT straggler jobs** (t2 3r, t3 1Rr,
+t4 1Rr+1r, t6 2r), because `driver.py:550-553` requeues a tier only when NO job of it is alive. That
+is 75% of a line's owed work held hostage by 8 packs. The repair is in **drift-fenced** `src/`, and
+`qdel`-ing a straggler to force the drain is a standing prohibition.
+
+**⇒ THE DECISION RULE, SO THE NEXT PASS EXECUTES INSTEAD OF RE-ARGUING:**
+1. Record held slots every pass. **Three consecutive passes** plateaued below ~1,900 while our own
+   queue holds >1,000 slots is the signature that something other than the sawtooth binds → measure
+   `placeable_capacity --pack 8` against what we hold and name the gap before proposing anything.
+2. If held slots climb past ~2,400 with the queue deep, we are absorbing capacity and there is
+   nothing to fix — **say so with the number and close it.**
+3. **Never** propose a pack change without re-reading `max_u_jobs` and our live job count in the
+   same breath. The two numbers are one constraint and quoting either alone is how this was nearly
+   actioned.
+
 ### SPEED LOG (append one row per pass, newest last)
 
 | when (UTC) | rec/h 12h | rec/h 24h | slots | run/queue | 1-line % | chain owed | rung 30 | rung 403 | rung 568 |
@@ -377,6 +440,75 @@ Self-elevating fair share is operator-only; lowering our own priority is a stand
 | 2026-08-04 19:54 **RUN 21 pass 5** | **198.9** | **180.9** | **1,096** | 139/**0** | 92% (sonnet-5) | **bayes_opt 1**, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 20:27 **RUN 21 pass 6** | 193.6 | **182.0** | **984** | 125/**0** | **86%** (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
 | 2026-08-04 20:55 **RUN 21 pass 7** | 193.6 | 182.0 | 960 | 122/**110** | 86% (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
+| 2026-08-04 21:56 **RUN 22 pass 1** | **191.1** | **184.8** | **1,184** | 148/**469 (3,752 slots)** | 74% (sonnet-5) | bayes_opt 1, tpe 1 | 08-05 02:07 | 08-08 22:34 | **08-10 20:43 / 08-28 06:23 `risk`** |
+
+### ⛔⛔ 2026-08-04 21:56 UTC (RUN 22 pass 1) — **THE SECOND, INDEPENDENT PROOF THAT CORES ARE NOT
+### OURS TO TAKE — AND IT RETIRES "PLACEABLE CAPACITY" AS THE INSTRUMENT FOR THIS QUESTION**
+
+**RUN 21 re-opened the closed cores question on `placeable_capacity`, and this session can now show
+that instrument was answering a DIFFERENT QUESTION from the one Tamer asked.** Measured together,
+in the same minute, for the first time:
+
+```
+placeable cores in smp-D at pack 8 (d00a 1,328 + d00b 224) ......  1,552   FREE, in OUR pool
+our RUNNING slots ...............................................  1,184   FLAT for 9 minutes
+our QUEUED slots ................................................  3,752   and GROWING (+1,008 in 6 min)
+our Eqw / hqw ...................................................    0 / 0
+qquota -u ucestes ...............................................  EMPTY
+cluster-wide ....................................................  104 users, 2,165 running jobs
+```
+
+**⇒ WE HAVE 3,752 SLOTS OF WORK READY, 1,552 FREE PLACEABLE CORES IN OUR OWN POOL, NO ERROR STATE
+AND NO QUOTA — AND THE SCHEDULER IS GIVING US NOTHING.** Held slots did not move across a full
+`schedule_interval` (0:10:0, read from `qconf -ssconf`).
+
+**THE INSTRUMENT ERROR THIS EXPOSES, AND IT IS THE USEFUL PART.** `placeable_capacity` measures what
+the CLUSTER CAN ACCEPT. It is silent on what FAIR SHARE WILL GIVE US, and those are different
+quantities. RUN 21 read a rise in the first as a recoverable loss in the second. **Pack 4 recovers
++340 stranded placeable cores — and we are not being given the 1,552 UNSTRANDED ones, so recovering
+more of what we cannot take buys nothing.** The fourteen RUN 20 measurements were RIGHT: this is
+functional fair-share by user, and nothing we control changes it.
+
+⚠ **ONE HONEST CAVEAT, STATED RATHER THAN SMOOTHED.** Nine minutes is roughly ONE scheduling
+interval, so this is one observation of a flat line, not a trend. The dispatch sampler is still
+running and the next passes must confirm it. **Do not quote "we are throttled" as settled until
+three passes agree** — that is the same discipline that turned the RUN 21 trough alarm into a
+retraction.
+
+### ⚠ AND A CORRECTION TO THE PARAGRAPH THAT STOOD HERE FIFTEEN MINUTES AGO — I OVER-WEIGHTED A LABEL
+
+**This section first concluded that the fair-share ceiling made an RC allocation request newly
+urgent, citing `stage_eta`'s `Aug-27? risk` on rung 568. THEN I DID THE ARITHMETIC, and it does not
+support that.** Overstating a risk is as inaccurate as understating one.
+
+```
+remaining test records to rung 568 .... 27,335        hours to the 08-27 stop .... 530 h (22.1 d)
+rate REQUIRED to make the stop ........  51.6 rec/h
+       cores      rec/h    rung 568 lands
+       1,184      125.7    2026-08-13    <- TODAY'S DEPRESSED SHARE, 14 DAYS OF SLACK
+       1,900      201.8    2026-08-10
+       3,235      343.6    2026-08-08    (the saturation point)
+```
+
+**EVERY core count we could plausibly hold makes the stop comfortably.** The only branch that misses
+is `stage_eta`'s `latest` at **49 rec/h** — and 49 rec/h implies just **461 producing cores**, which
+is not a forecast of the future but a MEASUREMENT of a 12 h window in which every still-owing line
+sat in a tier TAIL. Those lines have since submitted six tiers each and now hold 4,632 queued slots.
+
+⇒ **THE LADDER IS NOT MATERIALLY THROUGHPUT-BOUND, AND CORES ARE NOT THE THING TO SPEND THIS
+CAMPAIGN'S REMAINING ATTENTION ON.** It is at risk in exactly one scenario: **the owing lines falling
+back into simultaneous tier tails and staying there**, which is the sawtooth, whose repair
+(`driver.py:550-553`, requeue while a straggler still runs) is DRIFT-FENCED and already registered.
+
+**⇒ WHAT TO WATCH INSTEAD, and this is now the primary ETA signal:** the **24 h record rate measured
+over a window in which sonnet-5 and gpt-5.6-luna contribute nothing** — i.e. the rate the OWING lines
+actually sustain once they are out of their tails. If that settles near the fleet rate we have ~14
+days of slack; if it settles near 49 rec/h the tail is costing us the campaign and the fenced fix
+becomes a deploy-window priority. **Do not re-litigate cores until that number exists.**
+
+**RC allocation request: NOT escalated as urgent.** Tamer's standing "no RC request" stands, and on
+this arithmetic there is no honest case to re-open it. Recorded so a future pass does not resurrect
+the urgency from the `risk` label alone.
 
 ### ★★★★★ 2026-08-04 20:55 UTC — TAMER ASKED "WHAT THE HELL IS GOING ON WITH MYRIAD". THE TROUGH IS
 ### EXPLAINED END TO END, AND I HAD TO RETRACT THE SEVERITY OF MY OWN ALARM
@@ -702,7 +834,8 @@ is found, including findings about this ledger.
 |---|---|---|---|
 | **SWEEP-1** | 08-04 RUN21 pass 1 | ⚠ **THE SWEEP IS ELEVATED AND P303 DOES NOT EXPLAIN IT.** Measured this hour: 221.9 · 441.3 · 261.0 · **783.5** · **655.0** s. The 783.5 cycle ran all three cadence-gated probes (a one-off: the two new verdict stamps did not yet exist). **The 655.0 cycle ran NONE of them** — STATE ages 822.8 / 820.1 / 685.1 s, every verdict cached — so 655 s is the base sweep plus something this row has not identified. The staleness cap is **900 s** and `session_preflight` reads a breach as "the monitoring loop is DEAD", so the margin is 245 s and the sweep grows linearly with the archive. **Candidates not yet discriminated:** archive growth (13,494 → 13,576 in one cycle, 53 records × ~480 KB), the mirror pull, disk contention from ~30 live campaign processes, and my own instrument runs during the same window. ⭐ **AND THE NEXT CYCLE SETTLES IT: 412.0 s WHILE RUNNING ONE HEAVY PROBE** (STATE 17:31:31Z — `record_seal_age_s = 0.0`, the seal ran; science 1127.2 s and vanished 1261.8 s both cached; all three rc=0, no attention). **So a cycle with ONE scan swept 412 s and a cycle with NONE swept 655 s. The probes are not the driver, and the base sweep itself varies by a factor of two.** That also confirms P303's mechanism on the live board: one probe ran while another was skipped, and both verdicts were still reported. ⚠ The CONTENDED case — both heavy probes due in the same sweep — has NOT yet been observed live; their cadences (1200 s and 1800 s) next coincide about an hour out.  ⭐⭐ **MEASURED IN PASS 2, AND IT TURNS THIS ROW INTO A DATED FORECAST.** The three full-archive layers inside every sweep were timed individually under live load at 13,611 records: `science_watch` **114 s** + `results_audit` **139 s** + `integrity_gate` **51 s** = **304 s**, all rc=0. That accounts for the 412 s cycle almost exactly (304 + the 99 s seal = 403). ⚠⚠ **AND IT DATES THE FAILURE: those three alone are ~22.3 ms/record, so at the registered ~42,128-record end state they are ~940 s — ABOVE the 900 s staleness cap ON THEIR OWN, before anything else in the sweep.** Taking the whole observed sweep as roughly linear, the cap is crossed somewhere between ~18,700 records (on the 655 s cycle) and ~29,700 (on the 412 s one) — at ~180 rec/h the pessimistic branch is about **28 hours away**. When it happens `session_preflight.check_cycle_log` will report **the monitoring loop as DEAD while it is perfectly healthy.** ⛔ **THE FIX IS NOT TO RAISE THE CAP** — the cap is what makes a genuinely dead loop visible, and raising it to make a check pass is the one move this ledger forbids. The principled repairs, in order: make the three layers INCREMENTAL (the seal already is), or scale the cap on the measured archive size rather than a constant. **This is now the highest open ops item after D49.** |
 
-| SWEEP-1-fix | | measure the base sweep with a per-layer timing breakdown on a cycle where no heavy probe runs; do NOT raise the cap — the cap is what makes a dead loop visible |
+| **SWEEP-1 (RUN 22 pass 1, 2026-08-04 21:58Z)** | ⭐ **THE "UNEXPLAINED 2x" IS EXPLAINED, REGRESSED OVER 4,647 CYCLES RATHER THAN THE FIVE THIS ROW RESTED ON — AND THE FIRST READING OF MY OWN REGRESSION WAS WRONG AND THE CONTROL CAUGHT IT.** Parsed every `sweep=` in `CYCLE_LOG.md` (n=4,647, archive 1,513 -> 14,548). **(1) THE SSH-GATED LAYER IS REFUTED AS THE CAUSE**: median 27.9 s on ssh cycles (n=167) against 20.2 s on non-ssh (n=4,480), a difference of **+7.7 s**, not hundreds. **(2) ARCHIVE SIZE IS THE DOMINANT TERM AND IT IS NOW FITTED**: `sweep ~= -44.2 + 22.65 s per 1,000 records`, **R^2 = 0.722** — and that **22.65 ms/record independently reproduces the 22.3 ms/record this row measured by timing the three layers directly.** Two derivations, different methods, agreeing. **(3) ⚠ THE DELTA SPLIT WAS CONFOUNDED AND I NEARLY BANKED IT.** Univariately, cycles with >=25 new records sweep **328.0 s** against **18.4 s** for cycles with <=5 — an 18x gap that looked decisive. Adding `delta` to a JOINT fit moves **R^2 from 0.722 to 0.725** and prices a new record at **0.29 s**: almost all of that 18x was archive size wearing a different hat, because busy cycles are also late cycles. **(4) THE UNCONFOUNDABLE COMPARISON IS THE ONE THAT SURVIVES**: high-vs-low delta *within* narrow archive bands gives **1.2x (5-8k) -> 1.5x (8-11k) -> 1.6x (11-13k) -> 2.3x (13-15k)**. So the arrival rate DOES matter and its cost GROWS with the archive, which is why an additive term could not see it. ⚠ **THE MECHANISM IS NOT DISCRIMINATED and must not be asserted**: "the layers do per-new-record work" and "producing cycles contend for the same disk as the mirror pull and the drivers" both predict this and the cycle log cannot separate them. ⭐⭐ **AND IT DATES THE FAILURE PROPERLY, WHICH IS THE POINT OF THE ROW.** At the median delta the 900 s cap is crossed at **~42,415 records**; on a BUSY cycle, scaling the 13-15k band's 416.4 s median, it is crossed at **~30,000 records** — and the false "the monitoring loop is DEAD" fires on the WORST cycle, never the median. At ~180 rec/h that is **~3.5 days away (about 8 August)**, not the 28 h this row previously carried on a two-point extrapolation. ⛔ **THE FIX IS STILL NOT TO RAISE THE CAP.** The dominant term is a FULL-ARCHIVE RESCAN EVERY CYCLE, so the principled repair is exactly the registered one: make `science_watch` / `results_audit` / `integrity_gate` incremental, as `record_provenance_seal --since-state` already is. |
+| SWEEP-1-fix | | make the three layers incremental (`--since-state`, the pattern the seal already proves); do NOT raise the cap — the cap is what makes a dead loop visible. **Deadline is now dated: ~30,000 records / ~8 August on busy cycles.** |
 | **ETA-1** | 08-04 RUN21 pass 1 | **`stage_eta`'s rung dates omit the serial C2 `h2_pair` TEST, so the rung-30 figure is ~10 h optimistic.** The clamp applies the C1 chain floor only; a line whose h2_pair has not STARTED still owes a full 9.39 h sealed TEST after its current stage ends. Measured from `qstat JAT_start_time`: tool says 08-05 01:10, the chain says **~08-05 11:00** with core binding. **Not a false statement** — the column is labelled "earliest" and the tool prints "NEITHER IS AN UPPER BOUND" — but it is the number a reader carries away, and the handover brief already quoted a different one. **No campaign exposure: it changes no decision, because nothing can accelerate the chain.** | add a chain-aware column: for each line whose h2_pair arm holds 0 records AND has no covering job, add one T_test (9.39 h) after its current stage. `stage_eta.py` is under `docs/`, so it is editable while live |
 
 ### DISCLOSURES — true, permanent, and must reach the write-up rather than be "fixed"
@@ -740,6 +873,8 @@ current measurement should be treated as unverified rather than as evidence.
 
 | id | resolved | state | evidence |
 |---|---|---|---|
+| **P305-b** | 2026-08-04 RUN22 pass 1 | ⭐⭐ **AN AUDITOR SENT AT MY OWN SAME-DAY FIX FOUND A FAIL-OPEN IN IT, WITHIN THE HOUR — THE FOURTH TIME THIS PROJECT HAS INSTALLED ONE WHILE REMOVING A FALSE ALARM.** Four defects, all FIXED, all falsified. | **F1 — CRITICAL, AND IT IS THE ONE P305 ITSELF CAUSED TO BITE.** The `unresolved` list's own declaration has ALWAYS named three untested states — no id, unparsed timestamp, qacct unreachable — and **only the no-id branch ever appended.** The other two fell through to `sys.exit(0)` under the banner *"no vanished arrays detected"*. **This was pre-existing, and P305 is what exposed it: the chronic rc=2 had been masking it.** ⚠ **MEASURED LIVE**: `leg10_leg_kimi_k3_h2_pair_test`, arrays absent from the queue, **age 1,048 min = 17.5 h, past the 15 h `h_rt`**, qacct unreachable — reported as all-clear. **FIXED**: both branches now append and reach rc=2. ⭐ **AND THE OPERATIONAL HALF WAS CHASED TO GROUND RATHER THAN LEFT AS A CODE FIX: that block is BENIGN.** kimi's `h2_pair` now holds **31 records on BOTH arms** on disk — the arrays COMPLETED, which is exactly the P186 case the qacct test exists to catch, and the line has since entered C4 with **340 sweep jobs queued**. Nothing vanished. **The instrument still could not tell, and that is what was fixed.** **F2 — MAJOR: A FAILED `qstat` READ AS "NOTHING IS ALIVE", DIRECTLY UNDER A COMMENT OF MINE SAYING IT MUST NOT.** `ET.fromstring(out.stdout or "<x/>")` turns an empty/failed response into a well-formed EMPTY document: zero ids, zero names, **every pending block reads as VANISHED**. `out.returncode` was never inspected. The dangerous trigger is qmaster unreachable while ssh and qacct still answer, in which case nothing downgrades the alarm and the whole board fires at once. **FIXED**: `rc != 0 or empty stdout -> SystemExit(99)`, the code `cycle.py:1480` routes to ATTENTION. **F3 — MAJOR: MY OWN NEW TEST HOOK COULD REACH THE CLUSTER.** The offline guard tested `_LIVE_OVERRIDE` alone, so `--live-names=` looked offline and was not — a fixture carrying ids would have fired the real `qacct` ssh, six scans of a 33 GB accounting file on a login node (the P204 abuse). **The selftest could never have caught it, because cases G/H use a fixture with no ids.** FIXED via a single `_OFFLINE` predicate. **F4 — MINOR: THE ALL-CLEAR LINE WAS FACTUALLY FALSE** — *"every batch resolved to a job id"* while four blocks had resolved by NAME. FIXED to state the split. **F5 — MINOR: three stale `cycle.py:9xx` comment references** corrected to `:1455 / :1460 / :1466 / :1480`, verified line by line against the live file. **VERIFICATION.** ruff clean; **selftest 10/10** (E's expected exit code changed 0 -> 2, and **that change IS the falsification: the old case asserted the fail-open**). ⚠ **CASE J HAD TO BE ISOLATED AFTER IT FAILED FOR THE WRONG REASON** — it reused case A's fixture, which case C unlinks, so it read the fresh log, landed in the grace window and reported "benign", a green with nothing to do with the guard under test. Own fixture now. ⭐⭐ **AND THE TWO ERROR PATHS I RECORDED LAST PASS AS "verified by reading, not execution" ARE NOW PROVEN BY EXECUTION**, by stubbing the ssh call in a scratchpad copy: rc=255+empty, malformed XML and whitespace-only all reach rc=99 with no VANISHED. ⚠⚠ **AND MY FIRST CONTROL FOR THAT FAILED, WHICH IS WORTH MORE THAN IF IT HAD PASSED.** The pre-fix comparison returned rc=2, not the expected VANISHED, because I had stubbed only the `qstat` ssh — so the pre-fix code went on to make a REAL `qacct` call, that call answered, and the verdict was downgraded to UNKNOWN. **The control was measuring the qacct probe, not the parser under test.** A failed control means either the control or the fix is broken and you do not get to guess which. Re-run with BOTH ssh calls stubbed: **pre-fix parser rc=1 `*** VANISHED ARRAY ***`, fixed parser rc=99 no VANISHED, on byte-identical input.** The fix discriminates; the first control did not. **Mutation control round 2 final: 4 of 4 selftest-reachable mutants caught by exactly their own cases (M1→G, M2→H, M4→E+I, M6→J), and 3 of 3 error paths proven by execution.** **THREE STANDING ITEMS THE AUDITOR RAISED AND I AM NOT CLOSING**, recorded rather than quietly dropped: neither witness filters job STATE, so an `Eqw` job — precisely what the site cleanup purges — reads as alive on BOTH routes (pre-existing, symmetric, and no `Eqw` exists today); the name route has no recency notion, so a straggler from an earlier round could in principle rescue a block whose current round vanished (narrow, not constructible from the real logs); and `cycle.py:1482-1483` still glosses rc=99 as *"the probe could not be launched"*, which no longer covers the two new 99 sites. |
+| **P305** | 2026-08-04 RUN22 pass 1 | ⭐ **FIXED + FALSIFIED + MUTATION-CONTROLLED — THE DETECTOR HAD A SECOND, BETTER WITNESS AVAILABLE IN THE `qstat` IT WAS ALREADY RUNNING, AND WAS THROWING IT AWAY.** | **THE STATE.** `vanished_array_watch` exited 2 on every pass and held `CYCLE_LOG.md` at **ATTN for an hour** (20:59Z onward) over five `qwen3_6-27b` sweep tiers carrying **2,233 pending units** that it could not resolve. RUN 21 was right to make them VISIBLE (P304: an UNKNOWN is not a negative), but the tool had no way to ever resolve them, so the board's first-read file sat amber on a benign, hourly-recurring state. **THE DEFECT.** Blocks were resolved ONLY by array ids scraped from a hard-wrapped driver log. ⚠ **AND THE REASON THE LOG CANNOT SUPPLY THEM IS STRUCTURAL, WHICH I LEARNED ONLY BY RUNNING THE FIX:** `driver.py:272` dedupes by job NAME, so a driver restarted by its supervisor **ADOPTS** the existing jobs and never writes a fresh `submitted ... as N array(s)` line. **After every supervisor restart the log route is blind to the adopted work by construction** — that is the normal state, not an edge case. ⚠⚠ **THE OBVIOUS DISCRIMINATOR WAS REFUTED BEFORE IT WAS USED, AND THIS IS THE PART WORTH KEEPING.** "`round 0` means never submitted" is FALSE — `round` counts REQUEUES — and a sweep of all twelve driver logs found **180 blocks reporting `round 0` while carrying a submission record**. Building on it would have blinded the detector across those 180 blocks. **THE FIX.** `live_job_ids()` -> `live_jobs() -> (ids, names)` off ONE `qstat -u ucestes -xml` (**`-xml` is required: plain `qstat` truncates `JB_name` to ten characters, P276**), plus `block_is_alive_by_name`, which matches `name == blk or name.startswith(blk + "_")`. ⚠ **THE UNDERSCORE IS LOAD-BEARING**: a bare `startswith` makes `c1_tpe_c1` match `c1_tpe_c12_p01`, the same substring class that let `crash_watchdog` recover `scalar` from `scalar_cvar5`. **VERIFICATION, AND IT WAS DONE ON THE ARTEFACT RATHER THAN THE HELPER.** AST parse OK; `ruff` clean; symbol diff — zero remaining references to the renamed `live_job_ids` anywhere in `docs/`; **selftest 8/8** (six original cases kept intact). **LIVE ENTRY POINT: rc=2 -> rc=0**, all 23 pending blocks resolved, four of them "by NAME", and the four name-resolved tiers independently confirmed against my own `qstat -xml` as holding real jobs (t2 3r, t3 1Rr, t4 1Rr+1r, t6 2r). ⭐⭐ **TRUE MUTATION CONTROL, mutating the FIXED file so each mutant is caught by the case NAMED for it and by no other**: **M1** delete the name route (== the pre-P305 behaviour) -> **only case G red**; **M2** bare `startswith` without the underscore -> **only case H red**. Two mutants, two caught, no cross-talk. ⚠ **ONE HONEST GAP, STATED NOT TESTED AROUND:** mutant **M3** (treat an unparsable `qstat -xml` as an empty result — the fail-open shape) is **NOT reachable from the selftest**, because the override path bypasses the parser. The guard raises `SystemExit(99)` and was verified by reading, not by execution; 99 is the code `cycle.py:1481` routes to ATTENTION, so a parse failure cannot read as "nothing alive". **That case remains unproven by test and should be closed by a future pass.** |
 | **P303** | 2026-08-04 RUN21 pass 1 | ⚠ **A RISK P301 CREATED, CLOSED BEFORE IT FIRED — ONE FULL-ARCHIVE SCAN PER SWEEP.** | Moving the science audit out of the ssh gate let it coincide with the provenance seal, and both are full-archive scans. **The first cycle in which both came due measured `sweep=783.5s` against the 900 s cap `session_preflight.check_cycle_log` reads as "the monitoring loop is DEAD" — a margin of 117 s, on a sweep that grows linearly toward the ~42,000-record end state.** A false loop-is-dead would have been a defect I introduced while fixing one. `_heavy_budget = 1` now allows at most one heavy scan per sweep; the deferred one runs on the next sweep and **neither is starved, because a probe that runs resets its own age and is not due next time.** ⚠ **It throttles the WORK only — both verdicts are still CARRIED every cycle by `_cached_probe`, which is the entire point of P301.** ⚠ **AND THE MEASUREMENT THAT MUST TRAVEL WITH THIS ROW, because it stops the fix being over-claimed: the NEXT cycle swept 655.0 s having run NEITHER heavy probe** (STATE ages 822.8 / 820.1 / 685.1 s, all cached). So the sweep is elevated for a reason this guard does not address, and P303 bounds the known worst case rather than explaining the baseline. Pre-P301 sweeps in the same hour ran 221.9-441.3 s, so the variance predates the change. **OPEN as a WATCH row, not closed.** 31/31 `test_cycle.py`, ruff clean, symbol-diff NONE. |
 | **P301** | 2026-08-04 RUN21 pass 1 | ⭐⭐ **THE SAME DEFECT, A THIRD TIME IN ONE DAY, ONE GATE HIGHER UP — AND A SECOND AUDITOR FOUND IT IN THE FIX THE FIRST AUDITOR HAD ALREADY CORRECTED.** | **P298-b fixed the INNER cadence gate and left the OUTER one.** The corrected science block still sat inside `if args.ssh or ssh_due:`, so the cached re-read only executed on ssh cycles. **MEASURED over 2026-08-04 10:00-16:59Z: 77 cycles, 17 carrying `cores=` — the deep-science verdict was evaluated on 22% of cycles, with a longest run of SEVEN consecutive unevaluated cycles and a maximum ssh gap of 3,222 s.** So a live science RED would have left `CYCLE_LOG.md` — the file a session is instructed to read FIRST — reading OK for up to **54 minutes**, which is WORSE than the 30-minute window P298-b was written to close. The two probes the idiom was copied from are evaluated EVERY cycle, which is exactly why theirs works. ⭐ **AND THE CLASS WAS LARGER THAN THE FIX: `vanished_array_watch` and `record_provenance_seal` had NO CACHE AT ALL** — both seeded `-1` and evaluated only on ssh cycles, so their verdicts were dropped on the other 78% too. That is P296's lesson again (*a class fix is only as complete as the population you drew it over*), so all three now go through **one** helper. **`_cached_probe(stamp, min_secs, argv, timeout, may_run)`** returns `(rc, out, cached, age)` with `None` = "no verdict has ever been produced" (the only value that reaches no alarm), `98` = "a verdict existed and its cache is unreadable", and every other value the probe's own rc, fresh or carried. The science audit and the seal are LOCAL scans and never needed the ssh gate at all; only `vanished_array_watch` keeps `may_run` bound to it, because it needs a login-node `qstat`. `-1` is gone from all three STATE fields — it collided with a genuine `-1` from a signal death or a Windows `0xFFFFFFFF` exit, the exact P230/P232 collision the surrounding comment invoked — and each rc now travels with the AGE of the attempt it came from. **Also closed here: the verdict parser could KILL THE SWEEP.** `int(_first) if _first.lstrip("-").isdigit() else 98` accepts `"--5"` and the superscript `"²"`, both of which then raise in `int()`; the siblings wrap their probes in `try/except` and this block did not. It parses inside `try/except ValueError` now. ⭐⭐ **AND THE BLOCK THAT HAD FAILED OPEN TWICE IN ONE DAY HAD ZERO TESTS while its sibling row had fifteen — `docs/ops/test_cycle.py` covered only `_sci_token`. Eleven cases added, all passing, 31/31 for the file.** The decisive one is **P3**: a cached FAILURE must be carried, not dropped, and it fails against every version of this code before P301. **Live: loop alive across the change, `CYCLE_LOOP_STDERR.log` 0 bytes, `drift=0`, module import clean.** |
 | **P302** | 2026-08-04 RUN21 pass 1 | ⚠ **REGISTERED, NOT FIXED — A ROW THAT GRADES THE PUBLISHER BY A PROXY IT NEVER MEASURES, AND ITS FAILURE IS INVISIBLE TO BOTH ROWS THAT COULD SEE IT.** | Found by the second auditor while sweeping for the *infer-content-from-a-name* class. **`session_preflight.check_status_page` grades publication by the LOCAL page's mtime.** `publish_status.sh:259` writes the page unconditionally, and `:501` restores it with `git checkout --` when the ASCII gate rejects it — which REFRESHES the mtime; `:527` documents that `--only` returns rc=128 while a merge is in progress. **In either state the local page keeps looking fresh, nothing accumulates unpushed, so `check_git_backup` ALSO reads OK — both rows green while the page Tamer reads on his phone is frozen.** Fixing it means checking the remote (`git log origin/<branch> -1` or a push timestamp), a network call this row deliberately avoids. **Registered in the row's own docstring so nobody reads it as proof of publication**, which is the honest half of the fix and the half that survives without a network call. Two smaller corrections landed with it: the constants block cited **`check_publish_loop`, a function that does not exist anywhere in this repository** (it is `check_status_page`), and the "~67 s" publisher cadence quoted there is the CONFIGURED sleep, not the measured spacing. |
