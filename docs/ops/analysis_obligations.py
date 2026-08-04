@@ -169,9 +169,11 @@ def main() -> int:
             on, tot = fam[name]
             form = "RATIO" if name in RATIO_FORM else "difference"
             if name in RATIO_FORM:
-                rr += on; rn += tot
+                rr += on
+                rn += tot
             else:
-                dd += on; dn += tot
+                dd += on
+                dn += tot
             print(f"  {name:42s} {form:11s} {on:8d} {tot:5d} {100.0*on/tot:6.1f}%")
         print()
         if rn and dn:

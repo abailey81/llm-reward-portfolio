@@ -309,19 +309,25 @@ def _selftest() -> int:
     rel = Path("test/arm/arm-s3/record.json")
     case("clean record -> no violations", validate(rel, dict(base)) == [])
 
-    r = dict(base); del r["fold"]
+    r = dict(base)
+
+    del r["fold"]
     case("R1 FIRES on a missing required field",
          any(v.startswith("R1") for v in validate(rel, r)))
-    r = dict(base); r["reward_source_hash"] = "0" * 64
+    r = dict(base)
+    r["reward_source_hash"] = "0" * 64
     case("R2 FIRES on a hash/source mismatch",
          any(v.startswith("R2") for v in validate(rel, r)))
-    r = dict(base); r["run_id"] = "somethingelse"
+    r = dict(base)
+    r["run_id"] = "somethingelse"
     case("R3 FIRES on run_id != directory",
          any(v.startswith("R3") for v in validate(rel, r)))
-    r = dict(base); r["arm"] = "wrongarm"
+    r = dict(base)
+    r["arm"] = "wrongarm"
     case("R3 FIRES on arm != parent dir",
          any(v.startswith("R3") for v in validate(rel, r)))
-    r = dict(base); r["candidate_id"] = "other-g1-c2"
+    r = dict(base)
+    r["candidate_id"] = "other-g1-c2"
     case("R3 FIRES on candidate_id != dir ON THE SEARCH TIER",
          any(v.startswith("R3") for v in validate(
              Path("search/arm/arm-s3/record.json"), r)))
@@ -332,18 +338,23 @@ def _selftest() -> int:
          not any(v.startswith("R3") for v in validate(
              Path("frozen/arm-winner/record.json"),
              dict(base, run_id="arm-winner", candidate_id="arm-g5-c1"))))
-    r = dict(base); r["seed"] = 99
+    r = dict(base)
+    r["seed"] = 99
     case("R4 FIRES on seed != -sN suffix",
          any(v.startswith("R4") for v in validate(rel, r)))
-    r = dict(base); r["generation"] = 4
+    r = dict(base)
+    r["generation"] = 4
     case("R5 FIRES on generation != -gN- token",
          any(v.startswith("R5") for v in validate(
              Path("search/arm/arm-g1-c0/record.json"), r)))
-    r = dict(base); r["metrics"] = {"train_safe_call_count": 10,
+    r = dict(base)
+    r["metrics"] = {"train_safe_call_count": 10,
                                     "train_safe_default_count": 99}
     case("R6 FIRES on default > call count",
          any(v.startswith("R6") for v in validate(rel, r)))
-    r = dict(base); r["test_returns"] = [0.1, 0.2, 0.3]; r["per_period_pnl"] = [0.1, 0.2]
+    r = dict(base)
+    r["test_returns"] = [0.1, 0.2, 0.3]
+    r["per_period_pnl"] = [0.1, 0.2]
     case("R7 FIRES on series length disagreement",
          any(v.startswith("R7") for v in validate(rel, r)))
 
@@ -359,7 +370,9 @@ def _selftest() -> int:
                     "test_cvar05": sum(sorted(xs)[:k]) / k}
     case("R8 CLEAN on a faithful endpoint",
          not any(v.startswith("R8") for v in validate(rel, r)))
-    r2 = dict(r); r2["metrics"] = dict(r["metrics"]); r2["metrics"]["test_sharpe"] += 0.5
+    r2 = dict(r)
+    r2["metrics"] = dict(r["metrics"])
+    r2["metrics"]["test_sharpe"] += 0.5
     case("R8 FIRES on a corrupted endpoint",
          any(v.startswith("R8") for v in validate(rel, r2)))
     case("R9 FIRES on a winner-hash mismatch",

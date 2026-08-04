@@ -45,7 +45,7 @@ def main() -> int:
     full0 = out0.count("arms submitted")
     print(f"synthetic batch registry: {n} entries copied")
     print(f"BASELINE : rc={rc0}  lines reporting 'arms submitted' = {full0}")
-    print(f"           verdict line -> {[l for l in out0.splitlines() if 'VERDICT' in l]}")
+    print(f"           verdict line -> {[ln for ln in out0.splitlines() if 'VERDICT' in ln]}")
 
     # PLANT D14: remove EVERY batch entry for one (line, arm) -- a partial arm failure.
     d = BASE / "missing_arm"
@@ -62,8 +62,8 @@ def main() -> int:
 
     rc1, out1 = run(d)
     full1 = out1.count("arms submitted")
-    missing_line = [l for l in out1.splitlines() if "MISSING" in l]
-    verdict = [l for l in out1.splitlines() if "VERDICT" in l]
+    missing_line = [ln for ln in out1.splitlines() if "MISSING" in ln]
+    verdict = [ln for ln in out1.splitlines() if "VERDICT" in ln]
     detected = (rc1 != 0) or bool(missing_line)
     print(f"RESULT   : rc={rc1}  'arms submitted' lines = {full1}")
     print(f"           MISSING line -> {missing_line}")

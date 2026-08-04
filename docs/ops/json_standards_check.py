@@ -68,8 +68,8 @@ for f, c in field_counts.most_common(20):
     print(f"   {c:6d}  {f}")
 print()
 print("by LANE (file-level occurrences):")
-for l, c in lane_counts.most_common():
-    print(f"   {c:6d}  {l}")
+for ln, c in lane_counts.most_common():
+    print(f"   {c:6d}  {ln}")
 print()
 print("IMPACT: a strict RFC-8259 parser rejects each of these files outright.")
 print("        Our own pipeline is unaffected (Python json is permissive by default).")
