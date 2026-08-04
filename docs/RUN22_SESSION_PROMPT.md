@@ -52,7 +52,37 @@ correct."*
 > badly"* and *"minimise the ETA to an absolute minimum, and use the absolute maximum Myriad can
 > offer."* — **§6 is the measured answer, and it now names a REAL lever.**
 
-### §0.2 THE LOOP CONTRACT, VERBATIM
+### §0.2 ★★★★★ THE CORES + ETA DIRECTIVE — A STANDING PRIORITY, NOT A BACKGROUND NOTE
+
+> **Tamer, 2026-08-04, twice and emphatically:** *"make sure we also get the maximum cores possible,
+> we fell very badly"* · *"ensure also that we minimise the ETA to an absolute minimum, and use the
+> absolute maximum Myriad can offer"* · *"make sure in the prompt you also tell to maximise the cores
+> and minimise the ETA."*
+
+**THIS IS AN ACTIVE DUTY EVERY PASS, NOT A THING TO QUOTE A CLOSED ANSWER AT.** RUN 20 closed the
+cores question on fourteen measurements; RUN 21 re-opened it, because the closure had been reasoned
+on a state that no longer held — **our queue was empty then and is not now** — and the re-measurement
+found a real lever worth **+17%** that fourteen previous measurements had missed. **Do the same.
+Re-measure rather than re-argue. A closed question is closed only for the conditions it was closed
+under, and this campaign's conditions change hourly.**
+
+### ⚠⚠ BUT BE PRECISE ABOUT WHAT "MINIMISE THE ETA" MEANS HERE, OR YOU WILL SPEND THE SESSION ON THE WRONG THING
+
+There are **TWO different clocks** and cores act on only one of them:
+
+1. **THE BARRIER — when the common rung leaves 0.** Bound by core's strictly serial C1 chain
+   (`bayes_opt` owes 1 of 30, floor **0.19 d**) and then its C2 `h2_pair`, a ~9.4 h sealed test.
+   **NO NUMBER OF CORES COMPRESSES THIS.** Each DFO candidate is a function of the fitnesses already
+   observed. Adding capacity here buys nothing and the ledger proves it per job.
+2. **THE LADDER — the rung reached by the 2026-08-27 exogenous stop.** **THIS IS PURE THROUGHPUT, AND
+   UNDER R101 THE RUNG REACHED IS THE REPORTED RESULT.** Every extra placeable core between now and
+   the stop converts directly into ladder depth, and ladder depth is the grade.
+
+⇒ **So the honest instruction is: stop trying to accelerate the barrier, and maximise everything that
+feeds the ladder.** §6 is where the measured levers live. **Work §6 in the first hour of the
+session** — every hour of delay is throughput that cannot be recovered before 27 August.
+
+### §0.3 THE LOOP CONTRACT, VERBATIM
 
 > *"Also every 30 min I want you to very closely check everything very deeply, check everything, all
 > lines, all records, all outputs, all processes, absolutely everything, it all must be
@@ -67,7 +97,7 @@ correct."*
 > extensive knowledge and absolutely 0 gaps in knowledge."* — **DO THIS BEFORE ACTING. §2 is the
 > reading list; it is not optional and it is not a formality.**
 
-### §0.3 HOW TO READ THAT MANDATE — the most important paragraph in this file
+### §0.4 HOW TO READ THAT MANDATE — the most important paragraph in this file
 
 **Full permission raises the bar on the THINKING; it does not lower the bar on VERIFICATION.**
 
@@ -113,6 +143,9 @@ python docs/ops/session_preflight.py --full      # ~200 s; 0 clear · 1 ATTENTIO
 bash docs/ops/run_record_layers.sh
 ssh -o BatchMode=yes myriad "hostname"
 ```
+
+**⇒ AND WORK §6 IN THE FIRST HOUR — Tamer's standing directive (§0.2). Every hour of delay is
+ladder depth that cannot be recovered before the 27 August stop.**
 
 **⇒ RE-ARM THE 30-MIN LOOP IMMEDIATELY.** It is session-scoped and died with RUN 21. Harness cron at
 `7,37 * * * *`, prompt = the STEP 0–6 contract in §11.
@@ -241,9 +274,49 @@ AMD/Intel question and NOT the thread-count question — both remain closed.**
 
 ⛔ **WHAT IT COSTS:** a rolling supervisor restart across live driver lines (a stale `.driver.lock`
 has cost this campaign **4.5 h**); and job count — a 2,690-unit tier is ~336 jobs at pack 8 and
-**2,690 at pack 1**, against a registered 1,000-job cap. **pack 4 (~672 jobs) is the defensible
-middle**, and it also SHORTENS the tail that caused the RUN 21 trough.
-**RECOMMENDATION: pack 4, applied line by line at a TIER BOUNDARY, never mid-tier.**
+**2,690 at pack 1**, against a registered 1,000-job working cap. **pack 4 (~672 jobs) is the
+defensible middle**, and it also SHORTENS the tail that caused the RUN 21 trough.
+
+### ⭐⭐ THE PACK-4 PROCEDURE — TAMER DEFERRED THIS TO YOU. HERE IS EXACTLY HOW, AND THE PROOF IT IS SAFE.
+
+**THE LIVE COMMAND LINE, read from a running driver on 2026-08-04 (verify it again before acting —
+never trust this transcription):**
+```
+.venv/Scripts/python.exe scripts/run_campaign_cluster.py --tiered --pass-mode B --llm-from campaign
+  --pipeline-rungs --batch-tag c1 --device cpu --pool d --pack 8 --cores-per-training 1
+  --search-pack 1 --search-threads 8 --chunk-tasks 1
+  --exclude-hosts node-d00a-230,node-d00b-024 --gold-dir /acfs/users/ucestes/gold
+  --remote-root ~/Scratch/llmrp4 --poll-secs 180 --search-poll-secs 45
+  --output-dir outputs\campaign_cluster_run4 --resume
+```
+⭐ **`--cores-per-training 1` IS THE PROOF.** Each training is explicitly ONE core. `--pack 8` only
+decides how many of those independent 1-core trainings are bundled into one job under
+`allocation_rule $pe_slots`. **Changing 8 → 4 changes NO arithmetic in any training**, so reduction
+order, seeding and CRN pairing are untouched. `--search-pack 1` shows the search tier ALREADY runs at
+pack 1, so this is not even a new configuration for the campaign. **Only `--pack` changes. Nothing
+else on that line may be touched.**
+
+**THE PROCEDURE, per line, and the gates are not optional:**
+1. **GATE — a TIER BOUNDARY, never mid-tier.** Read that line's driver log: act only just after a
+   `[<batch>] submitted … as N array(s)` for a NEW tier, or when its current batch reads `M/M done`.
+   Restarting mid-tier forces a re-derive of hundreds of specs and risks the very tail you are fixing.
+2. **Stop the supervisor for that line, then the driver.** Explicit PIDs only (`Stop-Process -Id`).
+   **Never a broad kill.**
+3. **Confirm no stale `.driver.lock`** remains for that line under
+   `outputs/campaign_cluster_run4/batches/`. **This is the step that has already cost 4.5 h.**
+4. **Relaunch with `--pack 4` and every other argument BYTE-IDENTICAL.** `--resume` re-derives pending
+   work from the archive, which is what makes a rolling restart survivable.
+5. **VERIFY BEFORE MOVING TO THE NEXT LINE:** the driver log shows a fresh poll within 2 min ·
+   `line_balance` still CLEAN · `occupancy_watch` ratio for that line does not collapse ·
+   `records=` still climbing · `drift=0` · seven layers still RC=0 on the next pass.
+6. **ROLL ONE LINE AT A TIME.** If any verification fails, STOP and relaunch that line at `--pack 8`
+   before touching another. **Never restart more than one line before its verification passes.**
+7. **RE-MEASURE the gain** with `placeable_capacity.py --pack 4` and record the SPEED LOG delta.
+   If placeable cores do not rise, the lever is not what we think and you revert.
+
+⛔ **DO NOT** change `--cores-per-training`, `--search-pack`, `--search-threads`, `--pool`,
+`--exclude-hosts` or the step budget. Those ARE the determinism envelope and the frozen design.
+⛔ **DO NOT** do this during the **12 Aug maintenance window** or within a transport outage.
 
 ⛔ **CLOSED, and do not re-open:** `e00a`/`t00a` are outside `smp-D` — a different node family breaks
 CRN homogeneity and `t00a` is AMD, excluded by name in the determinism envelope · 15 blocked `d00a`
@@ -376,11 +449,29 @@ fixed). **No row may age three passes.**
    `instrument_agreement`; A5/A6/A6b/A7 are the pattern.
 6. **The `--deep` A4 row** — run it once per session; it is the only row covering the P282 incident.
 
-### §11.2 THE SPEED COMPONENT — every pass
-`rec/h (12 h and 24 h)` · `slots` · `running/queued` · `concentration` · `chain owed` · `ETA` ·
-`days to Aug-27`. **Compare to the previous row.** ⚠ **A falling 12 h rate is EXPECTED as sonnet's
-sweep ages out of the window — RUN 21 recorded that prediction deliberately. Check
-`occupancy_watch` and `line_balance` before calling it a fault.**
+### §11.2 THE SPEED COMPONENT — every pass, and it is now an ACTIVE HUNT, not a recording duty
+
+**RECORD:** `rec/h (12 h and 24 h)` · `slots` · `running/queued` · `concentration` · `chain owed` ·
+`ETA` · `days to Aug-27`. **Compare to the previous row.**
+
+**⭐ AND ON EVERY PASS, ACTIVELY ASK THESE FOUR — this is Tamer's §0.2 directive made mechanical:**
+1. **Are we holding every core we could hold?** `occupancy_watch` ratio per line, and
+   `placeable_capacity.py` at our current pack against pack 4 and pack 1. **If placeable cores exceed
+   what we hold and our queue is empty, work out WHY before anything else** — that is the exact
+   signature of the RUN 21 trough, and it cost us half the fleet for three hours.
+2. **Has anything become schedulable that was not?** Re-run the pool free-capacity measurement.
+   `qhost` columns are **`$3 = NCPU`, `$7 = LOAD`** — RUN 21 summed NCOR and NTHR and nearly reported
+   the cluster as 100% full.
+3. **Is any core going to work that cannot raise the reported rung?** Concentration on a line already
+   above the common rung is the design working, not a fault — but say so with the number.
+4. **What is the ladder depth we are on track for by 27 August, and did it move since the last pass?**
+   That number IS the result. If it has not moved in three passes, that is an OPEN FINDING.
+
+⚠ **A falling 12 h rate is EXPECTED as sonnet's sweep ages out of the window — RUN 21 recorded that
+prediction deliberately. Check `occupancy_watch` and `line_balance` before calling it a fault.**
+⚠ **And a falling CORE COUNT is not automatically a fault either: the sawtooth in §6 explains it.
+But do not wave it away — Tamer spotted the RUN 21 trough from the core count before any instrument
+did, and the instrument that should have seen it now exists. Run it.**
 
 ---
 
