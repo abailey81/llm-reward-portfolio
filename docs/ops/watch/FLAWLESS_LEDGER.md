@@ -483,15 +483,22 @@ to 8 in-flight trainings per job.
 | 2026-08-04 20:55 **RUN 21 pass 7** | 193.6 | 182.0 | 960 | 122/**110** | 86% (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
 | 2026-08-04 21:56 **RUN 22 pass 1** | **191.1** | **184.8** | **1,184** | 148/**469 (3,752 slots)** | 74% (sonnet-5) | bayes_opt 1, tpe 1 | 08-05 02:07 | 08-08 22:34 | **08-10 20:43 / 08-28 06:23 `risk`** |
 | 2026-08-04 22:35 **RUN 22 pass 2** | 182.2 | 179.6 | **1,296** | 162/**832 (6,656 slots)** | 69% (sonnet-5) | ⭐ **bayes_opt DONE, tpe 1** | GATED | GATED | GATED (barrier) |
-| 2026-08-05 00:05 **RUN 22 pass 3** | **186.4** | 179.3 | 1,288 | 161/**833 (6,664 slots)** | **65%** (sonnet-5) | ⭐⭐ **ZERO — THE C1 CHAIN IS CLOSED** | GATED | GATED | GATED (barrier) |
+| 2026-08-04 23:04 **RUN 22 pass 3** | **186.4** | 179.3 | 1,288 | 161/**833 (6,664 slots)** | **65%** (sonnet-5) | ⭐⭐ **ZERO — THE C1 CHAIN IS CLOSED** | GATED | GATED | GATED (barrier) |
 
-### ★★★★★ 2026-08-05 00:01 UTC (RUN 22 pass 3) — **THE C1 BARRIER IS CLOSED. THE TERM THAT HAS
+### ★★★★★ 2026-08-04 23:00:55 UTC (RUN 22 pass 3) — **THE C1 BARRIER IS CLOSED. THE TERM THAT HAS
 ### FLOORED THE COMMON RUNG SINCE THIS CAMPAIGN BEGAN IS GONE.**
 
+⚠ **THE TIMESTAMPS BELOW ARE THE DRIVER LOG'S OWN, AND THE DRIVER LOG IS IN HOST-LOCAL TIME (+0100)
+— `vanished_array_watch.parse_ts` says so explicitly.** I first recorded this event as "2026-08-05
+00:01 UTC", reading the local stamp as UTC and putting a campaign milestone on the wrong DAY. The
+UTC time is **2026-08-04 23:00:55Z**, corroborated by `stage_eta`'s own header (`generated 2026-08-04
+23:01 UTC`) and by `date -u` in the same minute. **Every driver-log time quoted anywhere must be
+converted before it is written down.**
+
 ```
-2026-08-05 00:00:55  [c1_tpe_c29] batch complete: {'ok': True, 'completed': 1, 'total': 1,
-                                                   'rounds': 1, 'exhausted': [], 'job_ids': ['90130']}
-2026-08-05 00:01:26  [c1_tpe_test] submitted c1_tpe_test as 4 array(s)
+2026-08-05 00:00:55 LOCAL (= 2026-08-04 23:00:55Z)  [c1_tpe_c29] batch complete: {'ok': True,
+                        'completed': 1, 'total': 1, 'rounds': 1, 'exhausted': [], 'job_ids': ['90130']}
+2026-08-05 00:01:26 LOCAL (= 2026-08-04 23:01:26Z)  [c1_tpe_test] submitted c1_tpe_test as 4 array(s)
 ```
 **`stage_eta`: `critical-chain floor: 4.64 d total, 0.00 d still to run (every DFO arm has spent its
 full candidate budget)`.** All three DFO arms — `bayes_opt`, `cma_es`, `tpe` — have spent their
