@@ -113,6 +113,7 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | when (UTC) | rec/h 12h | rec/h 24h | slots | run/queue | 1-line % | chain owed | rung 30 | rung 403 | rung 568 |
 |---|---:|---:|---:|---|---:|---|---|---|---|
 | 2026-08-04 00:10 | 153 | 195.8 | 1,632 | 204/314 | 82% (qwen3.5-9b) | tpe 5, bayes_opt 4 | 08-04 02:46 | 08-09 18:59 | 08-12 11:38 |
+| 2026-08-04 00:50 | 150.2 | 191.0 | 1,600 | 200/288 | 90% (qwen3.5-9b) | tpe 5, bayes_opt 3, **cma_es DONE** | 08-04 23:01 | 08-09 23:48 | 08-12 18:37 |
 
 ---
 
@@ -149,21 +150,14 @@ session; see CHANGELOG `[2026-08-04b]` and execution record §132)*
 
 ### MAJOR — an instrument can mislead a future session
 
-| id | found | what | to resolve |
-|---|---|---|---|
-| F3 | 08-04 RUN19 audit | `stage_eta`: the `-1h` VALUE is untested (both fixtures had an empty 1 h window by construction, so `d1` was identically 0 in every assertion). Deleting the COLUMN *is* caught. ⚠ Partially eased: the K/L fixtures now put records inside the window, and the live table shows non-zero decrements — but no assertion pins the exact value. | fixture with a cell CROSSING the rung inside the hour, asserting the exact decrement |
-| F4 | 08-04 RUN19 audit | `stage_eta`: `concentration()`, `_parse_cores()`, the `yes`/`risk` verdicts and `REACHED` are unasserted. `_parse_cores` carries the production `?`/`0` contract from `publish_status.sh:231`. (The GATED branch is now covered by L2.) | direct unit assertions for each |
-| F6 | 08-04 RUN19 audit | `stage_eta`: `rem` includes `missing * rung`, but missing units are not in `cells` and can therefore NEVER contribute to `owing_rate`. A rung can be dated off one producing cell while most of its priced backlog belongs to units that have produced nothing by definition. Partially disclosed in the idle-backlog line, not reflected in the gate. ⚠ F1's absorption reduces the exposure but does not remove it. | reflect it in the gate, or state the bound honestly |
+*(none open as of 2026-08-04 00:55 UTC — F1, F2, F3, F4, F5, F6 all cleared, every behaviour
+change mutation-proven; see RESOLVED)*
 
 ### MINOR — correctness or hygiene, no campaign exposure
 
 | id | found | what | to resolve |
 |---|---|---|---|
-| F8 | 08-04 RUN19 audit | `stage_eta`: `concentration(cells, now_epoch, 12)` hardcodes 12 h while the ETA window `eh2` may be 24 h, so the composition warning is silently ABSENT in the one state where it matters most. | use `eh2` (needs the window resolved before the concentration line is emitted) |
-| F11 | 08-04 RUN19 audit | `stage_eta`: any stray subdirectory under a `test*` root is silently promoted to a registered unit. Not live (all 62 pairs verified genuine, reconciling to 71 with 9 missing). | allowlist the arm names |
-| F12 | 08-04 RUN19 | `session_preflight --full` docstring advertises "~60 s"; measured ~200 s. | correct the docstring |
-| F13 | 08-04 RUN19 | `run_record_layers.sh` header says "ALL SEVEN RECORD LAYERS" while an internal comment says "these EIGHT layers"; it runs 7 gated layers + 3 ungated measurements. | reconcile the wording |
-| F14 | inherited RUN18 | 18 style-only lint items (E702 x14, E741 x4), 12 in `record_validator.py`. Deliberately left: renaming variables inside live instruments is risk for no gain. | confirm still deliberate, or clear post-campaign |
+| F14 | inherited RUN18 | 18 style-only lint items (E702 x14, E741 x4), 12 in `record_validator.py`. **DELIBERATE, re-affirmed 2026-08-04:** renaming variables inside a live instrument that certifies an irreplaceable archive is risk for zero gain, and `ruff` is clean on everything this session touched. Revisit post-campaign. | clear after the exogenous stop, not before |
 
 ### DISCLOSURES — true, permanent, and must reach the write-up rather than be "fixed"
 
@@ -200,6 +194,14 @@ session; see CHANGELOG `[2026-08-04b]` and execution record §132)*
 | A-3 | 2026-08-04 RUN19 | **PROVEN-BENIGN** | RUN 18 §10 alleged the `-1h` predicate `max(0, min(k, rung-(len-k)))` was untested and possibly wrong. It is CORRECT in all three regimes (`L<=R`, crossing, `L-k>=R`), and deleting the column IS caught by the J3 parser. A disclosed defect that was not one. |
 | A-4 | 2026-08-04 RUN19 | **PROVEN-BENIGN** | Auditor reported as MAJOR that the ETA table is printing GATED for low rungs while dating higher ones. Refuted by running it: every row is dated, none GATED. The structural half survives as F1. |
 | P246 | 2026-08-04 RUN19 | **FIXED** | Mine: a heredoc inside a `bash -c` string, seventh occurrence. Blast radius NIL. Both documents were then written with the Write tool and appended by a script doing no shell quoting. |
+| **F3** | 2026-08-04 pass 2 | **FIXED + MUTATION-PROVEN** | The `-1h` VALUE had no assertion: both fixtures had an empty 1 h window by construction, so `d1` was identically 0 and `d1 = 0` scored full marks. New M11/M12 fixture: a cell at 32 records with 5 inside the hour was at 27 an hour ago, so rung 30 fell by **3** (the crossing part) and rung 100 by the full **5**. Mutants `d1 += 0` and the pre-fix whole-cell rule both fail. |
+| **F4** | 2026-08-04 pass 2 | **FIXED + MUTATION-PROVEN** | `_parse_cores` and `concentration` were reachable-but-unasserted. `_parse_cores` carries a PRODUCTION contract (`publish_status.sh` passes `?` on ssh failure and `0` when everything is queued, and neither may crash the empirical block). M1-M8 pin both; letting a non-positive core count through fails M2/M3. |
+| **F6** | 2026-08-04 pass 2 | **FIXED (as a stated bound)** | A missing unit is not in `cells`, contributes its FULL rung to `remaining`, and can NEVER contribute to `owing_rate` — so the gate cannot see it. Gating on it was considered and **rejected**: with 8 units missing it would gate every rung at every hour and the table would carry no information, the same degeneracy that killed the per-cell max. The page now states the asymmetry and its DIRECTION explicitly: *"those 8 units are NOT in the rate's denominator and CANNOT be ... Both columns are OPTIMISTIC by that share until those units start."* |
+| **F8** | 2026-08-04 pass 2 | **FIXED + MUTATION-PROVEN** | The composition warning hardcoded a 12 h window while `eh2` falls back to 24 h when the 12 h window is empty — so it went SILENT in exactly the state where one line's dominance matters most. Window resolved once and shared. M13-M15 use a 13-23 h-old fixture; hardcoding 12 back fails M14. |
+| **F11** | 2026-08-04 pass 2 | **FIXED + MUTATION-PROVEN** | Any stray subdirectory under a `test*` root became a registered unit owing a full rung. Now an arm must HOLD RECORDS or be a REGISTERED frozen winner — the same two-signal rule as S15's C6, so the two instruments cannot disagree about what an arm is. M9/M10. ⚠ My first version tested the directory NAME (`-s<N>`) and dropped every selftest fixture, failing six assertions at once: **a rule that reads the payload survives a layout it did not anticipate; a rule that reads the filename does not.** |
+| F12 | 2026-08-04 pass 2 | **FIXED** | `session_preflight --full` advertised "~60 s" against a measured ~200 s. A session budgeting 60 s either kills it or concludes it hung. Corrected, with an instruction to re-measure rather than let it drift again. |
+| F13 | 2026-08-04 pass 2 | **FIXED** | `run_record_layers.sh` called itself SEVEN in the banner and EIGHT in a comment. Reconciled: seven GATED layers plus three ungated MEASUREMENTS (S15 is a measurement, not a gate). |
+| **P249** | 2026-08-04 pass 2 | **FIXED** | Mine: an ad-hoc process census reported `cycle_loop logical=2` and `publish_loop logical=2` against preflight's correct 1. Cause: the boot task's shared `cmd.exe` launcher names EVERY loop on its command line, so it matched each pattern and was counted as a separate root each time. Resolved by parent PID (12640 -> 25064 -> 25084 is ONE chain). **A pattern census counts CHAINS *and* LAUNCHERS** — RUN 18 recorded the first half of that lesson and I re-created it with the second. Preflight was right; my throwaway was wrong. |
 | F5 | 2026-08-04 RUN19 | **FIXED** | `CEILING = RUNGS[-1]`; all **8 executable** `568` sites now derive from it (historical numbers in comments deliberately left, they record what was true then). |
 | F9 | 2026-08-04 RUN19 | **FIXED** | The archive walk now precedes the clock sample, so every mtime held is <= the clock it is compared against. |
 | F10 | 2026-08-04 RUN19 | **FIXED** | Selftest section J gained the `except` it lacked; an exception there is now a recorded FAIL rather than a traceback that suppresses every other result. |

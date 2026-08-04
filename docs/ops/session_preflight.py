@@ -14,7 +14,11 @@ maintains or shells out to the tool that already owns that truth (`freeze.py`, `
 READ-ONLY. Touches no archive, submits nothing, changes no design.
 
     python docs/ops/session_preflight.py           # fast (~5 s): the state that can kill a run
-    python docs/ops/session_preflight.py --full    # + freeze, reproducibility, board (~60 s)
+    python docs/ops/session_preflight.py --full    # + freeze, reproducibility, board
+#
+# ⚠ --full is ~200 s, NOT the '~60 s' this line advertised until 2026-08-04 (F12). It grew
+# with the archive; a session that budgets 60 s for it either kills it or concludes it hung.
+# Re-measure and correct this number rather than letting it drift again.
 
 EXIT: 0 all clear · 1 ATTENTION (something needs a human) · 2 FAIL (a run-killer is live).
 """

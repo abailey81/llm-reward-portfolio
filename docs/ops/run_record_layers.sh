@@ -22,7 +22,10 @@ cd "$(dirname "$0")/../.." || exit 1
 # which is precisely the fallback `cycle_loop.sh` condemns two files away -- and P231 proved the
 # consequence is not theoretical: under the base interpreter the record layers cannot `import src`
 # or numpy, so they would not fall back gracefully, they would FAIL while looking like a layer
-# result. These EIGHT layers are the evidence that every record in an irreplaceable archive is
+# result. These SEVEN gated layers -- plus the three ungated MEASUREMENTS below them, which
+# is where the 'eight' in an earlier version of this comment came from (S15 is a
+# measurement, not a gate) -- are the evidence that every record in an irreplaceable
+# archive is
 # sound; running them under an interpreter that cannot load the project is not a degraded check,
 # it is no check at all.
 PY=.venv/Scripts/python.exe

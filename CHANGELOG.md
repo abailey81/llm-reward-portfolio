@@ -3,6 +3,123 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04c] ★★★★★ WRITE-UP (study + audit session) — **THE HANDOVER SURVIVED ALL TEN OF ITS OWN AUDIT CHECKS, AND THE AUTHORITY MAP DID NOT** · the write-time registry line has now understated the registry twice, the same way both times, and this time it was hiding the whole of Stefan's feedback · **and the word over-run is roughly twice what the gate reports, because ~2,900 words of running argument sit in files the counter never opens**
+
+**PAST.** Continues `[2026-08-04a]`, the write-up lane's exposé session, whose handover
+(`docs/WRITEUP_SESSION_PROMPT_2026-08-04b.md`) opened this one. Runs alongside the OPS lane's
+`[2026-08-04b]` (RUN 19) and touches nothing it owns. Tamer's standing instruction for this handover was
+to **study absolutely all files with zero gaps** before acting, and `paper/**` remained on his hold. It was
+not touched.
+
+**PRESENT.**
+
+### ★ THE STUDY PHASE, FIRST-HAND
+
+Read from the sources rather than from summaries: **both Tier 0 PDFs** (the marking criteria, all four rows
+by nine bands, and the thirteen-page IFTE0008 guide, extracted with PyMuPDF because `pdftoppm` is absent),
+`CLAUDE.md` in full at 2,285 lines, `docs/HANDOFF.md` §1 to §5, the cursor, `CHANGELOG.md [2026-08-04a]`,
+master plan **§27** in full including the write order, the write-time registry, `PREREGISTRATION.md`'s
+section map, `config/preregistration.yaml` at the four lines the handover cites, `config/legs.yaml`, and
+**`docs/expose/expose_v7.tex` in full** as the reference implementation §6 names it.
+
+### ★★ THE HANDOVER'S OWN §11 AUDIT, RUN AS INSTRUCTED — TEN OF TEN HOLD
+
+Every gate re-run and read from its **own printed verdict**, never a pipe's exit code. Word budget
+**13,561 FAIL** against 10,000 · citations **277/277, 0 dangling, 0 verify-in-use, 0 unused** · freeze
+`3ca6f01ab772…0432f` **MATCHES** · reproducibility **8 pass / 0 warn / 0 fail** · build exit 0, 0 missing
+characters, 0 U+FFFF. Exposé **3 pages**, and the two copies are byte-identical at `sha 60ce93bc25145a82`,
+68,179 bytes, so the `2026-08-03` filename is not stale. The four open-weight understatements still read as
+described, `APPENDIX_B:95` is still correctly scoped to the hash-pins, `PREREGISTRATION.md` 140/767 still
+say *seven arms* while its own §3 is headed *The nine arms*, R101 still carries the literal
+`(Was: "legs run at the floor tier ONLY.")`, kimi is still `closed-until-weights`, and `hf_pin:` as a **key**
+still counts **five** against a bare grep's seven.
+
+**Independently measured, not inherited:** exemplar dissertations at **41, 46, 52 and 64 pages** against our
+**275**; body-prose register at **exactly 172 em dashes and 72 semicolons**, matching H0 to the unit; and the
+whole rendered PDF at **712 em dashes**, also matching.
+
+### ⚠⚠ THE ONE THING THE HANDOVER DID NOT CATCH: THE AUTHORITY MAP IS TEN ROWS BEHIND
+
+`docs/HANDOFF.md` §3 said the write-time registry runs **rows 1–45**. It runs **1–55**, counting the extra
+row 54b. The missing rows are not miscellaneous: **46 to 55 are the entire Stefan-feedback and clarity body
+of work** — premise-first over CH4/CH5, claim-shaped headings, the RL formalism in CH4, the Sutton–Barto
+diagram, the error analysis against the eleven-name canon, the training budget as a scope condition, the
+Gemma answer, the two-question presentation order, the Eureka-mirroring framing, the open-weight
+re-derivation, and the C1–C8 clarity pass. Those ten rows carry most of Criterion 4.
+
+**The line has now understated the registry twice with the same shape.** It read *rows 1–36* until
+2026-08-01, dropping rows 37–45 including the four things Dr Okhrati personally asked for. Its own warning
+about that recurrence sat directly beside the number that was stale again. **FIXED** in `docs/HANDOFF.md`
+§3, with the count re-derived by counting `^N.` row markers in the file and an instruction never to quote
+the number without recounting.
+
+### ⚠⚠⚠ THE WORD OVER-RUN IS ROUGHLY TWICE WHAT THE GATE REPORTS
+
+`word_budget.BODY_CHAPTERS` opens seven chapter files. It does not open `paper/tables/*.md`, and **seven of
+those are wired into `build_paper.ASSEMBLY`**. Six land in chapters and one in Appendix E. The six
+chapter-wired files carry **2,948 words of running argumentative prose outside any table cell** by this
+session's instrument, which corroborates the recorded 2,901 to within 47 words of line classification.
+
+This is not caption text and not a `Notes:` block. It is body argument: *"Read this table as the whole
+experiment"*, *"Why two placebos and not one"*, *"For a non-specialist reader"*. **So the honest counted
+body is about 16,500 words against a 10,000 hard limit, an over-run near 65 per cent rather than the 36 per
+cent the gate prints.** Recorded as an integrity exposure rather than a style point, exactly as doctrine §2
+requires, and it materially changes the word-limit decision, which is Tamer's.
+
+### ★ ONE FLAGGED-UNRESOLVED NUMBER CLOSED
+
+Master plan §27.1 carried *"our core share computes to 62.4 per cent … an earlier record states 46.8 per
+cent … recompute before quoting either figure."* Recomputed: §27.1's own seven-section decomposition sums
+to **13,561**, matching `word_budget` exactly, and Methodology + Results + Discussion is
+**8,459 / 13,561 = 62.38 %**. **62.4 % is correct on counted body prose**, comfortably inside the guide's
+"approximately 60 per cent". The 46.8 % figure uses a different denominator, almost certainly one including
+appendices, and both can be true at once. Quote 62.4 % for the guide's core rule.
+
+### ⚠ ERRORS I MADE, ALL FOUR THE SAME SHAPE
+
+Recorded per the standing rule. **Every one was my own instrument, and in every case the artefact was
+right and my first number was wrong** — which is doctrine §7d landing four more times in one session.
+
+1. **I read 667 em dashes and the handover said 712.** Root cause: I counted the **markdown source**,
+   `paper/_build/dissertation.md`; 712 is the **rendered PDF**. Found by counting the PDF with PyMuPDF
+   before reporting a discrepancy. The gap is concentrated on pages 16–20, the generated contents and lists
+   of figures and tables, which reprint the **43 headings that carry an em dash**. **Lesson, and it is
+   reusable: a source-level register grep under-reports the rendered artefact by about 45, and it looks
+   clean while doing it.** Note also that H1 exempts heading dashes, so 712 is a scale figure and **172 is
+   the defect count**.
+2. **My exposé sentence measurement returned a 91-word maximum against the recorded 46.** Root cause: my
+   LaTeX stripper reduced `\section{…}` to whitespace, so the last sentence of each section merged with the
+   first of the next. Fixed by making the section a boundary.
+3. **It then returned a 62-word maximum, still wrong.** Root cause: in my environment-stripping regex,
+   `align*` was interpolated unescaped, so the `*` read as a quantifier on `n` and the display-maths block
+   was **never removed**. Fixed with `re.escape`. The corrected run reproduces the record exactly:
+   **max 46, one sentence over 45 words, 0 em dashes, 0 semicolons.**
+4. **I reported 3,258 uncounted words in the wired tables against a recorded 2,901.** Root cause: I included
+   `T_scale_and_difficulty.md`, which builds into **Appendix E** and is legitimately word-excluded. Removing
+   it gives 2,948, which corroborates the record instead of contradicting it. **This is the handover's own
+   "wrong population" lesson, committed by me while auditing the handover that teaches it.**
+
+### ⚠ ONE IMPRECISION IN THE HANDOVER ITSELF
+
+Its reading gate §2.7 question 2 asks to *"name the six categories excluded from the 10,000 words."* The
+guide, page 11, lists **eight** bullets. Six is the count of the *content* exclusions in doctrine §2
+(mathematics, code, figures, tables, footnotes, appendices); the guide adds the title page with the
+declaration, and the contents and lists and glossary, and names the abstract separately. Minor, and recorded
+because the gate is meant to be answerable from the source.
+
+**FUTURE.** Nothing in §7 moved, because none of it is this session's to close. `paper/**` stays on Tamer's
+hold, so the four open-weight understatements and the ten registry rows above stay open. The
+`PREREGISTRATION.md` *seven arms* text stays untouched pending an unfreeze he authorises. The word-limit
+route is now a materially different decision than it looked, at ~16,500 rather than 13,561 counted words,
+and S11 has already removed the publication justification for the over-run. Master plan §27.5 holds the
+write order for the moment the hold lifts, and step 1 of it is the register, because it is mechanical and it
+decays.
+
+**No commits made, so no backup branch was pushed.** `scripts/update_handoff.py` was **deliberately not
+run**: it stamps a suite status, this session ran no full pytest, and stamping an unobserved status would be
+a fabricated green. `docs/HANDOFF.md` §3 was corrected by hand instead, which is the row that was actually
+wrong.
+
 ## [2026-08-04b] ★★★★★ RUN 19 (OPS) — **THE INSTRUMENT THAT REPORTS "THE RESULT" WAS COMPUTING IT OVER THE WRONG POPULATION** · four lines that read rung 30 actually bank 0 · the repair job RUN 18 was waiting on does not lift the campaign at all · **and the critical-chain floor was decaying with wall-clock, printing "0.00 d still to run" while two DFO arms still owed candidates**
 
 **PAST.** Continues `[2026-08-03h]` (RUN 18) under the brief `docs/RUN19_SESSION_PROMPT.md`. Runs
@@ -109,6 +226,54 @@ have made it bad news. S15 excluded the arms that had produced nothing; the chai
 work that had not happened. **Neither looked like a bug, and both read as good news.** The question
 to ask of a summary statistic is not "is the arithmetic right" but **"what is NOT in the set, and
 would including it change the verdict"**.
+
+### PASS 2 (00:37-01:00 UTC) — THE MAJOR SECTION OF THE LEDGER IS EMPTY, AND NINE MUTANTS PROVE IT
+
+The first scheduled 30-minute pass under the new contract. **Seven rows cleared, every behaviour
+change mutation-proven, `stage_eta` selftest 50 -> 65.**
+
+**★ CRITICAL-PATH PROGRESS, caught by the SPEED component:** core's **`cma_es` reached 30/30 and
+FROZE** (`arms_frozen core=6 -> 7`, and it appears in S15 as an 18th core arm owing a full rung).
+`bayes_opt` 26 -> 27, `tpe` 25/30 unchanged. Queue drained **314 -> 288**, Eqw/hqw **0**.
+
+| pass | rec/h 12h | rec/h 24h | slots | run/queue | 1-line | chain owed |
+|---|---:|---:|---:|---|---:|---|
+| 00:10 | 153 | 195.8 | 1,632 | 204/314 | 82% | tpe 5, bayes_opt 4, cma_es 1 |
+| 00:50 | 150.2 | 191.0 | 1,600 | 200/288 | 90% | tpe 5, bayes_opt 3, **cma_es DONE** |
+
+The 2% rate dip and 32-slot drop were worked to a cause rather than noted: normal job churn
+(Eqw 0, no line idle without work, drivers 10/10, disk 41.1 GB). Concentration rising 82 -> 90% is
+the expected consequence of qwen carrying the fleet while four lines sit behind the C1/C3 barrier.
+
+**FIXED THIS PASS:** **F3** the `-1h` VALUE had no assertion (both fixtures had an empty 1 h window
+by construction, so `d1 = 0` scored full marks) — a cell at 32 with 5 records in the hour was at 27
+an hour ago, so rung 30 falls by **3** and rung 100 by **5** · **F4** `_parse_cores` (a PRODUCTION
+contract: `?` on ssh failure, `0` when all queued, neither may crash the empirical block) and
+`concentration` were reachable-but-unasserted · **F6** the missing-unit asymmetry is now STATED with
+its direction — those units are not in the rate's denominator and *cannot* be, so **both columns are
+optimistic by that share**; gating on it was considered and rejected because with 8 missing it would
+gate every rung at every hour · **F8** the composition warning hardcoded 12 h while the ETA falls
+back to 24 h, so it went silent exactly where one line's dominance matters most · **F11** any stray
+subdirectory became a unit owing a full rung · **F12** preflight advertised "~60 s" against a
+measured ~200 s · **F13** the layer runner called itself SEVEN and EIGHT in the same file.
+
+**⚠ P249, MINE:** an ad-hoc process census reported `cycle_loop logical=2` against preflight's
+correct 1. The boot task's shared `cmd.exe` launcher names EVERY loop on its command line, so it
+matched each pattern and counted as a separate root each time; parent PIDs show 12640 -> 25064 ->
+25084 is ONE chain. RUN 18 recorded that a pattern census counts CHAINS; I re-created it with the
+half it did not record, **LAUNCHERS**. Preflight was right and my throwaway was wrong.
+
+**⚠ AND F11's FIRST FIX WAS WRONG IN AN INSTRUCTIVE WAY.** I required an arm directory to contain a
+child matching `-s<N>`, which is the live archive's shape — and it dropped every selftest fixture,
+failing six assertions at once. Rewritten to test RECORDS HELD. **A rule that reads the payload
+survives a layout it did not anticipate; a rule that reads the filename does not.**
+
+**VERIFIED:** preflight **VERDICT OK all 17** · records **10,748** · six record layers CLEAN (L7 in
+flight) · drift **0** · login node comfortable · `stage_eta` **65/65** · ruff clean · page rc=0 with
+**0 non-ASCII** · **nine mutants, every one caught by its named assertion**.
+
+**OPEN ROWS REMAINING: 1** — F14, the 18 style-only lint items inside live instruments, deliberately
+deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
 

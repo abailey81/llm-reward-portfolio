@@ -121,6 +121,14 @@ DEFAULT_ROOT = os.path.join(REPO, "outputs", "campaign_cluster_run4")
 REGISTERED_UNITS = _TEST_UNITS_PER_RUNG        # 71 = 9 core + 50 leg + 11 H1 canon + 1 H3
 
 
+def _registered_arms(root: str, line: str) -> set:
+    """Arms `line` is registered to run, from its `frozen*/` winner dirs (F11). Lower bound."""
+    fp = os.path.join(root, "frozen" + line[len("test"):])
+    if not os.path.isdir(fp):
+        return set()
+    return {x[: -len("-winner")] for x in os.listdir(fp) if x.endswith("-winner")}
+
+
 def test_cells(root: str = DEFAULT_ROOT) -> dict[tuple[str, str], list[float]]:
     """{(test_dir, arm): [record mtimes]} for the TEST tier — ONE walk, BOTH sides of the ratio.
 
@@ -155,6 +163,19 @@ def test_cells(root: str = DEFAULT_ROOT) -> dict[tuple[str, str], list[float]]:
                     mts.append(os.stat(os.path.join(dirpath, "record.json")).st_mtime)
                 except OSError:
                     continue
+            # ⚠ F11: ANY subdirectory used to become a registered unit. A stray `logs/` or marker
+            # dir would then be priced as owing a FULL rung, and once `len(cells) > 71` the page
+            # prints the nonsensical "N of the 71 registered units" with `missing` pinned at 0.
+            # A real arm either HOLDS RECORDS or is a REGISTERED frozen winner; a stray dir is
+            # neither. The same two-signal rule as S15's C6, deliberately, so the two instruments
+            # cannot disagree about what an arm is.
+            # ⚠ The test is on RECORDS HELD, not on directory naming. My first version required a
+            # child matching `-s<N>`, which is the live archive's shape but not the only one this
+            # walk supports -- it dropped every selftest fixture and six assertions failed at once.
+            # A rule that reads the payload survives a layout it did not anticipate; a rule that
+            # reads the filename does not.
+            if not mts and arm not in _registered_arms(root, d):
+                continue
             out[(d, arm)] = mts
     return out
 
@@ -291,17 +312,23 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         n, r = tp[h]
         L.append(f"    last {h:>2} h   {n:>5} records   {r:>7.1f} rec/h")
 
-    conc = concentration(cells, now_epoch, 12)
+    # ⚠ F8: THE COMPOSITION WARNING MUST DESCRIBE THE WINDOW THE ETA IS ACTUALLY PRICED FROM.
+    # This was hardcoded to 12 h while `eh2` below falls back to 24 h when the 12 h window is empty
+    # -- so in exactly the state where one line's dominance matters most, the warning went SILENT
+    # while a 24 h-priced ETA was published. Resolved once, here, and reused for `eh2`.
+    _rates = [(h, tp[h][1]) for h in WINDOWS_H if tp[h][0] > 0 and h >= MIN_ETA_WINDOW_H]
+    eta_window_h = min(h for h, _ in _rates) if _rates else MIN_ETA_WINDOW_H
+    conc = concentration(cells, now_epoch, eta_window_h)
     if conc:
         top, topn = conc[0]
         tot12 = sum(v for _, v in conc) or 1
-        L.append(f"    12 h rate is {100.0 * topn / tot12:.0f}% from ONE line ({top}); "
+        L.append(f"    {eta_window_h} h rate is {100.0 * topn / tot12:.0f}% from ONE line ({top}); "
                  f"{len(conc)} line(s) contributed at all")
 
     # ⚠ ETA BOUNDS COME ONLY FROM WINDOWS >= MIN_ETA_WINDOW_H (P237). Shorter windows are printed
     # above as a stall indicator and are deliberately NOT allowed to price the deadline: the arrival
     # quantum is a 15 h pack-8 job, so a 1 h reading measures the gap between bursts.
-    rates = [(h, tp[h][1]) for h in WINDOWS_H if tp[h][0] > 0 and h >= MIN_ETA_WINDOW_H]
+    rates = _rates   # F8: resolved once above so the concentration line and the ETA agree
     short = [(h, tp[h][1]) for h in WINDOWS_H if h < MIN_ETA_WINDOW_H]
     if short:
         L.append(f"    (windows under {MIN_ETA_WINDOW_H} h are a STALL INDICATOR ONLY and do not "
@@ -488,8 +515,20 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         L.append("    waiting on a stage barrier (C1 chain / C3 gate), not on cores.")
         _, missing = backlog(CEILING, cells)
         if missing:
+            # ⚠⚠ F6 -- THE ONE ASYMMETRY IN THIS TABLE, STATED RATHER THAN LEFT IMPLIED. A missing
+            # unit has no directory, so it is NOT in `cells`; it contributes its FULL rung to every
+            # row's `remaining`, and it can NEVER contribute to `owing_rate`. The gate therefore
+            # cannot see it: a rung can be dated off the cells that do exist while a share of its
+            # priced backlog belongs to units that have produced nothing BY DEFINITION and are not
+            # merely idle. Gating on it was considered and REJECTED -- with 8 units missing it would
+            # gate every rung at every hour and the table would carry no information at all (the
+            # same degeneracy that killed the per-cell max). So the bound is stated instead, and it
+            # is one-sided in a known direction: both columns are OPTIMISTIC by exactly this much.
             L.append(f"    (+{missing} registered unit(s) have no directory yet; each owes a FULL "
-                     f"rung and is counted above)")
+                     f"rung and is counted in 'remaining' above)")
+            L.append(f"    !! those {missing} unit(s) are NOT in the rate's denominator and CANNOT "
+                     f"be -- they have produced nothing at all, so no window contains them.")
+            L.append("       Both columns are OPTIMISTIC by that share until those units start.")
 
         # ⚠ THE STAGE-BARRIER DISCLOSURE (auditor F3). A large share of the backlog can sit on a line
         # that has not entered C4 at all -- the core line's 9 arms plus the 11 H1 canon arms are
@@ -904,6 +943,111 @@ def selftest() -> int:
     # A reporter that crashes on the content it exists to report is the worst possible failure mode.
     def _ascii(s: str) -> str:
         return str(s).encode("ascii", "backslashreplace").decode("ascii")
+
+    # ---------------------------------------------------------------------------------------
+    # M. THE UNTESTED SURFACE (F3, F4, F8, F11). Every one of these was reachable-but-unasserted,
+    #    which is the same class as F2: code that runs in production and that no mutation would
+    #    disturb. `_parse_cores` in particular carries a PRODUCTION contract -- publish_status.sh
+    #    passes `?` when its ssh failed and `0` when everything is queued.
+    # ---------------------------------------------------------------------------------------
+    ck("M1 _parse_cores: '?' is None, not a crash (publish_status.sh passes it on ssh failure)",
+       _parse_cores("?"), None)
+    ck("M2 _parse_cores: '0' is None (every job queued is not 'zero cores are usable')",
+       _parse_cores("0"), None)
+    ck("M3 _parse_cores: a negative is None", _parse_cores("-4"), None)
+    ck("M4 _parse_cores: None in, None out", _parse_cores(None), None)
+    ck("M5 _parse_cores: a real count survives", _parse_cores("1632"), 1632)
+
+    _now = 1_000_000.0
+    _cells_c = {("test_leg_a", "x"): [_now - 600, _now - 1200],
+                ("test_leg_a", "y"): [_now - 900],
+                ("test_leg_b", "x"): [_now - 300],
+                ("test_leg_c", "x"): [_now - 99 * 3600]}   # outside any window
+    ck("M6 concentration sums per LINE and sorts descending",
+       concentration(_cells_c, _now, 12), [("test_leg_a", 3), ("test_leg_b", 1)])
+    ck("M7 concentration drops lines with zero in-window records rather than listing them at 0",
+       [k for k, _ in concentration(_cells_c, _now, 12)], ["test_leg_a", "test_leg_b"])
+    ck("M8 a wider window pulls the old line back in",
+       dict(concentration(_cells_c, _now, 120)).get("test_leg_c"), 1)
+
+    tmp5 = _tf2.mkdtemp(prefix="stage_eta_stray_")
+    try:
+        real = os.path.join(tmp5, "test_leg_q", "scalar", "scalar-s0")
+        os.makedirs(real)
+        open(os.path.join(real, "record.json"), "w", encoding="utf-8").close()
+        os.makedirs(os.path.join(tmp5, "test_leg_q", "logs"))          # a stray dir
+        os.makedirs(os.path.join(tmp5, "test_leg_q", "_scratch"))      # another
+        c5 = test_cells(tmp5)
+        ck("M9 F11: a stray subdirectory is NOT promoted to a registered unit",
+           sorted(a for _, a in c5), ["scalar"])
+        # ...but a REGISTERED arm with no records still counts, because it genuinely owes a rung
+        os.makedirs(os.path.join(tmp5, "frozen_leg_q", "distributional-winner"))
+        os.makedirs(os.path.join(tmp5, "test_leg_q", "distributional"))
+        c5b = test_cells(tmp5)
+        ck("M10 F11: but a REGISTERED arm holding no records IS still a unit",
+           sorted(a for _, a in c5b), ["distributional", "scalar"])
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"M stray section raised: {type(exc).__name__}: {exc}")
+    finally:
+        _sh2.rmtree(tmp5, ignore_errors=True)
+
+    # F8 -- the composition warning must name the window the ETA is PRICED from. A fixture whose
+    # 12 h window is EMPTY but whose 24 h window is busy is the exact state where the hardcoded 12
+    # went silent while a 24 h-priced ETA was published.
+    tmp7 = _tf2.mkdtemp(prefix="stage_eta_window24_")
+    try:
+        cand7 = os.path.join(tmp7, "test_leg_s", "scalar", "c0")
+        os.makedirs(cand7)
+        base7 = time.time()
+        for i in range(60):
+            q = os.path.join(cand7, f"r{i}")
+            os.makedirs(q)
+            f7 = os.path.join(q, "record.json")
+            open(f7, "w", encoding="utf-8").close()
+            aged = base7 - (13 * 3600 + (i / 60.0) * 10 * 3600)   # 13-23 h ago: 12 h window EMPTY
+            os.utime(f7, (aged, aged))
+        c7 = test_cells(tmp7)
+        tp7 = throughput(c7, time.time())
+        ck("M13 fixture: the 12 h window is empty and the 24 h window is busy",
+           (tp7[12][0], tp7[24][0] > 0), (0, True))
+        out_w = render(1000, root=tmp7)
+        ck("M14 F8: the concentration line names the 24 h window the ETA is actually priced from",
+           "24 h rate is" in out_w, True)
+        ck("M15 F8: and never claims 12 h when the 12 h window held nothing",
+           "12 h rate is" in out_w, False)
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"M window section raised: {type(exc).__name__}: {exc}")
+    finally:
+        _sh2.rmtree(tmp7, ignore_errors=True)
+
+    # F3 -- the EXACT -1h decrement on a cell that CROSSES the rung inside the hour. Both older
+    # fixtures had an empty 1 h window by construction, so `d1` was identically 0 everywhere and
+    # `d1 = 0` scored full marks. A cell at 32 with 5 records in the hour was at 27 an hour ago:
+    # rung 30 saw its backlog fall by 3 (30-27), rung 100 by the full 5.
+    tmp6 = _tf2.mkdtemp(prefix="stage_eta_d1_")
+    try:
+        cand6 = os.path.join(tmp6, "test_leg_r", "scalar", "c0")
+        os.makedirs(cand6)
+        base6 = time.time()
+        for i in range(32):
+            q = os.path.join(cand6, f"r{i}")
+            os.makedirs(q)
+            f6 = os.path.join(q, "record.json")
+            open(f6, "w", encoding="utf-8").close()
+            aged = base6 - (600 if i >= 27 else 5 * 3600)   # last 5 inside the hour
+            os.utime(f6, (aged, aged))
+        out_m = render(1000, root=tmp6).split("REGISTERED MODEL")[0]
+        d1 = {}
+        for ln in out_m.splitlines():
+            pr = ln.split()
+            if len(pr) >= 3 and pr[0].isdigit() and int(pr[0]) in RUNGS:
+                d1[int(pr[0])] = int(pr[2].replace(",", ""))
+        ck("M11 F3: a cell CROSSING rung 30 in the hour reports the crossing part only", d1.get(30), 3)
+        ck("M12 F3: and a rung it is entirely below reports the full 5", d1.get(100), 5)
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"M d1 section raised: {type(exc).__name__}: {exc}")
+    finally:
+        _sh2.rmtree(tmp6, ignore_errors=True)
 
     for line in ok:
         print("  pass  " + _ascii(line))
