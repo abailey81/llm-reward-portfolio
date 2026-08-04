@@ -78,13 +78,29 @@ def attrition(root: Path) -> dict[str, int]:
 
     Effect-blind: reads `candidate_id` and the reject reason only, never a performance field.
     """
+    # A-attr / P272: THIS POOLED ALL 11 LINES INTO ONE PER-ARM COUNT, so the "max-min across the
+    # five arms" it feeds was a CROSS-LINE spread while the H2 contrast it exists to inform is
+    # WITHIN-LINE. A pooled figure can hide a badly handicapped arm on a single line: measured
+    # per line, glm_5_2 spreads 9, nemotron 8 and gemini 6, against a pooled 14. It also folded
+    # the CORE line in, which `coverage()` excludes -- inconsistent scope inside one file.
+    # Keyed by (line, arm) now; `attrition()` keeps its pooled signature for callers, and
+    # `attrition_by_line()` is the one to quote.
     out: dict[str, int] = defaultdict(int)
+    for (_line, arm), n in attrition_by_line(root).items():
+        out[arm] += n
+    return out
+
+
+def attrition_by_line(root: Path) -> dict:
+    """{(line, arm): author-side rejects} -- the WITHIN-LINE population the science actually uses."""
+    per: dict = defaultdict(int)
     for led in root.glob("search*/*/failures.jsonl"):
         arm = led.parent.name
-        for line in led.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                out[arm] += 1
-    return out
+        line = led.parent.parent.name
+        for row in led.read_text(encoding="utf-8").splitlines():
+            if row.strip():
+                per[(line, arm)] += 1
+    return per
 
 
 _SEVERITY_RANK = {"OK": 0, "INFO": 0, "UNKNOWN": 1, "WARN": 2, "CRITICAL": 3}
@@ -157,7 +173,19 @@ def main(argv: list[str]) -> int:
         spread = worst - min(att.get(a, 0) for a in LEG_ARMS)
         print(f"[attrition] author-side rejects total={total} "
               f"by arm: {dict(sorted(att.items(), key=lambda kv: -kv[1]))}")
-        print(f"[attrition] max-min across the five arms = {spread} candidate(s). "
+        per_line = attrition_by_line(root)
+        lines_seen = sorted({ln for ln, _a in per_line})
+        worst_line, worst_spread = None, -1
+        for ln in lines_seen:
+            vals = [per_line.get((ln, a), 0) for a in LEG_ARMS]
+            sp = max(vals) - min(vals)
+            if sp > worst_spread:
+                worst_line, worst_spread = ln, sp
+        if worst_line is not None:
+            print(f"[attrition] WITHIN-LINE worst spread = {worst_spread} candidate(s) on "
+                  f"{worst_line} -- this is the number the H2 contrast cares about; the pooled "
+                  f"figure below mixes 11 lines and can HIDE a handicapped arm (A-attr).")
+        print(f"[attrition] POOLED max-min across the five arms = {spread} candidate(s). "
               "These are NEVER replaced, so this is the per-arm search-width handicap. "
               "Report it; do not silently average over it.")
     else:

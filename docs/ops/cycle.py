@@ -715,8 +715,24 @@ def main() -> int:
     cov_rc, cov_out = _run([sys.executable, "docs/ops/arm_coverage.py"], timeout=120)
     full_lines = cov_out.count("5/5 arms submitted")
     if "VERDICT: ALL LINES FULL" not in cov_out:
-        alerts.append("arm_coverage: A LINE IS MISSING AN ARM (defect D14) -- the six repo guards "
-                      "cannot see this. Find which arm, and why it stopped being submitted.")
+        alerts.append("arm_coverage: A LINE IS MISSING AN ARM (defect D14 at SEARCH time) -- the "
+                      "six repo guards cannot see this. Find which arm, and why it stopped being "
+                      "submitted.")
+    # A-d14 / P273: THIS ALERT'S SCOPE IS NARROWER THAN ITS NAME, AND SAYING SO IS THE FIX.
+    # `arm_coverage` answers "did this arm EVER ship a batch", which caught the ORIGINAL D14
+    # (leg7, 2026-07-29, an arm dying before its first submission). The MODERN path is different
+    # and invisible to it: `src/cluster/campaign.py:1795` returns `{"ok": False, ...}` WITHOUT
+    # setting `winners[arm]`, and `:1980`'s `sweep_units = [... if a in winners]` then SILENTLY
+    # DROPS that arm from the entire C4 sweep -- while `arm_coverage` still prints `5/5`, because
+    # the arm shipped a search batch days ago. 65% of the batch registry is unparseable by its arm
+    # regex anyway (C4 sweep names carry no arm token), so it cannot see the C4 stage at all.
+    # ⛔ THE DETECTOR CANNOT BE BUILT HERE: `campaign.py` is DRIFT-FENCED while the campaign is
+    # live. What IS fixed is the false claim of coverage -- an instrument that says it covers a
+    # failure mode is what stops the next session from looking for it.
+    # THE SIGNAL THAT WOULD CATCH IT, for whoever builds it: a REGISTERED arm (frozen winner) with
+    # ZERO sealed-test records on a line whose OTHER arms are producing, with no job in flight for
+    # it. S15's C6 already reports the first half; `line_balance`'s STUCK/WAITING split is the
+    # second half but is per-LINE, not per-ARM -- that per-arm refinement is the missing piece.
     sentinel_bad = re.findall(r"^\[sentinel\]\s+(CRITICAL|UNKNOWN)\s+(\S+)", cov_out, flags=re.M)
     new_sentinel = [f"{chk}:{sev}" for sev, chk in sentinel_bad if f"{chk}:{sev}" not in acked]
     known_sentinel = [f"{chk}:{sev}" for sev, chk in sentinel_bad if f"{chk}:{sev}" in acked]
