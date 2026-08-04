@@ -276,6 +276,75 @@ Likewise closed: 400k steps is FROZEN, warm-start breaks determinism, more threa
 reduction order and corrupt H4 mid-chain, and re-packing needs a twelve-line teardown that costs
 more than it saves. **Never trade correctness, CRN determinism or the frozen design for speed.**
 
+### ★★★★★ 2026-08-04 21:04 UTC — TAMER: "MAKE SURE WE GET THE MAXIMUM CORES POSSIBLE, WE FELL VERY
+### BADLY". RE-MEASURED FROM THE SCHEDULER RATHER THAN RE-ARGUED, AND IT SUPERSEDES THE OLD POSITION
+
+**THE OLD POSITION WAS "CORES ARE CLOSED BY FOURTEEN MEASUREMENTS". THAT WAS TRUE WHEN OUR QUEUE WAS
+EMPTY AND IS NOT THE RIGHT TEST NOW.** With 1,024 slots QUEUED for the first time this session,
+placement throughput matters again. So it was measured properly, with the project's own instrument.
+
+**WHAT OUR JOBS ACTUALLY REQUEST** (`qstat -j` on a live queued job, verbatim):
+`snx=1, tmpfs=1G, memory=2G, batch=true, h_rt=54000, hostname=!node-d00a-230&!node-d00b-024`,
+`parallel environment: smp-[D]* range: 8`, `allocation_rule $pe_slots` (all 8 slots on ONE host),
+and `smp-D` is configured with **10,476 slots**.
+
+⚠ **AND A MEASUREMENT I GOT WRONG FIRST AND HAD TO REDO — RECORDED BECAUSE THE ERROR IS INSTRUCTIVE.**
+My first `qhost` parse summed columns 5 and 6, which are **NCOR and NTHR — both static hardware
+counts** — so every family showed "load == ncpu" and I nearly reported the cluster as 100% full. The
+real columns are `$3 = NCPU` and `$7 = LOAD`. Corrected, the D family is **32-92% FREE by load**.
+A column index is a measurement, and it deserves the same check as any other.
+
+**THE AUTHORITATIVE FIGURE — `docs/ops/placeable_capacity.py`, fed `qhost -F slots,memory,tmpfs` and
+`qstat -f` exactly as the tool instructs** (its own guard refused the first, complex-less input rather
+than silently treating unknown as zero, which is the behaviour that file was built for):
+
+| pack width | placeable CORES cluster-wide |
+|---|---:|
+| **8 (current)** | **2,256** |
+| 4 | 2,644 |
+| 2 | 2,772 |
+| 1 | 2,863 |
+
+**Per pool at pack 8:** `d00a` **1,432** · `e00a` 328 · `d00b` 224 · `t00a` 104 · `l00a` 80 ·
+`e96a` 32 · `d97a` 16 · `d97b` 16 · rest 24. **Our reachable `smp-D` pool holds 1,688 of those
+2,256 placeable cores**, and we already hold 1,008 running with ~1,024 more queued to take them.
+
+⇒ **WE DID NOT "FALL" THROUGH ANY MISCONFIGURATION. We reach the overwhelming majority of what is
+placeable, and the queued work is sized to consume it.** The trough was the sawtooth, and it is
+refilling.
+
+### ⭐ THE ONE GENUINE, SCIENCE-SAFE LEVER, AND IT IS TAMER'S DECISION
+
+**PACK WIDTH. Worth +17% at pack 4 (2,256 -> 2,644 cores) or +27% at pack 1 (-> 2,863).**
+The mechanism is visible in the same table: **`strand` = 441 free slots on `d00a` alone** — cores
+that are free but sit on hosts holding fewer than one full 8-pack, so at our width they are real and
+unusable. Narrowing the pack recovers them.
+
+⭐ **AND IT DOES NOT TOUCH THE DETERMINISM ENVELOPE, WHICH IS THE ONLY REASON IT IS EVEN ARGUABLE.**
+Every training is **1-thread** whatever the pack width; a pack is a PACKAGING of independent
+1-thread trainings onto one host under `allocation_rule $pe_slots`. Reduction order, seeding and CRN
+pairing are per `(arm, seed)` and are untouched. This is not the AMD/Intel question and it is not the
+thread-count question — **both of those remain firmly closed.**
+
+⛔ **WHAT IT COSTS, STATED SO THE DECISION IS INFORMED RATHER THAN SOLD:**
+1. **A rolling supervisor restart across ten live driver lines.** A stale `.driver.lock` from an
+   unclean stop has already cost this campaign **4.5 h**.
+2. **Job count.** A 2,690-unit tier is ~336 jobs at pack 8 and **2,690 at pack 1**. The registered
+   1,000-job working cap makes pack 1 unattractive; **pack 4 is the defensible middle** (~672 jobs).
+3. It also **shortens the tail** that caused today's trough, because a tier's last surviving pack
+   becomes 4 trainings instead of 8.
+
+**RECOMMENDATION: pack 4, and only at a natural restart boundary — not mid-tier.** +17% placeable
+cores, halves the tail, no determinism exposure. **NOT actioned unilaterally**: the ledger's own
+standing note says pack 8 was deliberately applied on 2026-07-31 and the supervisors must not be
+restarted for it, so reversing that is a decision, not a reflex.
+
+⛔ **AND THE LEVERS THAT REMAIN CLOSED, with the reason restated so nobody re-opens them:**
+`e00a` (+328 cores) and `t00a` (+104) are OUTSIDE `smp-D` — a different node family breaks the
+CRN homogeneity every paired contrast rests on, and `t00a` is AMD, which the determinism envelope
+excludes by name. **15 blocked hosts on `d00a`** are disabled or in alarm and are UCL RC's to clear.
+Self-elevating fair share is operator-only; lowering our own priority is a standing prohibition.
+
 ### SPEED LOG (append one row per pass, newest last)
 
 | when (UTC) | rec/h 12h | rec/h 24h | slots | run/queue | 1-line % | chain owed | rung 30 | rung 403 | rung 568 |
