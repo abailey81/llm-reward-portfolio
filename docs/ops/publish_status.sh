@@ -508,7 +508,16 @@ git add docs/RUN4_STATUS.md
 # the write-up's timeline, so a counter that cannot go down would have written a false record of the
 # campaign into history. `$upcount` is the live supervisor count from the same census the panel uses.
 upcount=$(printf '%s' "$linestat" | grep -oE '^[0-9]+' || echo "$drivers")
-git commit -q -m "status: $HM - $upcount/12 lines up, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>/dev/null \
+# ⚠⚠ `--only docs/RUN4_STATUS.md` IS LOAD-BEARING (P251, 2026-08-04). This was a BARE `git commit`,
+# which commits THE WHOLE INDEX -- and this loop runs every ~2 minutes. Any file a human or another
+# session had `git add`ed and not yet committed was silently swept into the next status commit.
+# MEASURED: commit d7b85965, labelled "status: T+147h38m", carries 366 insertions of RUN 19's
+# stage_eta/preflight/ledger/CHANGELOG work. Nothing was lost, but the campaign's own commit log is
+# a PRIMARY SOURCE for the write-up timeline, and an automated committer that absorbs unrelated
+# staged work corrupts that record -- and would happily commit a half-finished edit.
+# It is the mirror image of P242, where a directory-level `git add` swept 17 runtime logs into an
+# unrelated commit. `--only <path>` commits that path REGARDLESS of what else sits in the index.
+git commit -q --only docs/RUN4_STATUS.md -m "status: $HM - $upcount/12 lines up, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>/dev/null \
   && git push -q origin HEAD:backup-2026-07-28 2>/dev/null \
   && git push -q origin HEAD:myriad-cluster-and-tier-system 2>/dev/null \
   && echo "published $TS  ($HM, $cores cores, $records records)" \

@@ -284,6 +284,15 @@ the temp directory is per-run so concurrent runs cannot overwrite each other's r
 is wrapped in one compound command so bash must parse it fully before executing.
 **NEVER EDIT A SHELL SCRIPT WHILE AN INSTANCE IS RUNNING, and a banner that names a count must COUNT.**
 
+**⚠⚠ P251 — AN AUTOMATED COMMITTER WAS ABSORBING HUMAN WORK, EVERY TWO MINUTES.**
+`docs/ops/publish_status.sh:511` ran a bare `git commit`, which commits the WHOLE INDEX. Anything
+staged and not yet committed went into the next status commit: **`d7b85965`, labelled "status:
+T+147h38m", carries 366 insertions of this session's instrument work.** Nothing was lost, but the
+commit log is a primary source for the write-up timeline, and it would as happily have committed a
+half-finished edit. The mirror image of P242. Fixed to `git commit --only docs/RUN4_STATUS.md` and
+falsified in a throwaway repo: with an unrelated file staged, the status commit took only the status
+file. The publisher is re-invoked each iteration, so it is live without a restart.
+
 **OPEN ROWS REMAINING: 1** — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
