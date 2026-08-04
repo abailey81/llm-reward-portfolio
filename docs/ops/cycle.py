@@ -1069,7 +1069,39 @@ def main() -> int:
                 if not _adv:
                     _resumed = False
                     break
-        if _resumed:
+        # ⚠ P293, 2026-08-04. A SECOND, STRICTLY STRONGER DISCRIMINATOR, because the ATTN below had
+        # fired EVERY CYCLE FOR 42 HOURS on a crash that had fully self-healed.
+        # `ARM_CRASH_leg_nemotron_3_super.json` was stamped 2026-08-02 21:06 by the Aug-2/3 VPN
+        # outage (240 consecutive pull failures over the SEARCH lane's 3.0 h death clock). Since
+        # then that arm has FROZEN A WINNER and entered sealed testing, and `crash_watchdog` reads
+        # CLEAN -- the crash is over by every available measure.
+        # WHY IT CANNOT CLEAR: the marker's note and the text below both say it "clears on a clean
+        # pass", and `campaign.py:1898` does the unlink INSIDE THE C1 PATH. A line that crashed in
+        # C1, recovered, and advanced into C2/C4 never re-enters C1, so the clearing branch is
+        # UNREACHABLE and the marker is permanent. "can take 12h+" understates it: it is never.
+        # That is the P259 family -- an alarm that cannot clear teaches its reader to ignore the
+        # row, which this repo has already paid for once (D15, unexamined for ten hours).
+        # A FROZEN WINNER is categorically stronger evidence than "archived one record": it means
+        # the arm completed its ENTIRE search and was selected by the registered criterion. Only
+        # then is the row demoted to `info`, and it still PRINTS with the marker, its age and the
+        # reason it can never clear. An arm without a frozen winner still raises ATTENTION, and an
+        # unreadable marker still lands in the RED branch. Nothing is hidden and nothing is weakened.
+        _all_frozen = bool(_arms_map)
+        for _arm in _arms_map:
+            _fz = ROOT / f"frozen_{_line}" / f"{_arm}-winner"
+            if not _fz.is_dir():
+                _fz = ROOT / "frozen" / f"{_arm}-winner"          # the core line carries no suffix
+            if not _fz.is_dir():
+                _all_frozen = False
+                break
+        if _resumed and _all_frozen:
+            info.append(
+                f"D14 marker for {_line} ({_arms}) is STALE, age {_age:.1f} min: every crashed arm "
+                f"now holds a FROZEN WINNER, so it completed its whole search and was selected. "
+                f"The marker CANNOT clear -- campaign.py unlinks it only inside the C1 path and "
+                f"this line has advanced past C1 -- so it is preserved as crash EVIDENCE for the "
+                f"execution record rather than deleted. Not an alarm. (P293)")
+        elif _resumed:
             attention.append(
                 f"D14 marker still on disk for {_line}: {_arms}. Age {_age:.1f} min — but EVERY "
                 f"crashed arm has ARCHIVED A NEW RECORD since the marker was stamped, so the work "

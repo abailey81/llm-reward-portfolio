@@ -237,19 +237,61 @@ def verdict(s: dict) -> int:
     return 1 if worst >= FATAL_CONSECUTIVE * WARN_FRACTION else 0
 
 
+def _age_minutes(ts: str) -> float | None:
+    """Minutes since a `YYYY-mm-dd HH:MM:SS` driver-log stamp, or None if unreadable."""
+    try:
+        return (datetime.now() - datetime.strptime(ts[:19], "%Y-%m-%d %H:%M:%S")).total_seconds() / 60.0
+    except Exception:  # noqa: BLE001 - an unparseable stamp must not break the summary
+        return None
+
+
+def _age_str(mins: float | None) -> str:
+    if mins is None:
+        return "age UNKNOWN"
+    if mins < 90:
+        return "%.0f min ago" % mins
+    return "%.1f h ago" % (mins / 60.0)
+
+
 def oneline(s: dict) -> str:
+    # ⚠ P292, 2026-08-04. THIS LINE USED TO REPORT A WINDOWED MAXIMUM WITH NO AGE, AND IT RAISED A
+    # FALSE ALARM ON THE PERSON THE PAGE EXISTS FOR. It read "worst streak 21/240 (8.8% to fatal),
+    # pull on core" more than two hours after core's last failure -- the tail of INC-1, the 31m50s
+    # login-node refusal that ended at 12:32:19Z. A streak that ENDED was byte-indistinguishable
+    # from one CLIMBING.
+    # The module already had the fix in hand: `scan()` records `last_failure` per line and its own
+    # comment says "a stale `last` is only meaningful together with its timestamp, which is why both
+    # are printed" -- but `oneline()` never printed it. Same family as P278 (a re-triage trigger on
+    # a monotone counter) and W1 (a process-local CUSUM quoted as a trend): a statistic with no time
+    # attached cannot be acted on.
+    # Two things are added, both computed from data already collected: the AGE of the worst streak,
+    # and whether ANY line has failed recently ("none live" vs "LIVE"). Nothing is removed, so any
+    # reader or scraper of the existing prefix is unaffected.
     worst_line, worst_n, worst_kind = "-", 0, "-"
     for k, v in s["lines"].items():
         for kind in ("pull", "ops"):
             if v[kind + "_worst"] > worst_n:
                 worst_n, worst_line, worst_kind = v[kind + "_worst"], k, kind
     pct = 100.0 * worst_n / FATAL_CONSECUTIVE
+    worst_age = _age_minutes((s["lines"].get(worst_line) or {}).get("last_failure", ""))
+    newest = None
+    for v in s["lines"].values():
+        a = _age_minutes(v.get("last_failure", ""))
+        if a is not None and (newest is None or a < newest):
+            newest = a
+    # LIVE_MINUTES is deliberately generous: the TEST poll is 180 s, so a genuinely live streak
+    # re-logs within 3 minutes. 10 minutes covers the SEARCH poll, clock skew and a slow cycle
+    # without ever calling a two-hour-old streak "live".
+    live = newest is not None and newest <= 10.0
+    state = ("LIVE, still failing" if live
+             else ("none live, newest failure %s" % _age_str(newest)) if newest is not None
+             else "no failure ever recorded")
     # NO PIPE CHARACTER. This string is rendered into a MARKDOWN TABLE CELL by
     # docs/ops/publish_status.sh, and a literal `|` splits the cell into extra columns -- which is
     # exactly what it did on the first publish. ASCII only, for the same page's phone rendering.
-    return ("timeouts %dh=%d; worst streak %d/%d (%.1f%% to fatal), %s on %s"
+    return ("timeouts %dh=%d; worst streak %d/%d (%.1f%% to fatal), %s on %s, %s; %s"
             % (int(s["hours"]), s["total_events"], worst_n, FATAL_CONSECUTIVE, pct,
-               worst_kind, worst_line))
+               worst_kind, worst_line, _age_str(worst_age), state))
 
 
 def report(root: str, hours: float) -> int:
