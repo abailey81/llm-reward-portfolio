@@ -343,9 +343,23 @@ record_sanity:CRITICAL
 #     that RUN 15 already fixed by lowering the gate to 12 s.
 #   * The listed ERRORs are the already-handled per-unit crashes (bayes_opt, tpe, cma_es), all
 #     of which resumed - `crash_watchdog.py --once` reads CLEAN.
-# RE-TRIAGE TRIGGER: any NEW ERROR/CRITICAL in the last 2 hours, or timeout_events rising above
-# 31, or `crash_watchdog.py` reporting a dead unit. Remove this line if the guard is ever changed
-# to report a WINDOW rather than a cumulative total.
+# RE-TRIAGE TRIGGER  (RESTATED 2026-08-04, RUN 20 P278 -- the previous wording could never NOT be
+# breached). It read "timeout_events rising above 31". `timeout_events` is a MONOTONE LIFETIME
+# COUNT over append-only driver logs, so it can only rise: once crossed, the trigger is breached
+# for ever and says nothing. It read 179 on 2026-08-04 and an auditor correctly reported the breach
+# as actionable -- the breach was real and the CAUSE was this line, not the transport. This is the
+# sixth appearance of the counter-that-cannot-go-down family (P259 RED, P262 guards=2, W1's CUSUM,
+# P266's streak, sentinel's latched CUSUM).
+#   MEASURED WHEN RESTATED, per hour, from the driver logs: every event on 2026-08-04 is
+#   "1 consecutive, 0-1 min down" and self-recovering; 11 in the busiest hour of the day against
+#   57 in a single hour on 08-03 and 1-2 per hour overnight. The `240 consecutive` inside the guard
+#   is the 2026-08-03 VPN outage, preserved by a lifetime `max` and not a live condition.
+# THE TRIGGER, ON A WINDOW SO IT CAN CLEAR:
+#   * any NEW ERROR/CRITICAL in the last 2 hours, or
+#   * more than 60 timeout events in any ROLLING 1-HOUR window (i.e. above the 08-03 peak of 57),
+#     or ANY streak of 5+ consecutive pull failures on one line, or
+#   * `crash_watchdog.py` reporting a dead unit.
+# Remove this block if the guard is ever changed to report a window rather than a cumulative total.
 guard:transport
 #
 # --- seed_alignment:CRITICAL ------------------------------------------------------------------

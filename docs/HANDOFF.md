@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-04"
-  head: "e4632d03"
+  head: "95b351c1"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 19 close; 7 record layers RC=0 at 12,498; 28 defects fixed, all falsified)"
+  suite_status: "exit 0 (RUN 20 pass 1; 7 record layers RC=0 at 12,654; preflight OK all 17; A-d14 closed via docs/ops/arm_jobs.py)"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

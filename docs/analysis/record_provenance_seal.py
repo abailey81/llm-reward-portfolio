@@ -117,6 +117,9 @@ pnl_identical = 0
 pnl_present = 0
 no_env = no_reward = chain_ok = skipped = 0
 git_seen: Counter = Counter()
+# P277: the wall_clock population, split three ways so a SKIPPED check can never read as a PASSED one.
+wall_checked = wall_zero = wall_absent = 0
+wall_zero_tiers: Counter = Counter()
 
 
 def note(code: str, msg: str) -> None:
@@ -230,8 +233,22 @@ for rec_path in ROOT.rglob("record.json"):
                 note("P3-unknown-commit", f"{rel}: git_commit {gc[:12]}.. is not in this repository")
 
     # ---- P4: plausibility + the A62 disclosure metric ---------------------------------------
+    # ⚠ P277 (RUN 20). The guard used to be `if isinstance(wc, (int, float)) and wc > 0:` -- and
+    # `wall_clock` is 0.0 on ALL 11,082 sealed-test records and all 58 frozen markers (measured
+    # EXHAUSTIVELY 2026-08-04, not sampled: `== 0: 11082, absent: 0, anything else: 0`). So the
+    # `> 0` guard excluded the ONLY implausible value that actually occurs, the band ran on the
+    # 1,539 search records alone, and the banner below spoke for the whole archive anyway.
+    # A skipped check that reports as a passed check is the fail-open family this repository keeps
+    # finding. The zero is COUNTED and NAMED now; it is a DISCLOSURE rather than a failure, because
+    # the writer lives in drift-fenced `src/` and cannot be repaired for records already written.
     wc = rec.get("wall_clock")
-    if isinstance(wc, (int, float)) and wc > 0:
+    if not isinstance(wc, (int, float)):
+        wall_absent += 1
+    elif wc <= 0:
+        wall_zero += 1
+        wall_zero_tiers[rel.split("/")[0] if "/" in rel else rel.split("\\")[0]] += 1
+    else:
+        wall_checked += 1
         h = wc / 3600.0
         if not (WALL_LO_H <= h <= WALL_HI_H):
             note("P4-wall", f"{rel}: wall_clock {h:.3f} h outside [{WALL_LO_H}, {WALL_HI_H}]")
@@ -255,7 +272,22 @@ if fail:
             print(f"      e.g. {e}")
 else:
     print("P1-P4 CLEAN — every record's env.json and reward.py hash exactly as the record claims,")
-    print("every git_commit is a commit this repository contains, and every wall_clock is plausible.")
+    print("every git_commit is a commit this repository contains, and every wall_clock the band")
+    print(f"could be applied to ({wall_checked:,} of {n:,}) is plausible.")
+print()
+# ---- P277: the wall_clock population, stated rather than skipped -----------------------------
+print(f"P4 WALL-CLOCK POPULATION: checked {wall_checked:,} | ZERO {wall_zero:,} | absent {wall_absent:,}")
+if wall_zero:
+    print(f"  *** {wall_zero:,} record(s) carry wall_clock == 0, so the [{WALL_LO_H}, {WALL_HI_H}] h band")
+    print("      CANNOT be applied to them. This is a DISCLOSURE, not a failure: the writer lives in")
+    print("      drift-fenced src/ and cannot be repaired for records already written. Until P277 this")
+    print("      was an invisible skip and the banner above spoke for the whole archive.")
+    print(f"      by top-level tier: {dict(wall_zero_tiers.most_common(8))}")
+    print("      => THE COMPUTE IS NOT LOST. Per-task wall time is recorded in")
+    print("        outputs/campaign_cluster_run4/ledger/*.epilogue.jsonl as \"secs\". The write-up must")
+    print("        source sealed-tier compute from there, never from the record. Okhrati explicitly")
+    print("        grades wall-clock compute reporting, so this is a grade-relevant provenance gap")
+    print("        with a working substitute.")
 print()
 print(f"A62 DISCLOSURE METRIC: per_period_pnl is byte-identical to test_returns on "
       f"{pnl_identical:,} of {pnl_present:,} records carrying both "

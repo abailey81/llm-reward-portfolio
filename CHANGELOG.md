@@ -3,6 +3,231 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04d] ★★★★★ RUN 20 (OPS), pass 1 — **THE SENTINEL HAS BEEN WATCHING ONE LINE OUT OF TWELVE, AND ITS AUTHORING GUARD HAS MATCHED ZERO FILES FOR THE WHOLE CAMPAIGN** · the per-arm detector RUN 19 called its highest-value row turned out to be unbuildable from the data it named, because `qstat` truncates the job name to ten characters · **and 87.9% of the archive was certified "wall_clock plausible" by a check that skipped it**
+
+**PAST.** Continues `[2026-08-04b]` (RUN 19), which closed at T+158h with 28 defects fixed, the board
+green and four open rows. Its handover, `docs/RUN20_SESSION_PROMPT.md`, was written at Tamer's
+instruction and carries his flawlessness mandate plus the four loop instructions verbatim. It named
+seven load-bearing instruments RUN 19 never reached and handed **A-d14** over as the highest-value
+open row. Runs alongside the write-up lane's `[2026-08-04c]` and touches nothing it owns.
+
+**PRESENT — the opening baseline, measured first-hand before anything was changed.**
+
+```
+2026-08-04 11:31-11:45 UTC   T+158h
+session_preflight --full   VERDICT OK, all 17 rows OK   (freeze MATCHES, drift 0 both arms,
+                                                         repro 8/0/0, disk 38.6 GB, mirror 0.1 h)
+line_balance --once        CLEAN
+loginnode_guard --once     OK   cores=0.00/6.0   qacct=0
+seven record layers        ALL 7 RAN, ALL RC=0   at 12,654 records
+S15 / C6                   COMMON RUNG 0   (core, deepseek, glm, nemotron on the untested h2_pair;
+                                            kimi on 12 contiguous seeds)
+records 12,578 -> 12,693   spend $45.5019   Eqw/hqw 0   ssh up
+```
+
+### ★ FOUR READ-ONLY AUDITORS, AND ALL FOUR FOUND MORE THAN I DID
+
+Sent at the instruments RUN 19 never reached: `sentinel.py`, the seven record layers,
+`campaign_guards.py` and `line_balance.py` itself. Between them they enumerated **40 possible
+sentinel rows across 19 check functions plus 18 lane checks**, **66 individual record-layer checks
+across 10 tools**, **6 guards**, and the arbiter's whole decision path. **The nine-auditors-in-nine-
+sessions record now stands at thirteen.** Everything below that is stated as fact was re-measured by
+me first-hand against the live archive before it was written down.
+
+### ⛔ E-sent — THE SENTINEL FAILS TOWARD "OK" IN FOUR WAYS I VERIFIED MYSELF
+
+1. **`sentinel.py:1480` globs `*.failures.jsonl`. Measured: that pattern matches ZERO files, while
+   `failures.jsonl` matches 42 files holding 275 failure rows.** `fnmatch` requires a literal dot
+   before `failures` and this campaign uses `search*/<arm>/failures.jsonl`. So `authoring_health`'s
+   reject counter is identically zero, both of its alarm branches are structurally dead, and it has
+   printed *"authoring healthy across 5 arm(s)"* continuously for four days. Sixty lines above it,
+   `_scan_ledgered_failures:886` uses the CORRECT pattern — two functions in one file disagree about
+   the ledger's own filename.
+2. **`sentinel.py:835` iterates only `("search", "test")`.** The campaign root holds **41 top-level
+   directories**, including ten `search_leg_*` and ten `test_leg_*`. So `nan_rate`,
+   `divergence_rate`, `reward_scale_drift` and both CUSUMs cover **one line of twelve**. Measured on
+   the same quantity: the guard sees **5 ledgers / 22 rows** against **42 / 275** campaign-wide, so
+   the headline gate-failure rate omits 253 of 275 failures.
+3. **Six checks report OK or INFO from inputs that do not exist.** Measured: `anomalies.jsonl` 0,
+   `events.jsonl` 0, `progress.json` 0, `campaign_summary.json` 0 — against 56 live `llm_calls.jsonl`
+   and 2 `campaign_summary_*.json`. `error_taxonomy` prints *"no failures/warnings journaled"* with
+   275 failure rows on disk.
+4. **`winners[leg]` at `:1577` collapses 58 frozen winner records into at most one per leg.**
+   Measured: `frozen` 7 + `frozen_h3_singleshot` 1 + ten `frozen_leg_*` at 5 each = **58 on disk**,
+   against a report of *"all 11 frozen winner(s) executed cleanly"*. Within any leg only
+   `scalar_cvar5-winner` survives the dict key, and the check's own docstring names a `scalar`
+   winner as the case it exists for.
+
+⚠ **ESCALATED, NOT FIXED, and the reason is a rule not a preference: `scripts/**` and `src/**` are
+drift-fenced while the campaign is live and `drift` must stay 0.**
+
+**⇒ AND THE EXPOSURE QUESTION WAS ASKED RATHER THAN ASSUMED, because it is the only one that
+matters.** Does any of this mean a real campaign defect is going undetected? **No, and the reason is
+redundancy that is not fenced.** The seven record layers validate all 12,654 records end to end —
+`L1` R1–R9 replays the Sharpe endpoint per record, `L3` S1–S10 carries the science invariants, `L7`
+the window identity — and all seven read RC=0 this pass. `line_balance` plus the new `arm_jobs`
+cover liveness, and S15 covers set completeness. **The sentinel is redundant cover that has been
+silently absent, not the only cover.** That is the difference between an embarrassment and an
+incident, and it is worth stating precisely rather than either way round.
+
+### ⭐ P276 — A-d14 IS CLOSED, AND IT COULD NOT BE BUILT THE WAY RUN 19 SAID IT COULD
+
+RUN 19 handed this over as *"the highest-value open row"* with a design: point `cycle.py`'s D14 alert
+at `line_balance`'s per-arm discrimination. **The design was not implementable, and finding out why
+is the finding.**
+
+```
+76849 2.00578 leg8_leg_s ucestes      r     08/04/2026 01:48:57 Bran@node-d00a-043 ...
+```
+
+**`qstat` truncates the job name to TEN CHARACTERS.** `leg8_leg_s` is everything the default format
+gives. The arm token is destroyed by the *scheduler's output format*, not by `line_balance`'s parse
+at `:153`, so no amount of care in that parser could have recovered it. `qstat -u ucestes -xml`
+returns the untruncated `JB_name` for the same scheduler query at the same login-node cost, and that
+is what the new instrument uses.
+
+**`docs/ops/arm_jobs.py`** now performs the join neither existing instrument could. S15 knows which
+arm caps each line and says in its own verdict that it cannot see jobs; `line_balance` knows the jobs
+but splits STUCK/WAITING **per line** (`:265`, one `(run, queued)` pair per line) — it even computes
+the per-arm *arms at ZERO* column at `:255` and then never joins it. The covering rule is read from
+the launcher rather than assumed: a per-arm job name, `h2_pair` covering `distributional`+`scalar`
+(`campaign.py:1908`), and `_sweep_t<N>` covering every arm in the sweep unit list (`campaign.py:2012`).
+
+**⚠ BOTH OF MY FIRST TWO VERSIONS WERE WRONG, AND I CAUGHT BOTH BY READING THE OUTPUT BACK RATHER
+THAN THE EXIT CODE.** The first derived a line's job prefix from the ARCHIVE name (`test_leg_glm_5_2`)
+when the job carries the BATCH TAG (`leg2_...`); nothing matched on any of the ten leg lines and it
+flagged **23 arms as uncovered — including arms whose covering jobs I had read off the queue by hand
+five minutes earlier.** The second used a plain substring test, which reports
+`leg7_..._scalar_cvar5_test_p01` as covering `scalar`. The shipped rule prefers the longest matching
+roster arm.
+
+**FALSIFIED, not merely tested.** Against a verbatim reconstruction of the naive rule: cases A1 and
+A4 read TRUE before and FALSE after (pre-fix correct on 3/5, shipped on 5/5), and on the live shape
+the naive rule reports nemotron's `scalar` as covered by four jobs while it is covered by none.
+**Selftest 17/17.** Every path fails toward CANNOT-DECIDE: a failed queue read exits 2 and reports
+nothing clean, and a line whose `frozen*/` roster is unreadable is named LOUDLY rather than dropped
+the way `line_balance.py:134-135` drops it silently.
+
+**RUN LIVE, AND IT NAMED SIX ARMS:**
+
+```
+test / distributional          test / scalar
+test_leg_deepseek_v4_pro / distributional   test_leg_deepseek_v4_pro / scalar
+test_leg_nemotron_3_super / distributional  test_leg_nemotron_3_super / scalar
+```
+
+**All six DISCRIMINATED to a cause from the driver logs and PROVEN-BENIGN: every one is waiting on an
+upstream pipeline stage, not dead.** Core is still in C1 (`c1_tpe_c27` submitted 09:39:18) and its C2
+`h2_pair` fires only after the serial chain; deepseek's newest submission is `placebo_shuffled_test`;
+nemotron's is `scalar_cvar5_test`, its fifth arm having only just frozen. **The detector works, it
+named the right arms, and none of them is a fault — which is exactly the outcome that proves it can
+be trusted when one of them is.**
+
+### ⚠ E-spend — `spend=$45.5019` IS 80.7% A MODEL ESTIMATE, AND THE CONFIRMATORY LINE IS 100% OF IT
+
+Measured across all 12 ledgers, 2,956 rows, 0 unparseable:
+
+| class | rows | USD |
+|---|---:|---:|
+| `realized` (provider-reported) | 2,127 | **$8.7603** |
+| `estimated-from-planning-prices` | 829 | **$36.7418** |
+| printed as one figure | 2,956 | $45.5019 |
+
+`c1` — the confirmatory line — is **$23.6502 and entirely estimated**. `src/llm/client.py:1139` falls
+back to `tokens x config/legs.yaml planning_prices` whenever the transport surfaces no
+`last_cost_usd`, and `campaign_guards.py:284` sums the two classes indiscriminately, printing to four
+decimal places, which reads as measurement precision. **This is a write-up integrity item rather than
+an ops one:** Raad's cost-discipline point and Okhrati's compute-reporting mechanic both land on this
+number, and the split already exists in every row's `note` field. **ESCALATED TO TAMER: the
+dissertation must state $8.76 realized plus $36.74 estimated, never the pooled figure alone.**
+
+### ⚠ E-wc / P277 — 87.9% OF THE ARCHIVE WAS CERTIFIED BY A CHECK THAT SKIPPED IT
+
+`record_provenance_seal.py:234` guarded with `if isinstance(wc, (int, float)) and wc > 0:`. Measured
+**exhaustively rather than sampled**: `wall_clock == 0` on **all 11,082 sealed-test records** and all
+58 frozen markers, `absent 0`, `anything else 0`. The search tier is fine (400/400 sampled non-zero,
+10,338–40,584 s). So the `> 0` guard excluded the only implausible value that actually occurs, the
+plausibility band ran on the search tier alone, and the banner said *"every wall_clock is plausible"*
+about the whole archive.
+
+**FIXED AND FALSIFIED ON THE LIVE ARCHIVE.** The shipped layer now prints
+`P4 WALL-CLOCK POPULATION: checked 1,539 | ZERO 11,154 | absent 0`, the banner reads *"every
+wall_clock the band could be applied to (1,539 of 12,693) is plausible"*, and the per-tier breakdown
+is printed. **The pre-fix code printed no population line at all.** Layer rc=0, ruff clean, AST
+parsed before the run, ASCII only.
+
+**⇒ THE COMPUTE IS NOT LOST, and that is the part the write-up needs.** Per-task wall time is
+recorded in `outputs/campaign_cluster_run4/ledger/*.epilogue.jsonl` as `"secs"` across **3,207
+files** (`{"task":1,"host":"node-d00a-105...","rc":0,"secs":28819,...}`). Okhrati explicitly docks
+missing wall-clock compute reporting, so this is a grade-relevant provenance gap **with a working
+substitute**. The writer lives in drift-fenced `src/` and cannot be repaired for records already
+written.
+
+### P278 — A RE-TRIAGE TRIGGER THAT COULD NEVER *NOT* BE BREACHED
+
+An auditor reported the `guard:transport` acknowledgement's own trigger — *"timeout_events rising
+above 31"* — as breached at **179**, and flagged it as live and actionable. **Worked to a cause
+instead of acted on, and the cause is the trigger.** `timeout_events` is a monotone lifetime count
+over append-only driver logs, so once crossed it is breached for ever and carries no information.
+Measured by hour: every event on 2026-08-04 is `1 consecutive, 0–1 min down` and self-recovering, 11
+in the busiest hour against **57 in a single hour on 08-03** and 1–2 per hour overnight; the `240
+consecutive` inside the guard is the Aug-3 VPN outage preserved by a lifetime `max`. The trigger is
+restated on a rolling window so it can clear. **Sixth appearance of the counter-that-cannot-go-down
+family** (P259 `RED`, P262 `guards=2`, W1's CUSUM, P266's streak, sentinel's latched CUSUM).
+
+### ⚠ P275 — `session_preflight --full` IS ITSELF A 4.7 GB PROCESS, AND P270 DOES NOT COVER IT
+
+Sampled from PowerShell while my own opening preflight ran: working set
+**3,171 → 3,296 → 2,975 → 4,017 → 4,016 → 2,833 MB**, peak observed **4,676 MB**, **free RAM floor
+0.14 GB** on the 15.64 GB box that also hosts ~30 driver and supervisor processes. That is larger
+than any single tool P270 measured (1,603 / 1,475 / 1,396 MB), and P270's serialisation mitigation
+does not touch it because preflight is not one of the two tools it serialised. **This is the command
+every session and every playbook runs first — including the Aug-11 pre-maintenance check, i.e. the
+one moment the box can least absorb it.**
+
+**Left OPEN deliberately, with a named next action rather than a rushed patch.** P268 is the standing
+lesson about editing a live instrument under time pressure, and the honest next step is to attribute
+the peak to a specific preflight row before changing anything. Recorded so it cannot age silently.
+
+### ★ SPEED — SLOTS AT A CAMPAIGN HIGH, AND THE TRAILING DIP WORKED TO A CAUSE
+
+| when (UTC) | rec/h 12h | rec/h 24h | slots | run/queue | 1-line | chain owed | rung 403 | rung 568 |
+|---|---:|---:|---:|---|---:|---|---|---|
+| 11:20 | 168.1 | 170 | 1,768 | 221/128 | 63% | bayes_opt 3 | 08-09 08:13 | 08-11 17:52 |
+| **12:00** | 164.7 | 159.0 | **2,018** | 242/90 | 70% | bayes_opt 3 | 08-09 10:39 | 08-11 21:30 |
+
+**Slots reached 2,018, a campaign high** (+250, +14%), the queue drained 128 → 90, and the `qstat
+-xml` state census reads `r 242 / qw 88 / Rq 2` with **zero `Eqw` and zero `hqw`**. The trailing rates
+fell while slots rose, which is the line-handover shape already recorded as SPEED-1 and SPEED-3: a
+newly dispatched pack-8 job holds slots for 8–15 h before its first record lands. `stage_eta` states
+the binding fact directly — **90% of the rung-568 backlog sits on cells that produced nothing in the
+12 h window**, i.e. behind a stage barrier that no redirected core accelerates. Critical-chain floor
+**0.56 d still to run**. **22.5 days to the Aug-27 stop.** Nothing to fix.
+
+⚠ **A CENSUS FACT EVERY FUTURE SESSION NEEDS: `line_balance.cluster_jobs()` counts ONLY exact `r` and
+`qw`, so the two `Rq` jobs live right now are invisible to it.** Use `qstat -u ucestes -xml` for any
+census that needs the arm token or a complete state distribution.
+
+**FUTURE.** The reported result stays **0** until core clears C1 and runs its `h2_pair`, and until
+glm, kimi, nemotron and deepseek do the same — all four now confirmed as pipeline-stage waits rather
+than faults, by the new detector. The 30-minute loop is re-armed at `7,37 * * * *` carrying the
+STEP 0–6 contract. **Still open and named:** P275 (profile the preflight peak), the remaining
+record-layer repairs an auditor enumerated but this pass did not reach (vacuity guards on six layers
+that print CLEAN over an empty population, S10's banked rung computed over a population that excludes
+the 11 H1 baselines and disagrees with S15 per line, R8's NaN comparison that passes silently, R7's
+collapsed dict key, L6's case-sensitive `"CVaR" in prompt` pre-filter), and the fenced escalations
+E-sent / E-spend / A6 / W1-D36. Myriad maintenance is **Wed 12 Aug, possibly into Thu 13**. Detail:
+`docs/ops/watch/FLAWLESS_LEDGER.md`. Next P-number: **P279**.
+
+**⇒ THE LESSON THIS PASS EARNED: A HANDOVER'S DESIGN IS A HYPOTHESIS, NOT A SPECIFICATION.** RUN 19
+described A-d14's fix precisely and confidently, and the fix was not buildable as described because a
+fact nobody had checked — that `qstat` truncates its own output to ten characters — sat underneath it.
+The same shape appears three more times in this pass: a glob that matches zero files, a loop over two
+of forty-one directories, and a guard whose `> 0` excluded the only value that occurs. **Every one is
+a check that was believed to be running and was not, and not one of them announced itself.** The
+question that finds them is the same one RUN 19 wrote down: not *is the arithmetic right*, but
+**what is NOT in the set, and would including it change the verdict.**
+
 ## [2026-08-04c] ★★★★★ WRITE-UP (study + audit session) — **THE HANDOVER SURVIVED ALL TEN OF ITS OWN AUDIT CHECKS, AND THE AUTHORITY MAP DID NOT** · the write-time registry line has now understated the registry twice, the same way both times, and this time it was hiding the whole of Stefan's feedback · **and the word over-run is roughly twice what the gate reports, because ~2,900 words of running argument sit in files the counter never opens**
 
 **PAST.** Continues `[2026-08-04a]`, the write-up lane's exposé session, whose handover
