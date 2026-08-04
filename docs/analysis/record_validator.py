@@ -162,21 +162,44 @@ def validate(rel: Path, rec: dict, winners: dict | None = None) -> list[str]:
         bad.append(f"R7 series length disagreement: {lens}")
 
     # R8 ------------------------------------------------------------------------------
+    # ⚠ P283, 2026-08-04. THIS CHECK -- the one the docstring calls the endpoint-replay proof, and
+    # the ONLY thing standing between a corrupted return series and a CLEAN certification -- USED TO
+    # PASS SILENTLY ON EVERY NaN. `abs(NaN - x) > 1e-9` evaluates to **False**, so one non-finite
+    # element anywhere in `test_returns` made `mu`, `sd`, `sh` and `cv` all NaN and BOTH comparisons
+    # quietly succeeded. The writer (`src/inference/bootstrap.py::sharpe_ratio`) drops non-finite
+    # values before computing, so it would archive a perfectly valid statistic over the finite
+    # points while this replay silently agreed with anything at all.
+    # The fix is to make non-finiteness a POSITIVE finding on both sides rather than an accident of
+    # IEEE comparison semantics: a non-finite input, a non-finite replay, or a non-finite archived
+    # value each raise their own violation. This is the fail-open family, in the one check whose
+    # whole purpose is to catch a wrong number.
     tr = rec.get("test_returns")
     if isinstance(tr, list) and tr and "test_sharpe" in mt and "test_cvar05" in mt:
         xs = [float(v) for v in tr]
-        n = len(xs)
-        mu = sum(xs) / n
-        sd = math.sqrt(sum((x - mu) ** 2 for x in xs) / n)
-        sh = 0.0 if sd == 0 else mu / sd * math.sqrt(252)
-        k = math.ceil(0.05 * n)
-        cv = sum(sorted(xs)[:k]) / k
-        if abs(sh - float(mt["test_sharpe"])) > 1e-9:
-            bad.append("R8 test_sharpe does not reproduce "
-                       f"(|d|={abs(sh - float(mt['test_sharpe'])):.3e})")
-        if abs(cv - float(mt["test_cvar05"])) > 1e-9:
-            bad.append("R8 test_cvar05 does not reproduce "
-                       f"(|d|={abs(cv - float(mt['test_cvar05'])):.3e})")
+        n_bad = sum(1 for x in xs if not math.isfinite(x))
+        if n_bad:
+            bad.append(f"R8 test_returns holds {n_bad} non-finite value(s) of {len(xs)} "
+                       "-- the replay cannot be performed and MUST NOT read as agreement")
+        else:
+            n = len(xs)
+            mu = sum(xs) / n
+            sd = math.sqrt(sum((x - mu) ** 2 for x in xs) / n)
+            sh = 0.0 if sd == 0 else mu / sd * math.sqrt(252)
+            k = math.ceil(0.05 * n)
+            cv = sum(sorted(xs)[:k]) / k
+            for label, got, want in (("test_sharpe", sh, mt["test_sharpe"]),
+                                     ("test_cvar05", cv, mt["test_cvar05"])):
+                try:
+                    ref = float(want)
+                except (TypeError, ValueError):
+                    bad.append(f"R8 {label} is not a number: {want!r}")
+                    continue
+                # a non-finite ARCHIVED value would also make the comparison vacuously true
+                if not math.isfinite(ref) or not math.isfinite(got):
+                    bad.append(f"R8 {label} comparison is non-finite (replay={got!r}, "
+                               f"archived={ref!r}) -- a silent pass, not an agreement")
+                elif abs(got - ref) > 1e-9:
+                    bad.append(f"R8 {label} does not reproduce (|d|={abs(got - ref):.3e})")
 
     # R9 ------------------------------------------------------------------------------
     if winners is not None and tier.startswith("test") and len(parts) >= 2:
