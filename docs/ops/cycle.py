@@ -1437,7 +1437,20 @@ def main() -> int:
                # byte-identical to its neighbours. The new/known split already existed; it
                # just never reached this line.
                f"guards={len(new_guards)}n/{len(known_guards)}k  "
-               f"arms_full={full_lines}/10  budget={bud_rc}  stalest={stalest:.1f}m  "
+# C1-loop / P271: this token has read EXACTLY 10/10 on all 5,038 lines ever written, and
+               # it describes neither what its name claims nor the current stage:
+               #   * the arm regex requires a MIDDLE segment, so ALL 380 `c1_*` entries match
+               #     ZERO times -- the CONFIRMATORY line never enters the map, and the
+               #     `if line == "c1": continue` branch in arm_coverage.py is DEAD CODE;
+               #   * 65% of the registry (2,817 of 4,331) is unparseable, because C4 sweep
+               #     batches carry no arm token -- it measures the SEARCH stage, now over;
+               #   * it is a monotone high-water mark over entries that are never removed,
+               #     so it means "did this arm EVER ship a batch" and saturated days ago.
+               # The VALUE is now self-describing rather than the KEY renamed: three
+               # consumers parse this by string and `health_watch.sh` empties SILENTLY if
+               # the key vanishes. NOT recency-gated -- in C4 that would read 0/10 forever
+               # and pin the alert permanently RED, the pathology P259 just removed.
+               f"arms_full={full_lines}/10legs-ever  budget={bud_rc}  stalest={stalest:.1f}m  "
                # ⚠ THE TOKEN MUST CARRY BOTH ARMS (RUN 9, record §98). This printed `len(drift)` —
                # the COMMITS-only arm — so the cycle log and Tamer's status page both read `drift=0`
                # while three drift-fenced files sat MODIFIED in the working tree. The uncommitted
