@@ -42,10 +42,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SEED_DIR = re.compile(r"-s\d+$")
 
-rows: list[tuple[str, str, str, bool, bool]] = []   # (id, what, evidence, ok, skipped)
+rows: list[tuple[str, str, str, bool, bool, bool]] = []   # (id, what, ev, ok, skipped, info)
 
 
-def add(cid: str, what: str, evidence: str, ok: bool, skipped: bool = False) -> None:
+def add(cid: str, what: str, evidence: str, ok: bool, skipped: bool = False,
+        info: bool = False) -> None:
     """Record a row. `skipped` is a THIRD state and the verdict must enumerate it.
 
     ⚠ A SKIPPED CHECK WAS RECORDED AS OK AND THE VERDICT SAID "every expected relationship HOLDS"
@@ -55,7 +56,12 @@ def add(cid: str, what: str, evidence: str, ok: bool, skipped: bool = False) -> 
     S15 printed 0, the gated layer reading high). So the file's headline sentence was strongest
     exactly where its evidence was absent. Skipped rows are now counted and named in the verdict.
     """
-    rows.append((cid, what, evidence, ok, skipped))
+    #: `info` is a FOURTH state, and it exists because I created the very defect the `skipped`
+    #: state was added to prevent, in the same commit. A7 passed `ok=True` unconditionally while its
+    #: own evidence string said the relationship did NOT hold -- so the verdict counted it among the
+    #: "relationships that hold". A row that can never fail is not evidence of anything and must not
+    #: be counted as any. INFO rows are reported, excluded from the holds count, and named.
+    rows.append((cid, what, evidence, ok, skipped, info))
 
 
 # ------------------------------------------------------------------ the instruments' own rules
@@ -255,7 +261,11 @@ def run(root: Path, deep: bool) -> int:
         add("A5", "spend: the board's printed total vs the sum over spend_ledger_*.jsonl",
             "SKIPPED -- STATE.json describes the LIVE root only, and --root is %s" % root,
             True, skipped=True)
-        add("A6", "frozen-winner roster: STATE.json vs the `*-winner` directories on disk",
+        add("A6", "frozen-winner roster (LLM arms): STATE.json vs the `*-winner` dirs on disk",
+            "SKIPPED -- same reason", True, skipped=True)
+        # ⚠ A6b USED TO VANISH ENTIRELY ON THIS PATH -- not skipped, not reported, simply absent.
+        # A row that disappears is strictly worse than one that fails, because nothing names it.
+        add("A6b", "frozen-marker roster (EVERY arm): STATE.json vs the `*-winner` dirs on disk",
             "SKIPPED -- same reason", True, skipped=True)
     led = sorted((root).glob("spend_ledger_*.jsonl"))
     try:
@@ -270,7 +280,14 @@ def run(root: Path, deep: bool) -> int:
         tot = real = est = 0.0
         n_rows = n_bad = 0
         for f in led:
-            for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            # An unguarded read here raised out of run() and printed NO verdict for ANY row -- the
+            # fail-by-crash shape this file's own A7 comment says it closed elsewhere.
+            try:
+                _text = f.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                n_bad += 1
+                continue
+            for line in _text.splitlines():
                 if not line.strip():
                     continue
                 try:
@@ -369,7 +386,7 @@ def run(root: Path, deep: bool) -> int:
             "so the fixed floor would today be computed over seeds that do not exist there (%s). "
             "This MUST read zero before the cross-model synthesis is computed at teardown (D60)."
             % (len(short), floor, ", ".join(short[:6])),
-            True)
+            True, info=bool(short))
 
     # ---- report -------------------------------------------------------------------------------
     print("=== INSTRUMENT AGREEMENT -- do tools reporting the SAME quantity agree? ===")
@@ -379,17 +396,25 @@ def run(root: Path, deep: bool) -> int:
     print()
     bad = 0
     skipped_ids: list[str] = []
-    for cid, what, ev, ok, was_skipped in rows:
+    info_ids: list[str] = []
+    for cid, what, ev, ok, was_skipped, is_info in rows:
         bad += 0 if ok else 1
         if was_skipped:
             skipped_ids.append(cid)
-        print("  [%s] %-4s %s" % ("SKIP" if was_skipped else ("OK " if ok else "FAIL"), cid, what))
+        elif is_info:
+            info_ids.append(cid)
+        tag = "SKIP" if was_skipped else ("INFO" if is_info else ("OK " if ok else "FAIL"))
+        print("  [%s] %-4s %s" % (tag, cid, what))
         print("         %s" % ev)
     print()
     if bad == 0:
-        n_ran = len(rows) - len(skipped_ids)
+        n_ran = len(rows) - len(skipped_ids) - len(info_ids)
         print("VERDICT: every expected relationship that WAS CHECKED holds (%d of %d row(s))."
               % (n_ran, len(rows)))
+        if info_ids:
+            print("  .. REPORTED, NOT ASSERTED: %s. These carry a measurement rather than a"
+                  % ", ".join(info_ids))
+            print("     relationship that can fail today, and are counted as neither.")
         if skipped_ids:
             print("  !! NOT CHECKED THIS RUN: %s. A skipped row is not evidence, and this sentence"
                   % ", ".join(skipped_ids))

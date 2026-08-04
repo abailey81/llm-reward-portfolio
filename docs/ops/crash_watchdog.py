@@ -181,7 +181,10 @@ def scan() -> list[dict]:
                 dead.append({"line": line, "arm": arm, "crashed_utc": cts.strftime("%Y-%m-%dT%H:%M:%SZ"),
                              "age_h": round((dt.datetime.utcnow() - cts).total_seconds() / 3600.0, 1),
                              # False => NO archive directory matched this line, so the record signal
-                             # was never evaluated. The alarm text must not claim it was.
+                             # was never evaluated. ⚠ THE FIELD WAS DEAD DATA UNTIL NOW: it was
+                             # recorded and never read, while the alarm went on asserting "no newer
+                             # records" for every dead unit regardless. A half-applied fix is worse
+                             # than none, because the register says the claim was corrected.
                              "record_signal_measured": measured})
     return dead
 
@@ -229,8 +232,15 @@ def report(quiet: bool = False) -> int:
     for d in sorted(dead, key=lambda x: -x["age_h"]):
         k = "%s/%s" % (d["line"], d["arm"])
         tag = "*** NEW ***" if k in new else "(known)"
-        msg = "DEAD UNIT %-12s %-22s %-24s crashed %s, %.1f h ago, no log activity and no newer records" % (
-            tag, d["line"], d["arm"], d["crashed_utc"], d["age_h"])
+        # ⚠ THIS ASSERTED A MEASUREMENT THAT MAY NEVER HAVE HAPPENED. `record_signal_measured` was
+        # added to record whether any archive directory matched this line at all -- and was then
+        # never read, while the string went on claiming "no newer records" for every dead unit. A
+        # half-applied fix is worse than none, because the register says the claim was corrected.
+        _rec = ("no newer records" if d.get("record_signal_measured", True)
+                else "THE RECORD SIGNAL COULD NOT BE MEASURED for this line (no archive directory "
+                     "matched it), so this verdict rests on the log alone")
+        msg = "DEAD UNIT %-12s %-22s %-24s crashed %s, %.1f h ago, no log activity and %s" % (
+            tag, d["line"], d["arm"], d["crashed_utc"], d["age_h"], _rec)
         _log(msg)
         print(msg)
     if new:
@@ -250,6 +260,21 @@ def _selftest() -> int:
         # THE false positive that made a first version report 7 dead when 1 was:
         ("batch-name-resumed",    ("placebo", [(later, "leg4_leg_qwen3_5_9b_placebo_g3")], 0), True),
         ("records-only-resumed",  ("bayes_opt", [(earlier, "bayes_opt")], 5), True),
+        # ⚠⚠ THE PREFIX PAIR, ABSENT UNTIL 2026-08-04 AND THE REASON THE BUG LIVED. The roster holds
+        # `scalar` INSIDE `scalar_cvar5` and `placebo` INSIDE `placebo_shuffled`, so `arm in unit`
+        # credited a crashed arm from a DIFFERENT arm's progress. The old cases used `bayes_opt` vs
+        # `c1_tpe_c22`, which share no prefix, so the suite passed throughout. These four are the
+        # control: the first two MUST be False and the second two MUST be True, and a revert to
+        # substring containment -- or to the token-split rule that was my own first, wrong fix --
+        # turns the first two True.
+        ("prefix-scalar-NOT-by-cvar5",
+         ("scalar", [(later, "leg8_leg_sonnet_5_scalar_cvar5_test_p01")], 0), False),
+        ("prefix-placebo-NOT-by-shuffled",
+         ("placebo", [(later, "leg8_leg_sonnet_5_placebo_shuffled_test")], 0), False),
+        ("prefix-scalar-BY-its-own-unit",
+         ("scalar", [(later, "leg8_leg_sonnet_5_scalar_test_p01")], 0), True),
+        ("prefix-cvar5-BY-its-own-unit",
+         ("scalar_cvar5", [(later, "leg7_leg_nemotron_3_super_scalar_cvar5_test_p01")], 0), True),
         # THE false negative records-alone would give (measured live on nemotron):
         ("log-only-resumed",      ("scalar_cvar5", [(later, "leg7_scalar_cvar5_g4")], 0), True),
         ("genuinely-dead",        ("bayes_opt", [(earlier, "c1_bayes_opt_c24")], 0), False),

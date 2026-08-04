@@ -190,6 +190,16 @@ def sweep(quiet: bool = False) -> bool:
         if verdict == SERVING:
             serving.append((host, ip, detail))
     status = "SERVING" if serving else "DOWN"
+    # ⚠⚠⚠ READ THE PREVIOUS VERDICT **BEFORE** WRITING THIS ONE. My first version of this fix
+    # appended the line and THEN called `_previous_verdict_was_down()`, which reads the tail of this
+    # same log -- so it matched its own just-written " SERVING " token and concluded the previous
+    # verdict was not DOWN. **THE BANNER COULD THEN NEVER FIRE AT ALL**, including on a genuine
+    # DOWN -> SERVING edge and including with no log present, which is the exact opposite of the
+    # documented safe direction. I replaced an over-firing banner (128 times) with a never-firing
+    # one, in the file whose only job is announcing recovery. Found by an auditor that ran `sweep()`
+    # end to end; my own falsifier had tested `_previous_verdict_was_down()` in ISOLATION and passed
+    # on all six cases. **Verify the ARTEFACT, not the component.**
+    was_down = _previous_verdict_was_down()
     line = "%s  %-9s  %s" % (stamp, status, "  ".join(parts))
     _append(line)
     if not quiet:
@@ -202,7 +212,6 @@ def sweep(quiet: bool = False) -> bool:
     # the value of the one banner that would matter. The banner now fires only on a genuine
     # DOWN -> SERVING edge, read from the previous verdict persisted in the log itself, so no new
     # state file is introduced and a lost log degrades to "announce once", never to "announce never".
-    was_down = _previous_verdict_was_down()
     if serving and was_down:
         banner_line = "%s  *** MYRIAD SSH IS BACK -- %d login node(s) serving ***" % (stamp, len(serving))
         _append(banner_line)

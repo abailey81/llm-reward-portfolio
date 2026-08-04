@@ -61,7 +61,7 @@ def slots_for(run_dir: Path, batch: str, cache: dict) -> tuple[int, int]:
 def tier_of_batch(batch: str) -> str:
     """Which tier did this batch belong to? SEARCH (8-thread DFO) or the sealed TEST leg (1-thread).
 
-    ⚠⚠ THIS PUBLISHED AN INVERTED SPLIT, AND `CLAUDE.md` NAMES THIS FILE AS THE SOURCE OF THE
+    !!!! THIS PUBLISHED AN INVERTED SPLIT, AND `CLAUDE.md` NAMES THIS FILE AS THE SOURCE OF THE
     WRITE-UP'S COMPUTE FIGURE (found 2026-08-04, RUN 21, by the blind-quality-report build).
     The C4 sweep -- the pipelined sealed-test stage, and the LARGEST test population in the
     campaign -- names its batches `<tag>_sweep_t<N>_p<NN>`, which matched none of the old patterns
@@ -74,6 +74,14 @@ def tier_of_batch(batch: str) -> str:
     a sweep, a per-arm and a generation batch -- so this is a TIER-ATTRIBUTION defect, not a
     total-compute one. That distinction matters: the headline compute number this file exists to
     produce was always right, and only its breakdown was wrong.
+
+    !! AND THE "TRUE SPLIT" FIGURE ABOVE WAS QUOTED FROM THE WRONG INSTRUMENT (auditor, same day).
+    `SEARCH 1,584 / 7,358 h` is `blind_quality_report`'s section-4 population -- rc==0 tasks ONLY,
+    with the canary folded back into SEARCH -- three lines above the paragraph explaining that the
+    canary gets its own label so it cannot inflate the search figure. **THIS file does not filter
+    rc**, and what it actually prints for run 4 is `SEARCH 1,771 / 7,410.0 h`, `TEST 1,623 /
+    15,257.7 h`, `CANARY 23 / 189.1 h`. Both readings are defensible; quoting one file's number in
+    another file's docstring is not. The transposition claim is unaffected either way.
 
     THE RULE IS NOW POSITIVE FOR SEARCH RATHER THAN NEGATIVE FOR TEST. The old form asked "does
     this look like a test batch, else SEARCH", so any unrecognised NEW batch name silently became
@@ -175,7 +183,7 @@ def main() -> int:
     print(f"\n  tasks with a non-zero exit code: {tr}")
     print(f"  tasks whose batch script could not be read for its slot count: {tn}"
           f"  ({'their CPU-hours are EXCLUDED, so the total is a lower bound' if tn else 'none'})")
-    print("\n  ⚠ BOUNDS: counts only tasks whose epilogue line was written AND pulled back.")
+    print("\n  !! BOUNDS: counts only tasks whose epilogue line was written AND pulled back.")
     print("    Running tasks and un-pulled ledgers are absent, and the campaign is LIVE,")
     print("    so every figure above is a LOWER BOUND on work completed to date.")
     print("    CPU-hours = secs × the batch's `-pe smp N` (slots actually held), not × pack.")

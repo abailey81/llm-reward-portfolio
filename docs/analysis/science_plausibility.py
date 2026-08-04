@@ -36,7 +36,7 @@ leak one:
   B3 range           each statistic inside a physically defensible band, pooled
   B4 degeneracy      any (line, arm) whose statistic is CONSTANT across >= 3 seeds -- the
                      signature of an inert loop, reported as a FLAG with no level attached
-  B5 simplex         test_alloc weights are non-negative and sum to 1
+  B5 simplex         test_alloc weights are non-negative and sum to AT MOST 1 (cash is the residual)
   B6 series          |daily return| < 1.0 and the series is not all-zero / all-identical
   B7 window          every test record holds the same series length (independent of L7)
   B8 turnover/gross  turnover in [0, 2] per period, gross exposure in [0, 5]
@@ -366,6 +366,17 @@ def _selftest() -> int:
         for s in range(4):
             mk(root, "test", "a", s, 1.1 + 0.01 * s, -0.02, good, [[0.9, 0.9]])
         check("S4 weights off the simplex are caught (B5)", render(scan(root)), 1)
+    # ⚠ S4 ALONE DID NOT DISCRIMINATE THE B5 FIX AND PASSED IDENTICALLY BEFORE AND AFTER IT: its
+    # fixture is ONE row, and the pre-fix code checked `rows[:1]`. A suite that cannot tell the bug
+    # from the fix is not a control. S4b puts a CLEAN first row in front of the breach, which is
+    # exactly the state `rows[:1]` was blind to -- a single rebalance step that oversubscribes.
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        for s in range(4):
+            mk(root, "test", "a", s, 1.1 + 0.01 * s, -0.02, good,
+               [[0.5, 0.5], [0.5, 0.5], [0.9, 0.9], [0.5, 0.5]])
+        check("S4b a LATE off-simplex row is caught, which rows[:1] could not see (B5)",
+              render(scan(root)), 1)
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         for s in range(4):
