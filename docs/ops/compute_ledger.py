@@ -137,10 +137,23 @@ MIN_SNAPSHOT_GAP_S = 6 * 3600
 #: current. Deliberately generous relative to MIN_SNAPSHOT_GAP_S: the point is not to nag on a
 #: routine gap, it is to stop a DAYS-old lower bound being quoted as the campaign's compute.
 _STALE_REPORT_H = 12.0
-#: The pack depth every driver actually requests (`--pack 8`, verified on the live command lines).
-#: `mean_slots_per_task` is documented as a cross-check against exactly this; nothing compared them.
-_EXPECTED_PACK = 8
-_PACK_TOLERANCE = 2.5
+#: ⚠⚠ P311-b: `_EXPECTED_PACK = 8` WAS THE WRONG CONSTANT AND THE COMMENT BESIDE IT WAS WRONG TOO.
+#: It read "the pack depth every driver actually requests, verified on the live command lines",
+#: which is true of TODAY and false of the only snapshot in the ledger: that row covers
+#: `begin=202607280000` to `2026-08-01T07:18Z`, and the campaign ran **`--pack 4` until 2026-07-31
+#: ~11:10 UTC** (`docs/CAMPAIGN_EXECUTION_RECORD.md:6689-6691`), so roughly 2.5 of those 3.4 days
+#: were pack 4. Two further reasons a single constant cannot be the expectation for a MEAN:
+#: a tier's tail packs are partly filled, and `mean_slots_per_task` is `cpu_s / wallclock_s`
+#: (`:215-223`) -- CPU-BUSY cores, not slots ALLOCATED -- so the requested width is a CEILING that
+#: start-up, teardown and idle can only pull below. At 8 +/- 2.5 the upper half of the band was
+#: physically unreachable and the tolerance was wider than the pack-4-to-pack-8 factor it would
+#: have needed to resolve, so it blessed the live 6.52 without explaining it.
+#:
+#: ⇒ ONLY THE FLOOR IS KEPT, because only the floor has a meaning that survives all of the above:
+#: the failure this cross-check's own docstring names is "it reads 1.0 while we are packing
+#: many-way", i.e. the accounting columns being read wrong or the jobs not getting a pack at all.
+#: An upper bound is NOT asserted, because no honest single value exists for a mixed-pack window.
+_MIN_PLAUSIBLE_PACK = 1.5
 
 #: Bound on the ssh call. Generous because the scan is genuinely slow, but finite so this can never
 #: wedge a caller.
@@ -335,11 +348,15 @@ def _report(path: Path = LEDGER_PATH) -> int:
     # "must land near the packing depth we actually requested" -- and NOTHING in this file ever
     # compared it to anything. A cross-check nobody performs is a comment, not a check.
     _pack = latest.mean_slots_per_task
-    if _pack and abs(_pack - _EXPECTED_PACK) > _PACK_TOLERANCE:
-        print(f"  *** PACKING MISMATCH: mean_slots_per_task={_pack:.2f} against the requested "
-              f"pack depth {_EXPECTED_PACK} (tolerance {_PACK_TOLERANCE}). Either the accounting "
-              "columns are being read wrong or the jobs did not get the width they asked for; "
-              "both make the CPU-hours figure untrustworthy.")
+    if _pack:
+        print(f"  packing: mean_slots_per_task={_pack:.2f} (cpu-BUSY cores per task, so the "
+              "requested pack width is a CEILING, not a target; and this window spans BOTH the "
+              "pack-4 and pack-8 eras, so no single expected value is honest)")
+        if _pack < _MIN_PLAUSIBLE_PACK:
+            print(f"  *** PACKING IMPLAUSIBLE: {_pack:.2f} < {_MIN_PLAUSIBLE_PACK}. This is the one "
+                  "failure the cross-check can name -- reading near 1.0 while we pack many-way "
+                  "means either the accounting columns are being read wrong or the jobs never got "
+                  "a pack. Both make the CPU-hours figure untrustworthy.")
     return 0
 
 

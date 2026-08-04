@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -153,14 +154,49 @@ def reflection_guard(root: Path, floor: float = 0.80) -> tuple[int, list[str]]:
     # The RUN 1 incident this guard exists to catch (241 prompts, 10 with the preamble) was a
     # PER-LINE event. The fleet floor stays exactly where it is -- this ADDS a per-line floor
     # rather than moving anything, so nothing is weakened.
-    starved = sorted(sub for sub in per_root
-                     if per_root[sub] >= _REFLECTION_MIN_N
-                     and per_root_shown[sub] / per_root[sub] < floor)
+    # ⚠⚠ P309-c: THE FIRST VERSION OF THIS PER-LINE FLOOR WAS ANTI-CORRELATED WITH THE SCIENCE AND
+    # SAT ONE RECORD FROM FIRING ON THE CAMPAIGN'S OWN REGISTERED FINDING.
+    #
+    # A missing preamble is NOT always a defect. `src/orchestration/parallel.py:1140` only advances
+    # `prev_block` `if best is not None`, and `:1046` falls back to the initial prompt when
+    # `prev_block is None` -- so a generation whose candidates were ALL REJECTED legitimately
+    # produces a following candidate with no reflection block. The weakest model therefore misses
+    # the preamble most, and the weakest model is the registered capability-gradient ANCHOR.
+    #
+    # MEASURED when the naive floor shipped: ten of eleven lines at 100.0%, and
+    # `search_leg_qwen3_5_9b` at **14/17 = 82.4% against an 80% floor** -- ONE more non-preamble
+    # candidate would have raised CRITICAL. Its three misses (`placebo-g2-c2`,
+    # `scalar_cvar5-g3-c2`, `scalar_cvar5-g3-c4`) are exactly the reject-fallback case, and that
+    # leg carries **112 of the campaign's 193 reject markers by design**. A guard that escalates
+    # BECAUSE the weak anchor is weak is worse than no guard: it teaches an operator to ignore it.
+    #
+    # THE DISCRIMINATOR IS A BOUND, NOT A LOOSENED THRESHOLD. Each rejected candidate can deprive
+    # AT MOST ONE later candidate of its preamble, so misses attributable to rejects are <= that
+    # line's reject count. If misses EXCEED the rejects, the deficit cannot be explained by the
+    # science and something is dropping the block -- which is the D1 collision this guard exists
+    # for (RUN 1: 241 prompts, 10 with the preamble, and nowhere near 231 rejects). The floor
+    # itself is UNCHANGED.
+    rejects_by_root = {sub.name: len(list(sub.glob("_rejects/*.json"))) for sub in _sub_roots(root)}
+    starved = []
+    for sub in sorted(per_root):
+        if per_root[sub] < _REFLECTION_MIN_N:
+            continue
+        misses = per_root[sub] - per_root_shown[sub]
+        if per_root_shown[sub] / per_root[sub] >= floor:
+            continue
+        if misses <= rejects_by_root.get(sub, 0):
+            lines.append(f"  {sub}: below the per-line floor, but {misses} miss(es) <= "
+                         f"{rejects_by_root.get(sub, 0)} reject(s) -- EXPLAINED by the reject "
+                         "fallback, which is the capability gradient, not a defect")
+            continue
+        starved.append(sub)
     if starved:
         lines.append(f"  *** PER-LINE STARVATION on {len(starved)} line(s): "
-                     + ", ".join(f"{s} {per_root_shown[s]}/{per_root[s]}" for s in starved))
+                     + ", ".join(f"{s} {per_root_shown[s]}/{per_root[s]} "
+                                 f"(misses {per_root[s] - per_root_shown[s]} > rejects "
+                                 f"{rejects_by_root.get(s, 0)})" for s in starved))
         lines.append("      The fleet mean can be healthy while a single line's reflection loop is")
-        lines.append("      OFF. The RUN 1 incident was per-line; so is this check now.")
+        lines.append("      OFF, and this deficit is NOT explained by that line's rejects.")
     return (2 if (frac < floor or starved) else 0), lines
 
 
@@ -214,9 +250,23 @@ def truncation_guard(root: Path) -> tuple[int, list[str]]:
 #: the totals are the real ones.
 _LEVEL_A = re.compile(r"\|\s*(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s*\|")          # "| WARNING |"
 _LEVEL_B = re.compile(r"\d{2}:\d{2}:\d{2}(?:,\d+)?\s+(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s")
-#: A new LOG RECORD starts with a date; anything else is a hard-wrapped continuation of the one
-#: above it (P309-b). Both log formats in these files begin the same way, so one pattern covers both.
-_RECORD_START = re.compile(r"^\d{4}-\d\d-\d\d ")
+#: A new LOG RECORD starts with a date -- OPTIONALLY PREFIXED BY POWERSHELL'S STDERR DECORATION.
+#:
+#: ⚠⚠ P309-c: MY FIRST VERSION OF THIS PATTERN WAS `^\d{4}-\d\d-\d\d ` AND IT SWALLOWED REAL
+#: RECORDS. PowerShell decorates the first stderr write of a re-launched driver process as
+#: `python.exe : 2026-07-28 23:09:19,022 INFO run_campaign_cluster: ...`. Those are NEW records, not
+#: wraps, and the rejoin appended each one to the record above it. MEASURED first-hand across the
+#: twelve live logs: **554 such records, and ALL 554 carry a level token** (h3 alone 349). An
+#: auditor's controlled A/B on identical text put the cost at **INFO -542**, and proved on a
+#: synthetic log that an `ERROR`/`CRITICAL` written by a driver DYING AT START-UP -- which is
+#: exactly when this prefix appears -- vanished from both the level census and the ERROR samples.
+#:
+#: ⇒ I FIXED A FALSE ALARM AND INSTALLED A FAIL-OPEN ON THE ERROR CHANNEL, the fourth time this
+#: project has done that. The comment I wrote beside it -- "Level counting is unaffected because a
+#: continuation line carries no level token and was never counted" -- was EMPIRICALLY FALSE and is
+#: recorded here rather than quietly deleted. The live WARNING/ERROR/CRITICAL delta happened to be
+#: zero, so nothing was hidden; the exposure was latent, and latent is not benign.
+_RECORD_START = re.compile(r"^(?:\S+\.exe : )?\d{4}-\d\d-\d\d ")
 
 
 def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, list[str]]:
@@ -232,7 +282,7 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
     that actually invalidated a run lives in `collision_guard`, where it belongs.
     """
     levels: Counter[str] = Counter()
-    timeouts = diag = timeout_mentions = 0
+    timeouts = diag = timeout_mentions = pull_failures = 0
     worst_consecutive = 0
     child_exited: Counter[str] = Counter()
     err_samples: list[str] = []
@@ -252,8 +302,10 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
         # once delivered.
         #
         # Rejoining continuations first is the same idiom `vanished_array_watch` and
-        # `transport_health` already use; this file simply never received it. Level counting is
-        # unaffected because a continuation line carries no level token and was never counted.
+        # `transport_health` already use; this file simply never received it.
+        # ⚠ A sentence claiming "level counting is unaffected" stood here and was FALSE -- see the
+        # P309-c note on `_RECORD_START`. Level counting IS affected by what counts as a record
+        # start, which is precisely why that pattern now admits the `python.exe : ` prefix.
         _recs: list[str] = []
         for _ln in text.splitlines():
             if _RECORD_START.match(_ln) or not _recs:
@@ -282,6 +334,16 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
                 timeouts += 1
             elif "timed out after" in line or "TimeoutExpired" in line:
                 timeout_mentions += 1
+            # ⚠⚠ P309-c, MAJOR-4: NARROWING TO `ssh_timeout_diagnostic` MADE THIS BLIND TO THE PULL
+            # PATH -- AND THE PULL PATH IS THE ONE THAT MATTERED IN RUN 1. That marker is emitted
+            # only from `src/cluster/submit.py:135` inside `ssh_runner._run`; the pull uses its OWN
+            # `Popen` + `subprocess.run(..., timeout=3600)` (`src/cluster/poll.py:185-190`), and
+            # `submit.py:57` says so in as many words. So a PULL timeout emits no diagnostic and
+            # became uncounted, where the pre-fix `"timed out after"` test would have caught it.
+            # Counted here under its own name rather than folded into the ssh events, because the
+            # two have different budgets (120 s against 3,600 s) and different meanings.
+            if "pull failed" in line:
+                pull_failures += 1
             c = re.search(r"\((\d+) consecutive", line)
             if c:
                 worst_consecutive = max(worst_consecutive, int(c.group(1)))
@@ -294,8 +356,21 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
     lines = [
         f"levels={dict(levels)} (both log formats counted)",
         f"timeout_events={timeouts} worst_consecutive={worst_consecutive} diagnostics={diag}",
-        f"  (+{timeout_mentions} looser 'timed out' MENTIONS in retry notes and the pull's own "
-        f"message -- counted separately because they are NOT one-per-event)",
+        # ⚠ P309-c: THIS LABEL WAS REFUTED BY MEASUREMENT. It said the looser matches were
+        # "retry notes ... NOT one-per-event". Measured per log they are 1:1 with the
+        # diagnostics on NINE of ten legs (gpt 24/24, haiku 25/25, qwen3_5 29/29, sonnet
+        # 25/25, ...): they are the SAME events' TimeoutExpired repr logged by the caller,
+        # plus six traceback records carrying both phrases. Naming them wrongly is how a
+        # reader concludes there were 351 events when there were 173.
+        f"  (+{timeout_mentions} further mentions of the SAME events -- the TimeoutExpired repr "
+        f"logged by the caller, measured 1:1 with the diagnostics on 9 of 10 legs)",
+        # ⚠ Each failed pull ATTEMPT logs its own line, so this is attempts, NOT outages: the driver
+        # retries every poll for up to 12 h. `worst_consecutive` above is the depth measure; this is
+        # the volume one. Labelled explicitly because "6,343 pull failures" invites exactly the
+        # misreading that "351 timeout events" already caused once in this file.
+        f"  failed pull ATTEMPTS (not outages -- one line per retry; depth is worst_consecutive "
+        f"above; the pull has its own 3600s budget and emits NO ssh_timeout_diagnostic): "
+        f"{pull_failures}",
     ]
     for s in err_samples:
         lines.append(f"  ERROR: {s}")
@@ -375,6 +450,20 @@ def rejects_guard(root: Path) -> tuple[int, list[str]]:
             if reject_rate > exp_reject + 0.35 and attempted >= 10:
                 rc = 2
                 note += "  *** far worse than its measured baseline"
+            # ⚠⚠ P310-b: THE BACKSTOP WAS IN THE `else` BRANCH, SO IT COVERED ONLY THE UN-KEYED
+            # LEGS -- AND LEFT THE ONE LEG MOST LIKELY TO COLLAPSE WITH NO REACHABLE THRESHOLD AT
+            # ALL. For a KEYED leg the only test was `reject_rate > exp_reject + 0.35`, and for
+            # `qwen3_5_9b` that is `0.83 + 0.35 = 1.18` against a rate that cannot exceed 1.0.
+            # **UNREACHABLE.** An auditor proved it on a synthetic root: that leg at 100% reject
+            # over 40 attempts printed `[rejects] ok`, rc=0, while the identical collapse on an
+            # un-keyed leg fired correctly. The leg holding 112 of the campaign's 193 reject
+            # markers was the single least-guarded thing on the panel, and my commit message said
+            # the backstop "sits well clear of the science" -- true, and it hid that the science
+            # leg had no guard. The backstop now applies to EVERY leg.
+            if reject_rate >= _UNIVERSAL_REJECT_BACKSTOP and attempted >= 10:
+                rc = 2
+                note += (f"  *** >= {_UNIVERSAL_REJECT_BACKSTOP:.0%} REJECT: beyond ANY registered "
+                         "expectation; suspect the machinery, not the model")
         else:
             # ⚠⚠ P310 (RUN 22 pass 3) -- SIX OF TEN LEGS COULD NEVER RAISE THIS GUARD.
             # `EXPECTED_PASS_RATE` holds FOUR keys from the 2026-07-25 gate campaign; for the other
@@ -397,6 +486,12 @@ def rejects_guard(root: Path) -> tuple[int, list[str]]:
                 note += (f"  *** >= {_UNIVERSAL_REJECT_BACKSTOP:.0%} REJECT: no capability gradient "
                          "explains this; suspect the machinery, not the model")
         lines.append(f"{leg}: rejects={markers} records={records} reject_rate={reject_rate:.0%}{note}")
+    # ⚠ P310-b MINOR: the NOTE used to be appended BEFORE the emptiness check, so a root with leg
+    # directories but zero attempts printed the NOTE and never the "no leg candidates resolved yet"
+    # message -- an operator would read a threshold caveat where they should read "nothing here yet".
+    if not lines:
+        lines.append("no leg candidates resolved yet")
+        return rc, lines
     _unthresholded = sorted(sub.name.replace("search_leg_", "")
                             for sub in root.glob("search_leg_*")
                             if sub.name.replace("search_leg_", "") not in EXPECTED_PASS_RATE)
@@ -404,9 +499,99 @@ def rejects_guard(root: Path) -> tuple[int, list[str]]:
         lines.append(f"  NOTE: {len(_unthresholded)} leg(s) carry NO measured expectation and are "
                      f"covered only by the {_UNIVERSAL_REJECT_BACKSTOP:.0%} backstop: "
                      + ", ".join(_unthresholded))
-    if not lines:
-        lines.append("no leg candidates resolved yet")
     return rc, lines
+
+
+def _selftest() -> int:
+    """Regression cover for P309/P309-b/P309-c/P310/P310-b. THIS FILE HAD NO TESTS AT ALL.
+
+    That is how four changes shipped in one pass with two fail-opens in them, and an auditor -- not
+    a test -- found them. Every case below FAILS against the version of the code it replaces, which
+    is the only property that makes a test worth having.
+
+    Fixtures use the driver's REAL grammar, hard-wrapped exactly as the PowerShell host writes it,
+    including the `python.exe : ` stderr decoration that defeated the first un-wrap.
+    """
+    import tempfile
+
+    fails: list[str] = []
+
+    # --- T1: an exe-prefixed ERROR is a RECORD, not a continuation (P309-c) -------------------
+    # Against `_RECORD_START = ^\d{4}-...` this record is glued to the line above and its ERROR
+    # vanishes from both the level census and the samples. That is the fail-open, on the ERROR
+    # channel, and it is what this case exists to stop.
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        (d / "driver_t1.log").write_text(
+            "2026-07-28 22:08:59 | INFO    | src.cluster.driver | [b] 0/1 done, 1 pending, round 0\n"
+            "python.exe : 2026-07-28 23:09:19,022 ERROR run_campaign_cluster: THE DRIVER DIED\n"
+            "2026-07-28 23:10:00 | INFO    | src.cluster.driver | [b] 0/1 done, 1 pending, round 0\n",
+            encoding="utf-8")
+        rc, out = transport_guard(d)
+        text = "\n".join(out)
+        if "'ERROR': 1" not in text:
+            fails.append(f"T1: an exe-prefixed ERROR record must be COUNTED\n{text}")
+        if "THE DRIVER DIED" not in text:
+            fails.append(f"T1b: it must also reach the ERROR samples\n{text}")
+
+    # --- T2: a KEYED leg collapsing to 100% reject must FIRE (P310-b) --------------------------
+    # Against the version where the backstop lived only in the `else` branch, the keyed leg's only
+    # test was `> exp_reject + 0.35` = 1.18, which no rate can reach. rc was 0 at 100% reject.
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        leg = d / "search_leg_qwen3_5_9b"
+        (leg / "_rejects").mkdir(parents=True)
+        for i in range(40):
+            (leg / "_rejects" / f"r{i}.json").write_text("{}", encoding="utf-8")
+        rc, out = rejects_guard(d)
+        if rc != 2 or "REJECT" not in "\n".join(out):
+            fails.append(f"T2: a KEYED leg at 100% reject must raise rc=2, got {rc}\n" + "\n".join(out))
+
+    # --- T3 + T4: the per-line reflection floor must separate REJECTS from a STARVED loop ------
+    # T3 is the science case (misses explained by rejects -> silent) and T4 is its CONTROL
+    # (misses exceed rejects -> fires). Without T4, T3 would pass against a check that had simply
+    # been disabled, which is the failure mode this whole pass was about.
+    def _refl_root(d: Path, sub: str, n: int, shown: int, rejects: int) -> None:
+        arm = d / sub / "scalar"
+        for i in range(n):
+            c = arm / f"scalar-g1-c{i}"
+            c.mkdir(parents=True)
+            p = REFLECTION_PREAMBLE + " ..." if i < shown else "Here is the environment interface"
+            c.joinpath("record.json").write_text(
+                json.dumps({"generation": 1, "prompt": p}), encoding="utf-8")
+        rj = d / sub / "_rejects"
+        rj.mkdir(parents=True, exist_ok=True)
+        for i in range(rejects):
+            rj.joinpath(f"r{i}.json").write_text("{}", encoding="utf-8")
+
+    # ⚠ BOTH FIXTURES CARRY A HEALTHY SECOND LINE, AND THE FIRST VERSION DID NOT. With one line
+    # only, the FLEET mean equals that line's ratio, so the fleet floor fired and T3 went red for a
+    # reason that had nothing to do with the per-line mechanism under test. A case must be able to
+    # move only through the thing it is named for. With 100/100 beside it the fleet reads 96.6% and
+    # 86.3% respectively -- comfortably above the floor -- so ONLY the per-line branch can decide.
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        _refl_root(d, "search_leg_weak", n=17, shown=13, rejects=112)   # 4 misses <= 112 rejects
+        _refl_root(d, "search_leg_healthy", n=100, shown=100, rejects=0)
+        rc, out = reflection_guard(d)
+        if rc != 0 or "STARVATION" in "\n".join(out):
+            fails.append(f"T3: misses explained by rejects must stay SILENT, got {rc}\n" + "\n".join(out))
+        if "EXPLAINED by the reject fallback" not in "\n".join(out):
+            fails.append("T3b: and it must SAY why it stayed silent\n" + "\n".join(out))
+
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        _refl_root(d, "search_leg_broken", n=17, shown=1, rejects=2)    # 16 misses > 2 rejects
+        _refl_root(d, "search_leg_healthy", n=100, shown=100, rejects=0)
+        rc, out = reflection_guard(d)
+        if rc != 2 or "STARVATION" not in "\n".join(out):
+            fails.append(f"T4 CONTROL: a starved line must fire WHILE THE FLEET IS HEALTHY, "
+                         f"got {rc}\n" + "\n".join(out))
+
+    for f in fails:
+        print("SELFTEST FAIL " + f)
+    print(f"selftest: {6 - len(fails)}/6 checks pass")
+    return 1 if fails else 0
 
 
 GUARDS = {
@@ -420,6 +605,9 @@ GUARDS = {
 
 
 def main() -> int:
+    # P309-c: `--selftest` takes no root, so it is handled before argparse demands one.
+    if "--selftest" in sys.argv:
+        return _selftest()
     ap = argparse.ArgumentParser(description="RUN 4 live guards")
     ap.add_argument("root", help="campaign output root, e.g. outputs/campaign_cluster_run4")
     ap.add_argument("guard", nargs="?", default="all", choices=[*GUARDS, "all"])
