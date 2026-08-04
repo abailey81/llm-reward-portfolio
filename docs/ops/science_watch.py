@@ -56,8 +56,11 @@ def _shrink(obj):
     ASSUMED. `test_returns` and `train_curve` occur on exactly ONE line in this file and only as a
     truthiness test. No element is indexed, summed or measured anywhere. Replacing a list by its
     LENGTH preserves that exactly -- an empty list becomes 0 (falsy), a non-empty list becomes a
-    positive int (truthy) -- while carrying strictly more information than a bool, and any future
-    code that tries to index or `len()` one FAILS LOUDLY rather than silently reading a wrong value.
+    positive int (truthy) -- while carrying strictly more information than a bool.
+    A future `len()` or index on one raises; ⚠ but a guard written as
+    `isinstance(x, (int, float))` ACCEPTS the replacement int, so the claim is 'raises on
+    indexing', NOT 'fails loudly everywhere' -- corrected by P297 after an auditor found the
+    over-claim. The direction is benign (such a guard admits more, suppresses nothing).
 
     The rule is STRUCTURAL, not a whitelist of field names, so a record schema that grows a new
     array is covered without anyone remembering to update a list.

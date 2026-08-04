@@ -84,7 +84,10 @@ def _shrink(obj):
     and `_shrink` touches only LISTS, so `reward_source` (a string) is untouched.
 
     Structural rather than a field whitelist, so a schema that grows a new array is covered without
-    anyone remembering. Any future code that indexes or `len()`s one FAILS LOUDLY.
+    anyone remembering. A future `len()` or index on one raises; ⚠ but a guard written as
+    `isinstance(x, (int, float))` ACCEPTS the replacement int, so the claim is 'raises on
+    indexing', NOT 'fails loudly everywhere' -- corrected by P297 after an auditor found the
+    over-claim. The direction is benign (such a guard admits more, suppresses nothing).
     """
     if isinstance(obj, list):
         if len(obj) > _BIG:

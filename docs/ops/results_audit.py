@@ -66,8 +66,11 @@ def _shrink(obj):
     test_exposure|test_alloc` finds no other reference anywhere in this file.
 
     The rule is STRUCTURAL rather than a whitelist of field names, so a record schema that grows a
-    new array is covered without anyone remembering to update a list. Any future code that tries to
-    index or `len()` one FAILS LOUDLY instead of silently reading a wrong value.
+    new array is covered without anyone remembering to update a list.
+    A future `len()` or index on one raises; ⚠ but a guard written as
+    `isinstance(x, (int, float))` ACCEPTS the replacement int, so the claim is 'raises on
+    indexing', NOT 'fails loudly everywhere' -- corrected by P297 after an auditor found the
+    over-claim. The direction is benign (such a guard admits more, suppresses nothing).
     """
     if isinstance(obj, list):
         if len(obj) > _BIG:
