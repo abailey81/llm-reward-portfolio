@@ -59,7 +59,10 @@ indistinguishable in a green board - P197/P213.
     python docs/analysis/record_seed_completeness.py --verbose
     python docs/analysis/record_seed_completeness.py --selftest
 
-EXIT: 0 every started arm is a contiguous prefix   1 a HOLE exists below some arm's frontier
+EXIT: 0 every REGISTERED arm holds a complete contiguous prefix
+      1 the seed set is INCOMPLETE somewhere -- a hole below a frontier (C1), a seed above the
+        ceiling (C4), a duplicate (C5), or a REGISTERED arm with no record at all (C6). All four
+        are NORMAL mid-campaign states; the discriminator is whether work is in flight.
       2 could not run, or inspected nothing
 """
 from __future__ import annotations
@@ -334,10 +337,21 @@ def report(root: str, verbose: bool = False) -> int:
     print()
     print("EFFECT-BLIND: directory names and counts only. No record was opened, no metric read.")
     print()
-    if holed or over or dupes:
+    # ⚠⚠ A5 -- C6 HAD NO PLACE IN THE EXIT CODE, so an archive with ZERO holes but registered arms
+    # banking 0 exited **0** and printed "VERDICT: CLEAN" (auditor, 2026-08-04). The condition C6
+    # was added to surface had no machine-readable signal at all, and it was masked only because 11
+    # arms happen to hold holes today. `unstarted` now sits alongside `holed` in exactly the same
+    # contract: both mean THE SEED SET IS INCOMPLETE SOMEWHERE, both are NORMAL mid-campaign, and
+    # both exit 1. That is deliberately NOT a new always-on alarm -- it is the same alarm the holes
+    # already raise, with the population corrected. Exit 0 now means what a reader assumes it means:
+    # every REGISTERED arm holds a complete contiguous prefix.
+    if holed or over or dupes or unstarted:
         # ⚠ This printed "N arm(s) hold a HOLE" even when the ONLY failure was C4 (a seed above the
         # ladder) or C5 (a duplicate). Naming the wrong check sends a reader to the wrong evidence.
         parts = []
+        if unstarted:
+            parts.append("%d REGISTERED arm(s) hold NO record at all and so bank rung 0 (C6)"
+                         % len(unstarted))
         if holed:
             parts.append("%d arm(s) hold a HOLE below their own frontier" % len(holed))
         if over:
@@ -360,7 +374,8 @@ def report(root: str, verbose: bool = False) -> int:
         print("  for a `round 2` submission before concluding anything -- measured 2026-08-03,")
         print("  gpt-5.6-luna sat job-less for 20 min and then repaired its own 8 seeds.")
         return 1
-    print("VERDICT: CLEAN -- every started arm is a contiguous prefix with no hole below its frontier.")
+    print("VERDICT: CLEAN -- every REGISTERED arm holds a complete contiguous prefix, with no")
+    print("  hole below any frontier and no registered arm left unstarted.")
     return 0
 
 
@@ -521,6 +536,33 @@ def selftest() -> int:
         check("Q2 the note names the arm that CAPS (rung 0), not the one with the most holes",
               bool(cap) and "arm_low" in cap[0] and "arm_many" not in cap[0],
               cap[0].strip() if cap else "NO LINE RENDERED")
+
+    # ---------------------------------------------------------------------------------------
+    # A5 -- C6 MUST REACH THE EXIT CODE. Fixture: a PERFECT contiguous arm (no hole anywhere) plus
+    # a registered arm with no records. Pre-fix this exited 0 and printed "VERDICT: CLEAN", so the
+    # condition C6 exists to surface had no machine-readable signal. It was masked live only
+    # because 11 arms happen to hold holes.
+    # ---------------------------------------------------------------------------------------
+    with tempfile.TemporaryDirectory() as td:
+        d = os.path.join(td, "test_leg_a5", "placebo")
+        for sd in range(30):
+            u = os.path.join(d, "placebo-s%d" % sd)
+            os.makedirs(u, exist_ok=True)
+            with open(os.path.join(u, "record.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+        os.makedirs(os.path.join(td, "frozen_leg_a5", "placebo-winner"), exist_ok=True)
+        rc_clean = report(td)
+        check("R1 a fully complete registered roster exits 0", rc_clean == 0, str(rc_clean))
+        # now register a SECOND arm and give it nothing. No hole is created anywhere.
+        os.makedirs(os.path.join(td, "frozen_leg_a5", "distributional-winner"), exist_ok=True)
+        d2 = scan(td)
+        holes_anywhere = sum(len(v["holes"]) for v in d2.values())
+        rc_unstarted = report(td)
+        check("R2 adding an UNSTARTED registered arm creates NO hole anywhere",
+              holes_anywhere == 0, "holes=%d" % holes_anywhere)
+        check("R3 yet the verdict FLIPS 0 -> 1, because that arm banks rung 0 (C6 reaches the exit)",
+              rc_clean == 0 and rc_unstarted == 1, "clean=%s unstarted=%s"
+              % (rc_clean, rc_unstarted))
 
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1
