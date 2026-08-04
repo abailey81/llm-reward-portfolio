@@ -67,15 +67,70 @@ RUN = REPO / "outputs" / "campaign_cluster_run4"
 STATE = REPO / "docs" / "ops" / "watch" / ".occupancy_watch_state.json"
 
 #: `[<batch>] <done>/<total> done, <pending> pending, round <n>` -- the driver's own progress line.
-PROGRESS = re.compile(r"\[([A-Za-z0-9_.\-]+)\]\s+(\d+)/(\d+) done,\s*(\d+) pending", re.M)
+#: ⚠⚠ P306-b -- EVERY LITERAL SPACE IN THESE PATTERNS IS A BUG, AND TWO OF THEM WERE.
+#: The driver log is hard-wrapped by the PowerShell host that runs the supervisor, and the wrap can
+#: fall immediately after the pending COUNT ("... done, 8 \npending, round 1") or inside "batch
+#: complete". This module collapses newlines to a SPACE, so those records arrive carrying DOUBLE
+#: spaces, and a pattern with a literal single space matches neither.
+#:
+#: MEASURED over the live logs, 2026-08-04 22:3xZ: the strict pattern saw 21,164 of 24,549 progress
+#: records -- **3,385 missed, 13.8%** -- and the damage is not spread evenly, it is concentrated:
+#:
+#:      line              owed as reported      owed in truth
+#:      glm-5_2                          1              2,691
+#:      kimi-k3                          2              2,692
+#:      deepseek-v4-pro                  0                 60
+#:
+#: A line owing 2,691 units and reported as owing 1 can never be flagged under-covered -- the ratio
+#: divides by a near-zero denominator, which is exactly why kimi printed **247.273**. So the
+#: instrument built to detect under-coverage was structurally blind to the two largest owing lines,
+#: and it failed toward OK. `vanished_array_watch` already carries this same lesson in its own
+#: SUBMITTED pattern ("a single-space pattern matched none of the 14 multi-array blocks"); this file
+#: was never given the fix. **A class fix is only as complete as the population you drew it over.**
+PROGRESS = re.compile(r"\[([A-Za-z0-9_.\-]+)\]\s+(\d+)/(\d+)\s+done,\s*(\d+)\s+pending", re.M)
+#: `[<batch>] batch complete: {...}` -- the driver's own end-of-batch announcement (P306). A batch
+#: that has printed this AFTER its last progress line owes nothing, whatever that progress line said.
+#: ⚠ `\s+`, not a literal space: this one wraps too. `[leg2_..._h2_pair_test] batch \ncomplete: {...}`
+#: is a REAL line from `driver_glm-5_2.log`, so a strict pattern would have under-corrected P306-a
+#: on precisely the batches that had just finished.
+COMPLETE = re.compile(r"\[([A-Za-z0-9_.\-]+)\]\s+batch\s+complete", re.M)
 #: A driver line is only current if it is recent; a dead driver's last line must not count as owed.
 STALE_LOG_MIN = 30.0
 
 
-def owed_by_line() -> tuple[dict[str, int], list[str]]:
-    """Units each line's driver currently says are pending, from the LAST line per batch."""
+def owed_by_line() -> tuple[dict[str, int], list[str], dict[str, int]]:
+    """Units each line's driver currently says are pending, from the LAST line per batch.
+
+    ⚠⚠ P306 (RUN 22 pass 2, 2026-08-04) -- A COMPLETED BATCH KEPT OWING WORK FOREVER, AND IT MADE
+    THIS FILE'S FLAGSHIP ALARM FIRE ON A HEALTHY LINE.
+
+    The driver announces a finished batch with `[<batch>] batch complete: {...}`. It does NOT emit a
+    final `0 pending` progress line, because completion is detected on the poll AFTER the last record
+    lands. So a batch's last PROGRESS line carries a non-zero `pending` for the rest of the log, and
+    summing "the last line per batch" counted work that no longer exists.
+
+    MEASURED on the live logs at 2026-08-04 22:2xZ, which is how it was found:
+
+        sonnet-5   owed = 63     truly pending = 10     53 units from FIVE COMPLETED batches
+                   (sweep_t1 11, t3 11, t4 10, t5 10, t6 11)
+
+    Its true ratio is 8 in-flight / 10 pending = **0.8**; the tool reported **0.127** and had
+    escalated it to `3 pass(es)` -- the ACTIONABLE state this module exists to raise. Campaign-wide
+    the phantom total was 90 of 5,692 units (1.6%), but it is CONCENTRATED on the lines that have
+    completed the most batches, i.e. exactly the lines furthest along.
+
+    ⚠ THIS IS A CORRECTNESS FIX, NOT A WIDENED THRESHOLD. The floor and the persistence count are
+    untouched. A batch that has completed owes nothing, so excluding it makes `owed` mean what this
+    module's own header already claims it means. The discriminator is POSITIONAL, not the mere
+    presence of a completion line: a batch can complete and then be re-entered in a later round, so
+    only a `batch complete` appearing AFTER that batch's last progress line counts as finished.
+
+    Returns `(owed, stale, dropped)`, where `dropped` is the per-line phantom total. It is REPORTED
+    rather than silently discarded -- a correction nobody can see is a correction nobody can check.
+    """
     owed: dict[str, int] = {}
     stale: list[str] = []
+    dropped: dict[str, int] = {}
     for log in sorted(RUN.glob("driver_*.log")):
         line = log.stem[len("driver_"):]
         try:
@@ -87,11 +142,19 @@ def owed_by_line() -> tuple[dict[str, int], list[str]]:
         if age_min > STALE_LOG_MIN:
             stale.append(line)          # COMPLETE lines land here too, and that is correct
             continue
+        flat = text.replace("\n", " ")
         last: dict[str, int] = {}
-        for m in PROGRESS.finditer(text.replace("\n", " ")):
+        at: dict[str, int] = {}
+        for m in PROGRESS.finditer(flat):
             last[m.group(1)] = int(m.group(4))
-        owed[line] = sum(last.values())
-    return owed, stale
+            at[m.group(1)] = m.start()
+        done_at: dict[str, int] = {}
+        for m in COMPLETE.finditer(flat):
+            done_at[m.group(1)] = m.start()
+        live = {b: k for b, k in last.items() if done_at.get(b, -1) <= at[b]}
+        owed[line] = sum(live.values())
+        dropped[line] = sum(last.values()) - owed[line]
+    return owed, stale, dropped
 
 
 def fleet() -> tuple[dict[str, tuple[int, int]], int, int] | None:
@@ -174,7 +237,7 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="accepted for symmetry; this tool is one-shot")
     args = ap.parse_args()
 
-    owed, stale = owed_by_line()
+    owed, stale, dropped = owed_by_line()
     got = fleet()
     print("=== OCCUPANCY WATCH -- is the fleet as large as the work we owe? ===")
     if got is None:
@@ -189,6 +252,14 @@ def main() -> int:
     hist = _load()
     print("  fleet: %d running slot(s), %d queued slot(s) across %d tag(s)" % (run_s, q_s, len(per)))
     print("  a QUEUED slot is work already accepted by the scheduler, so it counts as covered.")
+    # P306: state the correction rather than applying it invisibly. A reader comparing this table
+    # against a driver log must be able to see WHY the two differ.
+    _drop_tot = sum(dropped.values())
+    if _drop_tot:
+        _who = ", ".join(f"{k} {v}" for k, v in sorted(dropped.items()) if v)
+        print("  P306: %d unit(s) excluded from 'owed' because their batch has COMPLETED "
+              "(the driver prints 'batch complete', never a final '0 pending'): %s"
+              % (_drop_tot, _who))
     print()
     print("  %-20s %8s %10s %9s %7s %9s" % ("line", "owed", "in-flight", "queued", "ratio", "low for"))
     low_now: list[str] = []
@@ -236,5 +307,61 @@ def main() -> int:
     return 0
 
 
+def _selftest() -> int:
+    """Prove `owed` counts PENDING work and only pending work (P306).
+
+    This module shipped with NO test at all, which is how a completed batch could keep owing work
+    for a whole campaign and escalate a healthy line to the ACTIONABLE state. The fixture uses the
+    driver's REAL grammar, hard-wrapped exactly as the PowerShell host writes it, because every
+    parsing defect in this project has come from that wrapping.
+
+    Case C is the one that matters most: it is the control against OVER-correcting. A batch can
+    complete and then be re-entered in a later round, so a naive `if this batch ever completed:
+    skip it` would drop live work and blind the alarm in the opposite direction. Only a completion
+    that appears AFTER the batch's last progress line counts.
+    """
+    global RUN
+    import tempfile
+
+    body = (
+        # A -- completed AFTER its last progress line: owes NOTHING despite saying "8 pending".
+        "2026-08-04 20:00:00 | INFO | src.cluster.driver | [leg8_sweep_t1] 437/445 done, 8 \n"
+        "pending, round 1\n"
+        "2026-08-04 20:03:00 | INFO | src.cluster.driver | [leg8_sweep_t1] batch \n"
+        "complete: {'ok': True, 'completed': 445, 'total': 445, 'rounds': 1}\n"
+        # B -- never completed: owes its 5.
+        "2026-08-04 20:04:00 | INFO | src.cluster.driver | [leg8_sweep_t2] 440/445 done, 5 \n"
+        "pending, round 1\n"
+        # C -- completed EARLY, then re-entered: owes its 3. A presence-only test would say 0.
+        "2026-08-04 19:00:00 | INFO | src.cluster.driver | [leg8_sweep_t3] batch \n"
+        "complete: {'ok': True, 'completed': 100, 'total': 100, 'rounds': 0}\n"
+        "2026-08-04 20:05:00 | INFO | src.cluster.driver | [leg8_sweep_t3] 97/100 done, 3 \n"
+        "pending, round 2\n"
+    )
+    fails: list[str] = []
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        (d / "driver_x.log").write_text(body, encoding="utf-8")
+        saved, RUN = RUN, d
+        try:
+            owed, stale, dropped = owed_by_line()
+        finally:
+            RUN = saved
+    got, drop = owed.get("x"), dropped.get("x")
+    # 5 (B) + 3 (C) = 8. The pre-P306 code returns 8 + 8 (A) = 16 and drops nothing.
+    if got != 8:
+        fails.append(f"A+B+C: owed must be 8 (5 pending + 3 re-entered), got {got}")
+    if drop != 8:
+        fails.append(f"A: the completed batch's 8 phantom units must be REPORTED as dropped, got {drop}")
+    if stale:
+        fails.append(f"fixture must not be stale, got {stale}")
+    for f in fails:
+        print("SELFTEST FAIL " + f)
+    print(f"selftest: {3 - len(fails)}/3 checks pass")
+    return 1 if fails else 0
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(_selftest())
     raise SystemExit(main())
