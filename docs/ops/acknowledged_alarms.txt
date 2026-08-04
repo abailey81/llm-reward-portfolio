@@ -110,7 +110,27 @@ record_sanity:WARN
 # artifact to age-check". A start-up state, not a stall: there was nothing to age-check yet.
 silent_hang:UNKNOWN
 
-# gate_failure_drift WARN (CUSUM 0.21 > 0.15). TRIAGED 2026-07-30. The check is a CUSUM on the
+# gate_failure_drift WARN. *** RE-TRIAGED 2026-08-04: IT IS STRUCTURALLY PERMANENT AND CANNOT
+# EVER CLEAR. *** The 2026-07-30 triage below is correct but INCOMPLETE, and acting on it wastes a
+# session every time the CUSUM is re-noticed (0.21 -> 0.99 -> 2.56 -> 4.10 and still climbing).
+# THE PROOF, from scripts/sentinel.py:640 -- check_metric_drift("gate_failure", hist, 0.0, k=0.03,
+# h=0.15) -- with S_i = max(0, S_{i-1} + (x_i - target) - k):
+#     aggregate gate-failure rate = 257 lost / 1680 registered slots = 0.1530
+#     per-sample increment        = 0.1530 - 0.0 - 0.03 = +0.1230, STRICTLY POSITIVE
+#     samples to cross h=0.15     = 1.2   (the log says "since sample 2" -- an exact match)
+#     4.10 implies ~33 samples    (consistent)
+# So S rises without bound and can never return below h. This is the fifth appearance of the
+# "counter that cannot go down" pathology in this codebase (cf. P205, guard:transport, the
+# cumulative-ever timeout counter), and it is the always-on-alarm shape that let guards=2 hide P202
+# for 31 h: an alarm that can never clear trains its reader to ignore the channel.
+# ROOT CAUSE: target=0 encodes "we expect ZERO gate failures", but the campaign's own registered
+# expectation is NOT zero -- per-model authoring reliability runs 0% to 86% and that variation IS
+# THE SCIENCE (the capability gradient, D34). The target should be each model's own baseline.
+# ⛔ NOT FIXED HERE: scripts/sentinel.py is DRIFT-FENCED while the campaign is live. Registered as a
+# deferred fix; apply at the next legitimate deploy window. NO campaign result is affected -- this is
+# a monitor, and the underlying rates are measured correctly by docs/ops/authoring_reliability.py.
+#
+# ORIGINAL TRIAGE, 2026-07-30 (retained, and still true as far as it goes): The check is a CUSUM on the
 # AGGREGATE gate-failure rate against target 0, and its sibling's docstring reads "a rising rate is an
 # early sign of a systemic authoring fault". It is NOT systemic here — it is a MIXTURE artefact:
 #   qwen3.5-9b  41 of 54 rejects (76%), 92% rate vs its OWN registered ~83% baseline

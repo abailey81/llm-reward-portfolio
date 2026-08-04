@@ -2161,3 +2161,37 @@ matched-budget claim look violated when it is not.
 **WHY DEFERRED:** `scripts/**` is drift-fenced while the campaign is live, and the analysis does not
 run until the campaign ends — so there is no reason to take drift now. **Fix it BEFORE the headline
 analysis, in the same pass as D32.**
+
+---
+
+## D36 — `gate_failure_drift` is a CUSUM that can never clear (found 2026-08-04, RUN 19 pass 5)
+
+**WHAT.** `scripts/sentinel.py:640` runs
+`check_metric_drift("gate_failure", g("gate_failure_history"), 0.0, k=0.03, h=0.15)`.
+The statistic is `S_i = max(0, S_{i-1} + (x_i - target) - k)` with **target = 0**.
+
+**WHY IT CANNOT CLEAR, arithmetically.** The aggregate gate-failure rate is **0.1530**
+(257 lost candidates of 1,680 registered slots, from `docs/ops/authoring_reliability.py`). So every
+sample adds `0.1530 - 0.0 - 0.03 = +0.1230`, which is strictly positive. `S` therefore rises without
+bound and can never return below `h = 0.15`. It crosses after **1.2 samples**, and the sentinel log
+says *"since sample 2"* — an exact match. Observed climb: **0.21 → 0.99 → 2.56 → 4.10**, still going.
+
+**WHY IT IS A DEFECT AND NOT JUST NOISE.** This is the fifth appearance in this codebase of the
+"counter that cannot go down" pathology (cf. P205, `guard:transport`, the cumulative-ever timeout
+counter). An alarm whose WARN state is structurally permanent carries no information and trains its
+reader to ignore the channel — the exact shape that let `guards=2` conceal P202 for 31 hours.
+
+**ROOT CAUSE.** `target = 0` encodes *"we expect ZERO gate failures"*. The campaign's own registered
+expectation is not zero: per-model authoring reliability runs from **0 % (sonnet) to 86 %
+(qwen3.5-9b)**, and that variation **is the science** — it is the capability gradient the study
+measures (D34). A drift alarm against 0 is asking the wrong question.
+
+**THE FIX (for the next deploy window).** Compare each model against **its own baseline** rather
+than against 0 — i.e. per-line CUSUMs with `target` set from that line's measured/registered
+authoring reliability, so the alarm fires when a model departs from ITSELF. The 2026-07-30 triage in
+`docs/ops/acknowledged_alarms.txt` already identified the mixture structure; it acknowledged the
+alarm instead of correcting the target.
+
+**WHY DEFERRED.** `scripts/**` is drift-fenced while the campaign is live. **No campaign result is
+affected** — this is a monitor, and the rates themselves are measured correctly and independently by
+`docs/ops/authoring_reliability.py`. Apply alongside D32/D35 before the headline analysis.
