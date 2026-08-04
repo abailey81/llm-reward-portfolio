@@ -122,7 +122,11 @@ for spec in "M1_authoring_reliability docs/ops/authoring_reliability.py" \
   end=$(date -u +%s)
   note=""
   [ "$name" = "M2_r115_threshold" ] && [ "$rc" -eq 1 ] && note="  <- EXPECTED: the registered claim IS falsified; a DISCLOSURE, not a regression"
-  [ "$name" = "M3_seed_completeness" ] && [ "$rc" -eq 1 ] && note="  <- holes exist. NORMAL during pipelined C4. Actionable ONLY if the line has ZERO jobs -- check line_balance."
+  # ⚠ Since A5 (2026-08-04) M3 exits 1 for EITHER a hole below a frontier OR a REGISTERED arm
+  # with no record at all (C6). Naming only holes sent a reader to the wrong evidence -- the
+  # same defect this file has now fixed twice in its own verdict lines. Read M3's own VERDICT
+  # line, which names which condition fired.
+  [ "$name" = "M3_seed_completeness" ] && [ "$rc" -eq 1 ] && note="  <- an INCOMPLETE seed set: a hole below a frontier, and/or a REGISTERED arm with no record (C6). BOTH are NORMAL mid-campaign. Actionable ONLY if the line has ZERO jobs -- check line_balance. Read M3's VERDICT line for which fired."
   [ "$rc" -eq 2 ] && note="  <- RC=2 means the check could not run or inspected NOTHING. Investigate."
   printf '%-26s RC=%-3s (%3ss)  %s%s\n' "$name" "$rc" "$((end-start))" "${OUTDIR}/measure_${name}.out" "$note"
 done
