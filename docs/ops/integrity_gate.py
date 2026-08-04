@@ -124,9 +124,15 @@ def load(root: Path) -> tuple[dict, list, list, list]:
             continue
         try:
             rec = json.loads(Path(dirpath, "record.json").read_text(encoding="utf-8"))
-            rec = _shrink(rec)   # P291: long arrays -> their lengths; no field read here is a list
         except Exception:                                # noqa: BLE001
             continue
+        # ⚠ P294: `_shrink` runs OUTSIDE the `try` above, deliberately. My P291 patch put it INSIDE,
+        # so a `_shrink` failure would have been swallowed by the same `except` that catches an
+        # unreadable file -- silently dropping a record from I1-I4 while the gate still printed
+        # "all clean". Wrong file to have that in: this is the CONFIRMATORY-path gate. `results_audit`
+        # and `science_watch` both call it outside their try; this now matches them, and a `_shrink`
+        # failure raises loudly instead of costing a record.
+        rec = _shrink(rec)
         rec["_lane"] = _lane(parts[0])
         rec["_stage"] = _stage(parts[0])
         rec["_top"] = parts[0]

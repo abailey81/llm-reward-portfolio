@@ -258,6 +258,27 @@ for rec_path in ROOT.rglob("record.json"):
         if ppnl == tret:                 # a BOOLEAN. No element is read out, compared or printed.
             pnl_identical += 1
 
+# ⚠ P286 + P294, 2026-08-04. ZERO IS NOT CLEAN -- BUT ZERO-NEW IS NOT ZERO, AND MY FIRST VERSION
+# OF THIS GUARD CONFLATED THEM. `rglob` over a missing or empty tree returns an empty iterator and
+# raises nothing, so an absent archive used to produce exactly the output a perfect one produces,
+# and the archive is a PULL MIRROR, so "not here yet" is reachable. That part was right.
+# WHAT WAS WRONG (found by an auditor, same session): `cycle.py` runs this tool with
+# `--since-state`, and in that mode an already-sealed record hits `skipped += 1; continue` and
+# never reaches `n += 1`. So `n == 0` ALSO means "no NEW record since the last clean pass" -- the
+# normal state during any quiet interval, every transport outage, the Aug-12 maintenance window and
+# every moment after the Aug-27 stop. The guard would have made `cycle.py` announce that the seal
+# "could not run" on a cycle where it ran perfectly. **A false-alarm generator introduced while
+# removing one.** `skipped == 0` distinguishes them exactly: nothing to seal is not nothing to see.
+# AND IT MOVED ABOVE THE REPORTING BLOCK. It used to sit after the `P1-P4 CLEAN` banner, so an
+# empty archive printed CLEAN and *then* CANNOT-VOUCH. The other five vacuity guards return before
+# their banner, and this file's own commit-day rule is "read the tool's own VERDICT LINE, never its
+# exit code" -- which this placement defeated.
+if n == 0 and skipped == 0:
+    print("*** CANNOT VOUCH FOR ANYTHING -- ZERO records were sealed-checked under")
+    print(f"    {ROOT}")
+    print("    This is NOT a clean result: P1-P4 were never evaluated.")
+    sys.exit(2)
+
 print(f"records sealed-checked : {n:,}" + (f"   (incremental: {skipped:,} already sealed in an earlier pass)" if INCREMENTAL else ""))
 print(f"  units with no env.json   : {no_env:,}")
 print(f"  frozen winners VERIFIED THROUGH THE CHAIN to their source candidate: {chain_ok:,}")
@@ -306,15 +327,4 @@ if INCREMENTAL and not fail:
     except Exception:
         pass
 
-# ⚠ P286, 2026-08-04. ZERO IS NOT CLEAN. This layer used to print its CLEAN banner and exit 0 when
-# it had inspected NOTHING: `rglob` over a missing or empty tree returns an empty iterator and
-# raises nothing, so an absent archive produced exactly the output a perfect archive produces. The
-# archive is a PULL MIRROR, so "not here yet" is a reachable state rather than a hypothetical.
-# `record_window_identity` already exits 2 on zero and `line_balance` states the rule in prose:
-# a check that examined nothing must not report success.
-if n == 0:
-    print("*** CANNOT VOUCH FOR ANYTHING -- ZERO records were sealed-checked under")
-    print(f"    {ROOT}")
-    print("    This is NOT a clean result: P1-P4 were never evaluated.")
-    sys.exit(2)
 sys.exit(1 if fail else 0)

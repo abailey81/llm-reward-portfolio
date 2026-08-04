@@ -1086,12 +1086,20 @@ def main() -> int:
         # then is the row demoted to `info`, and it still PRINTS with the marker, its age and the
         # reason it can never clear. An arm without a frozen winner still raises ATTENTION, and an
         # unreadable marker still lands in the RED branch. Nothing is hidden and nothing is weakened.
+        # ⚠ P294: RESOLVE THE FROZEN ROOT **ONCE**, NOT PER ARM. My first version applied the
+        # `frozen/` fallback unconditionally for each arm, so a leg whose `frozen_<line>/` EXISTS
+        # but lacks that arm's winner would silently satisfy `_all_frozen` from the CORE line's
+        # `frozen/<arm>-winner`, and the row would assert "every crashed arm now holds a FROZEN
+        # WINNER" about a different line's winner. The pre-existing `_roots` logic ~40 lines above
+        # already gets this right -- it falls back to the bare roots only when the line-specific
+        # tree is absent ALTOGETHER -- and this now mirrors it. Dormant today (all ten
+        # `frozen_leg_*` hold all five winners) but it was a latent WEAKENING inside a demotion.
+        _froot = ROOT / f"frozen_{_line}"
+        if not _froot.is_dir():
+            _froot = ROOT / "frozen"                              # the core line carries no suffix
         _all_frozen = bool(_arms_map)
         for _arm in _arms_map:
-            _fz = ROOT / f"frozen_{_line}" / f"{_arm}-winner"
-            if not _fz.is_dir():
-                _fz = ROOT / "frozen" / f"{_arm}-winner"          # the core line carries no suffix
-            if not _fz.is_dir():
+            if not (_froot / f"{_arm}-winner").is_dir():
                 _all_frozen = False
                 break
         if _resumed and _all_frozen:
