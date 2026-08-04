@@ -466,7 +466,38 @@ lever remains prohibited, but **the two must not be quoted under one claim.**
 (h3 folded into the campaign-wide minimum — a pre-registration question) and **W1/D36**
 (`gate_failure_drift` is a CUSUM that can never clear — `scripts/` is drift-fenced while live).
 
-**OPEN ROWS REMAINING: 2** (A6 and W1/D36, both escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 8 (09:09-09:35 UTC) — three more of the loop's fields could print clean from nothing
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · `line_balance` CLEAN · census all six
+`ok` · drift 0 · Eqw/hqw **0** · every monitor fresh · records **12,132** · disk 39.1 GB.
+
+**SPEED — third consecutive improvement.** 12 h rate **171.2 -> 175.8**, concentration
+**64% -> 56%**, slots 1,904, rung-403 ETA **08-09 06:41 -> 03:14**, rung-568 **08-11 15:18 ->
+10:21**. The fleet keeps diversifying off the single-producer state.
+
+**P260 (C5-loop) — the `drift` INVARIANT could print clean from a probe that never ran.**
+`cycle.py` discarded the return code, and `_run` returns `(99, "<probe failed: ...>")` on any
+exception, which the `<`-prefix filter emptied to `[]` — the clean value, silently. Separately there
+was **no alert for committed drift anywhere in the file**, only a `note`, so 191 historical lines
+read `drift=2` without touching the exit code while the docstring promises exit 1. Now a failed
+probe prints **`drift=UNKNOWN`** and alerts, and committed drift alerts. Falsified on four inputs;
+a timeout and an `index.lock` collision were both silent before, and the collision failed the
+*other* way by counting `fatal:` as a drifted path.
+
+**P261 (C6-loop) — the gate guarding the CONFIRMATORY path read CLEAN from an EMPTY stamp file.**
+Verbatim the F-5 defect fixed for `sandbox_gap` **sixty lines above it** and documented there as
+"absent reads as zero"; the correction was never carried across. A non-numeric stamp raised a
+`ValueError` the outer handler swallowed, skipping the gate silently. Unreadable now means UNKNOWN.
+
+**P262 (C2-loop) — `guards=2` was a CONSTANT on all 5,038 lines**, because it printed the raw exit
+code and two guards are acknowledged-failing. A new guard verdict moved nothing on the line a
+session reads first — proven by a cycle carrying `ram:CRITICAL` that was byte-identical to its
+neighbours. The new/known split already existed and simply never reached the line. **Falsified on
+the live loop: the token now reads `guards=0n/2k`.**
+
+**P259 is holding** — four consecutive non-RED cycles, the first since 2026-07-31.
+
+**OPEN ROWS REMAINING: 9** (A6, W1/D36 escalated; seven cycle.py findings queued with falsification owed on each) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
