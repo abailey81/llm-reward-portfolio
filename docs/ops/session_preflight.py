@@ -146,11 +146,41 @@ def check_cycle_log() -> None:
     sweeps = sorted(v for v in (_f(x) for x in re.findall(
         r"sweep=([0-9.]+)s", CYCLE_LOG.read_text(encoding="utf-8", errors="replace"))[-12:])
         if v is not None)
+    # ⚠⚠ SWEEP-1-fix (2026-08-04, RUN 21). THE COMMENT ABOVE SAYS "if sweeps ever legitimately
+    # approach [the cap], the cadence itself needs revisiting rather than the alarm being widened
+    # again" -- AND THEY NOW DO. The three full-archive layers inside every sweep were timed
+    # individually under live load at 13,611 records: science_watch 114 s + results_audit 139 s +
+    # integrity_gate 51 s = 304 s, i.e. ~22.3 ms/record. At the registered ~42,128-record end state
+    # those three ALONE are ~940 s, above the 900 s cap, before anything else in the sweep. A
+    # constant cap against a cost that is LINEAR IN ARCHIVE SIZE must eventually declare a perfectly
+    # healthy loop DEAD, and on the observed 655 s sweeps that day is roughly one day out.
+    #
+    # ⛔⛔ AND MY FIRST ATTEMPT AT THIS FIX LET THE BUDGET FOLLOW THE SWEEP UPWARD, WHICH IS THE
+    # WIDENING THIS REPO FORBIDS OUTRIGHT -- AND THE COMMITTED TEST CAUGHT ME DOING IT
+    # (`test_session_preflight.py`: "capped at 900s however slow it gets", which went RED).
+    # The budget reached **1,353 s**, almost exactly the 1,413 s that the cap was introduced to
+    # prevent in the first place, so I had re-opened P205 by hand. The comment four lines above
+    # states the correct remedy and I should have followed it: *"if sweeps ever legitimately
+    # approach it, the CADENCE itself needs revisiting rather than the alarm being widened again."*
+    # ⇒ THE CAP STAYS. What is added is an EARLY WARNING, which weakens nothing: crossing the cap
+    # now raises its own ATTENTION row naming the sweep duration and the real remedy, so the
+    # condition is VISIBLE well before it can produce a false "the monitoring loop is DEAD".
     if sweeps:
         ref = sweeps[-2] if len(sweeps) >= 2 else sweeps[-1]
-        budget = min(CYCLE_BUDGET_CAP_S, max(CYCLE_STALE_S, 3.0 * (ref + CYCLE_SLEEP_S)))
+        uncapped = max(CYCLE_STALE_S, 3.0 * (ref + CYCLE_SLEEP_S))
+        budget = min(CYCLE_BUDGET_CAP_S, uncapped)
         basis = (f"3x(2nd-worst of last {len(sweeps)} sweeps={ref:.0f}s "
                  f"+ sleep {CYCLE_SLEEP_S:.0f}s), cap {CYCLE_BUDGET_CAP_S:.0f}s")
+        if uncapped > CYCLE_BUDGET_CAP_S:
+            add("cycle_cadence", ATTN,
+                f"the SWEEP has outgrown the {CYCLE_BUDGET_CAP_S:.0f}s design cap: 2nd-worst of the "
+                f"last {len(sweeps)} sweeps is {ref:.0f}s, so the ADAPTIVE budget would be "
+                f"{uncapped:.0f}s and is being CLAMPED to {CYCLE_BUDGET_CAP_S:.0f}s. The cap is "
+                f"deliberately NOT raised -- a widening was tried and the committed test caught it "
+                f"-- so a legitimately slow sweep will eventually be called DEAD. "
+                f"THE REAL FIX IS TO MAKE THE THREE FULL-ARCHIVE LAYERS INCREMENTAL "
+                f"(science_watch + results_audit + integrity_gate = 304s at 13,611 records, "
+                f"~22.3 ms/record, ~940s at the 42,128-record end state). Ledger row SWEEP-1-fix.")
     else:
         budget = CYCLE_STALE_S
         basis = "no sweep timings on record"
