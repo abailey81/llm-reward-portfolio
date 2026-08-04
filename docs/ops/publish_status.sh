@@ -517,7 +517,22 @@ upcount=$(printf '%s' "$linestat" | grep -oE '^[0-9]+' || echo "$drivers")
 # staged work corrupts that record -- and would happily commit a half-finished edit.
 # It is the mirror image of P242, where a directory-level `git add` swept 17 runtime logs into an
 # unrelated commit. `--only <path>` commits that path REGARDLESS of what else sits in the index.
-git commit -q --only docs/RUN4_STATUS.md -m "status: $HM - $upcount/12 lines up, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>/dev/null \
+# ⚠⚠ A-f4 (auditor, 2026-08-04): `--only` returns rc=128 with "fatal: cannot do a partial
+# commit during a merge" if a human leaves a merge in progress. This line used to send that
+# straight to /dev/null, and because the pushes are chained with `&&`, NEITHER PUSH RAN while
+# the loop printed "no change to publish" -- indistinguishable from the benign case. The page
+# kept regenerating locally and never left the machine, and `check_status_page` only measures
+# the page MTIME, so the board stayed green. Capture stderr and SAY SO when it is not the
+# ordinary "nothing to commit".
+commit_err=$(git commit -q --only docs/RUN4_STATUS.md -m "status: $HM - $upcount/12 lines up, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>&1)
+commit_rc=$?
+if [ "$commit_rc" -ne 0 ] && [ -n "$commit_err" ] && \
+   ! printf %s "$commit_err" | grep -qi "nothing to commit\|no changes added"; then
+  echo "*** publish_status: COMMIT FAILED rc=$commit_rc -- THE PAGE IS NOT REACHING GITHUB ***"
+  echo "*** $commit_err"
+  echo "*** (a merge in progress makes --only fail; resolve it or the phone page goes stale)"
+fi
+[ "$commit_rc" -eq 0 ] \
   && git push -q origin HEAD:backup-2026-07-28 2>/dev/null \
   && git push -q origin HEAD:myriad-cluster-and-tier-system 2>/dev/null \
   && echo "published $TS  ($HM, $cores cores, $records records)" \
