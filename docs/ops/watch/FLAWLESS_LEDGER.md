@@ -305,6 +305,25 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 16:14 **RUN 21 pass 1** | **183.2** | **165.6** | 1,848 | 231/**3** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | 08-05 ~11:00 (chain-aware, see below) | 08-09 00:15 | 08-11 03:44 |
 | 2026-08-04 17:42 **RUN 21 pass 2** | **191.2** | **171.2** | 1,664 | 210/**0** | **100%** (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 19:15 **RUN 21 pass 4** | **200.4** | **180.8** | **1,248** | 158/**0** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
+| 2026-08-04 19:54 **RUN 21 pass 5** | **198.9** | **180.9** | **1,096** | 139/**0** | 92% (sonnet-5) | **bayes_opt 1**, tpe 2 | GATED | GATED | GATED |
+
+**RUN 21 pass 5 (19:54Z) — THE CRITICAL CHAIN IS CLOSING AND THREE CAPPING LINES MOVED OFF ZERO.**
+12 h **198.9 rec/h**, 24 h **180.9**, both holding at the session highs. Slots **1,096** (1,848 ->
+1,664 -> 1,248 -> 1,096), 139 running, queue **0**. ⭐ **`bayes_opt` now owes 1 of 30, not 2, and the
+critical-chain floor has HALVED to 0.19 d — about 4.6 h.** That is the first time this session the
+floor has moved materially, and it is the term the whole common rung waits on.
+
+⭐⭐ **AND THE LADDER MOVED ON THREE LINES AT ONCE, WHICH IS WHAT THE LAST THREE PASSES WERE WAITING
+FOR.** `glm_5_2` now has **NO arm at zero** (recMin 7) — both halves of its C2 `h2_pair` are landing.
+`nemotron_3_super`'s `scalar_cvar5` came off zero, leaving only its `h2_pair`. `haiku_4_5` climbed
+30 -> 55 and `qwen3_6_27b` 30 -> 32. **The four lines that cap the common rung are now core,
+deepseek, nemotron and kimi — glm has left that set.**
+
+⚠ **THE SLOT DECLINE CONTINUES AND THE CAUSE IS UNCHANGED: sonnet-5's C4 sweep is finishing.** That
+line is down to **4 running jobs from 83** at pass 1, with records at 562-567 of 568. Concentration
+fell 100% -> 92% and the number of lines contributing at all rose 2 -> 5, which is the same handover
+seen from the other side. Queue 0 throughout, `line_balance` CLEAN, no line idle with work owed.
+**Nothing to fix.**
 
 **RUN 21 pass 4 (19:15Z) — RATES AT ANOTHER NEW HIGH WHILE SLOTS FELL 32%, AND THE TWO FACTS HAVE
 THE SAME CAUSE.** 12 h **200.4 rec/h** (183.2 -> 191.2 -> 200.4 across the three passes), 24 h
