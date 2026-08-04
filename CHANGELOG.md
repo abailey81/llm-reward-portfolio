@@ -272,6 +272,18 @@ survives a layout it did not anticipate; a rule that reads the filename does not
 flight) · drift **0** · login node comfortable · `stage_eta` **65/65** · ruff clean · page rc=0 with
 **0 non-ASCII** · **nine mutants, every one caught by its named assertion**.
 
+**⚠⚠ P250 — THE HIGHEST-VALUE FINDING OF THE PASS, AND IT WAS MINE.** I edited
+`run_record_layers.sh` while a background instance was RUNNING. Bash reads a script by BYTE OFFSET,
+so the live instance resumed in the new bytes, landed mid-token (`cord_science_audit.py: command not
+found`) and re-executed two layers — **and then printed `ALL SEVEN LAYERS RC=0` anyway, because that
+banner asserted only `fail==0` and counted nothing.** It was equally true of a run that executed
+three layers, or none. Every layer happened to pass, so the certification of an irreplaceable archive
+was true **by luck**. Three fixes, the first falsified on a 2-layer copy that the old code passed at
+rc=0: the count is now part of the verdict (`ONLY n OF 7 LAYERS RAN. THIS IS NOT A CERTIFICATION.`),
+the temp directory is per-run so concurrent runs cannot overwrite each other's results, and the body
+is wrapped in one compound command so bash must parse it fully before executing.
+**NEVER EDIT A SHELL SCRIPT WHILE AN INSTANCE IS RUNNING, and a banner that names a count must COUNT.**
+
 **OPEN ROWS REMAINING: 1** — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 

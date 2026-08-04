@@ -17,6 +17,14 @@
 #
 # EXIT: 0 only if EVERY layer returned 0. Read the per-layer RC lines, never just the last one.
 set -u
+# ⚠⚠ PARSE GUARD (P250, 2026-08-04). Bash reads a script INCREMENTALLY, BY BYTE OFFSET. Edit the
+# file while an instance is running and that instance resumes at the same offset in the NEW bytes,
+# which lands mid-token: on the day this was added, an edit to a comment made a live run print
+# `cord_science_audit.py: command not found` and re-execute two layers. Wrapping the whole body in
+# one compound command forces bash to parse to the closing brace BEFORE executing anything, so an
+# edit mid-run can no longer scramble control flow. Cheap, and this script certifies an
+# irreplaceable archive.
+{
 cd "$(dirname "$0")/../.." || exit 1
 # ⚠ NO SILENT FALLBACK (auditor finding F-10, 2026-08-03). This read `[ -x "$PY" ] || PY=python`,
 # which is precisely the fallback `cycle_loop.sh` condemns two files away -- and P231 proved the
@@ -37,14 +45,26 @@ if [ ! -x "$PY" ]; then
 fi
 
 fail=0
+# ⚠⚠ THE BANNER USED TO COUNT NOTHING (found 2026-08-04, P250). It printed "ALL SEVEN LAYERS
+# RC=0" whenever `fail` was 0 -- which is also true of a run that executed THREE layers, or none.
+# On the day it was found, this script had been EDITED WHILE RUNNING: bash reads a script by BYTE
+# OFFSET, so the edit shifted the offsets under the live instance, which resumed mid-token
+# (`cord_science_audit.py: command not found`) and re-ran two layers. Every layer happened to pass,
+# so the banner was substantively true by luck. A certification of an irreplaceable archive may not
+# be true by luck. `layers_run` makes the count part of the verdict.
+layers_run=0
+EXPECTED_LAYERS=7
+OUTDIR="${TMPDIR:-/tmp}/record_layers_$$"
+mkdir -p "$OUTDIR" || exit 2
 run_layer () {
   name="$1"; shift
   start=$(date -u +%s)
-  "$PY" "$@" > "/tmp/layer_${name}.out" 2>&1
+  "$PY" "$@" > "${OUTDIR}/layer_${name}.out" 2>&1
   rc=$?
   end=$(date -u +%s)
-  printf '%-30s RC=%-3s (%3ss)  %s\n' "$name" "$rc" "$((end-start))" "/tmp/layer_${name}.out"
+  printf '%-30s RC=%-3s (%3ss)  %s\n' "$name" "$rc" "$((end-start))" "${OUTDIR}/layer_${name}.out"
   [ "$rc" -ne 0 ] && fail=1
+  layers_run=$((layers_run + 1))
   return 0
 }
 
@@ -61,11 +81,18 @@ run_layer "L6_fed_value_coherence"     docs/analysis/fed_value_coherence.py
 run_layer "L7_window_identity"         docs/analysis/record_window_identity.py
 
 echo
-if [ "$fail" -eq 0 ]; then
-  echo "ALL SEVEN LAYERS RC=0."
+if [ "$layers_run" -ne "$EXPECTED_LAYERS" ]; then
+  echo "*** ONLY $layers_run OF $EXPECTED_LAYERS LAYERS RAN. THIS IS NOT A CERTIFICATION. ***"
+  echo "*** A missing layer is indistinguishable from a passing one unless the count is checked."
+  echo "*** Most likely cause: this script was EDITED WHILE RUNNING (bash re-reads by byte offset)."
+  fail=1
+elif [ "$fail" -eq 0 ]; then
+  echo "ALL $EXPECTED_LAYERS LAYERS RAN, ALL RC=0."
 else
   echo "*** AT LEAST ONE LAYER FAILED -- read its output file above. ***"
 fi
+echo "    (per-layer output in $OUTDIR -- unique per run, so concurrent runs cannot overwrite"
+echo "     each other's results, which they previously did via fixed /tmp paths.)"
 
 # ---------------------------------------------------------------------------------------------
 # CAMPAIGN MEASUREMENTS -- NOT record layers, and DELIBERATELY OUTSIDE the exit code above.
@@ -90,14 +117,14 @@ for spec in "M1_authoring_reliability docs/ops/authoring_reliability.py" \
   set -- $spec
   name="$1"; script="$2"
   start=$(date -u +%s)
-  "$PY" "$script" > "/tmp/measure_${name}.out" 2>&1
+  "$PY" "$script" > "${OUTDIR}/measure_${name}.out" 2>&1
   rc=$?
   end=$(date -u +%s)
   note=""
   [ "$name" = "M2_r115_threshold" ] && [ "$rc" -eq 1 ] && note="  <- EXPECTED: the registered claim IS falsified; a DISCLOSURE, not a regression"
   [ "$name" = "M3_seed_completeness" ] && [ "$rc" -eq 1 ] && note="  <- holes exist. NORMAL during pipelined C4. Actionable ONLY if the line has ZERO jobs -- check line_balance."
   [ "$rc" -eq 2 ] && note="  <- RC=2 means the check could not run or inspected NOTHING. Investigate."
-  printf '%-26s RC=%-3s (%3ss)  %s%s\n' "$name" "$rc" "$((end-start))" "/tmp/measure_${name}.out" "$note"
+  printf '%-26s RC=%-3s (%3ss)  %s%s\n' "$name" "$rc" "$((end-start))" "${OUTDIR}/measure_${name}.out" "$note"
 done
 echo "  (M1 is the corrected per-model authoring-reliability table -- D34; the guard's own panel"
 echo "   understates it and omits the confirmatory line entirely. M2 re-derives R115's insensitivity"
@@ -108,3 +135,5 @@ echo "   rung it banks, and the common rung is a MINIMUM -- gpt-5.6-luna held 2,
 echo "   and banked 189 instead of 568 because seeds 192/193 were absent.)"
 
 exit "$fail"
+
+} # end parse guard -- see the note at the top of this file
