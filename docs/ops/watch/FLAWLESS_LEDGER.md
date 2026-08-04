@@ -129,6 +129,79 @@ standing prohibition and one-way, and killing reserved queued jobs forfeits the 
 exists is the human one -- asking UCL RC for a larger allocation -- and even that cannot take the
 common rung below ~22 h. **Do not spend campaign time on cores; spend it on the write-up.**
 
+### ★★★ 2026-08-04 12:50 UTC — TAMER ASKED "WHY ARE WE NOT EVEN AT 300 rec/h?", SO THE THROUGHPUT IDENTITY WAS MEASURED END TO END
+
+**THE ANSWER IS ARITHMETIC, NOT POLICY, AND 300 rec/h WAS NEVER PHYSICALLY AVAILABLE.** For a fleet
+where every slot runs one 1-thread training at a time:
+
+> **records/hour = slots x utilisation x yield / T_training**
+
+All four terms were MEASURED from artefacts already on disk — `ledger/*.epilogue.jsonl` (3,235
+tasks carrying `secs` and `rc`) and the cycle log's `cores=` history (194 stamps) — not assumed.
+
+**T IS NOT ONE NUMBER, AND POOLING IT WAS MY FIRST ERROR.** Split by phase, successful tasks only:
+
+| phase | n | p10 h | median | **mean** | p90 |
+|---|---:|---:|---:|---:|---:|
+| SEARCH (DFO / generation), 8-thread | 1,580 | 3.18 | 4.24 | **4.64** | 6.68 |
+| **TEST / sweep (C4)** | 1,123 | 8.82 | 9.45 | **9.52** | 10.24 |
+| TEST / per-arm | 206 | 8.45 | 8.98 | **9.04** | 9.76 |
+| TEST / baselines | 61 | 7.89 | 8.31 | **8.39** | 9.11 |
+| TEST / h2_pair (C2) | 51 | 8.35 | 8.96 | **9.05** | 9.82 |
+
+A pooled mean reads **6.54 h** and is meaningless: it mixes 8-thread SEARCH with 1-thread sealed
+TEST, and the campaign is now almost entirely TEST. **The number that governs the record rate is the
+TEST-phase mean, 9.39 h over n = 1,441.**
+
+**THE CEILING, AND IT IS HARD:**
+
+```
+S = 1,879 slots (recent mean of the cores= stamps)   y = 0.9972 (TEST-phase yield)   T = 9.39 h
+CEILING  = S * y / T = 199.6 rec/h
+MEASURED (12 h)      = ~165 rec/h      =>  UTILISATION 83%
+SLOTS NEEDED FOR 300 = 2,824           =>  1.50x what we hold
+```
+
+**⇒ 300 rec/h REQUIRES HALF AGAIN AS MANY SLOTS, ON A CLUSTER WHERE WE ALREADY HOLD ~20% OF ALL
+RUNNING SLOTS ACROSS 98 USERS.** At 1,879 slots the arithmetic ceiling is 200, and we are at 83% of
+it. The residual 17% is dispatch gaps — jobs finishing while their replacements sit `qw` (69 right
+now) — plus the 32-minute transport outage that falls inside the same 12 h window.
+
+**AND T IS FROZEN DESIGN, NOT AN OPS DIAL.** 400,000 steps at the measured ~13 steps/s/core is
+8.55 h of pure compute; the observed 9.39 h is that plus ~10% for start-up, the gold sha256
+verification and archiving. **There is no hidden waste in it, and it cannot be reduced without
+changing the step budget or the thread count — the first is a frozen pre-registered value and the
+second breaks CRN determinism by changing floating-point reduction order.**
+
+**YIELD IS NOT THE PROBLEM, AND THE APPARENT FAILURES ARE THE SCIENCE.** TEST-phase yield is
+**99.72%**. The 194 `rc=1` tasks (6.0% of the ledger) sit **entirely in SEARCH** and complete in
+**0.00 h** — they are the sandbox rejects that per-model authoring reliability MEASURES. The one
+genuinely expensive failure mode is **`rc=126` at exactly 15.00 h**, the `h_rt` wall: only 20 tasks,
+but each burns a full 15 slot-hours, ~300 in total.
+
+**⚠ TWO HYPOTHESES I TESTED AND HAD TO DISCARD, recorded because discarding them is the finding.**
+(1) *The pack-8 tail*: a pack holding 8 slots until its slowest task finishes would waste ~38%, and
+that matched the residual almost exactly — **REFUTED by measurement**: slot-hour-weighted fleet
+utilisation from the tail is **0.9979**, because 3,209 of 3,222 epilogue ledgers hold exactly ONE
+task, so my "one ledger = one pack" mapping was simply wrong. (2) *A pooled T*: see above.
+**Both looked right and both were wrong, and only measuring told the difference.**
+
+**⚠ A POPULATION CAVEAT THAT MUST TRAVEL WITH THESE NUMBERS:** the ledger holds **3,235 tasks**
+while the archive holds **~12,700 records**, so it is NOT a complete census of trainings. Every
+figure above describes the tasks that wrote an epilogue. State that whenever they are quoted.
+
+**⇒ AND THE REFRAME THAT OUTRANKS ALL OF IT: even at 300 rec/h the REPORTED RESULT WOULD NOT MOVE.**
+90% of the rung-568 backlog sits on cells that produced nothing in the last 12 h, behind stage
+barriers — core's serial C1 chain and the four lines that have not begun their `h2_pair`. Extra
+throughput lands in cells already above the common rung, which is the 98.9% measurement this ledger
+already records. **Throughput is at 83% of a hard physical ceiling; the result is bound by a serial
+dependency chain, and those are different constraints.**
+
+**★ AND THIS CLOSES THE PRACTICAL HALF OF E-wc.** P277 established that `wall_clock` is 0 on every
+sealed-test record and that the compute is recoverable from `ledger/*.epilogue.jsonl`. **The table
+above IS that recovery**: the sealed-test tier's per-training wall is 9.39 h mean / 9.45 h median,
+measured, with its own distribution. The write-up's compute accounting can be built from it.
+
 ### ⛔ WHAT IS CLOSED, AND MUST NOT BE RE-LITIGATED EVERY THIRTY MINUTES
 
 The cores question is **closed by fourteen independent measurements** (no quota, no job cap, no PE
@@ -160,6 +233,14 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 12:00 | 164.7 (3h inst 195.0) | 159.0 | **2,018** | 242/90 | 70% (sonnet-5) | bayes_opt 3 | 08-05 01:19 | 08-09 10:39 | 08-11 21:30 |
 | 2026-08-04 12:13 | 161.8 (1h **118**) | 156.9 | n/a OUTAGE | n/a OUTAGE | 71% (sonnet-5) | bayes_opt 3 | 08-05 01:34 | 08-09 13:01 | 08-12 00:56 |
 | 2026-08-04 12:41 **POST-RECOVERY** | **165.1** | 157.4 | 2,015 | 243/71 | 75% (sonnet-5) | bayes_opt 3 | -- | -- | -- |
+| 2026-08-04 12:52 | **167.1** (1h 153) | 157.7 | 2,014 | 243/68 | 76% (sonnet-5) | bayes_opt 3 | -- | -- | -- |
+
+**RUN 20 pass 4 speed verdict — FULLY RECOVERED AND NOW MEASURED AGAINST ITS PHYSICAL CEILING.** The
+12 h rate has climbed through the outage and past it (161.8 -> 165.1 -> **167.1**), the 1 h rate is
+back to 153, slots hold at 2,014 with `r 243 / qw 68 / Rq 2` and **zero `Eqw`, zero `hqw`**, and
+`line_balance` reads **CLEAN**. **167.1 against the measured ceiling of 199.6 rec/h is 84%
+utilisation** (see the throughput identity above). Nothing to fix, and nothing further to gain
+without more slots, which is fair-share and closed.
 
 **RUN 20 pass 3 speed verdict — THE OUTAGE COST NOTHING MEASURABLE, AND THAT IS A MEASUREMENT, NOT A
 HOPE.** Transport was restored at 12:32:19Z after **31 m 50 s** (INC-1 RESOLUTION). Every recovery
