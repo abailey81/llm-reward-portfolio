@@ -131,9 +131,24 @@ def snapshot(root: Path) -> tuple[str, list[str]]:
     # is append-only), so `guards_rc` is now PERMANENTLY 2. An rc alone would therefore mask every
     # future guard failure — the same masking problem the sentinel ack file solves. Tracking the named
     # verdict set means a NEW guard failing changes the signature and is reported.
-    proc = subprocess.run([sys.executable, "scripts/campaign_guards.py", str(root), "all"],
+    # ⚠ P308: ABSOLUTE PATH. This was `"scripts/campaign_guards.py"`, resolved against the CURRENT
+    # WORKING DIRECTORY, so running this watcher from anywhere but the repo root produced
+    # `python: can't open file ...` -- rc=2 with EMPTY stdout, hence `bad_guards=none`. Demonstrated:
+    # from the repo root `[ALERT] guards_rc=2 bad_guards=transport,truncation`; from elsewhere
+    # `[ALERT] guards_rc=2 bad_guards=none`. A real guard CRITICAL and a missing file were
+    # INDISTINGUISHABLE in the output, and only one of them contributed to the verdict.
+    _guards = Path(__file__).resolve().parents[2] / "scripts" / "campaign_guards.py"
+    proc = subprocess.run([sys.executable, str(_guards), str(root), "all"],
                           capture_output=True, text=True)
     rc = proc.returncode
+    # ⚠⚠ P308: AND `rc` COULD NOT REACH THE VERDICT. It was computed, printed in the header, and
+    # then simply left out of the `alert` expression below, which read only the NAMED guard set
+    # parsed out of stdout. So whenever the parse produced nothing -- a crash, an unreadable path,
+    # a format change, an empty stdout -- the tool printed the failing code beside the word `ok`.
+    # The comment above explains why the NAMED set is tracked rather than the bare rc; it is not a
+    # reason to DROP the rc, and the two are complementary: the set catches a NEW guard failing, the
+    # rc catches the guards not having run at all. `_guards_unreadable` is the second case.
+    _guards_unreadable = rc != 0 and not (proc.stdout or "").strip()
     bad_guards = sorted({
         m.group(1)
         for m in re.finditer(r"^\[(\w+)\]\s+(?!ok\b)(\w+)", proc.stdout or "", re.MULTILINE)
@@ -148,8 +163,13 @@ def snapshot(root: Path) -> tuple[str, list[str]]:
     # So an acknowledged substrate verdict suppresses the mix contribution; a mix appearing while
     # substrate_fields is NOT acknowledged still alerts.
     mix_alerts = mix > 0 and "substrate_fields:CRITICAL" not in ack
-    alert = (bool(unack_guards) or (sups != EXPECTED_LINES and sups >= 0)
-             or mix_alerts or bool(unack))
+    # ⚠ P308, the third leg of the same class: `sups >= 0` SUPPRESSED the alert when `_supervisors()`
+    # returned -1, its "I could not measure" value. "Could not measure" is not "measured healthy",
+    # and a monitor that goes quiet exactly when its own probe breaks is the failure mode this whole
+    # ledger exists to stop. An unmeasurable supervisor count now ALERTS.
+    _sups_unknown = sups < 0
+    alert = (bool(unack_guards) or (sups != EXPECTED_LINES and sups >= 0) or _sups_unknown
+             or _guards_unreadable or mix_alerts or bool(unack))
 
     lines: list[str] = []
     head = "ALERT" if alert else "ok"

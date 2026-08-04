@@ -63,7 +63,13 @@ def load():
         calls, dflt = m.get("train_safe_call_count"), m.get("train_safe_default_count")
         fit = m.get("val_fitness")
         ps = m.get("popart_scale") or {}
+        # P307: the STAGE, from the archive ROOT directory name only. Needed because PopArt
+        # engagement is measured on the SEALED TEST tier where H2 is scored, and pooling it with
+        # SEARCH hides the whole effect (7.0 pp pooled-ish against 67.2 pp on test alone).
+        _root = norm.split(ROOT.replace("\\", "/") + "/", 1)[-1].split("/")[0]
+        stage = "TEST" if _root.startswith("test") else ("SEARCH" if _root.startswith("search") else "?")
         out.append({
+            "stage": stage,
             "line": line, "arm": rec.get("arm"), "cid": cid, "seed": rec.get("seed"),
             "frac": (float(dflt) / float(calls)) if calls else 0.0,
             "fit": float(fit) if isinstance(fit, (int, float)) and math.isfinite(fit) else None,
@@ -192,8 +198,74 @@ def main() -> int:
         print("      difference carries a cumulative term or a ratio has a small numerator.")
         print("  -> H1 compares the LLM winner against the best of these eleven. Engagement differs")
         print("     ACROSS them (3 of 11), so it is a PER-BASELINE confound and must be reported as")
-        print("     such beside the H1 comparison. (Across the five LLM arms it is symmetric at")
-        print("     ~3pp spread, so H2 is unaffected -- that half of 44.4 stands.)")
+        print("     such beside the H1 comparison.")
+
+    # ---- (D2) THE SAME QUANTITY ACROSS THE FIVE LLM ARMS -- COMPUTED, NOT ASSERTED ------------
+    # ⚠⚠ P307 (RUN 22 pass 2, 2026-08-04). THIS BLOCK REPLACES A HARDCODED SENTENCE THAT WAS FALSE.
+    # It read, as a literal string inside a tool that holds the whole archive and never computed it:
+    #
+    #     "(Across the five LLM arms it is symmetric at ~3pp spread, so H2 is unaffected --
+    #       that half of 44.4 stands.)"
+    #
+    # Measured twice independently (an auditor, then again from scratch by a different route, and
+    # the two agree to rounding): symmetric on SEARCH at 7.0 pp, and **67.2 pp on the SEALED TEST
+    # TIER, which is where H2 is actually scored**. distributional 39.7% engaged against scalar
+    # 74.1% -- **34.4 pp apart on the two arms of the headline contrast.** Nowhere is it ~3 pp.
+    #
+    # ⚠ AND THE SIBLING TOOL ALREADY KNEW. `docs/ops/retriage_alarms.py:123-126` COMPUTES this and
+    # prints `*** ASYMMETRIC -- RE-TRIAGE ***`. Two instruments in one repository contradicted each
+    # other and the one that ASSERTED was the one that reassured. A hardcoded number inside a tool
+    # whose stated job is "produced here from the live archive" cannot detect its own staleness.
+    #
+    # ⚠⚠ WHAT IT DOES AND DOES NOT MEAN -- do not overclaim in either direction. Under the
+    # identification principle ONLY the reward program varies across arms, and PopArt engages on
+    # `sigma_max = max(1.0, raw_rms)` of that program. So an engagement gap is a DOWNSTREAM
+    # CONSEQUENCE of the manipulation -- a MEDIATOR on the fed -> code -> policy chain, which is
+    # exactly SQ2 -- and NOT a threat to identification. It must be REPORTED beside H2 and read as
+    # mechanism. The defect being fixed here is the false claim of symmetry, not the asymmetry.
+    print()
+    print("=" * 90)
+    print("(D2) obligation 9b -- POPART ENGAGEMENT ACROSS THE FIVE LLM ARMS, BY STAGE (P307)")
+    print("=" * 90)
+    llm_arms = ["distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled"]
+    cell: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
+    for r in R:
+        arm, sm = str(r["arm"] or ""), r["sigma_max"]
+        if arm not in llm_arms or not isinstance(sm, (int, float)):
+            continue
+        c = cell[(str(r.get("stage") or "?"), arm)]
+        c[1] += 1
+        if sm > 1.0:
+            c[0] += 1
+    # ⚠ The counts are printed in FULL. An earlier draft of this table clipped the cell to 18
+    # characters and rendered "1179/2971" as "1179/29" -- a truncated denominator in an
+    # operator-facing table is the same defect class as a stale one.
+    print(f"  {'stage':8s}" + "".join(f"{a[:18]:>22s}" for a in llm_arms) + f"{'spread':>10s}")
+    for stage in ("SEARCH", "TEST"):
+        pcts, row = [], f"  {stage:8s}"
+        for a in llm_arms:
+            on, tot = cell[(stage, a)]
+            if tot:
+                p = 100.0 * on / tot
+                pcts.append(p)
+                row += f"{p:5.1f}% {on}/{tot}".rjust(22)
+            else:
+                row += f"{'n/a':>22s}"
+        row += f"{(max(pcts) - min(pcts)) if pcts else float('nan'):9.1f}pp"
+        print(row)
+    d_on, d_tot = cell[("TEST", "distributional")]
+    s_on, s_tot = cell[("TEST", "scalar")]
+    if d_tot and s_tot:
+        dp, sp = 100.0 * d_on / d_tot, 100.0 * s_on / s_tot
+        print()
+        print(f"  THE H2 CONTRAST ON THE SEALED TIER: distributional {dp:.1f}% vs scalar {sp:.1f}% "
+              f"= {abs(dp - sp):.1f} pp apart")
+        if abs(dp - sp) > 10.0:
+            print("  *** NOT SYMMETRIC. This file asserted '~3pp, so H2 is unaffected' until 2026-08-04;")
+            print("      that sentence was hardcoded and false. REPORT this beside H2.")
+            print("      Read it as a MEDIATOR, not a confound: only the reward program varies across")
+            print("      arms, and PopArt engages on that program's magnitude, so the gap is a link in")
+            print("      the fed -> code -> policy chain (SQ2), not a threat to identification.")
     return 0
 
 
