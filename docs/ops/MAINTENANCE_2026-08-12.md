@@ -1,6 +1,41 @@
 # MYRIAD MAINTENANCE — WEDNESDAY 2026-08-12, AT RISK ALL DAY FROM 08:00
 
 **Confirmed by Tamer 2026-08-03: DELAYED from the usual second Tuesday (Aug 11) to WEDNESDAY AUG 12.**
+
+---
+
+## ★★★ OFFICIAL UCL NOTICE (relayed by Tamer, 2026-08-04) — THIS SUPERSEDES ANY INFERENCE BELOW
+
+> *"The Network Modernisation outage to replace central UCL switches that was previously postponed
+> has now been rescheduled for **Wednesday 12 August**. The outage is expected to be completed
+> within that day, but **if anything goes wrong it may extend into Thursday 13 August**. We will be
+> **draining jobs on Myriad so that they will only start if they can complete before the outage**,
+> or else they will wait in the queue until it is over and they can be scheduled again. You do not
+> need to take any action. **There will be no access to Myriad when the switches are being swapped
+> out.**"*
+
+**THREE THINGS THIS CHANGES, and one of them is material:**
+
+1. ⚠⚠ **IT MAY RUN TWO DAYS, NOT ONE.** Everything below was written for a single at-risk day. Plan
+   for **Wed 12 AND Thu 13 August**. Section 7's slack calculation still absorbs it (rung 403
+   projected 08-09 against an 08-27 stop), but the alarm window doubles.
+2. ✅ **THE DISPATCH CLIFF IS OFFICIAL, NOT OUR INFERENCE.** Effect **E4** below predicted UCL would
+   refuse jobs whose `h_rt=15 h` would overrun the window. The notice confirms UCL is doing exactly
+   that deliberately. **So expect our queue to stop dispatching roughly 15 h before the outage,
+   i.e. from around 17:00 on Tue 11 August**, and expect `records=` to flatten well BEFORE the 12th.
+   That flattening is CORRECT BEHAVIOUR and must not be diagnosed as a stall.
+3. ✅ **"NO ACCESS" MEANS THE LOGIN-NODE PENALTY HAZARD IS OFF DURING THE WINDOW.** Section 2 names
+   the UCL penalty as the one genuine hazard, on the reasoning that every driver relaunch
+   sha256-verifies ~36.8 MB of remote gold on a SHARED login node. With no access at all, those ssh
+   calls fail immediately and cheaply. **The hazard returns the moment access does** -- twelve lines
+   resuming together is the stampede condition that earned the 2026-08-03 00:33:47Z penalty. The
+   supervisors' 3620-3820 s stagger is what protects us; do NOT relaunch by hand.
+
+**"You do not need to take any action" is UCL's advice about THEIR drain, and it is consistent with
+our registered position of RIDE IT.** It does not remove the Aug-11 pre-window checks in section 3,
+which exist to certify our own state, not theirs.
+
+
 The cluster MOTD states the standing rule — *"The second Tuesday of every month is a maintenance day,
 when Myriad should be considered at risk all day from 08:00"* — and `docs/CAMPAIGN_DAY_RUNBOOK` §8
 recorded it as **Aug 11**. **THAT DATE IS NOW WRONG. The window is AUG 12.** Anyone reading the
@@ -28,6 +63,9 @@ runbook must apply this correction.
 
 ```
 TEST   lane: 240 x 180 s = 12.0 h   <- where every line should be by Aug 12
+  ⚠ A TWO-DAY OUTAGE EXCEEDS EVERY DEATH CLOCK. Drivers WILL die and supervisors WILL
+  relaunch them into a dead cluster for the duration. That is E1/E2 and it is expected;
+  no data is lost, because jobs requeue idempotently and the repair rounds self-heal.
 SEARCH lane: 240 x  45 s =  3.0 h   <- fragile; core/nemotron died here in the 7h24m outage of Aug 3
 ```
 
