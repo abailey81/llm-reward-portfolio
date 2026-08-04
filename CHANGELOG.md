@@ -332,7 +332,42 @@ different populations. **P249b:** the census that misreported `cycle_loop=2` was
 every pass and I was mentally discounting it, which is how a known-false alarm becomes permanent.
 Fixed rather than tolerated; all six roster rows now read `ok`.
 
-**OPEN ROWS REMAINING: 0** — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 4 (01:35-01:55 UTC) — A5 CLOSED, AND MY OWN ESTIMATOR SETTLED AFTER THREE WRONG VALUES
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · `line_balance` CLEAN · drift 0 ·
+Eqw/hqw **0** · process census all six roster rows `ok` · records 10,824 -> 10,830 · disk 41.0 GB.
+
+**A5 FIXED — C6 had no place in the exit code.** `if holed or over or dupes` meant an archive with
+**zero holes** but registered arms banking 0 exited **0** and printed *"VERDICT: CLEAN"*. The
+condition C6 was built to surface had no machine-readable signal at all, masked live only because 11
+arms happen to hold holes. `unstarted` now sits in the same contract as `holed`: both mean the seed
+set is incomplete, both are normal mid-campaign, both exit 1. Deliberately **not a new always-on
+alarm** — it is the alarm the holes already raise, with the population corrected. Cases R1/R2/R3 use
+a perfect contiguous arm plus one unstarted registered arm; **R2 confirms no hole exists anywhere**
+and R3 asserts the verdict still flips 0 -> 1. Reverting the exit condition fails R3.
+
+**⚠ P254, MINE — I published THREE values for one quantity in four passes.** The repair jobs' wait
+went **9-18 h** (pass 1, from job start-times, biased low because completed jobs are invisible),
+then **~6 h** (pass 3, from queue depth, biased high because it measured the fleet EXPANDING into
+free capacity 1,600 -> 1,712 rather than steady-state dispatch). Both were the wrong estimator for
+the regime. At saturation — where the fleet now is, slots flat near 1,700 — **dispatch equals
+completion, and completion is directly observable: records land 8 per pack-8 job, so jobs/h =
+rec/h / 8.** At 141.9 rec/h that is 17.7 jobs/h, putting 258 jobs ahead of `85065` at **~14-15 h**,
+stated with its assumption rather than as a point. **The error was not arithmetic; it was changing
+estimator instead of naming the regime.**
+
+**SPEED** 141.9 rec/h 12 h (from 145.4), 1,696 slots, 212/260, concentration 97%. Same line
+handover diagnosed as SPEED-1 in pass 3 — sonnet filling slots while qwen winds down — and now also
+explains the dispatch slowdown: the fleet has stopped expanding, so dispatch is bounded by
+completion. Nothing new, no action.
+
+**⚠ A6 REMAINS OPEN AND IS NOT MINE TO CLOSE.** `test_h3_singleshot` is folded into the campaign-wide
+minimum, but R101 defines the reported result over the **11 full-loop models** and h3 is the H3
+single-shot CONTROL. Non-binding today (h3 reads 568), and the direction is too LOW. **Escalated: it
+changes the definition of the reported scientific result, which is a pre-registration question for
+Tamer and Dr Okhrati, not an ops patch.**
+
+**OPEN ROWS REMAINING: 1** (A6, escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
