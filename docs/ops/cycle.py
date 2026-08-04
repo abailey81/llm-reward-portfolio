@@ -1075,10 +1075,27 @@ def main() -> int:
         # outage (240 consecutive pull failures over the SEARCH lane's 3.0 h death clock). Since
         # then that arm has FROZEN A WINNER and entered sealed testing, and `crash_watchdog` reads
         # CLEAN -- the crash is over by every available measure.
-        # WHY IT CANNOT CLEAR: the marker's note and the text below both say it "clears on a clean
-        # pass", and `campaign.py:1898` does the unlink INSIDE THE C1 PATH. A line that crashed in
-        # C1, recovered, and advanced into C2/C4 never re-enters C1, so the clearing branch is
-        # UNREACHABLE and the marker is permanent. "can take 12h+" understates it: it is never.
+        # ⚠⚠ P295, 2026-08-04 -- I CORRECT MYSELF HERE. The text that stood in this place claimed
+        # the marker "CANNOT clear" because `campaign.py` unlinks it "only inside the C1 path".
+        # **THAT WAS FALSE.** An auditor read all 2,072 lines of `campaign.py` and refuted it, and I
+        # then verified first-hand at `campaign.py:1897-1902`: the unlink sits at the TOP LEVEL of
+        # `run_campaign_tiered`, immediately after the `if _crashed: ... return out` block, and every
+        # invocation re-runs C1 from the top before reaching it. A relaunch that gets through C1
+        # without a raising arm DOES clear the marker. A false invariant is worse than a documented
+        # exception because the next session reasons from it (P269), and this one was PRINTED on the
+        # board every cycle rather than merely commented.
+        # THE DEMOTION IS STILL RIGHT; ONLY THE REASON CHANGES. Three things ARE true, and each
+        # independently justifies it:
+        #   1. the clear horizon EXCEEDS THE OBSERVATION WINDOW -- the marker clears only on a
+        #      COMPLETE clean pass through C1, and for a line mid-search that is DAYS (nemotron's
+        #      generations measured 25.3 h and 12.3 h). An alarm that can only clear after days
+        #      trains its reader to ignore it: the same harm, a different mechanism;
+        #   2. the clear condition is WEAKER than the alarm condition -- `_crashed` counts only
+        #      results carrying an `error` key, so a pass in which arms returned `no_winner` or an
+        #      R115 ineligibility clears the marker while the line is genuinely degraded;
+        #   3. the unlink's `except Exception: pass` is COMPLETELY SILENT, so on Windows a transient
+        #      lock (antivirus, the archive mirror, a backup) makes it genuinely permanent with
+        #      nothing anywhere reporting it. That is the real "cannot clear" path.
         # That is the P259 family -- an alarm that cannot clear teaches its reader to ignore the
         # row, which this repo has already paid for once (D15, unexamined for ten hours).
         # A FROZEN WINNER is categorically stronger evidence than "archived one record": it means
@@ -1106,9 +1123,12 @@ def main() -> int:
             info.append(
                 f"D14 marker for {_line} ({_arms}) is STALE, age {_age:.1f} min: every crashed arm "
                 f"now holds a FROZEN WINNER, so it completed its whole search and was selected. "
-                f"The marker CANNOT clear -- campaign.py unlinks it only inside the C1 path and "
-                f"this line has advanced past C1 -- so it is preserved as crash EVIDENCE for the "
-                f"execution record rather than deleted. Not an alarm. (P293)")
+                f"The marker clears only on a COMPLETE clean pass through C1, which for a line "
+                f"mid-search is DAYS -- and its clear condition is WEAKER than its alarm condition "
+                f"(only a raising arm re-arms it, but a `no_winner` pass clears it), and the unlink "
+                f"swallows every error silently. So it is preserved as crash EVIDENCE for the "
+                f"execution record rather than treated as live. Not an alarm. (P293, reason "
+                f"corrected by P295 -- the earlier claim that it CANNOT clear was FALSE.)")
         elif _resumed:
             attention.append(
                 f"D14 marker still on disk for {_line}: {_arms}. Age {_age:.1f} min — but EVERY "
