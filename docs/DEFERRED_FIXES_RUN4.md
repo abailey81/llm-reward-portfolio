@@ -2374,3 +2374,122 @@ MISMATCH; only its rendering is at fault, D57) · `pbo` · `pbo_dsr` · `winner_
 `n_records` · `divergence`. Not sound per the entries above: `n_blocks` · `compute_accounting` ·
 `delisting_band` · `named_vs_blinded_structural` · `legible_format_responsiveness` ·
 `mechanism_multiplicity`.
+
+---
+
+## D61-D68 — `src/inference/**`, THE FULL STATISTICAL-MACHINERY AUDIT (2026-08-04, RUN 21)
+
+**WHY THIS ENTRY EXISTS.** Every confirmatory number in the dissertation passes through `src/inference/`
+and it had NEVER been audited. RUN 21 §11.3 target #2. A read-only auditor covered **23 modules**,
+verified each estimator line by line against the paper it cites, and checked the freeze GREEN before
+reporting (`3ca6f01a…30432f` MATCHES). `src/**` is drift-fenced, so this is a REGISTER.
+
+### ⭐ THE HEADLINE IS THE NEGATIVE RESULT, AND IT IS WORTH STATING FIRST
+
+**ZERO CRITICAL FINDINGS. No defect was found that silently produces a wrong confirmatory number on
+the currently-wired path.** The estimators were checked against their sources and match **exactly**:
+Bailey & López de Prado's PSR and DSR and MinTRL · the CSCV rank machinery of Bailey et al. 2017 ·
+Benjamini-Hochberg (1995) · Romano-Wolf stepdown with correctly centred bootstrap · **Bretz et al.
+(2009) graphical alpha propagation implemented exactly, equations (2)-(3), including the old-`g`-then-
+rewire ordering** · Rouder et al. (2009) JZS Bayes factor and Wagenmakers (2007) BIC BF · Politis-Romano
+(1994) stationary bootstrap · FZ0 per Patton-Ziegel-Chen (2019) with the Harvey-Leybourne-Newbold (1997)
+correction · Schuirmann/Lakens TOST · Baron-Kenny/Preacher-Hayes mediation · and **both IQM
+implementations agree exactly with each other and with `scipy.stats.trim_mean(x, 0.25)`**, i.e. with
+rliable's definition. Sign conventions were audited across all four CVaR sites, every one-sided p and
+every DM/FZ0 comparison: **no inversion anywhere.** Degenerate inputs were traced function by function
+and the previously-recorded bugs (the `sd == 0` guard, the `np.ptp(NaN)` ordering) are genuinely fixed
+in live code. **On the ddof question specifically: every `std`/`var`/`cov` in `src/inference/**` was
+checked against its own docstring and there is no live code-versus-docstring contradiction.**
+
+### D61 (MAJOR) — N4's confirmatory IUT can run over a comparator family SMALLER than registered
+
+`src/inference/validity_tier.py:86` declares `N4_h4` with **no `"require"` key**, while N6 at `:88-89`
+carries `"require": "all_baselines_present"` for exactly this reason. The producer
+(`analyze_campaign.py:2262-2270`) puts any H4 contrast with fewer than 2 shared seeds into `skipped`
+rather than `tests`, and `all_ran` at `:2309` is used only inside descriptive fields — never exported
+as a boolean a `require` could read. **So if `cma_es` or `tpe` is under-seeded at analysis time,
+`tier_node_pvalues` returns max over 2 legs instead of the registered 4. An IUT p that is a max of 2
+is stochastically smaller than a max of 4, so N4 rejects where the registered beat-the-max-of-4 rule
+would not** — and because the frozen graph gives N4 out-edges `{N3: 0.34, N5: 0.33, N6: 0.33}`, a
+spurious rejection **recycles alpha into three other confirmatory nodes**. That is an FWER breach of
+the registered family, not a single-node error. **N1/N2 are NOT exposed**: `_one_sided_legs`
+(`:1909-1922`) pads a missing contrast with a leg carrying no `pvalue_one_sided`, which becomes
+`untestable` — the exact guard N4 lacks. **DETECTOR (buildable, but only once an analysis JSON
+exists): assert `nodes["N4_h4"]["n_legs"] == 4` whenever its p is not None, and `== 3` for N1/N2.
+`n_legs` is already recorded at `validity_tier.py:154`.**
+
+### D62 (MAJOR) — ONE registered SESOI, THREE numeric renderings, and two silent sites apply a DSR-unit constant on a Sharpe scale
+
+Registered: `sesoi: 0.05` in **validation-DSR units**, with `sesoi_ann_sharpe_equiv: 0.0756`
+(`config/preregistration.yaml:212-216`). `_ni_margins()` converts correctly for N2 (0.0756 primary,
+0.0502 conservative). `contamination.py:641` applies 0.05 to per-seed Sharpe but **discloses** the
+units caveat at `:655-666`. **The two silent sites: `_iqm_tost` (`analyze_campaign.py:2111-2166`,
+reached at `:2190`) applies ±0.05 to per-seed ANNUALISED SHARPE IQM differences for H3 and all four
+H4 legs — and its own docstring asserts the margin is in the statistic's units while the value handed
+to it is the DSR constant. And `bayesian_null_report` (`:2931`) sets the RA-leg ROPE to ±0.05 on the
+Sharpe scale; the TAIL leg got a relative-ROPE companion and the RA leg did not.** ✔ **DIRECTION IS
+CONSERVATIVE: 0.05 < 0.0756, so every silent site is a ~34% TIGHTER margin and cannot manufacture a
+false null.** ⚠ **STILL MAJOR, because the dissertation's headline IS the bounded null and the margin
+is the number that bounds it:** as it stands CH6 would report "equivalent within ±0.05" for H3/H4 and
+"non-inferior at 0.0756" for N2, from one registered SESOI. **DETECTOR: assert every equivalence/ROPE
+margin in the analysis JSON lies in {0.05 DSR, 0.0756 ann-Sharpe, 0.0502 ann-Sharpe} AND carries a
+declared unit string.**
+
+### D63 (MAJOR) — paired estimators drop non-shared seeds and never report the drop count
+
+`analyze_campaign.py:1553-1557` pairs on `set(sa) & set(sb)`. **The pairing itself is correct** — by
+seed id, no padding, no mis-pairing. But the emitted rows carry only `n_seeds = len(common)`;
+`len(sa)`, `len(sb)` and the drop count are absent, at `:1607-1623`, `:1633-1646`, `:2264-2270`,
+`contamination.py:677` and `:743`. **Under R101's tiered ladder unequal seed sets are the EXPECTED
+state**, so an H2 leg reported at `n_seeds=30` gives a reader no signal that one arm held 189 and the
+other 30 — precisely the fact a referee needs to judge the null's power. `h3_iteration_effect`
+(`:2477-2481`) already shows the right shape, reporting both counts. **DETECTOR: recompute per-arm
+seed counts from the archive and diff against each leg's `n_seeds` — this one RUNS TODAY.**
+
+### D64 (MINOR, latent) — `romano_wolf_joint` truncates positionally, not by seed
+
+`analyze_campaign.py:1736-1737` takes `[:n]` of each array. The sole caller intersects seed sets
+first, so it is a genuine no-op today and the docstring says so — but the function is module-level
+with an arbitrary `scores` dict, so **a second caller gets silent positional mis-pairing instead of an
+error.** Blast radius is a sensitivity table, not the primary rule. Direction: raise on unequal lengths.
+
+### D65-D68 (MINOR, ten items, all confirmed by reading)
+
+**D65 · the frozen primary PBO is volatility-blind.** `overfitting.py:12` cites Bailey et al. 2017,
+whose CSCV computes a performance statistic (canonically Sharpe) per submatrix; `:125-126` ranks by
+`mean(axis=0)` on raw validation returns — an odd primary overfitting guard for a risk-sensitive
+project. **Mitigated and disclosed at the call site**: `_pbo_ranked_on_sharpe` (`:424-446`) runs the
+Sharpe-ranked CSCV alongside with the rationale stated, so the residual defect is documentation only —
+`overfitting.py`'s docstring cites the paper without noting the divergence.
+**D66 · two dead-or-conflated branches in `deflated_sharpe.py`.** `:92-95` returns a hard `1.0` — the
+MAXIMUM possible DSR — on a branch that Cauchy-Schwarz makes unreachable for any empirical
+distribution (`skew² ≤ kurt − 1`), and it is reachable only on the two-point boundary. ⚠ The function
+is public and `src/backtest/metrics.py:307-312` calls it with independently-computed moments; the
+auditor flags that call as **not closely read**. And `:125` folds `n <= 1` (correct R65 rationale)
+together with `var_sr <= 0` — a different fact, zero cross-trial dispersion, which makes the
+"Deflated" Sharpe silently become the UNDEFLATED PSR-against-zero, the R65 failure mode reached
+through the other input. `winner_dsr` reports `var_sr` but carries no field saying the deflation was
+inert.
+**D67 · three Sharpe conventions, one undocumented.** `bootstrap.py:337` annualised ddof=0 (documented);
+`deflated_sharpe.py:148` per-period ddof=1 (deliberate, documented, and honoured by `headroom.py`);
+`regime_analysis.py:41,48` per-period ddof=1 un-annualised — the docstring discloses "not annualised"
+and is **silent on ddof**, so a regime table beside the headline Sharpe mixes conventions. Numerically
+negligible (`sqrt(T/(T−1)) = 1.0003` at T=1571) and report-only.
+**D68 · five small defensive gaps, every one CONSERVATIVE in direction.** `reporting.py:94-134`
+`stratified_bootstrap_ci` is **not stratified** (flat i.i.d. resample) while the header claims rliable
+methodology — used only by the prototype `analyze_results.py`, no confirmatory dependence, so a naming
+defect. `multiple_testing.py:219-220,238-239` discards alpha routed to an untestable node instead of
+re-normalising (valid FWER, lower power) and reports their `local_alpha` as the initial weight rather
+than 0. `:203-211` validates weight and edge SUMS but never edge SIGNS. `:63-77` lets a NaN p-value
+inflate `m` (conservative; no live path produces NaN). `bootstrap.py:227-232` has a NaN-effect path
+that would floor a p to 0.0005 — **traced and NOT reachable** — but *partial* non-finiteness would
+silently vary the IQM's estimand with no flag; `_test_returns` rejects non-finite series upstream, so
+latent. Direction: reject non-finite at the boundary as `model_confidence_set.py:91-95` already does.
+
+### ⚠ COVERAGE GAP — STATED SO THIS REGISTER IS NOT MISREAD AS COMPLETE
+
+NOT audited: `ood_stress.py` · `reward_taxonomy.py` · `attribution.py` beyond the Newey-West helpers,
+**including its BH family at `:510` and `:655`** · `information_gap.py`'s outer functions ·
+`contamination.py`'s `named_vs_blinded_structural`, `cross_model_disagreement` and
+`contamination_report` · `es_backtest.dm_size_power_calibration` ·
+`reward_code_distance.reward_code_structure_report`. **These are the next session's targets.**

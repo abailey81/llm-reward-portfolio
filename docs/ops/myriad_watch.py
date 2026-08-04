@@ -158,6 +158,26 @@ def _append(line: str) -> None:
         fh.write(line + "\n")
 
 
+def _previous_verdict_was_down() -> bool:
+    """Was the most recent recorded verdict DOWN? Read from the log this file already writes.
+
+    Deliberately NOT a new state file: the log is the artefact, it is appended on every sweep, and
+    deriving the edge from it means there is nothing extra to keep in sync. **A missing or
+    unreadable log returns True**, so the banner fires ONCE on the next serving sweep rather than
+    never -- the safe direction for a recovery notice, and the opposite of the failure this fixes.
+    """
+    try:
+        with open(LOG_PATH, "r", encoding="utf-8", errors="replace") as fh:
+            tail = fh.readlines()[-400:]
+    except OSError:
+        return True
+    for ln in reversed(tail):
+        for token in (" DOWN ", " SERVING ", " RECOVERED "):   # RECOVERED = the pre-fix spelling
+            if token in ln:
+                return token.strip() == "DOWN"
+    return True
+
+
 def sweep(quiet: bool = False) -> bool:
     """One sweep across every login node. Returns True if any node is SERVING."""
     stamp = _utc()
@@ -169,12 +189,21 @@ def sweep(quiet: bool = False) -> bool:
         parts.append("%s(%s)=%s" % (short, ip, verdict))
         if verdict == SERVING:
             serving.append((host, ip, detail))
-    status = "RECOVERED" if serving else "DOWN"
+    status = "SERVING" if serving else "DOWN"
     line = "%s  %-9s  %s" % (stamp, status, "  ".join(parts))
     _append(line)
     if not quiet:
         print(line)
-    if serving:
+    # ⚠⚠ "IS BACK" IS A TRANSITION CLAIM COMPUTED FROM A LEVEL, AND IT HAD FIRED 128 TIMES
+    # (auditor, 2026-08-04, RUN 21). `status` reads the CURRENT level and no prior state was kept,
+    # so every healthy sweep announced a recovery: the log holds **128 `IS BACK` banners against 22
+    # `DOWN` lines**, the last six sweeps consecutively. That is the exact signal-saturation failure
+    # `crash_watchdog.py` was built to avoid, running live in a sibling monitor -- and it destroys
+    # the value of the one banner that would matter. The banner now fires only on a genuine
+    # DOWN -> SERVING edge, read from the previous verdict persisted in the log itself, so no new
+    # state file is introduced and a lost log degrades to "announce once", never to "announce never".
+    was_down = _previous_verdict_was_down()
+    if serving and was_down:
         banner_line = "%s  *** MYRIAD SSH IS BACK -- %d login node(s) serving ***" % (stamp, len(serving))
         _append(banner_line)
         for host, ip, detail in serving:

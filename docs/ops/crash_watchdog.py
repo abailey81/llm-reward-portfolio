@@ -79,19 +79,70 @@ def parse_ts(raw: str):
     return None
 
 
+#: Every arm token that can appear in a unit name. Needed because two roster arms are PREFIXES of
+#: two others (`scalar` of `scalar_cvar5`, `placebo` of `placebo_shuffled`), so "does this unit name
+#: arm X" is only answerable against the whole roster.
+_KNOWN_ARMS = ("placebo_shuffled", "scalar_cvar5", "distributional", "scalar", "placebo",
+               "random_search", "bayes_opt", "cma_es", "tpe")
+
+
+def _names_arm(unit: str, arm: str) -> bool:
+    """Does this unit name THIS arm, as a whole token rather than as a substring?
+
+    ⚠⚠ `arm in unit` CREDITED RECOVERY FROM A DIFFERENT ARM (auditor, 2026-08-04, RUN 21).
+    The live roster is distributional / scalar / placebo / scalar_cvar5 / placebo_shuffled, and
+    **`scalar` is a substring of `scalar_cvar5`, `placebo` of `placebo_shuffled`.** So a crashed
+    `scalar` unit was marked recovered by any later log line naming `scalar_cvar5`, and a crashed
+    `placebo` by any line naming `placebo_shuffled` -- silently clearing a crash on the strength of
+    a different arm's progress, which is the one thing this watchdog exists to prevent. The
+    selftest's own other-arm case used `bayes_opt` vs `c1_tpe_c22` and never exercised the prefix
+    pair, so it passed throughout. Units are `_`-separated (`leg8_leg_sonnet_5_scalar_test_p01`), so
+    a token match on that separator is both correct and sufficient.
+    """
+    padded = "_" + unit + "_"
+    if ("_" + arm + "_") not in padded:
+        return False
+    # ⚠ AND MY FIRST FIX FOR THIS WAS ALSO WRONG, WHICH IS WHY THE FALSIFIER EXISTS. Splitting on
+    # "_" does not help: `scalar_cvar5` SPLITS INTO the token `scalar`, so a token test still
+    # credited the wrong arm. The property that actually separates them is MAXIMALITY -- if a LONGER
+    # known arm also matches at this position, the unit names that one, not this one.
+    return not any(len(a) > len(arm) and ("_" + a + "_") in padded for a in _KNOWN_ARMS)
+
+
 def is_recovered(arm: str, crash_ts, events, newer_records: int) -> bool:
     """Pure, so --selftest can prove both signals and their interaction."""
-    resumed_log = any(ts > crash_ts and unit and arm in unit for ts, unit in events)
+    resumed_log = any(ts > crash_ts and unit and _names_arm(unit, arm) for ts, unit in events)
     return bool(resumed_log or newer_records > 0)
 
 
-def _count_newer_records(line: str, arm: str, crash_ts) -> int:
+#: `driver_<line>.log` names the CORE line "core", but its archive directories are `search`,
+#: `test` and `frozen` -- no directory contains the token "core" at all. So `root.glob("*core*")`
+#: matched NOTHING and `_count_newer_records` returned 0 unconditionally **for the one line whose
+#: crash this watchdog was written for** (auditor, 2026-08-04, RUN 21). Two consequences: the core
+#: line ran on the log signal alone, which this file's own docstring says is insufficient; and the
+#: alarm string "no log activity and no newer records" asserted a measurement that never happened.
+#: Mapped explicitly rather than by pattern, so a rename fails loudly instead of silently matching 0.
+_LINE_DIR_TOKENS = {"core": ("test", "search", "frozen")}
+
+
+def _count_newer_records(line: str, arm: str, crash_ts) -> tuple[int, bool]:
+    """Returns (count, measured). `measured=False` means NO directory matched this line at all.
+
+    The second element exists so a caller can tell "I looked and found none" from "I could not
+    look", which is the P230/P232 rule: a verdict channel must not share a value with a
+    could-not-measure channel.
+    """
     key = line.replace("-", "_").replace(".", "_")
     n = 0
     root = pathlib.Path(ROOT)
     if not root.is_dir():
-        return 0
-    for sub in root.glob("*%s*" % key):
+        return 0, False
+    subs = []
+    for token in _LINE_DIR_TOKENS.get(key, ("*%s*" % key,)):
+        subs.extend(root.glob(token if "*" in token else token))
+    if not subs:
+        return 0, False
+    for sub in subs:
         armdir = sub / arm
         if not armdir.is_dir():
             continue
@@ -101,7 +152,7 @@ def _count_newer_records(line: str, arm: str, crash_ts) -> int:
                     n += 1
             except OSError:
                 pass
-    return n
+    return n, True
 
 
 def scan() -> list[dict]:
@@ -125,10 +176,13 @@ def scan() -> list[dict]:
         except OSError:
             continue
         for arm, cts in crashes.items():
-            newer = _count_newer_records(line, arm, cts)
+            newer, measured = _count_newer_records(line, arm, cts)
             if not is_recovered(arm, cts, events, newer):
                 dead.append({"line": line, "arm": arm, "crashed_utc": cts.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                             "age_h": round((dt.datetime.utcnow() - cts).total_seconds() / 3600.0, 1)})
+                             "age_h": round((dt.datetime.utcnow() - cts).total_seconds() / 3600.0, 1),
+                             # False => NO archive directory matched this line, so the record signal
+                             # was never evaluated. The alarm text must not claim it was.
+                             "record_signal_measured": measured})
     return dead
 
 

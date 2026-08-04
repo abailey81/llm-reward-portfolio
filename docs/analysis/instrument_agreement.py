@@ -42,17 +42,35 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SEED_DIR = re.compile(r"-s\d+$")
 
-rows: list[tuple[str, str, str, bool]] = []      # (id, what, evidence, ok)
+rows: list[tuple[str, str, str, bool, bool]] = []   # (id, what, evidence, ok, skipped)
 
 
-def add(cid: str, what: str, evidence: str, ok: bool) -> None:
-    rows.append((cid, what, evidence, ok))
+def add(cid: str, what: str, evidence: str, ok: bool, skipped: bool = False) -> None:
+    """Record a row. `skipped` is a THIRD state and the verdict must enumerate it.
+
+    ⚠ A SKIPPED CHECK WAS RECORDED AS OK AND THE VERDICT SAID "every expected relationship HOLDS"
+    (auditor, 2026-08-04, RUN 21). Without `--deep` -- the DEFAULT -- A4 was added with `ok=True`,
+    contributed 0 to the failure count, and the tool then asserted that no two instruments disagree.
+    **A4 is the only row covering the incident this file was written for** (P282: S10 printed 12 while
+    S15 printed 0, the gated layer reading high). So the file's headline sentence was strongest
+    exactly where its evidence was absent. Skipped rows are now counted and named in the verdict.
+    """
+    rows.append((cid, what, evidence, ok, skipped))
 
 
 # ------------------------------------------------------------------ the instruments' own rules
 def census_depth4(root: Path) -> int:
-    """campaign_guards.status:276 -- `root.glob('*/*/*/record.json')`, all tiers, fixed depth."""
-    return len(list(root.glob("*/*/*/record.json")))
+    """campaign_guards.status:276 -- `root.glob('*/*/*/record.json')`, all tiers, fixed depth.
+
+    ⚠ THE TWO SIDES OF A1 DISAGREED ABOUT DOT-DIRECTORIES (auditor, 2026-08-04, RUN 21).
+    `pathlib.glob` does NOT skip dot-prefixed directories, so this counted records inside a live
+    `.pull_tmp.<pid>` staging directory while `census_by_tier` skipped them -- meaning A1's identity
+    would break, and cry FALSE ALARM, during any mid-pull window. Zero such records exist right now
+    (both staging directories verified empty at depth 4), so this was a race-window defect rather
+    than a live one. Both sides now apply the same exclusion, which is what makes it an IDENTITY.
+    """
+    return sum(1 for q in root.glob("*/*/*/record.json")
+               if not q.relative_to(root).parts[0].startswith("."))
 
 
 def census_by_tier(root: Path) -> tuple[int, int, int]:
@@ -107,12 +125,25 @@ def depth_seed_dirs(root: Path, line: str, arm: str) -> int:
 
 
 def _rung_from(tool: str, root: Path) -> int | None:
-    """Run a layer and parse ITS OWN printed rung. Never re-implement what we are checking."""
+    """Run a layer and parse ITS OWN printed rung. Never re-implement what we are checking.
+
+    ⚠⚠ THIS COMPARED TWO ROOTS AND CALLED IT AN AGREEMENT (auditor, 2026-08-04, RUN 21).
+    `record_science_audit.py` was given `--root <root>` while `record_seed_completeness.py` was
+    given NOTHING and fell back to its own default. Under any non-default `--root` the row therefore
+    compared S10-on-X against S15-on-default and printed `S10=%d S15=%d` with no hint that the scopes
+    differed -- a FALSE AGREEMENT when the defaults happened to coincide and a FALSE DISAGREEMENT
+    when they did not. In a file whose entire purpose is catching two instruments measuring the same
+    thing differently, that is the defect it exists to find, living inside it. Both are now passed
+    the same root, and a tool that does not accept `--root` is reported as UNKNOWN rather than
+    silently compared.
+    """
+    argv = [sys.executable, str(REPO / "docs" / "analysis" / tool), "--root", str(root)]
     try:
-        out = subprocess.run([sys.executable, str(REPO / "docs" / "analysis" / tool),
-                              "--root", str(root)] if tool != "record_seed_completeness.py"
-                             else [sys.executable, str(REPO / "docs" / "analysis" / tool)],
-                             capture_output=True, text=True, timeout=1800, cwd=str(REPO))
+        out = subprocess.run(argv, capture_output=True, text=True, timeout=1800, cwd=str(REPO))
+        if out.returncode not in (0, 1):
+            # 2 = "could not run" for these layers; argparse's usage error is also non-{0,1}. Either
+            # way the number that follows would not be about `root`, so it is UNKNOWN, not a rung.
+            return None
     except Exception:  # noqa: BLE001
         return None
     for pat in (r"COMMON RUNG .*? = (\d+)", r"COMMON contiguous prefix (\d+)"):
@@ -139,6 +170,9 @@ def _leg_floor_seeds() -> int:
 
 
 def run(root: Path, deep: bool) -> int:
+    # `rows` is a module global; two run() calls in one process used to DOUBLE-REPORT every row.
+    # The selftest cleared it by hand at each case, which was the tell that the function should.
+    rows.clear()
     if not root.is_dir():
         print("*** CANNOT RUN: %s is not a directory. NOT a clean result. ***" % root)
         return 2
@@ -161,7 +195,14 @@ def run(root: Path, deep: bool) -> int:
         a, b = roster_any_subdir(root, ln), roster_winner_only(root, ln)
         for name in sorted(a - b):
             extra.append("%s/%s" % (ln, name))
-    add("A2", "arm roster: line_balance (ANY subdir) vs the -winner rule (S15, arm_jobs)",
+    # ⚠ SCOPE, STATED BECAUSE THE ROW USED TO OVERSTATE IT (auditor, 2026-08-04, RUN 21). Both
+    # rules read `frozen*/` only, so an arm with no frozen winner is in NEITHER population -- on the
+    # core line that is 11 `baseline_*` arms holding 341 seed directories, none of which A2 or A3
+    # ever compared, while A3 printed "identical on every (line, arm)". The rows are still a valid
+    # comparison of the two ROSTER RULES, which is what they were built for; they are not a
+    # comparison over every arm, and the evidence string now says which.
+    add("A2", "arm roster (frozen-winner population only): line_balance (ANY subdir) vs the "
+              "-winner rule (S15, arm_jobs)",
         "identical on all %d line(s)" % len(lines) if not extra
         else "line_balance sees %d PHANTOM arm(s) nobody else does: %s" % (len(extra), ", ".join(extra[:6])),
         not extra)
@@ -173,7 +214,8 @@ def run(root: Path, deep: bool) -> int:
             x, y = depth_any_record(root, ln, arm), depth_seed_dirs(root, ln, arm)
             if x != y:
                 diffs.append("%s/%s any-depth=%d seed-dirs=%d" % (ln, arm, x, y))
-    add("A3", "per-arm depth: record.json at ANY depth vs `-s<N>` seed directories",
+    add("A3", "per-arm depth (frozen-winner population only): record.json at ANY depth vs "
+              "`-s<N>` seed directories",
         "identical on every (line, arm)" if not diffs
         else "%d disagreement(s): %s" % (len(diffs), "; ".join(diffs[:4])), not diffs)
 
@@ -188,7 +230,8 @@ def run(root: Path, deep: bool) -> int:
             add("A4", "banked rung: record_science_audit S10 vs record_seed_completeness S15",
                 "S10=%d  S15=%d" % (s10, s15), s10 == s15)
     else:
-        add("A4", "banked rung: S10 vs S15", "SKIPPED (--deep runs both layers, ~5 min)", True)
+        add("A4", "banked rung: S10 vs S15", "SKIPPED (--deep runs both layers, ~5 min)",
+            True, skipped=True)
 
     # ---- A5 SPEND (RUN 21) --------------------------------------------------------------------
     # EXPECTED IDENTITY: the total the board prints == the sum of `cost_usd` over every row of every
@@ -210,9 +253,10 @@ def run(root: Path, deep: bool) -> int:
     is_live = root.resolve() == live_root
     if not is_live:
         add("A5", "spend: the board's printed total vs the sum over spend_ledger_*.jsonl",
-            "SKIPPED -- STATE.json describes the LIVE root only, and --root is %s" % root, True)
+            "SKIPPED -- STATE.json describes the LIVE root only, and --root is %s" % root,
+            True, skipped=True)
         add("A6", "frozen-winner roster: STATE.json vs the `*-winner` directories on disk",
-            "SKIPPED -- same reason", True)
+            "SKIPPED -- same reason", True, skipped=True)
     led = sorted((root).glob("spend_ledger_*.jsonl"))
     try:
         st = json.loads(state_p.read_text(encoding="utf-8")) if is_live else {}
@@ -334,14 +378,24 @@ def run(root: Path, deep: bool) -> int:
     print("  could only ever say 'they differ, as expected' would carry zero bits, so it is not here.")
     print()
     bad = 0
-    for cid, what, ev, ok in rows:
+    skipped_ids: list[str] = []
+    for cid, what, ev, ok, was_skipped in rows:
         bad += 0 if ok else 1
-        print("  [%s] %-4s %s" % ("OK " if ok else "FAIL", cid, what))
+        if was_skipped:
+            skipped_ids.append(cid)
+        print("  [%s] %-4s %s" % ("SKIP" if was_skipped else ("OK " if ok else "FAIL"), cid, what))
         print("         %s" % ev)
     print()
     if bad == 0:
-        print("VERDICT: every expected relationship HOLDS. No two instruments disagree about a")
-        print("  quantity they both report.")
+        n_ran = len(rows) - len(skipped_ids)
+        print("VERDICT: every expected relationship that WAS CHECKED holds (%d of %d row(s))."
+              % (n_ran, len(rows)))
+        if skipped_ids:
+            print("  !! NOT CHECKED THIS RUN: %s. A skipped row is not evidence, and this sentence"
+                  % ", ".join(skipped_ids))
+            print("    used to omit them entirely while claiming every relationship held --")
+            print("    strongest exactly where the evidence was absent. Re-run with --deep for A4,")
+            print("    which is the only row covering the P282 incident this file was built for.")
         return 0
     print("VERDICT: %d DISAGREEMENT(S). Two instruments report different values for the same" % bad)
     print("  quantity, which means at least one of them is wrong and a session quoting either")

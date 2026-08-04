@@ -168,11 +168,23 @@ def scan(root: Path) -> dict:
                 if min(fin) < -1e-6:
                     out["simplex"].append(f"{rel}: NEGATIVE weight {min(fin)!r}")
                 rows = w if isinstance(w[0], list) else [w]
-                for r_ in rows[:1]:                       # one row is enough to catch a bad convention
-                    s = sum(float(x) for x in r_ if _finite(x))
-                    if s > 1.0 + 1e-3:                    # cash is the residual: <= 1, never > 1
-                        out["simplex"].append(f"{rel}: risky weights sum to {s:.6f} > 1")
-                        break
+                # ⚠ THIS READ `rows[:1]` -- ONE OF 48 ROWS -- WHILE THE VERDICT CLAIMED "every
+                # outcome is ... on the simplex" (auditor, 2026-08-04, RUN 21). The comment said
+                # "one row is enough to catch a bad convention", which is true of a CONVENTION and
+                # false of a VIOLATION: a single rebalance step that oversubscribes is invisible to
+                # the first row. Non-negativity was already checked across every row (the `flat`
+                # comprehension above), so only the SUM was sampled -- an asymmetry with no stated
+                # reason. Now every row, with the worst offender reported rather than the first, so
+                # the message is about the actual maximum rather than wherever the scan stopped.
+                worst_s, worst_i = -1.0, -1
+                for i_, r_ in enumerate(rows):
+                    s_ = sum(float(x) for x in r_ if _finite(x))
+                    if s_ > worst_s:
+                        worst_s, worst_i = s_, i_
+                if worst_s > 1.0 + 1e-3:                  # cash is the residual: <= 1, never > 1
+                    out["simplex"].append(
+                        f"{rel}: risky weights sum to {worst_s:.6f} > 1 at step {worst_i} "
+                        f"(worst of {len(rows)} rebalance step(s))")
 
         # ⚠ MY SECOND DEFECT FROM THE SAME RUN (P284). `test_gross` was banded as a GROSS EXPOSURE
         # in [0, 5] and flagged ALL 11,357 records at min -0.08 / max 0.058. Those magnitudes are
