@@ -42,8 +42,8 @@ STILL 0, because four other lines have not begun their two headline arms at all.
 pointed at the wrong critical path by an instrument that looked precise.
 
 ⚠ **THE ROSTER IS ITSELF A LOWER BOUND, AND THAT IS DISCLOSED RATHER THAN HIDDEN.** It is read from
-the `frozen*/` winner directories, so an arm still in C1 that has not frozen yet (core's `bayes_opt`,
-`cma_es` and `tpe` on 2026-08-03) is in NEITHER population and cannot be counted. Every per-line rung
+the `frozen*/` winner directories, so an arm still in C1 that has not frozen yet (core's `bayes_opt` and
+`tpe`; `cma_es` froze 2026-08-04 and is now IN the roster) is in NEITHER population and cannot be counted. Every per-line rung
 printed here is therefore an UPPER BOUND on what the line banks. It is labelled as one.
 
 THE RUNGS ARE READ FROM THE FROZEN REGISTRATION, never hardcoded - the R84 lesson ("a registered
@@ -76,6 +76,27 @@ PREREG = os.path.join(REPO, "config", "preregistration.yaml")
 _SEED = re.compile(r"-s(\d+)$")
 
 
+def registered_baselines(path: str = PREREG) -> list:
+    """The 11 H1 hand-written reward baselines, READ from the registration.
+
+    They are CONFIRMATORY (node N6, promoted by R108) and climb the ladder under R111, but they
+    never receive a `frozen*/<arm>-winner` directory -- so `registered_arms()` structurally cannot
+    supply them and the C6 roster has a hole exactly their shape.
+    """
+    import yaml
+
+    try:
+        with open(path, encoding="utf-8") as fh:
+            yml = yaml.safe_load(fh) or {}
+        names = yml.get("h1_baselines") or []
+        return ["baseline_" + str(n) for n in names]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+BASELINE_ARMS = registered_baselines()
+
+
 def registered_rungs(path: str = PREREG) -> list:
     """The frozen assurance-tier ladder, READ from the registration (Amendment E1)."""
     import yaml
@@ -84,7 +105,13 @@ def registered_rungs(path: str = PREREG) -> list:
         yml = yaml.safe_load(fh) or {}
     seeds = yml.get("seeds")
     if isinstance(seeds, dict) and isinstance(seeds.get("tiers"), list):
-        return [int(t) for t in seeds["tiers"]]
+        tiers = [int(t) for t in seeds["tiers"]]
+        # ⚠ An EMPTY list passes the isinstance check and then `max(rungs)` raises ValueError, so
+        # the tool died with a traceback and exit 1 -- which reads as "a hole exists", the WRONG
+        # verdict. A ladder we cannot read is "could not run" (exit 2), never a finding.
+        if not tiers or any(t <= 0 for t in tiers):
+            raise KeyError("seeds.tiers is empty or non-positive - refusing to guess the ladder")
+        return tiers
     raise KeyError("seeds.tiers absent from the registration - refusing to guess the ladder")
 
 
@@ -216,9 +243,21 @@ def report(root: str, verbose: bool = False) -> int:
             note = ("   <<< %d registered arm(s) hold NO record: %s -- that is what caps this line"
                     % (len(idle), ", ".join(idle)))
         else:
-            worst = max(arms, key=lambda a: a[4])
+            # ⚠⚠ P253 -- THIS PICKED THE ARM WITH THE MOST HOLES, WHICH IS NOT THE ARM THAT CAPS.
+            # The comment three lines up says "report the binding cause, not the most eye-catching
+            # one", and then this branch picked the most eye-catching one: `max(..., key=holes)`.
+            # Hole COUNT and hole POSITION are different quantities. An arm with ONE hole at seed 5
+            # banks 0 and caps the line; an arm with 200 holes all above rung 403 banks 403 and does
+            # not. The first version would have named the second. **That is the P244 failure mode
+            # recurring inside the P244 fix** -- a number computed over the wrong population, again,
+            # and it would point a session at the wrong repair job, which is the exact harm P244 was
+            # written to stop. Found by a read-only auditor, not by me.
+            # The cap is an arm whose banked rung EQUALS the line's minimum; among those, the one
+            # with the most holes is the most informative to name.
+            capping = [a for a in arms if a[1] == lo and a[4]]
+            worst = max(capping, key=lambda a: a[4]) if capping else None
             note = ("   <<< %s has %d HOLE(S) below its frontier %d -- that is what caps this line"
-                    % (worst[0], worst[4], worst[3])) if worst[4] else ""
+                    % (worst[0], worst[4], worst[3])) if worst else ""
         print("  %-30s banked rung %4d  (arms: %s)%s"
               % (line, lo, " ".join("%s=%d" % (a[0][:12], a[1]) for a in arms) if verbose
                  else "%d arms" % len(arms), note))
@@ -226,8 +265,38 @@ def report(root: str, verbose: bool = False) -> int:
     print()
     print("  ==> COMMON RUNG (the MINIMUM over every line -- under R101 this IS the result) = %d"
           % common)
-    print("      it is an UPPER BOUND: arms still in C1 have no frozen winner and so appear in")
-    print("      neither population above. The true bank is this number or lower, never higher.")
+    print("      it is an UPPER BOUND. FOUR channels remove a low-banking unit from the minimum,")
+    print("      and every one pushes the printed number UP (auditor, 2026-08-04):")
+    print("        1. an arm still in C1 has no frozen winner, so it is in neither population")
+    print("        2. a LINE with no test* directory is not enumerated at all -- the line-level")
+    print("           twin of the arm-level bug C6 fixed, and the archive is a PULL MIRROR, so")
+    print("           'not here yet' is a reachable state")
+    print("        3. a line whose frozen* directory is unreadable gets an EMPTY roster, which")
+    print("           silently degrades C6 to pre-fix behaviour for that line")
+    print("        4. the 11 H1 baselines NEVER get a -winner dir, so they can never enter a")
+    print("           roster -- if a baseline test dir were absent it would be invisible")
+    print("      The true bank is this number or lower, never higher.")
+    # Channels 2 and 3 are made LOUD rather than left as prose: an unannounced empty roster is
+    # indistinguishable from a line whose roster is genuinely fully started, and that is exactly
+    # the silence C6 exists to remove.
+    rosterless = sorted(ln for ln in by_line if not registered_arms(root, ln))
+    if rosterless:
+        print()
+        print("  *** %d LINE(S) HAVE NO READABLE frozen*/ ROSTER: %s"
+              % (len(rosterless), ", ".join(rosterless)))
+        print("  *** For those lines C6 IS INERT and the rung above is the PRE-FIX number.")
+    missing_baselines = []
+    for ln in by_line:
+        if ln != "test":
+            continue
+        have = {a[0] for a in by_line[ln]}
+        missing_baselines = [b for b in BASELINE_ARMS if b not in have]
+    if missing_baselines:
+        print()
+        print("  *** %d REGISTERED H1 BASELINE(S) ABSENT FROM THE CORE LINE: %s"
+              % (len(missing_baselines), ", ".join(missing_baselines)))
+        print("  *** They cannot be supplied by the frozen roster (baselines never get a -winner")
+        print("  *** dir), so they are invisible to the minimum. N6 is CONFIRMATORY under R108.")
 
     print()
     print("--- C1: HOLES below an arm's own frontier (the defect no other layer sees) ---")
@@ -266,7 +335,17 @@ def report(root: str, verbose: bool = False) -> int:
     print("EFFECT-BLIND: directory names and counts only. No record was opened, no metric read.")
     print()
     if holed or over or dupes:
-        print("VERDICT: %d arm(s) hold a HOLE below their own frontier." % len(holed))
+        # ⚠ This printed "N arm(s) hold a HOLE" even when the ONLY failure was C4 (a seed above the
+        # ladder) or C5 (a duplicate). Naming the wrong check sends a reader to the wrong evidence.
+        parts = []
+        if holed:
+            parts.append("%d arm(s) hold a HOLE below their own frontier" % len(holed))
+        if over:
+            parts.append("%d arm(s) carry a seed AT OR ABOVE the registered ceiling (C4)"
+                         % len(over))
+        if dupes:
+            parts.append("%d arm(s) have DUPLICATE seed directories (C5)" % len(dupes))
+        print("VERDICT: " + "; ".join(parts) + ".")
         print("  A hole DEMOTES that arm's bankable rung, and the common rung is a MINIMUM over")
         print("  every arm of every line -- so one hole can cap the ENTIRE campaign's reported result.")
         print()
@@ -308,8 +387,11 @@ def selftest() -> int:
     gpt = set(range(568)) - {192, 193}
     check("C THE LIVE CASE: 566 seeds with a frontier of 567 but holes at 192/193 banks 189, not 568",
           banked_rung(gpt, R) == 189, banked_rung(gpt, R))
-    check("D and len()/max() BOTH fail to see it -- which is why no other layer caught it",
-          len(gpt) == 566 and max(gpt) == 567)
+    # ⚠ D asserts on the FIXTURE, not on code under test, so it can never fail. Kept because it
+    # states WHY the other layers missed the live gpt case, but it is illustrative, not a check --
+    # labelled so it cannot inflate the pass count's meaning (auditor, 2026-08-04).
+    check("D [illustrative, not a check] len()/max() BOTH miss it, which is why no layer caught it",
+          len(gpt) == 566 and max(gpt) == 567 and banked_rung(gpt, R) != 568)
     check("E a hole at seed 0 banks NOTHING", banked_rung(set(range(1, 568)), R) == 0)
     check("F a hole just above a rung does not demote below it",
           banked_rung(set(range(568)) - {300}, R) == 279)
@@ -336,8 +418,15 @@ def selftest() -> int:
           registered_rungs() == R, str(registered_rungs()))
 
     # ---------------------------------------------------------------------------------------
-    # C6 -- THE LIVE DEFECT (P244). Every case below FAILS against the pre-fix code, which
-    # dropped zero-record arms from the population before taking the per-line minimum.
+    # C6 -- THE LIVE DEFECT (P244). The pre-fix code dropped zero-record arms from the
+    # population before taking the per-line minimum.
+    # ⚠ CORRECTED 2026-08-04: this said "EVERY case below FAILS against the pre-fix code",
+    # which is FALSE and was a trust claim inside the file whose whole purpose is trust.
+    # J, K, L and N DISCRIMINATE (they read one way after the fix and the other before).
+    # M is a REGRESSION GUARD and passes both sides by design. O and P also pass pre-fix:
+    # they guard the fix's own failure modes (a weakened vacuity guard, an invented arm),
+    # not the original defect. The commit message said "the four new cases" and was right;
+    # this comment was the one that overstated.
     # ---------------------------------------------------------------------------------------
     def _plant(base, line, arm, seeds):
         d = os.path.join(base, line, arm)
@@ -385,8 +474,9 @@ def selftest() -> int:
         # The vacuity guard must survive C6: winners but no records is LEARNING NOTHING, not a pass.
         _freeze(td, "test", ["placebo", "scalar"])
         os.makedirs(os.path.join(td, "test"), exist_ok=True)
+        rc_o = report(td)   # ⚠ called ONCE: the detail arg is eager, so `str(report(td))` re-ran
         check("O winners but ZERO records still exits 2 (the guard was not weakened by C6)",
-              report(td) == 2, str(report(td)))
+              rc_o == 2, str(rc_o))
 
     with tempfile.TemporaryDirectory() as td:
         # The roster is READ, not assumed: no frozen dir means no phantom arms are invented.
@@ -394,6 +484,43 @@ def selftest() -> int:
         d = scan(td)
         check("P with no frozen/ directory the roster adds NOTHING (no invented arms)",
               set(d) == {("test_leg_y", "placebo")}, str(sorted(d)))
+
+    # ---------------------------------------------------------------------------------------
+    # P253 -- THE BINDING CAUSE IS THE ARM WITH THE LOWEST BANKED RUNG, NOT THE MOST HOLES.
+    # Fixture: `arm_low` has ONE hole at seed 5, so it banks 0 and CAPS the line. `arm_many` has
+    # ~80 holes, all above rung 403, so it banks 403 and caps nothing. The pre-fix
+    # `max(arms, key=hole_count)` named `arm_many`. Both cases read the RENDERED note, because the
+    # rendered note is what a session acts on.
+    # ---------------------------------------------------------------------------------------
+    with tempfile.TemporaryDirectory() as td:
+        plan = {"arm_low": [x for x in range(30) if x != 5],
+                "arm_many": [x for x in range(568) if not (403 <= x and x % 2)]}
+        for arm, seeds in plan.items():
+            d = os.path.join(td, "test_leg_p", arm)
+            os.makedirs(d, exist_ok=True)
+            for sd in seeds:
+                u = os.path.join(d, "%s-s%d" % (arm, sd))
+                os.makedirs(u, exist_ok=True)
+                with open(os.path.join(u, "record.json"), "w", encoding="utf-8") as fh:
+                    fh.write("{}")
+        dat = scan(td)
+        r_low = banked_rung(dat[("test_leg_p", "arm_low")]["seeds"], R)
+        r_many = banked_rung(dat[("test_leg_p", "arm_many")]["seeds"], R)
+        h_low = len(dat[("test_leg_p", "arm_low")]["holes"])
+        h_many = len(dat[("test_leg_p", "arm_many")]["holes"])
+        check("Q1 fixture: the CAPPING arm has FEWER holes than the non-capping one",
+              r_low == 0 and r_many == 403 and h_low < h_many,
+              "low=(rung %s, %s holes) many=(rung %s, %s holes)" % (r_low, h_low, r_many, h_many))
+        import contextlib as _cl
+        import io as _io
+        buf = _io.StringIO()
+        with _cl.redirect_stdout(buf):
+            report(td)
+        cap = [ln for ln in buf.getvalue().splitlines()
+               if "test_leg_p" in ln and "banked rung" in ln]
+        check("Q2 the note names the arm that CAPS (rung 0), not the one with the most holes",
+              bool(cap) and "arm_low" in cap[0] and "arm_many" not in cap[0],
+              cap[0].strip() if cap else "NO LINE RENDERED")
 
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1
