@@ -2493,3 +2493,73 @@ NOT audited: `ood_stress.py` · `reward_taxonomy.py` · `attribution.py` beyond 
 `contamination.py`'s `named_vs_blinded_structural`, `cross_model_disagreement` and
 `contamination_report` · `es_backtest.dm_size_power_calibration` ·
 `reward_code_distance.reward_code_structure_report`. **These are the next session's targets.**
+
+---
+
+## D69-D72 + THE BLIND QUALITY REPORT (2026-08-04, RUN 21) — built, and it found four things on its first run
+
+**`docs/analysis/blind_quality_report.py` is BUILT, RUN and COMMITTED.** RUN 21 §11.3 target #4, the
+execution-quality report Tamer was promised: per-leg completeness with the banked-rung ladder, hole
+positions, seed coverage against the registered rungs, wall-clock from the epilogue ledgers,
+authoring reliability, the reward-code taxonomy, R115 exclusions and determinism evidence. **19/19
+selftests, ruff clean, 43.2 s, peak RSS 105.4 MB over 14,100 records (6.17 GB), exit 0.**
+**Effect-blindness PROVEN over its own AST**: 31 schema fields known, 24 forbidden, 7 allowed and
+every one non-outcome. It reads `arm`, `seed`, `candidate_id`, `reward_source`,
+`reward_source_hash`, `train_safe_call_count`, `train_safe_default_count` and nothing else.
+
+### D69 (MAJOR — FIXED THE SAME HOUR, because `docs/analysis/` is not fenced) — `compute_accounting.py` published an INVERTED search/test split, and `CLAUDE.md` names it as the write-up's compute source
+
+`tier_of_batch` tested `"_test" in b or b.endswith("test") or "baselines" in b or "h2_pair" in b`.
+**The C4 sweep — the pipelined sealed-test stage and the largest test population in the campaign —
+names its batches `<tag>_sweep_t<N>_p<NN>`, which matches none of those**, so every sweep ledger fell
+through to SEARCH. **MEASURED FIRST-HAND: 1,295 of 3,399 epilogue ledgers mislabelled.** The printed
+run-4 split read `SEARCH 19,886 h` against `TEST 2,887 h`; the true split is `SEARCH 7,410 h` against
+`TEST 15,222 h`. **The two tiers were essentially transposed**, in the instrument the write-up's
+compute figure comes from, and Okhrati docks missing or wrong compute reporting by name.
+✔ **GRAND TOTALS AND CPU-HOURS WERE NEVER AFFECTED** — every batch requests `-pe smp 8` — so this was
+a tier-attribution defect, not a total-compute one. **FIXED**, and the rule is now POSITIVE for each
+tier with an explicit `UNKNOWN` bucket rather than a SEARCH fall-through, because a fall-through is
+exactly how the sweep was lost. ⭐ **THE UNKNOWN BUCKET IMMEDIATELY EARNED ITS PLACE: it surfaced 113
+unclassified `c1_bayes_opt_c<N>` batches on the first run and 57 more after that**, which a
+fall-through would have absorbed silently. ⚠ **AND MY OWN FIX REGRESSED ONCE IN THE MIDDLE: `_gen?\d+`
+makes the `n` optional, not the `en`, so it stopped matching `_g<N>` and threw 1,637 batches into
+UNKNOWN.** Caught by re-running the classifier over every real ledger name rather than reading the
+regex. Final state: **1,619 TEST · 1,758 SEARCH · 23 CANARY · 0 UNCLASSIFIED**, and zero test-tier
+names labelled anything but TEST. The GO canary now has its own label so it cannot inflate SEARCH.
+
+### D70 (MAJOR, registered) — S4's vacuity counter is structurally incapable of detecting a replicate that AGREES
+
+`record_science_audit.py:451` computes
+`replicate_keys = sum(1 for v in det.values() if len(v) > 1 or sum(1 for _ in v) > 1)` —
+and `sum(1 for _ in v)` **is** `len(v)`, so the condition is `len(v) > 1 or len(v) > 1`, identically
+its own `dup_keys`. `det[key]` maps digest→path and `setdefault`s, so **an agreeing second record
+adds no entry and can never be counted.** ⚠ Disclosure **D-c** ("S4 determinism is VACUOUS in this
+archive") is TRUE — independently confirmed here by counting RECORDS per key rather than digests:
+**0 of 12,559 keys hold more than one record** — but it had been banked from an instrument that could
+not have reported otherwise. `scripts/` is fenced; the independent count now lives in the blind
+report, which does not share the blind spot.
+
+### D71 (finding, not a defect) — the reward-code taxonomy is near-degenerate on LLM output, and its own control proves the instrument is fine
+
+**1,386 of 1,423 LLM-authored programs are the sole member of their kind** at the registered
+threshold; the largest kind holds 7 members, 0.5% of the corpus. The control is decisive: the four
+derivative-free arms, which sample ONE parameterised template, **collapse 118 of 118 into a single
+kind.** So the honest write-up sentence is *"the LLM arms author structurally unique programs; the
+optimiser arms sample one template"*, and the per-model **construct-prevalence** table is what should
+be quoted rather than the kind partition, which is close to the identity.
+
+### D72 (disclosure, sharper than the one already recorded) — the epilogue ledger accounts for 24.2% of the records on disk
+
+3,408 epilogue tasks against 14,100 archive records, with one task being one training. **Roughly
+three quarters of the trainings have no ledger row** — still running, not yet pulled back, or from a
+batch whose epilogue was lost. `FLAWLESS_LEDGER`'s population caveat is real and larger than it
+reads: **every compute figure is a LOWER BOUND by a factor of about four**, and that sentence must
+travel with any of them.
+
+### AND ONE REASSURING MEASUREMENT WORTH BANKING — R115 is bimodal exactly as registered
+
+**Zero sealed-test records sit at or above the eligibility floor** (worst 9.0847%, margin +0.9153 pp,
+reproducing disclosure D-d to four decimals), while **22 search-tier candidates across 8 lines are
+ineligible**, the worst at **99.978%** — a kimi-k3 `distributional` candidate whose authored reward
+essentially never ran. `search`, `gpt-5.6-luna`, `sonnet-5` and `h3_singleshot` have none. That is
+the phenomenon the campaign measures, cleanly separated by tier.

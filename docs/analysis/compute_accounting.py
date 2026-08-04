@@ -59,12 +59,48 @@ def slots_for(run_dir: Path, batch: str, cache: dict) -> tuple[int, int]:
 
 
 def tier_of_batch(batch: str) -> str:
+    """Which tier did this batch belong to? SEARCH (8-thread DFO) or the sealed TEST leg (1-thread).
+
+    ⚠⚠ THIS PUBLISHED AN INVERTED SPLIT, AND `CLAUDE.md` NAMES THIS FILE AS THE SOURCE OF THE
+    WRITE-UP'S COMPUTE FIGURE (found 2026-08-04, RUN 21, by the blind-quality-report build).
+    The C4 sweep -- the pipelined sealed-test stage, and the LARGEST test population in the
+    campaign -- names its batches `<tag>_sweep_t<N>_p<NN>`, which matched none of the old patterns
+    and fell through to SEARCH. **MEASURED FIRST-HAND: 1,295 of 3,399 epilogue ledgers, i.e. EVERY
+    sweep ledger, were labelled SEARCH.** The printed run-4 split read `SEARCH 3,086 tasks /
+    19,886 h` against `TEST 322 / 2,887 h`; the true split is `SEARCH 1,584 rc=0 / 7,358 h` against
+    `TEST 1,609 rc=0 / 15,099 h`. **The tiers were essentially transposed.**
+
+    ✔ **GRAND TOTALS AND CPU-HOURS ARE UNAFFECTED** -- every batch requests `-pe smp 8`, verified on
+    a sweep, a per-arm and a generation batch -- so this is a TIER-ATTRIBUTION defect, not a
+    total-compute one. That distinction matters: the headline compute number this file exists to
+    produce was always right, and only its breakdown was wrong.
+
+    THE RULE IS NOW POSITIVE FOR SEARCH RATHER THAN NEGATIVE FOR TEST. The old form asked "does
+    this look like a test batch, else SEARCH", so any unrecognised NEW batch name silently became
+    SEARCH -- which is exactly how the sweep was lost. A generation batch is the one that carries a
+    `_g<N>` generation index or an explicit search tag; everything on the sealed path is TEST.
+    Anything matching NEITHER is returned as UNKNOWN so it appears in the table instead of
+    inflating a tier: a batch nobody classified must be visible, not absorbed.
+    """
     b = batch.lower()
-    if "_test" in b or b.endswith("test") or "baselines" in b:
+    # SEALED-TEST tier: the C4 sweep, the per-arm test legs, the H1 baselines, the C2 pair test.
+    if ("_sweep_t" in b or "_test" in b or b.endswith("test")
+            or "baselines" in b or "h2_pair" in b):
         return "TEST (sealed leg)"
-    if "h2_pair" in b:
-        return "TEST (sealed leg)"
-    return "SEARCH"
+    # SEARCH tier: a generation index `_g<N>_` (or trailing `_g<N>`), or an explicit search tag.
+    # `_g<N>` is a leg's generation index; `_c<N>` is the core line's DFO candidate index
+    # (`c1_bayes_opt_c10`). The UNKNOWN bucket below surfaced 113 of the latter on the first run,
+    # which is exactly what it is for -- an unclassified batch must be VISIBLE, not absorbed into
+    # whichever tier the fall-through happens to name.
+    # The GO canary is pre-launch throughput calibration. It is neither tier, and folding it into
+    # SEARCH would inflate the number the write-up quotes as the campaign's search compute, so it
+    # gets its own label. 23 such batches exist.
+    if "canary" in b:
+        return "CANARY (pre-launch calibration)"
+    if (re.search(r"_g(?:en)?\d+(_|$)", b) or re.search(r"_c\d+(_|$)", b) or "_startup" in b
+            or "_search" in b or b.endswith("search")):
+        return "SEARCH"
+    return "UNKNOWN (unclassified batch name)"
 
 
 def main() -> int:
