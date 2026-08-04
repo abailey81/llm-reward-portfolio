@@ -307,6 +307,58 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 19:15 **RUN 21 pass 4** | **200.4** | **180.8** | **1,248** | 158/**0** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 19:54 **RUN 21 pass 5** | **198.9** | **180.9** | **1,096** | 139/**0** | 92% (sonnet-5) | **bayes_opt 1**, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 20:27 **RUN 21 pass 6** | 193.6 | **182.0** | **984** | 125/**0** | **86%** (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
+| 2026-08-04 20:55 **RUN 21 pass 7** | 193.6 | 182.0 | 960 | 122/**110** | 86% (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
+
+### ★★★★★ 2026-08-04 20:55 UTC — TAMER ASKED "WHAT THE HELL IS GOING ON WITH MYRIAD". THE TROUGH IS
+### EXPLAINED END TO END, AND I HAD TO RETRACT THE SEVERITY OF MY OWN ALARM
+
+**THE OBSERVATION THAT PROMPTED IT:** slots fell **1,952 -> 984 in three hours**, smoothly at
+~245/h since 17:46Z, with the queue at **ZERO** the whole way down.
+
+**WHAT IT WAS NOT — every candidate checked and eliminated by measurement:**
+`qquota -u ucestes` **EMPTY**, so no limit applies to us · `qstat -g c` shows **~11,644 FREE slots**
+in most cluster queues, so there is no capacity shortage · our state census was **118 `r` + 2 `Rr`,
+zero `qw`, zero `Eqw`, zero `hqw`** · all ten active driver logs **0.3-2.3 min fresh** and actively
+polling · no line idle with work owed · records still climbing throughout.
+
+**THE MECHANISM, CONFIRMED IN THE FENCED CODE AT `src/cluster/driver.py:550-553`:**
+```
+if alive_names:          alive_seen = True
+else:                    <DRAIN TRANSITION -> requeue the tier's remaining specs>
+```
+**The requeue branch is reached only when NO job of that batch is alive.** So while even ONE pack of
+a tier survives, the tier's several hundred remaining specs are not resubmitted. Each line therefore
+runs a SAWTOOTH: submit a tier as ~50-100 arrays, drain it over ~9.4 h, sit at low occupancy through
+the tail, then requeue the next tier en masse. **Today several lines' tails aligned, so the whole
+fleet troughed at once for the first time.**
+
+⚠⚠ **AND I MUST RECORD A RETRACTION, BECAUSE I RAISED THE ALARM TOO HIGH BEFORE MEASURING PROPERLY.**
+I reported "~134 packs vanished" and "~5,000 units held hostage". **That arithmetic mixed
+populations** — I counted EVERY haiku batch directory and EVERY haiku ledger, including its search
+generations and earlier test stages, against the sweep tiers' pending counts. Redone precisely, the
+28 sweep epilogues are all LOW pack numbers (p01-p07) because **those tiers had not been submitted
+yet**, not because their packs had disappeared. The mechanism above is real; the "hostage" reading
+of it was not. **A surprising negative is a claim about my own script first, and this time it was.**
+
+⭐⭐ **AND THE DECISIVE PROOF ARRIVED WHILE I WAS INVESTIGATING, WHICH IS THE BEST KIND.** The driver
+logs show three large tiers submitted in thirty minutes: **sonnet `sweep_t6` (825 units) at 20:22Z,
+haiku `sweep_t3` as 51 ARRAYS at 20:47Z, haiku `sweep_t2` as 51 ARRAYS at 20:51Z.** And the queue,
+zero for the whole session, now reads **110 `qw`** — roughly 880 slots waiting to dispatch.
+**Nothing was stalled. The trough was the bottom of the sawtooth and the recovery is underway.**
+
+⚠ **WHAT REMAINS TRUE AND COSTLY, AND IS THE ONLY REAL FINDING HERE:** during a tail we run at about
+HALF capacity, and the tail recurs on every tier of every line. **That is a genuine ETA cost and the
+lever is the tail latency, not the core count** — the cluster had 11,644 free slots the entire time
+and our queue was empty, so no amount of extra allocation would have placed a single additional job.
+Reducing it means letting a tier requeue its lost specs while a straggler still runs, which is a
+change to `src/cluster/driver.py` and therefore a **registered deferred fix**, not a live patch.
+
+⚠ **AND THE INSTRUMENT THAT SHOULD HAVE CAUGHT THIS WAS BLIND, WHICH IS WHY NEITHER OF US SAW IT.**
+`vanished_array_watch` printed **"no vanished arrays detected"** while reporting
+`UNKNOWN (no id parsed)` for **all twelve** of the open haiku and qwen3.6-27b blocks — the twelve
+most important on the board, carrying ~5,000 pending units. **FIXED**: unresolved blocks are now
+listed with their pending-unit totals and the tool exits 2. Verified: `SCRIPT_RC=2`, twelve blocks
+named. An UNKNOWN is not a negative.
 
 **RUN 21 pass 6 (20:27Z) — CORE'S `cma_es` CAME OFF ZERO AND THE FLEET IS NOW GENUINELY BROAD.**
 12 h 193.6 rec/h, 24 h **182.0** (a session high). Slots **984**, 125 running, queue **0**.

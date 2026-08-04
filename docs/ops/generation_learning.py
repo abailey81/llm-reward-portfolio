@@ -37,6 +37,19 @@ CID = re.compile(r"-g(\d+)-c(\d+)$")
 N_GENS = 6
 
 
+# ⚠ THE CONSOLE IS cp1251 AND A NON-ASCII CHARACTER KILLS THE PROCESS. This file died at exit 1
+# on a `×` in a print, swallowing its own BOUNDS caveat -- the honesty clause on the number
+# `CLAUDE.md` names as the write-up's compute source. My first remedy HUNTED CHARACTERS and missed
+# the one on the very next line; the repo already had the right fix, documented at
+# `docs/ops/cycle.py:94-100` after the same defect hit live on 2026-07-31. Reconfigure the streams
+# instead: this can degrade a CHARACTER but can never lose a MESSAGE.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     """Wilson score interval — every number in this project arrives with its uncertainty."""
     if n == 0:

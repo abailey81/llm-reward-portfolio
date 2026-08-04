@@ -227,6 +227,9 @@ print("%-18s %-46s %5s %-24s %8s  %s"
       % ("LINE", "PENDING BLOCK", "PEND", "LAST ARRAYS", "AGE_MIN", "VERDICT"))
 
 alerts: list[tuple[str, str, list[str], float]] = []
+#: Blocks this run could NOT test -- no job id parsed, an unparsed timestamp, or qacct unreachable.
+#: They must never be absorbed into "no vanished arrays detected": an UNKNOWN is not a negative.
+unresolved: list[tuple[str, str, int, str]] = []
 for log in sorted(ROOT.glob("driver_*.log")):
     line = log.name[len("driver_"):-len(".log")]
     try:
@@ -276,6 +279,7 @@ for log in sorted(ROOT.glob("driver_*.log")):
         sts, ids = submits.get(blk, (None, []))
         if not ids:
             print("%-18s %-46s %5d %-24s %8s  %s" % (line, blk, pend, "-", "-", "UNKNOWN (no id parsed)"))
+            unresolved.append((line, blk, pend, "no job id parsed"))
             continue
         if any(i in live for i in ids):
             print("%-18s %-46s %5d %-24s %8s  %s"
@@ -312,4 +316,19 @@ if alerts:
     print("    re-derives the diff and resubmits at once) -- but a stale `.driver.lock` left by an")
     print("    unclean stop has itself cost this campaign 4.5 h, so that is a decision, not a reflex.")
     sys.exit(1)
-print("no vanished arrays detected")
+# ⚠⚠ THIS SAID "no vanished arrays detected" WHILE REPORTING `UNKNOWN (no id parsed)` FOR THE
+# TWELVE MOST IMPORTANT BATCHES ON THE BOARD (2026-08-04, RUN 21). haiku and qwen3.6-27b each had
+# SIX open sweep tiers -- 2,464 and 2,626 units pending -- and the watcher could not parse a job id
+# for any of them, so it did not know whether their arrays were alive, purged or gone. It then
+# printed a clean summary. **An UNKNOWN is not a negative**, and a summary that absorbs UNKNOWNs
+# into "detected nothing" is the single defect class this campaign has fixed most often.
+if unresolved:
+    _tot = sum(r[2] for r in unresolved)
+    print("no vanished array detected AMONG THE BLOCKS THIS RUN COULD RESOLVE -- but %d block(s) "
+          "carrying %d PENDING UNIT(S) returned UNKNOWN and were NOT tested:" % (len(unresolved), _tot))
+    for _r in unresolved[:14]:
+        print("    UNRESOLVED  %-18s %-46s %6d pending  (%s)" % (_r[0], _r[1], _r[2], _r[3]))
+    print("    An UNKNOWN is not a negative. Read this as 'the detector could not see these',")
+    print("    never as 'these are fine'. Check the line's driver log and `qstat -u ucestes -xml`.")
+    sys.exit(2)
+print("no vanished arrays detected (every batch resolved to a job id and was tested)")

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -56,6 +57,19 @@ def slots_for(run_dir: Path, batch: str, cache: dict) -> tuple[int, int]:
             break
     cache[batch] = (slots, pack)
     return slots, pack
+
+
+# ⚠ THE CONSOLE IS cp1251 AND A NON-ASCII CHARACTER KILLS THE PROCESS. This file died at exit 1
+# on a `×` in a print, swallowing its own BOUNDS caveat -- the honesty clause on the number
+# `CLAUDE.md` names as the write-up's compute source. My first remedy HUNTED CHARACTERS and missed
+# the one on the very next line; the repo already had the right fix, documented at
+# `docs/ops/cycle.py:94-100` after the same defect hit live on 2026-07-31. Reconfigure the streams
+# instead: this can degrade a CHARACTER but can never lose a MESSAGE.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 
 def tier_of_batch(batch: str) -> str:
