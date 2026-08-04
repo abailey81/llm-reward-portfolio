@@ -96,6 +96,10 @@ from src.cluster.lanes import _TEST_UNITS_PER_RUNG, plan_lanes  # noqa: E402
 LAUNCH = dt.datetime(2026, 7, 28, 21, 8, 58)   # supervisors up, UTC
 STOP = dt.datetime(2026, 8, 27)                # R109 exogenous stop
 RUNGS = [30, 100, 189, 279, 340, 403, 568]     # the registered assurance ladder
+# ⚠ F5: the ceiling was a magic 568 repeated at seven sites, unlinked from RUNGS. A ladder change
+# would have desynchronised the go-forward exclusion, the missing-unit pricing and the handover
+# disclosure silently, and no assertion would have noticed. ONE source of truth.
+CEILING = RUNGS[-1]
 CHAIN_THREADS = 8                              # --search-threads 8 (R107)
 WINDOWS_H = (1, 3, 12, 24)                     # throughput windows, hours
 #: ⚠⚠ THE SHORTEST WINDOW AN ETA MAY BE BUILT FROM (P237, 2026-08-03).
@@ -257,17 +261,22 @@ def chain_remaining_days(root: str, floor_total: float) -> tuple[float | None, s
 
 def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
            page: bool = False) -> str:
+    # ⚠ F9: THE WALK COMES FIRST, THEN THE CLOCK. Sampling `now_epoch` before walking a 30k-record
+    # tree gives records that land DURING the walk an mtime greater than `now_epoch`: they are then
+    # excluded from every window and from `k`, while still counting in `len(mts)` -- so they inflate
+    # the backlog side and deflate the `-1h` decrement. Walking first makes every mtime we hold <=
+    # the clock we compare it against. Small and self-limiting, but free to get right.
+    cells = test_cells(root)
+
     # ⚠ ONE CLOCK, AND IT IS time.time(). See gen-2 defect 1.
     now_epoch = time.time()
     now = dt.datetime.utcfromtimestamp(now_epoch)
     elapsed_d = (now - LAUNCH).total_seconds() / 86400.0
     days_left = (STOP - now).total_seconds() / 86400.0
-
-    cells = test_cells(root)
     tp = throughput(cells, now_epoch)
     on_disk = sum(len(m) for m in cells.values())
 
-    chain = plan_lanes(rung=568, cpu_cores=modelled, chain_threads=CHAIN_THREADS)
+    chain = plan_lanes(rung=CEILING, cpu_cores=modelled, chain_threads=CHAIN_THREADS)
     floor_total = chain.critical_chain_days
     floor_left, floor_note = chain_remaining_days(root, floor_total)
 
@@ -307,13 +316,13 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         for (d, _arm), mts in cells.items():
             k = sum(1 for m in mts if lo <= m <= now_epoch)
             tot += k
-            if k and (568 - len(mts)) <= PACK:
+            if k and (CEILING - len(mts)) <= PACK:
                 ending += k
                 ending_lines[d] = ending_lines.get(d, 0) + k
         if tot and ending:
             who = ", ".join(sorted(ending_lines, key=lambda x: -ending_lines[x])[:2])
             L.append(f"    !! {100.0 * ending / tot:.0f}% of the {eh} h window came from cell(s) now "
-                     f"within {PACK} records of rung 568 ({who}) -- that rate STOPS. The ETA below "
+                     f"within {PACK} records of rung {CEILING} ({who}) -- that rate STOPS. The ETA below "
                      f"assumes the cluster redirects those slots; it is an assumption, not a "
                      f"measurement.")
 
@@ -386,7 +395,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         fleet_rate = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
                          for mts in cells.values()) / eh2
         goforward_rate = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
-                             for mts in cells.values() if (568 - len(mts)) > PACK) / eh2
+                             for mts in cells.values() if (CEILING - len(mts)) > PACK) / eh2
 
         # ⚠⚠ THE CAPTION NOW DESCRIBES WHAT THE COLUMNS ACTUALLY COMPUTE (auditor, 2026-08-04).
         # It previously said `latest` "assumes the finishing line's slots are NOT reused", i.e. it
@@ -415,6 +424,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         L.append(f"    {'rung':>5}  {'remaining':>10}  {'-1h':>6}  {'earliest (UTC)':<16}  "
                  f"{'latest (UTC)':<16}  Aug-27?")
         lo1 = now_epoch - 3600.0
+        gated_from: int | None = None   # F1: first gated rung; every higher rung inherits it
         for rung in RUNGS:
             rem, _missing = backlog(rung, cells)
             # how much this rung's backlog actually fell in the last hour
@@ -445,9 +455,21 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
             owing_rate = sum(
                 sum(1 for m in mts if lo2 <= m <= now_epoch)
                 for mts in cells.values() if len(mts) < rung) / eh2
-            if owing_rate <= 0:
+            # ⚠⚠ F1 — GATED IS ABSORBING UPWARD, AND WITHOUT THIS THE TABLE COULD CONTRADICT ITSELF.
+            # `owing_rate` is computed per rung, so a LOW rung whose few owing cells are idle gates
+            # while a HIGHER rung, which has the busy cells below it too, gets a confident date.
+            # Reaching rung 568 on every unit REQUIRES reaching rung 279 on every unit, so
+            # "279 = waiting on a barrier" and "568 = a date" cannot both be true. Raised by an
+            # auditor 2026-08-04; the shape was NOT live (every row was dated) but the monotonicity
+            # assertions filter GATED rows out before comparing, so the selftest was blind to it BY
+            # CONSTRUCTION and it would have shipped silently the first time the fleet composition
+            # changed. Once gated, every higher rung is gated.
+            if owing_rate <= 0 or gated_from is not None:
+                if gated_from is None:
+                    gated_from = rung
+                tag = "barrier" if gated_from == rung else f"barrier>={gated_from}"
                 L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'GATED':<16}  {'GATED':<16}  "
-                         f"barrier")
+                         f"{tag}")
                 continue
             # An UNKNOWN chain floor must not silently become a zero clamp.
             clamp = 0.0 if floor_left is None else floor_left
@@ -464,7 +486,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
             L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {cf:<16}  {cs:<16}  {fits}")
         L.append("    GATED = the relevant rate is zero, so no throughput number can date that row -- it is")
         L.append("    waiting on a stage barrier (C1 chain / C3 gate), not on cores.")
-        _, missing = backlog(568, cells)
+        _, missing = backlog(CEILING, cells)
         if missing:
             L.append(f"    (+{missing} registered unit(s) have no directory yet; each owes a FULL "
                      f"rung and is counted above)")
@@ -476,10 +498,10 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         # 32,106 records (34%) were behind that barrier while both ETA columns implicitly assumed it
         # could begin immediately. Reported as a share of the rung-568 backlog that produced NOTHING
         # in the window, which is the observable proxy for "not started".
-        idle_rem = sum(max(0, 568 - len(mts)) for mts in cells.values()
+        idle_rem = sum(max(0, CEILING - len(mts)) for mts in cells.values()
                        if not any(lo2 <= m <= now_epoch for m in mts))
-        rem568, miss568 = backlog(568, cells)
-        idle_rem += miss568 * 568
+        rem568, miss568 = backlog(CEILING, cells)
+        idle_rem += miss568 * CEILING
         if rem568 and idle_rem:
             L.append(f"    !! {100.0 * idle_rem / rem568:.0f}% of the rung-568 backlog "
                      f"({idle_rem:,} records) sits on cells that produced NOTHING in the "
@@ -604,9 +626,30 @@ def selftest() -> int:
     #    archive with one record aged 1.5 h by the TRUE clock and asserts render() does not count it
     #    in the 1 h window. Under the gen-2 bug the cutoff sat 2 h back and it WOULD have counted --
     #    which is exactly how "last 1 h" over-reported the live rate by 2.6x.
+    # ⚠ F7: E1 WAS HOST-DEPENDENT AND FAILED EXACTLY WHERE THE DEFECT IS IMPOSSIBLE. On a host whose
+    # local time IS UTC (the cluster, any CI box) `skew == 0.0`, so the suite reported a defect on
+    # the one configuration that cannot have it. The TRAP is real and P235 is real; what varies is
+    # only whether THIS host exhibits it. So the observation is reported, and the portable
+    # invariant -- that the code does not USE utcnow().timestamp() -- is what gets asserted.
     skew = dt.datetime.utcnow().timestamp() - time.time()
-    ck("E1 utcnow().timestamp() is NOT a valid epoch here (skew proves the trap is real)",
-       abs(skew) > 1.0, True)
+    ck("E1 the host's utcnow() skew is measured, and either value is legitimate",
+       isinstance(skew, float), True)
+    if abs(skew) > 1.0:
+        print("  note  this host DOES exhibit the P235 trap: utcnow().timestamp() - time.time() "
+              "= %.1f s" % skew)
+    else:
+        print("  note  this host is on UTC, so the P235 trap is dormant here; E2-E5 are the "
+              "portable control")
+    # The precise, portable invariant: no WINDOW BOUND is ever built from utcnow(). Checking for
+    # the bare substring was my own defect -- it matched this module's own docstring, which
+    # DOCUMENTS the trap, and the line doing the checking. An assertion that fires on its own
+    # explanation is a false positive generator.
+    with open(os.path.abspath(__file__), encoding="utf-8") as _fh:
+        _code = [ln for ln in _fh.read().splitlines()
+                 if "utcnow" in ln and "=" in ln and not ln.lstrip().startswith("#")]
+    _bound = [ln for ln in _code
+              if any(ln.lstrip().startswith(v) for v in ("now_epoch", "lo1", "lo2", "base_t"))]
+    ck("E1b NO window bound in this file is built from utcnow()", _bound, [])
 
     import json as _json
     import shutil as _shutil
@@ -685,6 +728,18 @@ def selftest() -> int:
             open(f, "w", encoding="utf-8").close()
             aged = base_t - (2 * 3600 + (i / 200.0) * 9 * 3600)
             os.utime(f, (aged, aged))
+        # A cell BELOW rung 30 that produces. Without it, rung 30 has no owing producer, gates,
+        # and (since F1) absorbs every higher rung -- leaving J1/J2 comparing empty lists. Caught
+        # by J3 failing the moment absorption landed, which is what J3 is for.
+        low = os.path.join(tmp2, "test_leg_y", "placebo", "c0")
+        os.makedirs(low)
+        for i in range(20):
+            p_ = os.path.join(low, f"r{i}")
+            os.makedirs(p_)
+            f_ = os.path.join(p_, "record.json")
+            open(f_, "w", encoding="utf-8").close()
+            aged = base_t - (2 * 3600 + (i / 20.0) * 9 * 3600)
+            os.utime(f_, (aged, aged))
         c3 = test_cells(tmp2)
         tp3 = throughput(c3, time.time())
         ck("I2 fixture: 1 h window is empty", tp3[1][0], 0)
@@ -724,13 +779,136 @@ def selftest() -> int:
         ck("J1 earliest column is non-decreasing in the rung", seen_e, sorted(seen_e))
         ck("J2 latest column is non-decreasing in the rung", seen_l, sorted(seen_l))
         ck("J3 the table actually had rows to check", len(rows) >= 3, True)
+    except Exception as exc:  # noqa: BLE001
+        # F10: section J had a bare `finally:` with no handler, so an exception here aborted the
+        # whole selftest before the pass/fail summary printed -- inconsistent with F/G/H, and it
+        # hides every other result behind one traceback.
+        bad.append(f"J section raised: {type(exc).__name__}: {exc}")
     finally:
         _sh2.rmtree(tmp2, ignore_errors=True)
 
+    # ---------------------------------------------------------------------------------------
+    # K. THE GO-FORWARD EXCLUSION (F2). Untested until now, and worse than disclosed: DELETING the
+    #    clause AND INVERTING it both scored 38/38, because the only fixture reaching it had a
+    #    single cell, which made goforward_rate == fleet_rate either way.
+    #
+    #    The fixture separates them by construction: the NEAR-CEILING cell is the HIGH producer.
+    #      correct  -> it is EXCLUDED, goforward is tiny, `latest` lands far after `earliest`
+    #      deleted  -> goforward == fleet, latest == earliest                      -> CAUGHT
+    #      inverted -> ONLY it is counted, goforward ~= fleet, latest ~= earliest  -> CAUGHT
+    # ---------------------------------------------------------------------------------------
+    tmp3 = _tf2.mkdtemp(prefix="stage_eta_goforward_")
+    try:
+        def _plant(arm, n_records, n_in_window):
+            cand = os.path.join(tmp3, "test_leg_z", arm, "c0")
+            os.makedirs(cand, exist_ok=True)
+            base_t = time.time()
+            for i in range(n_records):
+                p = os.path.join(cand, f"r{i}")
+                os.makedirs(p, exist_ok=True)
+                f = os.path.join(p, "record.json")
+                open(f, "w", encoding="utf-8").close()
+                # the last n_in_window records sit inside the 12 h window; the rest are older
+                aged = (base_t - (2 * 3600 + (i / max(1, n_records)) * 9 * 3600)
+                        if i >= n_records - n_in_window else base_t - 40 * 3600)
+                os.utime(f, (aged, aged))
+
+        _plant("scalar", CEILING - PACK, 40)      # 560 records: CEILING-560 == PACK, so EXCLUDED
+        _plant("distributional", 300, 2)          # 300 records: 268 > PACK, so INCLUDED
+        _plant("placebo", 20, 2)                  # below rung 30, so rung 30 has an owing producer
+        c4 = test_cells(tmp3)
+        ck("K1 fixture: the near-ceiling cell is exactly at the exclusion boundary",
+           sorted(len(m) for m in c4.values()), [20, 300, CEILING - PACK])
+        out_k = render(1000, root=tmp3)
+        rows_k = []
+        # ⚠ ONLY the empirical table. The REGISTERED MODEL block below it ALSO prints rows whose
+        # first token is a rung, and swallowing both is how L2 first reported six false rows.
+        for ln in out_k.split("REGISTERED MODEL")[0].splitlines():
+            parts = ln.split()
+            if len(parts) >= 6 and parts[0].isdigit() and int(parts[0]) in RUNGS:
+                # rung remaining -1h earliest_date earliest_time latest_date latest_time verdict
+                if len(parts) >= 8 and parts[3][:2] == "20" and parts[5][:2] == "20":
+                    rows_k.append((parts[3] + " " + parts[4], parts[5] + " " + parts[6]))
+        ck("K2 the go-forward fixture produced dated rows", len(rows_k) >= 1, True)
+        # ⚠ A0e -- render() must CONSUME chain_remaining_days(), not just have it available. The
+        # mutation proof caught this: reverting the CALL SITE to `floor_total - elapsed_d` left
+        # A0a-A0d passing, because they call the function directly. This fixture has no `search/`
+        # tree, so an honest render says UNKNOWN; the elapsed formula would print a number.
+        ck("A0e render() prices the chain from the archive -- no search tree means UNKNOWN",
+           "UNKNOWN still to run" in out_k, True)
+        if rows_k:
+            e_k, l_k = rows_k[0]
+            ck("K3 latest is STRICTLY later than earliest -- the exclusion is doing work "
+               "(deleting OR inverting the predicate collapses this)", l_k > e_k, True)
+            # ⚠ K4 IS A RATIO, NOT A GAP, AND THE MUTATION PROOF IS WHY. The first version asserted
+            # "gap > 24 h", and the INVERTED predicate still cleared it: on a ~90-day horizon a
+            # rate of 40 vs 44 still separates the two columns by days. Only the RATIO separates
+            # the three cases. Fixture rates: fleet 44 in-window, correct go-forward 4 (the 560
+            # cell excluded), inverted 40, deleted 44.
+            #   correct  -> latest/earliest ~ 11      inverted -> ~1.1      deleted -> 1.0
+            now_k = dt.datetime.utcfromtimestamp(time.time())
+            he = (dt.datetime.strptime(e_k, "%Y-%m-%d %H:%M") - now_k).total_seconds()
+            hl = (dt.datetime.strptime(l_k, "%Y-%m-%d %H:%M") - now_k).total_seconds()
+            ck("K4 and the SEPARATION is large by ratio, which is the only thing that "
+               "distinguishes the correct predicate from an inverted one",
+               he > 0 and (hl / he) > 3.0, True)
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"K section raised: {type(exc).__name__}: {exc}")
+    finally:
+        _sh2.rmtree(tmp3, ignore_errors=True)
+
+    # ---------------------------------------------------------------------------------------
+    # L. GATED IS ABSORBING UPWARD (F1). A rung can only be reached if every lower rung is, so
+    #    "279 waiting on a barrier" and "568 has a date" cannot both be true. The monotonicity
+    #    assertions in J filter GATED rows OUT before comparing, so they are blind to this by
+    #    construction -- which is why it needs its own check on the RENDERED text.
+    # ---------------------------------------------------------------------------------------
+    tmp4 = _tf2.mkdtemp(prefix="stage_eta_gated_")
+    try:
+        cand = os.path.join(tmp4, "test_leg_w", "scalar", "c0")
+        os.makedirs(cand)
+        base_t = time.time()
+        # One cell ABOVE rung 30 with all its production inside the window: the cells owing rung 30
+        # produce nothing, so rung 30 gates, while higher rungs see this cell and would be dated.
+        for i in range(120):
+            p = os.path.join(cand, f"r{i}")
+            os.makedirs(p)
+            f = os.path.join(p, "record.json")
+            open(f, "w", encoding="utf-8").close()
+            aged = base_t - (2 * 3600 + (i / 120.0) * 9 * 3600)
+            os.utime(f, (aged, aged))
+        out_l = render(1000, root=tmp4)
+        states = []
+        for ln in out_l.split("REGISTERED MODEL")[0].splitlines():
+            parts = ln.split()
+            if len(parts) >= 4 and parts[0].isdigit() and int(parts[0]) in RUNGS:
+                states.append((int(parts[0]), "GATED" in ln, "REACHED" in ln))
+        ck("L1 the gated fixture produced a full ladder", len(states) == len(RUNGS), True)
+        first_gate = next((r for r, g, _ in states if g), None)
+        if first_gate is not None:
+            after = [(r, g) for r, g, reached in states if r > first_gate and not reached]
+            ck(f"L2 once rung {first_gate} is GATED, every higher rung is GATED too "
+               "(a lower barrier cannot coexist with a higher date)",
+               [r for r, g in after if not g], [])
+        else:
+            ok.append("L2 no rung gated on this fixture -- absorption vacuously holds")
+    except Exception as exc:  # noqa: BLE001
+        bad.append(f"L section raised: {type(exc).__name__}: {exc}")
+    finally:
+        _sh2.rmtree(tmp4, ignore_errors=True)
+
+    # ⚠ F15 (found by this selftest failing to report its own failure, 2026-08-04). A `ck` value can
+    # carry RENDERED page text, and rendered text contains non-ASCII. The console here is cp1251, so
+    # printing such a line raised UnicodeEncodeError INSIDE the reporter -- the run died with a
+    # traceback and NOT ONE pass/fail line, so a failing selftest could not tell anyone what failed.
+    # A reporter that crashes on the content it exists to report is the worst possible failure mode.
+    def _ascii(s: str) -> str:
+        return str(s).encode("ascii", "backslashreplace").decode("ascii")
+
     for line in ok:
-        print("  pass  " + line)
+        print("  pass  " + _ascii(line))
     for line in bad:
-        print("  FAIL  " + line)
+        print("  FAIL  " + _ascii(line))
     print(f"stage_eta selftest: {len(ok)}/{len(ok) + len(bad)} passed")
     return 1 if bad else 0
 

@@ -8,14 +8,33 @@ whatever it takes to ensure absolute flawlessness."*
 
 ## THE CONTRACT — READ THIS BEFORE TOUCHING A ROW
 
-**No finding may be left in an unresolved state.** Every row reaches exactly ONE of three terminal
-states, and there is no fourth. "I looked at it and it seemed fine" is not a state.
+**★★★ TAMER, 2026-08-04: *"make sure if something is found, it's ALWAYS FIXED, and ensure that
+absolutely everything is very strictly absolutely flawless."*** So the contract is not "triage into
+three buckets". It is:
 
-| state | what it requires |
-|---|---|
-| **FIXED** | the defect is gone AND the fix was FALSIFIED — the new assertion must fail against the pre-fix behaviour. A passing test proves nothing on its own (RUN 18 reported a file "verified byte-identical" that had never been modified). |
-| **PROVEN-BENIGN** | a MEASUREMENT is recorded here showing the condition cannot harm the campaign. Not an argument, not a docstring, a measurement with its command and output. |
-| **ESCALATED** | named precisely, with the reason it cannot be actioned from this session, and surfaced to Tamer. Fair-share, frozen thresholds and UCL policy live here. |
+> ## ⇒ EVERY FINDING IS **FIXED**. FIXING IS THE DEFAULT AND THE REQUIREMENT.
+> **A pass does NOT end while a fixable row remains open.** Not "advance one row" — clear them.
+> The other two states are NARROW, JUSTIFIED EXCEPTIONS, never a resting place and never a way to
+> avoid work. If you can fix it, you fix it, this pass.
+
+| state | when it is allowed | what it requires |
+|---|---|---|
+| **FIXED** | **ALWAYS, unless one of the two exceptions below is PROVEN to apply** | the defect is gone AND the fix was FALSIFIED — the new assertion must fail against the pre-fix behaviour. A passing test proves nothing on its own (RUN 18 reported a file "verified byte-identical" that had never been modified). |
+| **PROVEN-BENIGN** | only when there is NOTHING to fix because the underlying state is correct | a MEASUREMENT with its command and output. ⚠ **AND IF AN INSTRUMENT MISLED US, THE INSTRUMENT IS STILL FIXED.** A false alarm is itself a defect. "The campaign was fine" never closes a row about a check that said otherwise — both halves get answered. |
+| **ESCALATED** | only when the fix is *outside this session's authority* — UCL fair-share, a frozen pre-registered value, a Tamer decision | the precise reason it cannot be actioned, a specific ask for Tamer, **and every fixable thing AROUND it fixed anyway.** Escalating the un-actionable half never excuses leaving the actionable half. |
+
+### NO ROW MAY AGE
+
+A row that survives **three consecutive passes** without reaching a terminal state is itself a
+finding: say so to Tamer by name, with what is blocking it. Silent aging is how an open defect
+becomes a permanent one.
+
+### "FLAWLESS" IS A CHECKABLE STATE, NOT A FEELING
+
+The board is flawless when **every row in OPEN is empty**, every gate reads its green
+(preflight 17/17, seven layers RC=0, drift 0, freeze MATCHES, repro 8/0/0, line_balance CLEAN), and
+every remaining entry is either a permanent DISCLOSURE or an ESCALATED item carrying Tamer's name.
+Anything else means the pass is not finished.
 
 ### ⛔ THE ONE RULE THAT OUTRANKS "MAKE IT GREEN"
 
@@ -44,6 +63,56 @@ A check that never stops needs to know where the floor is, or it will chase hone
 * **Lines idle on the test tier with work queued.** Fair-share, not a fault. `line_balance` is the
   arbiter.
 * **The 2026-08-12 Myriad maintenance.** A planned at-risk day with a playbook.
+
+---
+
+## ★★★ THE SPEED COMPONENT — MEASURED EVERY PASS, AND ACTIVELY MAXIMISED
+
+**Tamer, standing priority (2026-07-24, re-stated 2026-08-04):** *"don't forget to add the speed
+check component all the time, and its maximisation."* Under R101 the rung reached by the Aug-27
+exogenous stop is set by THROUGHPUT, so throughput is the seed rung is the grade. Every pass
+measures it, records it, and compares it to the previous pass.
+
+### WHAT TO MEASURE EVERY PASS (append the row to the SPEED LOG below)
+
+`rec/h (12 h and 24 h)` · `slots held` · `running / queued jobs` · `% of the rate from ONE line`
+· `critical-chain remaining (tpe / bayes_opt candidates owed)` · `ETA to rung 30 / 403 / 568`
+· `days to the Aug-27 stop`. Source: `docs/ops/stage_eta.py` plus a qstat census.
+
+### A THROUGHPUT REGRESSION IS A FINDING, AND FINDINGS GET FIXED
+
+If `rec/h` or `slots held` drops materially against the previous pass, that is an OPEN row and it is
+worked to a cause, not noted. The live causes worth checking, in order of how often they have
+actually bitten this campaign:
+
+1. **Jobs holding slots without producing** — a driver crash-looping, a stalled chain, a hung pull.
+2. **`Eqw` / `hqw` jobs** — zero is the expected count; any is a finding.
+3. **Jobs unschedulable BY CONSTRUCTION** — RUN 17 found eight requesting a PE (`smp-[TBD]*`) that
+   does not exist, holding queue slots forever. `qalter -w p` is the probe; `qconf -spl` is the truth.
+4. **A line idle with NO work queued** — that is a genuine fault, unlike idle-with-work-queued.
+5. **Drivers/supervisors below roster** (10/10 while 2 lines are COMPLETE).
+6. **Disk approaching the floor**, which stops archiving before it stops training.
+7. **Transport failures eating cycles** — each failing pull pays its own latency and walks the
+   death clock (TEST 12.0 h, SEARCH 3.0 h, both LOWER bounds).
+
+### ⛔ WHAT IS CLOSED, AND MUST NOT BE RE-LITIGATED EVERY THIRTY MINUTES
+
+The cores question is **closed by fourteen independent measurements** (no quota, no job cap, no PE
+cap, no memory constraint, no `snx` constraint, zero `Eqw`, one host group, jobs schedulable,
+`qalter -p` up is operator-only, `js` refused). It is **functional fair-share by user, and nothing we
+control changes it.** The only remaining lever is a human request to UCL RC, which is Tamer's call.
+**Re-open it ONLY if a measurement changes** — a new `Eqw`, a quota appearing, a PE change. Do not
+re-run the closed fourteen every pass; that burns the very wall-clock this section exists to protect.
+
+Likewise closed: 400k steps is FROZEN, warm-start breaks determinism, more threads change FP
+reduction order and corrupt H4 mid-chain, and re-packing needs a twelve-line teardown that costs
+more than it saves. **Never trade correctness, CRN determinism or the frozen design for speed.**
+
+### SPEED LOG (append one row per pass, newest last)
+
+| when (UTC) | rec/h 12h | rec/h 24h | slots | run/queue | 1-line % | chain owed | rung 30 | rung 403 | rung 568 |
+|---|---:|---:|---:|---|---:|---|---|---|---|
+| 2026-08-04 00:10 | 153 | 195.8 | 1,632 | 204/314 | 82% (qwen3.5-9b) | tpe 5, bayes_opt 4 | 08-04 02:46 | 08-09 18:59 | 08-12 11:38 |
 
 ---
 
@@ -82,21 +151,15 @@ session; see CHANGELOG `[2026-08-04b]` and execution record §132)*
 
 | id | found | what | to resolve |
 |---|---|---|---|
-| F1 | 08-04 RUN19 audit | `stage_eta` monotonicity assertions filter `GATED` rows out before comparing (`if e not in ("REACHED","GATED")`), so the check is blind BY CONSTRUCTION to a table that gates a low rung while dating a higher one — a logical contradiction. **Not live today** (every row is dated, verified). | make GATED absorbing upward and assert it; the existing `tmp2` fixture already produces the violating shape |
-| F2 | 08-04 RUN19 audit | `stage_eta` go-forward exclusion `(568 - len(mts)) > PACK` is untested, and worse than disclosed: **INVERTING it to `<= PACK` still scores 42/42** (every `latest` cell reads GATED, so J2 passes vacuously). | two-cell fixture (one at 560, one at 300) asserting `fleet_rate > goforward_rate` and `latest > earliest` |
-| F3 | 08-04 RUN19 audit | `stage_eta`: the `-1h` VALUE is untested (both fixtures have an empty 1 h window by construction, so `d1` is identically 0 in every assertion). Deleting the COLUMN *is* caught. | fixture with records inside `lo1` and a cell CROSSING the rung, asserting the exact decrement |
-| F4 | 08-04 RUN19 audit | `stage_eta`: `concentration()`, `_parse_cores()`, the `yes`/`risk` verdicts, `REACHED` and the GATED branch are all unasserted. `_parse_cores` carries the production `?`/`0` contract from `publish_status.sh:231`. | direct unit assertions for each |
-| F5 | 08-04 RUN19 audit | `stage_eta`: `568` is a magic literal repeated 6-7 times (`:224 :264 :337 :413 :425 :427-428`) with `RUNGS[-1]` unlinked. A ladder change desynchronises them silently and no test would notice. | `CEILING = RUNGS[-1]` |
-| F6 | 08-04 RUN19 audit | `stage_eta`: `rem` includes `missing * rung`, but missing units are not in `cells` and can therefore NEVER contribute to `owing_rate`. A rung can be dated off one producing cell while most of its priced backlog belongs to units that have produced nothing by definition. Partially disclosed at `:429-433`, not reflected in the gate. | reflect it in the gate, or state the bound honestly |
+| F3 | 08-04 RUN19 audit | `stage_eta`: the `-1h` VALUE is untested (both fixtures had an empty 1 h window by construction, so `d1` was identically 0 in every assertion). Deleting the COLUMN *is* caught. ⚠ Partially eased: the K/L fixtures now put records inside the window, and the live table shows non-zero decrements — but no assertion pins the exact value. | fixture with a cell CROSSING the rung inside the hour, asserting the exact decrement |
+| F4 | 08-04 RUN19 audit | `stage_eta`: `concentration()`, `_parse_cores()`, the `yes`/`risk` verdicts and `REACHED` are unasserted. `_parse_cores` carries the production `?`/`0` contract from `publish_status.sh:231`. (The GATED branch is now covered by L2.) | direct unit assertions for each |
+| F6 | 08-04 RUN19 audit | `stage_eta`: `rem` includes `missing * rung`, but missing units are not in `cells` and can therefore NEVER contribute to `owing_rate`. A rung can be dated off one producing cell while most of its priced backlog belongs to units that have produced nothing by definition. Partially disclosed in the idle-backlog line, not reflected in the gate. ⚠ F1's absorption reduces the exposure but does not remove it. | reflect it in the gate, or state the bound honestly |
 
 ### MINOR — correctness or hygiene, no campaign exposure
 
 | id | found | what | to resolve |
 |---|---|---|---|
-| F7 | 08-04 RUN19 audit | `stage_eta` selftest E1 is host-dependent: on a host whose local time IS UTC, `skew == 0.0` and E1 FAILS — the suite reports a defect exactly where the defect is impossible. | make E1 conditional/informational; E2-E5 are the portable control |
-| F8 | 08-04 RUN19 audit | `stage_eta`: `concentration(cells, now_epoch, 12)` hardcodes 12 h while the ETA window `eh2` may be 24 h, so the composition warning is silently ABSENT in the one state where it matters most. | use `eh2` |
-| F9 | 08-04 RUN19 audit | `stage_eta`: `now_epoch` is sampled BEFORE the archive walk, so records landing during the walk are excluded from every window but still counted in `len(mts)`. | sample after the walk |
-| F10 | 08-04 RUN19 audit | `stage_eta`: selftest section J has a `try:` with only a `finally:`, so an exception there aborts the run before the pass/fail summary prints. | wrap like F/G/H |
+| F8 | 08-04 RUN19 audit | `stage_eta`: `concentration(cells, now_epoch, 12)` hardcodes 12 h while the ETA window `eh2` may be 24 h, so the composition warning is silently ABSENT in the one state where it matters most. | use `eh2` (needs the window resolved before the concentration line is emitted) |
 | F11 | 08-04 RUN19 audit | `stage_eta`: any stray subdirectory under a `test*` root is silently promoted to a registered unit. Not live (all 62 pairs verified genuine, reconciling to 71 with 9 missing). | allowlist the arm names |
 | F12 | 08-04 RUN19 | `session_preflight --full` docstring advertises "~60 s"; measured ~200 s. | correct the docstring |
 | F13 | 08-04 RUN19 | `run_record_layers.sh` header says "ALL SEVEN RECORD LAYERS" while an internal comment says "these EIGHT layers"; it runs 7 gated layers + 3 ungated measurements. | reconcile the wording |
@@ -137,3 +200,12 @@ session; see CHANGELOG `[2026-08-04b]` and execution record §132)*
 | A-3 | 2026-08-04 RUN19 | **PROVEN-BENIGN** | RUN 18 §10 alleged the `-1h` predicate `max(0, min(k, rung-(len-k)))` was untested and possibly wrong. It is CORRECT in all three regimes (`L<=R`, crossing, `L-k>=R`), and deleting the column IS caught by the J3 parser. A disclosed defect that was not one. |
 | A-4 | 2026-08-04 RUN19 | **PROVEN-BENIGN** | Auditor reported as MAJOR that the ETA table is printing GATED for low rungs while dating higher ones. Refuted by running it: every row is dated, none GATED. The structural half survives as F1. |
 | P246 | 2026-08-04 RUN19 | **FIXED** | Mine: a heredoc inside a `bash -c` string, seventh occurrence. Blast radius NIL. Both documents were then written with the Write tool and appended by a script doing no shell quoting. |
+| F5 | 2026-08-04 RUN19 | **FIXED** | `CEILING = RUNGS[-1]`; all **8 executable** `568` sites now derive from it (historical numbers in comments deliberately left, they record what was true then). |
+| F9 | 2026-08-04 RUN19 | **FIXED** | The archive walk now precedes the clock sample, so every mtime held is <= the clock it is compared against. |
+| F10 | 2026-08-04 RUN19 | **FIXED** | Selftest section J gained the `except` it lacked; an exception there is now a recorded FAIL rather than a traceback that suppresses every other result. |
+| F7 | 2026-08-04 RUN19 | **FIXED** | E1 no longer asserts a host-dependent skew (it would FAIL on any UTC host, i.e. exactly where the defect is impossible). It reports the observation, and **E1b** asserts the portable invariant: no window bound in the file is built from `utcnow()`. ⚠ My first E1b was itself wrong — it matched the module docstring that DOCUMENTS the trap and its own source line. Narrowed to assignment targets. |
+| **F2** | 2026-08-04 RUN19 | **FIXED + MUTATION-PROVEN** | The go-forward exclusion had NO coverage and both deleting and inverting it scored full marks. New **K** fixture: a near-ceiling HIGH producer (560 records, excluded), a mid cell (300, included) and a sub-rung-30 cell so the ladder dates. **K4 is a RATIO, not a gap** — the first version asserted "gap > 24 h" and the INVERTED mutant still cleared it on a 90-day horizon. Fixture rates 44 / 4 / 40 give ratios 11 / 1.1 / 1.0. Mutation proof: delete → K3+K4 fail; invert → K4 fails. |
+| **F1** | 2026-08-04 RUN19 | **FIXED + MUTATION-PROVEN** | `GATED` is now **absorbing upward**: once a rung gates, every higher rung gates and is tagged `barrier>=R`. Reaching 568 requires reaching 279, so a low barrier cannot coexist with a high date. New **L** fixture reproduces the shape; removing absorption makes L2 fail. |
+| **F15** | 2026-08-04 RUN19 | **FIXED** | **Found by the selftest failing to report its own failure.** A `ck` value can carry rendered page text, rendered text carries non-ASCII, and the console is cp1251 — so printing a FAIL line raised `UnicodeEncodeError` INSIDE the reporter. The run died with a traceback and **not one pass/fail line**. A reporter that crashes on the content it exists to report is the worst failure mode available; it is why F2/F1/E1b were invisible for one cycle. Now `backslashreplace`-sanitised. |
+| **P247** | 2026-08-04 RUN19 | **FIXED** | Mine: **my A0a-A0d cases tested the FUNCTION but not that `render()` USES it.** The mutation proof reverted only the CALL SITE to the elapsed-wall-clock formula and every A0 case still passed. Added **A0e**, which asserts render's own output says `UNKNOWN still to run` on a fixture with no search tree. Caught by the proof, not by review. |
+| **P248** | 2026-08-04 RUN19 | **FIXED** | Mine: F1's absorption silently made three existing fixtures gate every rung, so **J1/J2 began comparing empty lists** — vacuous passes created by my own fix, the precise class this campaign keeps finding. Caught because J3 (`rows >= 3`) failed. Fixtures gained a sub-rung-30 producer; J1 now exercises **seven** dated rows, up from four before the change. |
