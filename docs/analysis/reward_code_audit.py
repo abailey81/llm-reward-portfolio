@@ -174,6 +174,11 @@ def main(argv=None) -> int:
         if len(failures) > 40:
             print(f"  ... and {len(failures)-40} more")
     else:
+        if n == 0:
+            # P286: zero inspected is not clean -- see record_validator.py for the full note.
+            print("*** CANNOT VOUCH FOR ANYTHING -- ZERO reward sources were inspected.")
+            print("    This is NOT a clean result: C1-C4 were never evaluated.")
+            return 2
         print("C1-C4 CLEAN -- every archived reward parses, defines `def reward(...)` with the")
         print("registered 5-parameter signature, and is STILL ADMITTED by the project's own")
         print("sandbox ast_gate. Every trained result can be reproduced by re-running its source.")

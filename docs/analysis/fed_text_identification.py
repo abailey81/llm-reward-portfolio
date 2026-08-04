@@ -222,6 +222,14 @@ def main(argv=None) -> int:
         if len(problems) > 40:
             print(f"  ... and {len(problems)-40} more")
     else:
+        if not any((per.get(a) or {}).get("n") for a in per):
+            # P286: ZERO IS NOT CLEAN. rglob over a missing or empty tree returns an empty
+            # iterator and raises nothing, so an absent archive used to produce exactly the
+            # output a perfect one produces. The archive is a PULL MIRROR, so 'not here yet'
+            # is reachable. See record_validator.py for the full note.
+            print("*** CANNOT VOUCH FOR ANYTHING -- ZERO arms held a g>=1 record.")
+            print("    This is NOT a clean result: S11 was never evaluated.")
+            return 2
         print("S11 CLEAN -- every arm was fed EXACTLY its registered shape:")
         print("  scalar 0 diagnostic lines | scalar_cvar5 1 | distributional 6 tail |")
         print("  placebo 6 INERT reference lines | placebo_shuffled 6 tail (shuffled),")

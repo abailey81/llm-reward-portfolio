@@ -3,6 +3,184 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04e] ★★★★★ RUN 20 (OPS), passes 2-8 — **A LIVE TRANSPORT OUTAGE, AND THE ONE INSTRUMENT THE PLAYBOOK SAYS TO TRUST ON THE DAY WENT SILENT AND EXITED 0 THROUGH ALL OF IT** · six of the seven gated layers certified an empty archive as CLEAN · the science monitor held 5.8 GB of a 15.6 GB box · **and nothing anywhere asked whether the numbers were physically sensible until Tamer said so**
+
+**PAST.** Continues `[2026-08-04d]` (RUN 20 pass 1), which closed A-d14 with `docs/ops/arm_jobs.py`,
+fixed the P4 wall-clock skip and left P275 open. Board at the start of pass 2: preflight OK all 17,
+seven layers RC=0, `line_balance` CLEAN, common rung 0, records 12,633.
+
+### ⛔ INC-1 — LOGIN13 REFUSED SSH FOR 31 MINUTES, AND THE GUARD SAID NOTHING
+
+At **12:00:29Z** every Myriad login node began refusing connections. Found not by an alarm but by
+running the session board's FIRST documented command and noticing it printed **nothing** where it had
+printed `OK ... comfortable` forty minutes earlier.
+
+**Traced to the packet rather than guessed.** `ssh -vv` showed `Connection established`, then our own
+version string, then `kex_exchange_identification: read: Connection reset by peer` — TCP completed,
+the server never sent its banner. `Test-NetConnection` confirmed **port 22 OPEN on all three login
+IPs** (193.60.252.107/.108/.109) and `www.rc.ucl.ac.uk:443` reachable, so it was neither a lost route
+nor a network outage. The last good guard reading (`cores=0.00/6.0 mem=0.00GB qacct=0`, 11:58:29Z)
+rules out a UCL usage penalty, which caps CPU and memory rather than blocking SSH. Reset timing 76 ms
+then ~1,072 ms twice, **identical on every login node**, points at the source address being refused
+site-wide. **Our VPN address was 10.151.114.155, and `acknowledged_alarms.txt:340` records the
+identical event from the identical /24.** Escalated to Tamer with one action; he reconnected onto
+**10.151.110.107**, and the next `ssh` returned `login13` at **12:32:19Z**.
+
+⚠ **THE MECHANISM IS STILL NOT FULLY EXPLAINED AND IS RECORDED AS SUCH: a lost ROUTE cannot produce a
+completed TCP handshake, so the 2026-08-03 note's stated cause is inconsistent with what was measured
+today, even though its stated REMEDY is exactly what worked.**
+
+**COST, MEASURED AFTER RECOVERY RATHER THAN ASSUMED: none detectable.** The backlog flushed (test tier
+11,096 → **11,196 records in 28 minutes**), the 12 h rate came back **ABOVE** its pre-outage value
+(164.7 → 161.8 → **165.1**), the fleet never shrank (2,018 → **2,033 measured DURING the outage** →
+2,015 slots), no driver came near its death clock (worst consecutive **21** against 240), and preflight
+read **VERDICT OK all 17**. ⇒ **The slot count ROSE during the outage, because SGE kept dispatching our
+already-queued jobs entirely independently of whether we could reach the login node. A transport
+outage stops us WATCHING the campaign, not the campaign.**
+
+### ★ P279 — THE GUARD RETURNED "COMFORTABLE" WITH ZERO BYTES OF OUTPUT
+
+`loginnode_guard.py` returned **0 — the same code as OK — on BOTH failure branches**, and the only
+`print` in `sample()` sits in the success path. So the first command on the session board produced
+**empty stdout and rc=0** while its own log recorded seven consecutive `PROBE-UNPARSED ''` entries and
+twelve driver lines accumulated pull failures. The old code justified this in writing as *"never let
+the guard itself fail loudly"* — but `MAINTENANCE_2026-08-12.md:148` names this tool as **the one
+instrument whose verdict should change behaviour on an at-risk day.**
+
+**Falsified against the live failure, minutes apart: 0 bytes and rc=0 before; 919 bytes and rc=3
+after.** `UNKNOWN_RC = 3` is distinct from 0/1/2 and breaks nothing — verified by grep across `docs/`,
+`scripts/`, `src/` and `.claude/` that **no consumer reads this exit code programmatically.**
+
+### ★ THE THROUGHPUT IDENTITY, MEASURED END TO END (Tamer: *"why are we not even at 300 rec/h?"*)
+
+`records/hour = slots x utilisation x yield / T`, every term measured from artefacts on disk.
+**T is not one number, and pooling it was the first error:** over 3,235 ledger tasks, SEARCH (8-thread)
+means **4.64 h** and sealed TEST means **9.39 h**; a pooled 6.54 h is meaningless because the campaign
+is now almost entirely TEST.
+
+```
+S = 1,879 slots   y = 0.9972 (TEST yield)   T = 9.39 h
+CEILING = S*y/T = 199.6 rec/h      MEASURED 167-173 = 84-87% utilisation
+SLOTS NEEDED FOR 300 rec/h = 2,824  =  1.50x what we hold
+```
+
+**300 rec/h was never physically available**, on a cluster where we already hold ~20% of every running
+slot across 98 users. **T is frozen design:** 400,000 steps at ~13 steps/s/core is 8.55 h of pure
+compute and the observed 9.39 h is that plus ~10% overhead; reducing it means changing a registered
+value or the thread count, and the second breaks CRN determinism. **Yield is not the problem and the
+apparent failures are the science:** TEST-phase yield is **99.72%**, and the 194 `rc=1` tasks sit
+entirely in SEARCH at **0.00 h** — they are the sandbox rejects authoring-reliability MEASURES.
+
+⚠ **TWO HYPOTHESES TESTED AND DISCARDED, recorded because discarding them is the finding.** The
+**pack-8 tail** would have wasted ~38% and matched the residual almost exactly — **REFUTED**:
+slot-hour-weighted utilisation from the tail is **0.9979**, because 3,209 of 3,222 epilogue ledgers
+hold exactly ONE task and my "one ledger = one pack" mapping was simply wrong. And the pooled T above.
+
+**★ THIS ALSO CLOSES THE PRACTICAL HALF OF E-wc:** P277 established that `wall_clock` is 0 on every
+sealed-test record and that the compute is recoverable from `ledger/*.epilogue.jsonl`. **The phase
+table IS that recovery** — 9.39 h mean / 9.45 h median with its distribution, which is what Okhrati's
+compute-reporting mechanic needs.
+
+### ★★ THE ETA IS AT ITS GLOBAL MINIMUM, PROVEN PER JOB (Tamer: *"bring ETA to global minimum"*)
+
+Resolving the queue job by job with `qstat -xml` joined to the per-arm seed census:
+
+```
+CRITICAL   running  24 jobs /   192 slots      queued   0 jobs /     0 slots
+NON-CRIT   running 218 jobs / 1,744 slots      queued  70 jobs /   560 slots
+```
+
+**Not one job on the critical path is waiting for a slot.** So no reallocation can shorten the ETA —
+adding capacity to a path with nothing queued on it does nothing, and the "our own jobs block our
+critical path" hypothesis is **refuted by measurement**. One foreseeable delay was checked and is not
+real: core's future `h2_pair` would queue behind `leg4`'s 68 non-critical jobs, but 243 jobs running at
+a 9.4 h mean complete at ~26/h, so that queue drains in **2.6 h**, ten times sooner than core needs it.
+
+### ★ CHAIN-3 — THE ONE AT-RISK STEP, AND IT SURVIVED
+
+`c1_bayes_opt_c27` (job 85816) ran **12.3 h against a 15.0 h wall** as the single serial step on the
+binding path. **The check that mattered was `cpu` against `wall`, not elapsed time:** `cpu=98:43:36`
+on 8 slots gives a ratio of **8.01** — every thread flat out, computing, not hung. A number that had
+read "owes 3" for five consecutive passes is the exact shape of a stall and it was not one.
+Context: over 1,581 successful SEARCH tasks the median is 4.24 h and only 7 ever exceeded 12 h;
+`bayes_opt`'s own maximum was **8.66 h**, so c27 ran **42% beyond it**. **It COMPLETED: `rc=0`,
+`secs=44541` = 12.37 h**, clearing the wall with 2.6 h to spare. `bayes_opt` fell 3 → **2 of 30**, the
+chain floor **0.56 → 0.37 d**, and core's ETA to rung 30 improved **~23 h → ~18 h**.
+
+### ⭐ P285 — NOTHING ANYWHERE ASKED WHETHER THE NUMBERS WERE PHYSICALLY SENSIBLE
+
+**Tamer said I was being lazy and acting against the ★ PRIORITIES. He was right.** Asked whether the
+finished legs might be nonsense, I wrote an explanation of why not to look instead of building the
+check that answers it. **The seven record layers verify INTERNAL CONSISTENCY ONLY** — a Sharpe replays
+from its own returns, hashes match, commits exist — and **all seven read RC=0 over an archive whose
+every number could be absurd.** `CLAUDE.md` states the duty and names the precedent: this project's
+prototype "tail signal" was refuted on a **wrong-unit error that had passed every test.**
+
+New **`docs/analysis/science_plausibility.py`** (B1–B9), streaming, selftest **6/6**. **The blindness
+guarantee is enforced in code:** every level is pooled over all arms and lines, every per-arm statement
+is a boolean or a count, no difference or ordering is computed, and `_assert_blind()` re-reads the
+rendered text and **refuses to print** if a per-arm level would escape. **It fired on a single-arm
+fixture** — correctly, because with one arm a "pooled" figure IS that arm's level — so the tool now
+suppresses levels below two arms and says why.
+
+**LIVE VERDICT over 11,366 sealed-test records: PLAUSIBLE, rc=0.** `test_cvar05` all negative, median
+−0.0200 over [−0.0344, −0.0102]; `test_sharpe` median 1.0275 over [−1.09, +1.65]; **0 out of band on
+every field; 0 of 59 units degenerate; exactly ONE series length (1,571) across all 11,366 records; 0
+sign disagreements; 0 simplex, series, turnover or gross violations.** The numbers are real, correctly
+signed, non-degenerate and computed over an identical window — **and no contrast was computed or seen.**
+
+### ⚠ P284 — THE FIRST RUN REPORTED 16,698 VIOLATIONS AND EVERY ONE WAS MINE
+
+**(1) 5,011 "weights do not sum to 1"** — `config/environment.yaml` sets **`include_cash: true`**, so
+risky weights legitimately sum to LESS than 1 with cash as the residual. **(2) 11,357 "gross exposure
+out of band"** — `test_gross` is the gross **pre-cost RETURN** series (`test_leg.py:149`), negative on
+down days by construction. **Reading a field's meaning off its NAME is exactly P271's `arms_full`
+mistake, and it manufactured 11,357 false findings in one pass.** **(3) 330 non-finite `val_fitness`**
+— NaN on every hand-written baseline BY DESIGN, and **330 = 11 × 30 exactly**, the arithmetic identity
+that proves the reading rather than asserting it.
+
+⇒ **THE STANDING LESSON, EARNED FOUR TIMES IN ONE SESSION: A SURPRISING NEGATIVE IS A CLAIM ABOUT MY
+OWN SCRIPT FIRST.** (Pack tail, pooled T, self-inflicted queue, and these.)
+
+### THE REST OF THE PASSES, EACH FIXED AND FALSIFIED
+
+**P280** — `science_watch.py` held **5,776 MB**, 37% of the box, against P270's 1,603 MB for the same
+tool: `_records()` kept every full record and the mean sealed record is ~477 KB of JSON. Safe to fix
+**because the big arrays are never read** — `test_returns` and `train_curve` occur on exactly ONE line
+and only as a truthiness test — so every list over 64 elements is replaced by **its length** (empty →
+0 falsy, non-empty → positive int truthy, and any future indexing fails loudly). **Measured 5,776 →
+667 MB, 8.7x.** **P281** — the second hog traced to `session_preflight.py:578` →
+`.claude/lanes/openitems.py` → an inline `load_campaign_records`, peaking at **7,138 MB**; escalated
+because `.claude/lanes/**` is shared and `analyze_campaign.py` is fenced. **P275 CORRECTED** — my
+pass-1 claim that preflight itself was the 4.7 GB process was **an attribution error**: I identified
+a process by its START TIME matching my launch, and preflight spawns children also named `python.exe`.
+**P278** — the transport re-triage trigger was stated on a monotone lifetime counter and so could never
+NOT be breached once crossed. **P282** — S10 and S15 **disagreed about the reported result**, the gated
+layer reading **12** against S15's **0**, because `pair_seeds` only acquires a key when a record exists;
+now scored 0 for any line with a registered arm holding nothing, and the two agree. **P283** — R8's
+`abs(NaN - x) > 1e-9` is **False**, so one non-finite element made the endpoint-replay proof agree with
+**any** archived value. **P286** — six of seven layers printed CLEAN over an EMPTY archive; all six now
+exit 2 with "CANNOT VOUCH". ⚠ **My first falsification of P286 nearly fooled me: passing a positional
+path to tools that take `--root` made argparse exit 2 on a USAGE ERROR, the same code a vacuity guard
+uses. Reading each tool's own VERDICT LINE separated them.**
+
+**FUTURE.** The common rung stays **0** until core clears C1 (`bayes_opt` owes 2) and runs its
+`h2_pair`, and until glm, kimi, nemotron and deepseek do the same — all confirmed as pipeline-stage
+waits, not faults, by `arm_jobs`. **Still open:** P281 (the lane-infrastructure 7.1 GB probe, with the
+operational rule *do not run `preflight --full` under ~8 GB free*), the fenced escalations E-sent /
+E-spend / A6 / W1-D36, and two definitional questions put to Tamer — **whether `test_h3_singleshot`
+and the 11 H1 baselines belong in the common-rung minimum.** Both change what the reported number IS
+and both are currently NON-BINDING, so ratifying them before any outcome is seen costs nothing and
+preserves a verifiable independence claim. Myriad maintenance **Wed 12 Aug, possibly into Thu 13**.
+Next P-number: **P287**.
+
+**⇒ THE LESSON THESE SEVEN PASSES EARNED: A CHECK THAT HAS NEVER BEEN RUN AGAINST ITS OWN FAILURE
+MODE IS NOT A CHECK.** The guard that goes silent when the node dies, the layer that certifies an
+empty archive, the replay that agrees with NaN, the minimum over a population that excludes the bad
+news, the trigger stated on a counter that only rises — **every one of them was green, every one of
+them had been green for the whole campaign, and every one was found by asking what it would print if
+the thing it watches were broken.**
+
 ## [2026-08-04d] ★★★★★ RUN 20 (OPS), pass 1 — **THE SENTINEL HAS BEEN WATCHING ONE LINE OUT OF TWELVE, AND ITS AUTHORING GUARD HAS MATCHED ZERO FILES FOR THE WHOLE CAMPAIGN** · the per-arm detector RUN 19 called its highest-value row turned out to be unbuildable from the data it named, because `qstat` truncates the job name to ten characters · **and 87.9% of the archive was certified "wall_clock plausible" by a check that skipped it**
 
 **PAST.** Continues `[2026-08-04b]` (RUN 19), which closed at T+158h with 28 defects fixed, the board

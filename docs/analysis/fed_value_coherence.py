@@ -211,6 +211,15 @@ def main(argv=None) -> int:
         if len(problems) > 40:
             print(f"  ... and {len(problems)-40} more")
     else:
+        if v4_checked == 0 and not measured:
+            # P286: ZERO IS NOT CLEAN. rglob over a missing or empty tree returns an empty
+            # iterator and raises nothing, so an absent archive used to produce exactly the
+            # output a perfect one produces. The archive is a PULL MIRROR, so 'not here yet'
+            # is reachable. See record_validator.py for the full note.
+            print("*** CANNOT VOUCH FOR ANYTHING -- ZERO tail vectors were measured and ZERO")
+            print("    pipeline comparisons were made. This is NOT a clean result:")
+            print("    V1-V5 were never evaluated.")
+            return 2
         print("V1-V5 CLEAN:")
         print("  - CVaR is MONOTONE in the level on every archived tail vector (cvar_01 <= cvar_05")
         print("    <= cvar_10 <= cvar_25), so the tail estimator is internally coherent")

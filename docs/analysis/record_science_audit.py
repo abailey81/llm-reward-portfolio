@@ -479,6 +479,14 @@ def main(argv=None) -> int:
         # diagnostics, and `metrics.train_curve.return` is entirely NaN on 100% of records (see the
         # disclosure below). A summary line that overstates its own scope is the same defect class
         # as a check calibrated to the auditor's intuition.
+        if n == 0:
+            # P286: ZERO IS NOT CLEAN. rglob over a missing or empty tree returns an empty
+            # iterator and raises nothing, so an absent archive used to produce exactly the
+            # output a perfect one produces. The archive is a PULL MIRROR, so 'not here yet'
+            # is reachable. See record_validator.py for the full note.
+            print("*** CANNOT VOUCH FOR ANYTHING -- ZERO records were audited.")
+            print("    This is NOT a clean result: S1-S10 were never evaluated.")
+            return 2
         print("S1-S10 CLEAN, in the scope each check actually covers:")
         print("  - the OUTCOME series and exposure diagnostics are finite (S1)")
         print("  - every sealed-test series is the registered length (S2) and every training ran")

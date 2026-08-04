@@ -306,4 +306,15 @@ if INCREMENTAL and not fail:
     except Exception:
         pass
 
+# ⚠ P286, 2026-08-04. ZERO IS NOT CLEAN. This layer used to print its CLEAN banner and exit 0 when
+# it had inspected NOTHING: `rglob` over a missing or empty tree returns an empty iterator and
+# raises nothing, so an absent archive produced exactly the output a perfect archive produces. The
+# archive is a PULL MIRROR, so "not here yet" is a reachable state rather than a hypothetical.
+# `record_window_identity` already exits 2 on zero and `line_balance` states the rule in prose:
+# a check that examined nothing must not report success.
+if n == 0:
+    print("*** CANNOT VOUCH FOR ANYTHING -- ZERO records were sealed-checked under")
+    print(f"    {ROOT}")
+    print("    This is NOT a clean result: P1-P4 were never evaluated.")
+    sys.exit(2)
 sys.exit(1 if fail else 0)
