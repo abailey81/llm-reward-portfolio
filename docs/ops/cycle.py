@@ -334,7 +334,8 @@ def _sci_token(science: dict) -> str:
     return "OK"
 
 
-def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
+def _results_layer(prev: dict, alerts: list[str], attention: list[str],
+                   info: list[str] | None = None) -> dict:
     """Run the two science tools, extract their numbers, and judge them against the invariants.
 
     Returns the extracted quantities for STATE.json. Escalates through `alerts` / `attention` in
@@ -536,7 +537,17 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     ready = sorted(ready)
     got["lines_at_c4_boundary"] = ready
     if ready:
-        alerts.append(
+        # ⚠⚠ P259 -- THIS MADE THE `RED` VERDICT MEANINGLESS FOR 4,558 CONSECUTIVE CYCLES.
+        # `ready` is derived from `frozen*/` markers ON DISK, which never disappear, so once every
+        # line had its full frozen roster this fired EVERY cycle, FOREVER. With the SWEEP-BOUND
+        # attention it drove `verdict = "RED" if alerts` permanently RED: measured 4,592 RED of
+        # 5,038 lines, and the last non-RED line is 2026-07-31T19:22:15Z. A cycle carrying
+        # `sentinel: UNACKNOWLEDGED ram:CRITICAL` was byte-identical in every field to its
+        # neighbours. **RED carried zero bits on the one line a session is told to read first.**
+        # This is the always-on-alarm pathology this very file was written to prevent, and its own
+        # text says "DO NOT RESTART ... IT IS DONE" -- a standing NOTICE, not an alert.
+        # It is `info` now: reported every cycle, never touching the verdict.
+        (info if info is not None else attention).append(
             f"★ C4 PRECONDITION MET on {', '.join(ready)} (every arm that line runs has a frozen "
             f"winner). This is the FREEZE boundary, NOT evidence that the ladder has begun: the test "
             f"leg, the C1 barrier, C2's h2_pair and the C3 gate all sit between here and C4. The "
@@ -1081,7 +1092,7 @@ def main() -> int:
                          f"a drought this long is worth confirming against the cluster queue")
 
     # 9. THE RESULTS LAYER -- are the numbers themselves logical, correct and meaningful?
-    science = _results_layer(prev, alerts, attention)
+    science = _results_layer(prev, alerts, attention, info)
 
     cores = jobs = ""
     _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
@@ -1255,7 +1266,10 @@ def main() -> int:
     sweep_tok = f"  sweep={sweep_s:.1f}s"
     if args.interval and sweep_s > args.interval:
         sweep_tok += f"(SWEEP-BOUND: >{args.interval:.0f}s sleep)"
-        attention.append(
+        # P259, second permanent contributor: the sweep has exceeded the sleep since the archive
+        # passed a few thousand records and can never go back, so this pinned ATTN forever. The
+        # fact is real and stays visible in the `sweep=` token and in `info`; it is not news.
+        info.append(
             f"the sweep now takes {sweep_s:.1f}s, longer than the configured {args.interval:.0f}s "
             f"sleep -- the REAL cadence is ~{sweep_s + args.interval:.0f}s, not {args.interval:.0f}s. "
             f"Expected as the archive grows (linear, ~6.3 ms/record). Do NOT fix this by sampling the "
