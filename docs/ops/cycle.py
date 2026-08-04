@@ -58,7 +58,8 @@ Every run appends one line to docs/ops/watch/CYCLE_LOG.md and rewrites docs/ops/
 the cadence is auditable after the fact -- "I monitored continuously" becomes a checkable claim rather
 than an assertion, which is the standard the rest of this project is held to.
 
-Nothing here mutates the campaign. It is safe at any cadence, including from a loop.
+Nothing here mutates the campaign EXCEPT ONE NARROW, DELIBERATE CASE -- see C3-loop / P269
+below. It is safe at any cadence, including from a loop.
 """
 
 from __future__ import annotations
@@ -156,6 +157,27 @@ STALE_DRIVER_MINUTES = 30.0
 # Consecutive zero-record cycles before a drought is worth mentioning. At the 2-minute cadence this
 # is ~30 minutes, and it re-states every ZERO_DELTA_CYCLES thereafter rather than every cycle.
 ZERO_DELTA_CYCLES = 15
+#: ⚠⚠ C8-loop / P267 -- THE SSH-GATED LAYER RAN ~7x LESS OFTEN THAN ITS OWN DOCUMENTATION CLAIMED.
+#: `cycle_loop.sh` gates on `i % 30`, justified as "30 x ~42 s = ~20 min". The sweep has since grown
+#: to 330-540 s, so the observed `cores=` stamps are **2.0-4.3 h apart** -- and the work behind that
+#: gate is not cosmetic: `record_provenance_seal` (whose comment asserts "every NEW record is sealed
+#: within one ssh cadence (~20 min)", false by ~7x) and `vanished_array_watch`, the detector for the
+#: 15 h purge blind spot. Worse, `i` resets to 1 on every loop restart, so a loop restarted oftener
+#: than ~2.75 h would NEVER take an ssh cycle at all.
+#: An iteration COUNT is the wrong unit for a wall-clock promise. cycle.py now also triggers on
+#: ELAPSED TIME, so the shell's counter is a floor rather than the sole trigger.
+SSH_MAX_GAP_S = 1200.0
+SSH_STAMP = Path("docs/ops/watch/.ssh_cycle_last")
+
+
+def _ssh_due(repo: Path) -> tuple[bool, float]:
+    """(should we do the ssh-gated work, seconds since we last did). Fails toward DOING it."""
+    p = repo / SSH_STAMP
+    try:
+        age = time.time() - p.stat().st_mtime
+    except OSError:
+        return True, -1.0          # never run, or unreadable -> do it, never skip on ignorance
+    return age >= SSH_MAX_GAP_S, age
 
 #: Minimum seconds between DEEP SCIENCE AUDIT runs (S1-S9, docs/analysis/record_science_audit.py).
 #: It is a FULL-ARCHIVE scan by necessity -- S4 tests determinism by comparing duplicate records
@@ -881,6 +903,18 @@ def main() -> int:
     dead_pid_locks = 0
     try:
         import psutil
+        # ⚠⚠ C3-loop / P269 -- THIS IS THE ONE PLACE THE 'READ-ONLY' LOOP WRITES TO THE ARCHIVE,
+        # and both this file's header and cycle_loop.sh claimed it never does. An auditor found
+        # the claim false: `lk.unlink()` below removes files under the campaign root, and
+        # `docs/ops/watch/REAPED_LOCKS.log` records 5 real reaps -- TWO of them against the
+        # CORE/CONFIRMATORY line (`c1_bayes_opt_c22`, `c1_cma_es_c11`). The reap predicate is
+        # narrow and defensible (a lock whose owning pid is dead), and the drivers break such
+        # locks themselves; what was wrong was the INVARIANT AS STATED. A false invariant is
+        # worse than a documented exception, because the next session reasons from it.
+        # STATED, not silently tolerated: this loop is read-only with respect to campaign
+        # DATA -- it never touches a record, a reward, an env.json or a frozen marker -- and it
+        # writes exactly one class of COORDINATION file, the dead-pid driver lock, logging every
+        # removal to REAPED_LOCKS.log.
         for lk in sorted((ROOT / "batches").glob("*.driver.lock")):
             try:
                 _lk = json.loads(lk.read_text(encoding="utf-8"))
@@ -1149,7 +1183,11 @@ def main() -> int:
     _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
     _record_seal_rc = -1     # -1 => same; 0 = sealed clean, 1 = a record disagrees with its files
     _record_science_rc = -1  # -1 => not run this cycle; 0 = S1-S9 clean, 1 = a science issue
-    if args.ssh:
+    ssh_due, ssh_age = _ssh_due(REPO)
+    if ssh_due and not args.ssh:
+        info.append(f"ssh-gated layer triggered by ELAPSED TIME ({ssh_age:.0f}s >= "
+                    f"{SSH_MAX_GAP_S:.0f}s), not by the shell's iteration counter (P267)")
+    if args.ssh or ssh_due:
         rc, out = _run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "myriad",
                         'Q=$(qstat -u ucestes | tail -n +3); '
                         'echo "run=$(echo "$Q" | awk "\\$5==\\"r\\"" | grep -c .)"; '
@@ -1262,6 +1300,16 @@ def main() -> int:
         elif _sci_rc != 0:
             attention.append(f"record_science_audit rc={_sci_rc} -- the science audit could not run "
                              "this cycle; new records are UNAUDITED for science until it does")
+
+
+    # C8-loop / P267: stamp AFTER the work, so a crash mid-block retries on the next
+    # cycle instead of silently marking the cadence satisfied.
+    if args.ssh or ssh_due:
+        try:
+            (REPO / SSH_STAMP).parent.mkdir(parents=True, exist_ok=True)
+            (REPO / SSH_STAMP).write_text(_utc() + "\n", encoding="utf-8")
+        except OSError:
+            pass
 
     state = {
         "written_utc": stamp,

@@ -525,7 +525,33 @@ False. An intermittent failure once every 15 cycles meant the drought alarm coul
 All four falsified or structurally proven; the live loop verified running the patched code with
 `guards=0n/2k`, `drift=0`, a valid `STATE.json` and no stray temp files.
 
-**OPEN ROWS REMAINING: 5** (A6, W1/D36 escalated; C1/C3/C8-loop queued) — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 10 (10:09-10:40 UTC) — the last two fixable loop rows, and one cycle I cost the campaign
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · drift 0 · records **12,384** ·
+the loop healthy on the patched code (`guards=0n/2k`, `drift=0`, valid `STATE.json`).
+
+**P267 (C8-loop)** — the ssh-gated layer ran **~7x less often than documented**. `cycle_loop.sh`
+gates on `i % 30` calibrated to a 42 s cycle; the real cycle is 330-540 s, so `cores=` stamps were
+**2.0-4.3 h apart** — starving `record_provenance_seal` (whose own comment promises "~20 min") and
+`vanished_array_watch`, the 15 h purge-blind-spot detector. **An iteration count is the wrong unit
+for a wall-clock promise.** The fix went in `cycle.py`, not the shell: a running `while ... done` was
+parsed once, so an edit there is inert until a restart, and restarting the campaign's eyes is not
+worth it for a cadence fix. Falsified live — the stamp file appeared, the elapsed-time trigger fired,
+and the next cycle carried `cores=1736`.
+
+**P269 (C3-loop)** — the loop's claim that it *"NEVER mutates the campaign"* was false:
+`REAPED_LOCKS.log` records five real reaps, two against the confirmatory line. The reaper is
+defensible; **the invariant as stated was not**, and a false invariant is worse than a documented
+exception because the next session reasons from it.
+
+**⚠ P268 — MY ERROR, AND IT COST A CYCLE.** My C8 patch used `ssh_due` a hundred lines before it was
+defined. **`ruff` passed and `ast.parse` passed** — an unbound local is neither a syntax error nor an
+F821 — and the live loop invoked the broken file once before I finished checking:
+`UnboundLocalError` at **10:16:23Z**. Blast radius exactly one cycle, ~5 minutes blind, self-recovered
+at 10:21:34Z. **The rule it earns, applied immediately to P269: for an instrument invoked every few
+minutes, verify a COPY and then move it in atomically. Post-hoc verification is too late.**
+
+**OPEN ROWS REMAINING: 3** (A6, W1/D36 escalated; C1-loop queued) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
