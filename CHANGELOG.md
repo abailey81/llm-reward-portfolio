@@ -293,7 +293,46 @@ half-finished edit. The mirror image of P242. Fixed to `git commit --only docs/R
 falsified in a throwaway repo: with an unrelated file staged, the status commit took only the status
 file. The publisher is re-invoked each iteration, so it is live without a restart.
 
-**OPEN ROWS REMAINING: 1** — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 3 (01:09-01:30 UTC) — **THE LEDGER IS EMPTY**, and the rate fell for a third time for a reason that was good news
+
+**COMMON RUNG 0**, unchanged, capped by the same five lines. **ALL 7 LAYERS RAN, ALL RC=0** (the new
+counting banner, in production). Preflight **VERDICT OK all 17** · `line_balance` CLEAN · drift 0 ·
+Eqw/hqw **0** · records 10,782 -> 10,855.
+
+**SPEED-1 — the rate fell a third time (153 -> 150.2 -> 145.4) while slots ROSE (1,632 -> 1,600 ->
+1,712).** Those point opposite ways, so it was worked to a cause instead of logged. Per-10-minute
+arrivals decline monotonically over two hours (47, 42, 37, 32, 32, 29, 25, 22, 18, 13, 12, 13), and
+the per-line split explains it: **`leg8` (sonnet) now holds 145 running jobs, up from 92, with 82
+dispatched in the last two hours, while `leg4` (qwen3.5) fell 106 -> 64.** A newly dispatched pack-8
+job eats slots for 8-15 h before its first record lands, so a **line handover** looks exactly like a
+throughput regression in a trailing window. Not a fault; the fleet is rebalancing onto a second
+producer.
+
+**SPEED-2 — and the queue looked far worse than it is.** `leg8` holds **195 of 265 queued jobs
+(74%)**, submitted earliest and therefore ahead of everything, while the five lines that actually CAP
+the common rung hold **17 between them (6%)**. That reads as starvation. It is not: those lines are
+blocked UPSTREAM at their C1/C2/C3 gates, so they hold few jobs because they have not GENERATED more
+test work, and dispatching all 17 instantly would still leave the rung at 0. **A queue-position
+problem and a pipeline-stage problem are indistinguishable from the queue.**
+
+**F14 CLEARED — the last inherited row, on a justification that did not survive checking.** It was
+recorded as *"renaming variables inside live instruments is risk for no gain"*, but **all 12 of
+`record_validator.py`'s items are inside `_selftest()`, not the production path**, and the file has a
+`--selftest` that makes the change verifiable. All 18 cleared. Verified the way RUN 18 only claimed
+to: selftest ALL PASS, four files compile, ruff fully clean, and the live archive re-validated and
+diffed against the pre-edit output — **the only difference is the record count (10,846 -> 10,855) and
+the VERDICT is unchanged.** Not "byte-identical"; that is impossible on a live archive and claiming
+it is exactly RUN 18's error.
+
+**⚠ P252, MINE:** pass 1 priced the repair jobs at **9-18 h** from "199 job starts in 11 h" = 18/h.
+That estimator is **biased low by construction** — it counts start times of jobs STILL RUNNING, so
+every job that started and finished inside the window is invisible. Queue depth gives ~45/h, putting
+the wait at **roughly 6 h**. The P239 family again: a rate whose numerator and denominator come from
+different populations. **P249b:** the census that misreported `cycle_loop=2` was still misreporting it
+every pass and I was mentally discounting it, which is how a known-false alarm becomes permanent.
+Fixed rather than tolerated; all six roster rows now read `ok`.
+
+**OPEN ROWS REMAINING: 0** — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
