@@ -46,6 +46,38 @@ TAIL_WORDS = ("cvar", "shortfall", "quantile")
 
 hard_failures: list[str] = []
 
+#: Any list longer than this is replaced by its LENGTH at load time (see `_shrink`).
+_BIG = 64
+
+
+def _shrink(obj):
+    """Replace every long list inside a parsed record with its LENGTH, recursively.
+
+    ⚠ P290, 2026-08-04. MEASURED, not modelled: this file peaked at **8,032 MB** during a
+    seven-layer run, against P270's recorded 1,475 MB for the same tool -- 5.4x -- while
+    `integrity_gate` peaked at 6,899 MB and free RAM fell to 0.46 GB on a 15.64 GB box hosting ~30
+    driver and supervisor processes. The cause is `records.append(rec)` below holding every full
+    record, and the mean sealed test record is ~477 KB of JSON.
+
+    ⚠ SAFE BECAUSE IT WAS CHECKED, NOT ASSUMED. The only generic read of a metric VALUE in this file
+    is the non-finite scan, whose predicate is `isinstance(v, float)` -- STRICTLY float. A list was
+    never examined by it, and an int is not examined either, so replacing a long list with its length
+    leaves that check bit-identical. A grep for `test_returns|per_period_pnl|train_curve|
+    test_exposure|test_alloc` finds no other reference anywhere in this file.
+
+    The rule is STRUCTURAL rather than a whitelist of field names, so a record schema that grows a
+    new array is covered without anyone remembering to update a list. Any future code that tries to
+    index or `len()` one FAILS LOUDLY instead of silently reading a wrong value.
+    """
+    if isinstance(obj, list):
+        if len(obj) > _BIG:
+            return len(obj)
+        return [_shrink(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _shrink(v) for k, v in obj.items()}
+    return obj
+
+
 records = []
 for path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
     # Exclude the in-flight staging tree AND the set-aside past, per the convention
@@ -62,7 +94,7 @@ for path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
         continue
     rec["_path"] = path.replace("\\", "/")
     rec["_root"] = os.path.relpath(path, ROOT).replace("\\", "/").split("/")[0]
-    records.append(rec)
+    records.append(_shrink(rec))
 
 print("results_audit: %d records under %s" % (len(records), ROOT))
 

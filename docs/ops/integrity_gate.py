@@ -64,6 +64,37 @@ R115_FLOOR = 0.10
 KNOWN_MODEL_ALIASES = {("moonshotai/kimi-k3-20260715", "moonshotai/kimi-k3")}
 
 
+#: Any list longer than this is replaced by its LENGTH at load time (see `_shrink`).
+_BIG = 64
+
+
+def _shrink(obj):
+    """Replace every long list inside a parsed record with its LENGTH, recursively.
+
+    ⚠ P291, 2026-08-04. MEASURED: this file peaked at **6,899 MB** during a seven-layer run, second
+    only to `results_audit`'s 8,032 MB, on a 15.64 GB box hosting ~30 driver and supervisor
+    processes; free RAM fell to 0.46 GB. It was not in P270's list at all, so P270's serialisation
+    mitigation never covered it. The cause is three accumulators in one walk -- `every`, `frozen`
+    and `test` -- each holding FULL records, and a sealed test record is ~477 KB of JSON.
+
+    ⚠ SAFE BECAUSE THE FIELD SET WAS ENUMERATED RATHER THAN ASSUMED. Every field this file reads is
+    a scalar or a string: max_tokens, model_snapshot, temperature, train_safe_call_count,
+    train_safe_default_count, arm, reward_source_hash, candidate_id, reward_source, val_fitness. A
+    grep for `test_returns|per_period_pnl|train_curve|test_exposure|test_alloc` finds NOTHING here,
+    and `_shrink` touches only LISTS, so `reward_source` (a string) is untouched.
+
+    Structural rather than a field whitelist, so a schema that grows a new array is covered without
+    anyone remembering. Any future code that indexes or `len()`s one FAILS LOUDLY.
+    """
+    if isinstance(obj, list):
+        if len(obj) > _BIG:
+            return len(obj)
+        return [_shrink(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _shrink(v) for k, v in obj.items()}
+    return obj
+
+
 def _lane(top: str) -> str:
     for p in ("search_", "frozen_", "test_"):
         if top.startswith(p):
@@ -93,6 +124,7 @@ def load(root: Path) -> tuple[dict, list, list, list]:
             continue
         try:
             rec = json.loads(Path(dirpath, "record.json").read_text(encoding="utf-8"))
+            rec = _shrink(rec)   # P291: long arrays -> their lengths; no field read here is a list
         except Exception:                                # noqa: BLE001
             continue
         rec["_lane"] = _lane(parts[0])
