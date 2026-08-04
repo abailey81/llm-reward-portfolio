@@ -302,7 +302,23 @@ that failed OPEN** · **P268 a live cycle crashed by use-before-assignment**.
   rises 0.123/sample **without bound and can never clear**. Fix is in drift-fenced `scripts/`;
   registered as **D36**. No campaign result affected.
 
-**OPEN, NOT RUSHED (2):**
+**CLOSED IN PASS 12, AFTER THIS BRIEF WAS FIRST WRITTEN (2):** A-attr (P272) and A-d14 (P273) were
+both fixed. **A-d14 is only HALF closed, and the half that remains is RUN 20's highest-value build:**
+the false claim of coverage is fixed, but **THE DETECTOR DOES NOT EXIST** and cannot be built while
+`src/cluster/campaign.py` is drift-fenced. The design is recorded in `docs/ops/cycle.py` beside the
+alert: **a REGISTERED arm with ZERO sealed-test records, on a line whose OTHER arms ARE producing,
+with no job in flight for it.** S15's C6 already reports the first half; the second half is a
+PER-ARM refinement of `docs/ops/line_balance.py`'s STUCK/WAITING split, which today is per-LINE and
+so cannot see one arm dropped from a line that is otherwise healthy.
+
+⚠ **THIS PARAGRAPH WAS ITSELF CORRUPTED ONCE (P274)** -- three backticked filenames were eaten by
+bash command substitution when I wrote it from a `python -c` string. It is repaired above. **The
+lesson is the one in §7⑦ and it now has eight occurrences: WRITE TO A FILE.** I broke it inside the
+document that tells you not to.
+
+Their original text:
+
+**(historical) OPEN, NOT RUSHED (2):**
 * **A-d14** — **the modern D14 path has NO cover.** `campaign.py:1795` returns `ok: False` without
   setting `winners[arm]`, and `:1980` then **silently drops that arm from the entire C4 sweep** while
   `arm_coverage` prints `5/5`. A live, reachable, arm-losing path. **`line_balance` already has the
