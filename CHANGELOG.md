@@ -3,6 +3,397 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04b] ★★★★★ RUN 19 (OPS) — **THE INSTRUMENT THAT REPORTS "THE RESULT" WAS COMPUTING IT OVER THE WRONG POPULATION** · four lines that read rung 30 actually bank 0 · the repair job RUN 18 was waiting on does not lift the campaign at all · **and the critical-chain floor was decaying with wall-clock, printing "0.00 d still to run" while two DFO arms still owed candidates**
+
+**PAST.** Continues `[2026-08-03h]` (RUN 18) under the brief `docs/RUN19_SESSION_PROMPT.md`. Runs
+alongside the write-up lane's `[2026-08-04a]` without touching `paper/**`; this lane took the `b`
+label because `a` was already claimed, which is the collision the brief warns about. Tamer's opening
+instruction: *"always dive very deep, and very closely monitor absolutely everything... I give you
+full rights and full freedom to fix anything wrong... every 1 hour I want you to very closely check
+everything very deeply, check everything, all lines, all records, all outputs, all processes."*
+
+**PRESENT — THE CAMPAIGN IS HEALTHY, AND EVERY GREEN BELOW WAS RE-MEASURED, NOT INHERITED.**
+`loginnode_guard` **comfortable** (no UCL penalty) · ssh live on all three login nodes · preflight
+**VERDICT OK on all 17 rows** · **ALL SEVEN RECORD LAYERS RC=0** at 10,654 records · `line_balance`
+**CLEAN** · `crash_watchdog` CLEAN · drift **0** on both arms · freeze `3ca6f01ab772` **MATCHES** ·
+reproducibility **8 pass / 0 warn / 0 fail** · C: 41.2 GB · mirror 0.1 h · phone page 1.2 min ·
+10/12 lines up, 2 COMPLETE · records 10,552 → 10,657 · spend $45.5019 · 204 running / 314 queued
+jobs, 1,632 slots.
+
+### ⚠⚠ P244 — S15's PER-LINE BANKED RUNG WAS A MINIMUM OVER THE ARMS THAT HAPPENED TO HAVE STARTED
+
+`docs/analysis/record_seed_completeness.py` is the layer built in RUN 17 to answer *"what rung does
+this line actually bank"*, and `line_balance`, the phone page and the RUN 19 brief all point at it as
+the authority. `scan()` dropped any arm holding zero records (`if not seeds: continue`) and then took
+each line's minimum over the survivors, so a **registered** arm that had not yet landed a record was
+invisible. Measured live and confirmed three independent ways (S15, a throwaway census sharing no
+code with it, and a read-only auditor counting cells for another purpose):
+
+| line | S15 printed | actually banks | why |
+|---|---:|---:|---|
+| `test` (the CONFIRMATORY core line) | **30** | **0** | frozen `distributional-winner` + `scalar-winner`, **no test directory for either** |
+| `test_leg_glm_5_2` | **30** | **0** | `distributional` / `scalar` dirs exist, hold **zero** records |
+| `test_leg_kimi_k3` | **30** | **0** | same |
+| `test_leg_nemotron_3_super` | **30** | **0** | `distributional` / `scalar` absent, `scalar_cvar5` empty |
+
+**THE CONSEQUENCE IS A MISDIRECTED SESSION, NOT A WRONG SCIENCE RESULT.** RUN 18 read that table and
+recorded queued repair job **85065** as the single thing capping the campaign at rung 0. Recomputed
+from the seed sets: filling deepseek's hole takes that arm from prefix 16 to prefix **30** (it
+already holds seeds 24-29) and **the common rung is still 0**. Landing BOTH repair jobs leaves it 0.
+Filling **every** existing hole in the archive leaves it 0. The real critical path is **338 records
+(~43 pack-8 jobs)** across five lines, dominated by the `h2_pair` every line tests LAST, and gated by
+the core line, which has **never entered C4** (`grep -c "C4" driver_core.log` = **0**, re-verified).
+
+**FIXED** with a new check **C6**: the roster is read from each line's `frozen*/` winner directories,
+registered arms with no records enter the population at rung 0, an idle arm is reported as the
+binding cause ahead of any hole, and the common rung is printed explicitly and **labelled an UPPER
+BOUND** (an arm still in C1 has no frozen winner, so it is in neither population — disclosed, not
+hidden). The vacuity guard was re-keyed onto STARTED arms so reading the roster could not weaken it.
+Selftest **9 → 16**, and the four new cases were run against a verbatim in-memory reconstruction of
+the pre-fix `scan()`: each reads TRUE after and **FALSE before**. Case M is a regression guard and
+reads 30 both sides, proving the fix did not damage the number that was already right.
+
+### ⚠⚠ P245 — THE CRITICAL-CHAIN FLOOR DECAYED WITH WALL-CLOCK AND CLAIMED THE CHAIN WAS FINISHED
+
+Found by a read-only auditor sent at `docs/ops/stage_eta.py`. `floor_left = max(0.0, floor_total -
+elapsed_d)` assumed the serial DFO chain had been consuming time since LAUNCH and never checked that
+it had. Elapsed 6.9 d against a 4.64 d floor gave exactly **0.00**, the clamp inside `eta_from_rate`
+became a no-op at every row, and the page printed *"critical-chain floor: 4.64 d total, 0.00 d still
+to run"* while `search/bayes_opt` held **26 of 30** candidates and `tpe` **25 of 30**. About
+**0.93 d** of strictly serial training was reported as done. **Elapsed time is not progress; only
+records are.** Now measured from candidate records against `lanes.SERIAL_CHAIN_BUDGET`, counted in
+records rather than dispatch steps (that unit confusion is **D27**, where the sentinel read
+"cma_es 9/4" and declared the longest chain COMPLETE), and an unreadable search tree returns
+**UNKNOWN, never 0** (P230/P232's verdict-channel rule). Live: `0.93 d still to run (tpe owes 5 of 30
+candidates)`. Selftest **38 → 42**, ruff clean, page rc=0 with **0 non-ASCII**, publisher import path
+re-verified.
+
+### TWO DISCLOSED DEFECTS THAT WERE NOT DEFECTS, AND ONE AUDITOR CLAIM REFUTED
+
+The auditor's MAJOR claim that the ETA table is *currently* printing `GATED` for low rungs while
+dating higher ones was **refuted by running it** — every row is dated. Its structural half stands as
+an open item (the monotonicity assertions filter GATED rows out before comparing, so the check is
+blind to that shape by construction). It also refuted RUN 18's own §10: the `-1h` predicate
+`max(0, min(k, rung-(len-k)))` is **correct** in all three regimes, and deleting the column **is**
+caught. `stage_eta.py:296-302`'s superseded model block is now marked as superseded, with the one
+sentence in it that is still live marked separately.
+
+### THE TWO REPAIR JOBS, PROBED RATHER THAN ASSUMED
+
+`qalter -w p` returns *"found possible assignment with 8 slots"* for both **83464** and **85065**;
+both request the real PE `smp-[D]*` with `reserve: y`, so neither is unschedulable-by-construction
+like the eight jobs RUN 17 deleted. They rank **309th and 314th of 314** pending jobs — SGE priority
+here is monotone in submission time (verified across the whole pending set, not sampled) and they
+were submitted last. Dispatch measured at **199 jobs in 11 h**, self-consistent with 204 concurrent
+jobs at ~10 h walls, so 313 jobs drain in **9-18 h**. Nothing we control changes that: raising
+priority is operator-only, lowering ours is prohibited and one-way, and resubmitting would make them
+newer and therefore later.
+
+### ⚠ P246 — THE HEREDOC TRAP, SEVENTH OCCURRENCE, MINE
+
+Appending the execution-record section, I put a multi-line document into a quoted heredoc inside a
+`bash -c` string and it died on an unmatched quote. The standing rule says exactly this and has now
+been broken **seven times across four sessions**: **write to a FILE**. Blast radius NIL — the append
+simply did not happen. Both documents were then written with the Write tool and appended by a script
+that does no shell quoting at all.
+
+**FUTURE.** The reported result stays **0** until the core line clears C1, passes C2/C3 into C4 and
+runs its `h2_pair` to 30 seeds, and until glm, kimi, nemotron and deepseek do the same. That is now
+the number S15 prints. Myriad maintenance is **Wednesday 2026-08-12**; the Aug-11 pre-window check
+must confirm no line is still in the SEARCH lane, and on today's measurement core's chain clears
+well before it. Detail: execution record **§132**. Next P-number: **P247**.
+
+**⇒ THE LESSON: A MINIMUM IS ONLY AS HONEST AS ITS POPULATION.** Both defects are the same shape one
+level apart — a quantity computed correctly over a set that silently excluded the members that would
+have made it bad news. S15 excluded the arms that had produced nothing; the chain floor excluded the
+work that had not happened. **Neither looked like a bug, and both read as good news.** The question
+to ask of a summary statistic is not "is the arithmetic right" but **"what is NOT in the set, and
+would including it change the verdict"**.
+
+## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
+
+**PAST.** Continues `[2026-08-03g]`, the write-up lane's guide-building session, and runs alongside the OPS
+lane's `[2026-08-03h]` (RUN 18) without touching it. Tamer opened this session with a **standing order to
+study and write nothing**: *"I only want it firstly to study all docs, writing guide, feedbacks, marking
+criterias, dissertation guide and all other docs. It must have an extensive knowledge with zero gaps."* He
+then lifted the hold for one artefact only, the **exposé**, and refined the brief across sixteen further
+instructions. `paper/**` stayed under his hold for the whole session and **was not touched once**.
+
+**PRESENT.**
+
+### ★★★ THE STUDY PHASE, AND THE FOUR THINGS IT FOUND THAT NOBODY HAD BANKED
+
+The marking criteria PDF and the dissertation guide were read **first-hand from the PDFs**, as the standing
+rule requires, along with the four distinction exemplars, `CLAUDE.md` in full, the cursor, four CHANGELOG
+blocks, master plan §27, the 52-row registry, the 95+ playbook, the exposé, the NatWest brief, the feedback
+assessment, `PREREGISTRATION.md` §1, and the dissertation itself (front matter, CH1, CH3, CH4, CH6, CH7 plus
+a full structure map). Four findings came out of it that no project document carried:
+
+1. **THE INHERITED DEFECT LIST WAS WRONG IN THREE PLACES, AND I CHECKED BEFORE ACTING ON IT.** The brief's
+   defect #8 said four staged inserts were unwired. **All four are wired**, verified in
+   `build_paper.ASSEMBLY`. The reported blank pages **did not reproduce**. The "20 defects against 16"
+   discrepancy **did not reproduce**. Acting on a stale list would have produced three fixes for problems
+   that no longer existed.
+2. **THE FIGURE DOUBLE-NUMBERING IS WORSE THAN THE BRIEF DESCRIBED**, not better: the automatic counter and
+   the hand-written labels disagree, so the two numbering schemes are not merely duplicated but
+   **inconsistent**. Flagged, not fixed, because it lives in `paper/**`.
+3. **THE TITLE PAGE BREAKS MID-SENTENCE** in the compiled PDF, and the **PDF metadata title is empty** —
+   both on the first object a marker meets, which doctrine §3 prices as repriced across the whole document.
+4. **THE TYPOGRAPHY MANDATES PASS 3 OF 4.** Helvetica at 12pt, 1.5 spacing and Arabic pagination all hold.
+   **The ToC section order FAILS** against the guide's mandated sixteen.
+
+Measured alongside: **275 pages against an exemplar band of 41 to 64**; **712 em dashes across the whole
+document against 172 in body prose alone**, so the register problem is roughly four times larger than the
+figure `[2026-08-03g]` recorded; and **2,901 words of running prose inside the wired `paper/tables/*.md`
+files**, which `word_budget.BODY_CHAPTERS` does not count. That last one is an integrity exposure, not a
+style point, and it is recorded here as such.
+
+### ★★★★★ THE EXPOSÉ: FIVE FACTS WERE ALREADY FALSE IN THE VERSION STEFAN REVIEWED
+
+There was **no source file** for `expose_disser.pdf`. It was authored from scratch in LaTeX, with the
+original's typography **measured rather than guessed** (9.6pt on 11.0pt Palatino via `newpxtext`, margins
+15.5/15.5/11.5/10mm) so the rebuild is visually continuous with what Stefan holds.
+
+**Five of its factual claims had gone stale against the frozen configuration, and every one was found by
+reading claims against artefacts rather than by suspicion:**
+
+| the exposé said | the frozen config says | source |
+|---|---|---|
+| seven arms | **nine** | `config/arms.yaml` |
+| a four-name human canon | **eleven** | `config/campaign.yaml:140` |
+| two search baselines | **four**, contested at their pointwise maximum | `config/arms.yaml` |
+| Opus 4.8 | **Opus 5** | R102 |
+| Gemini 3.5 | **Gemini 2.5 Flash** | R106 |
+| Eureka at 29% | **28.6%** | the paper |
+
+### ★★ THEN THE FULL TRANSCRIPT ARRIVED, AND IT OVERTURNED FOUR THINGS THE SUMMARY HAD TOLD US
+
+`CLAUDE.md`'s Stefan section had been written from a **relayed summary**. Tamer supplied the **full
+conversation record plus his own notes**, which is now the source of record. Four corrections and three new
+sections went in, and the corrections matter more than the additions:
+
+- **S1's anchor was defined WRONG.** It had been recorded as "the concrete detail". Stefan's actual words:
+  *"you always want to anchor the idea, so that I, as a reader, know where you're taking me."* The anchor
+  says **where the paragraph is going**, not what is in it. Every paragraph written against the old
+  definition was built on a misreading.
+- **S2 gained a rule that cuts against cleverness.** *"Be very specific. Don't sugarcoat it. Be very
+  direct."* And the standard is **a five-minute accept/reject decision**, not comprehension. A claim-shaped
+  heading that a reviewer cannot map to a section's contents **fails**, however well it argues.
+- **S5 was inverted.** Stefan asked for a **swap**, not an addition, and the objection we should give him is
+  **scientific rather than procedural**: the two Qwens are the registered within-family capability pair, and
+  replacing either destroys the only controlled capability contrast in the suite. A design reason answers a
+  design suggestion; the hash does not.
+- **Doctrine §5b was understated.** It claimed the only skimming evidence was one second-hand remark. Two
+  direct statements now exist, so the reader model is **two readers** who want the same structure.
+
+**Three new sections.** **S9** — Stefan reads the primary question as H1/H4, not our registered H2 headline;
+`config/preregistration.yaml: feedback_protocol` licenses presentation changes explicitly, so the resolution
+is to present two questions in his order while labelling the registered status of each honestly. **S10** —
+an internal label is not a communication device; he hit *"The headline is H2"* and said **"I don't
+understand what you mean."** **S11** — five publication facts, three of which settle open decisions: the
+10,000-word limit is **too long** for a conference paper so the over-run has no publication justification;
+he reviews for TMLR; and he independently corroborated our reproducibility practice from experience.
+
+### ★★★★★ THE ABSOLUTE CLARITY SECTION — C1 TO C8, ~125 NEW LINES IN `CLAUDE.md`
+
+Tamer: *be very, very, very, very clear in the write-up.* The reason it is a rule rather than a preference
+is Stefan's own framing, and it is the definition to memorise: ***"otherwise I have to remember the numbers,
+which makes me do the work for you."*** **Every ambiguity is work transferred to the marker, and a marker
+doing your work is not awarding your marks.**
+
+C1 one name per object · C2 no orphan pronouns · C3 the frame before the detail · C4 one idea per sentence ·
+C5 every number with its unit, direction and comparator · C6 the two-reader calibration · C7 say the thing ·
+C8 a four-check pre-flight. **The section was written to cover only what is not already binding elsewhere**,
+with an explicit note that where a rule appears twice the other location governs — because the doctrine
+section had already accumulated nine duplicated rules and repeating that mistake would have been worse than
+leaving the gap.
+
+**C1 records a live defect that has already misled a reader.** We use **arm** for an experimental condition.
+Stefan read it and inferred a bandit rather than an MDP: *"you also have the terminology arm here."* **His
+inference was reasonable**, because in reinforcement learning an arm is an action of a bandit. **And the
+formal frame written in response to S3 made it worse**, because the outer problem genuinely is a bandit
+whose actions are candidate reward programs. One document now calls two different things arms, and the
+resolution is recorded.
+
+`CLAUDE.md` went from **1,914 to 2,285 lines**. Both new sections were self-checked against the register
+they teach: **0 em dashes, 0 semicolons in their own prose.**
+
+### ★ THE EXPOSÉ AS IT SHIPS
+
+**Three pages**, at the original's font size. Two pages was **proved unreachable** across seven builds
+without cutting content Tamer had asked for, and that was **reported rather than silently resolved by
+cutting** — which is the only honest way to answer an instruction that cannot be met as stated.
+
+Seven claim-shaped headings, each checked against **both** S2 tests. Figure 1 is the Sutton–Barto
+agent–environment loop wrapped in the designer loop, drawn to S3's broad-diagram requirement so it carries
+the whole apparatus rather than one correct link. Two display-maths blocks give the inner MDP and the outer
+bandit. Table 1 is the nine arms; **Table 2 is the eleven models**, added on Tamer's instruction because a
+roster is easier to read as a table than as prose.
+
+**A second figure was argued AGAINST and not added.** Tamer asked me to consider one *"only if relevant"*
+and to **assert the need**. The need is absent: the claim it would carry is already carried in plain prose,
+Stefan's figure request was singular, and a second exhibit competes with Figure 1 for the attention of a
+reader doctrine §3 says skims exhibits early. **Asserting the need meant reporting that there was none.**
+
+### ★★ THE PROSE WAS REWRITTEN TWICE, BECAUSE "CLEARER" MEANT TWO DIFFERENT REPAIRS
+
+Tamer's *"sometimes clearer is less and a bit less difficult"* and his later *"don't use extremely
+complicated words, that makes you look like AI"* are **not the same instruction**, and treating them as one
+would have half-fixed both.
+
+**Pass one, difficulty** — sentence length and clause density. **Mean 23.0 to 19.8, max 57 to 46, sentences
+over 45 words 5 to 1.**
+
+**Pass two, vocabulary.** The first attempt used a **curated list of ornate words**, which only finds words
+you thought to look for. That is **the same blind spot** that had let nine claim errors through earlier in
+the session, so the list was replaced with an **exhaustive scan** of every distinct word of eight or more
+letters or carrying a Latinate ending, judged one at a time. Roughly twenty replacements followed:
+*apparatus* to *setup*, *comparators* to *of them*, *pointwise maximum* to *the best score any of the four
+reaches*, *routine application* to *just applying*, *average-case value estimate* to *learns what happens on
+average*, *institution* to *bank*, *instrument* to *model*, *observation* to *training day*, *configuration*
+to *settings*, *regenerated* to *called again*, *capability gradient* to *whether the effect grows with
+model strength*, and the rest.
+
+**Two structural repairs came out of the same scan.** **Block** appeared nine times in prose and was never
+defined, so first use now reads *"what the scalar arm is shown is what the treatment arm is shown with the
+six tail numbers deleted."* And the knee sentence read backwards, so it was split into a claim and its
+mechanism.
+
+⚠ **THE FALSE POSITIVE I CORRECTLY DID NOT ACT ON.** The scan flagged **twenty passive constructions**.
+`CLAUDE.md` H3 says passive is **correct** in methods prose because the actor is the protocol. Every one was
+left alone. A checker's finding is a hypothesis about the document, and H3 is the standing evidence against
+this one.
+
+### ★ THE MEASURED FINAL STATE, ALL READ LIVE FROM THE ARTEFACT
+
+| check | result |
+|---|---|
+| build | 0 overfull · 0 underfull · 0 missing characters · 0 LaTeX warnings |
+| numbers against the frozen config | **10 / 10** |
+| claims against the amendment log | **8 / 8**, both stale claims confirmed absent |
+| register | **0 em dashes · 0 semicolons** · mean **19.8** · max **46** · 120 sentences · 1 over 45 words |
+| ornate vocabulary | **none remaining** |
+| layout | **3 pages**, fill 91% / 97% / 94% |
+| rendered words | 3,230 |
+
+⚠ **Correction to my own report inside this session: I stated the mean as 19.5 while the live instrument
+reads 19.8.** The max, the over-45 count and every other figure hold. Recorded because a number I reported
+must match the number the instrument returns, and the honest record is the one with the correction in it.
+
+**Repository gates, re-run at close:** word budget **13,561 FAIL** against a 10,000 limit · citations
+**277 entries, 277 cited, 0 dangling / 0 verify-in-use / 0 unused** · freeze **MATCHES** at
+`3ca6f01ab772…0432f` · reproducibility **8 pass / 0 warn / 0 fail**.
+
+### ⚠⚠ EVERY ERROR I MADE THIS SESSION, INCLUDING THE ONES TAMER CAUGHT
+
+Recorded in full per the standing rule, because a defect nobody wrote down gets rediscovered the expensive
+way, and because the honest execution narrative is itself distinction-grade evidence.
+
+**The two Tamer caught, and both were mine to catch:**
+
+1. **"THE TEN REPLICATION MODELS EACH RUN AT THE THIRTY-SEED FLOOR."** **R101 at
+   `config/preregistration.yaml:455` explicitly flags "legs run at the floor tier ONLY" as the wording it
+   REPLACED.** All eleven models climb one ladder in lockstep; thirty is a guaranteed common floor, not a
+   leg cap. **I wrote the superseded version of a rule whose own text names itself as superseded**, which
+   means I read the line and not its history.
+2. **"REPORT-ONLY" FOR THE TEN NON-OPUS MODELS.** Tamer: *"there would be a very advanced intra model
+   reasoning comparisons."* He is right and the term was wrong. **"Report-only" means outside the
+   α-consuming family; it is a statistical status, not a description of how much thinking the models get.**
+   Four registered cross-model analyses exist and I had flattened them into a dismissal. Relabelled to
+   **cross-model** throughout, with the four analyses named.
+
+**Nine claim-level errors, found by a claim-by-claim audit against artefacts after the number audit passed
+clean** — which is the finding: **the numbers were all correct and the claims around them were not.**
+*"Instead"* implying replacement where the block is additive · **"a single score"**, a previously-corrected
+overclaim that I reintroduced · "average score" missing *normalised* · all four optimisers described as
+tuning a template when `random_search` searches **code** · "the same space of reward programs" when
+free-form code is a strict superset · "six loss levels" for six statistics · missing power and assurance
+qualifiers · 0.0033 mislabelled as a between-candidate difference · **"every run reproducible bit for bit"**
+when generation provably is not.
+
+**Errors of my own construction, caught by re-reading rather than by a tool:**
+
+- **A self-contradiction I introduced**: the lead said "four depths" while §1 said "six levels".
+- **A logical over-claim**: *"a null breaks only one of them"* corrected to *"a null on its own does not say
+  which one gave way."*
+- **An internal inconsistency**: the maths said "30 pulls per arm" against the figure's "30 candidates".
+- **Two regressions caused by cutting**: the endogeneity caveat was dropped while compressing, and the leg
+  model names were dropped when §7 became a table. Both restored.
+- **A new overfull box created while fixing the pulls inconsistency**, and fixed.
+- **I put `sq1`/`sq2` in the figure** — internal labels, a violation of **S10, the rule I had written into
+  `CLAUDE.md` myself that same session.**
+- **I misattributed *"not new new"* to Stefan.** It is Tamer's note.
+- **I duplicated architecture-before-detail and the reader calibration** across S3 and C3/C6, the exact
+  defect the doctrine audit had already found nine instances of.
+
+**Process errors that recurred and should not have:**
+
+- **HEREDOC BACKSLASH STRIPPING, THREE TIMES.** `CLAUDE.md` says plainly: *heredocs never carry
+  backslash/escape content (Write/Edit tools instead)*. I did it anyway, three times, on LaTeX.
+- **LINE-BASED SEARCH FALSE NEGATIVES, THREE TIMES.** A phrase with a newline inside it reads as absent.
+  This is the **same failure the doctrine section already documents by name**, and doctrine §7d exists
+  because it recurred six times on 2026-08-03. It recurred three more times today.
+- **MY OWN CHECKERS RAISED REPEATED FALSE ALARMS**, including on the final battery, where one row read
+  `*** FAIL ***` for "six open-weight" because **the pattern was stale against text I had deliberately
+  rewritten.** Each time, the instrument was re-checked before the document was reported as broken, which is
+  the standing rule working. **The rule held; the instruments kept needing it.**
+
+⚠⚠ **AND ONE ERROR THAT WAS A CORRECTION TO TAMER AND WAS WRONG.** I told him he had misstated the
+open-weight count to Stefan as six. **He was right and I was wrong. Kimi-K3's weights were published
+2026-07-27, and `config/preregistration.yaml:440` registers it `license: closed-until-weights`, so the
+condition the registration named has been met.** The exposé was corrected to six and the `CLAUDE.md` S5
+block that carried my wrong version was rewritten. **The frozen design anticipated this rather than being
+surprised by it, which I would have seen by reading the registration line before contradicting him.**
+
+**⚠ AND FIVE MORE DEFECTS, ALL IN THE CLOSE-OUT DOCUMENTS ITSELF, FOUND BY AUDITING MY OWN HANDOVER.**
+The handover's §11 says *the author must not grade their own work*; running it against the handover proved
+the point immediately. **Three unresolvable path claims** — `../memory/session-current-focus.md` (that
+directory does not exist; the cursor lives under `.claude/projects/…` and `memory/…` is a *logical* name),
+**`paper/dissertation.pdf`** (there is no such file: it is `paper/_build/dissertation.pdf`), and
+`expose_disser.pdf` written as if it were repo-relative when it sits in the **parent** directory. **One
+wrong audit command** — `grep -c hf_pin config/legs.yaml` returns **7**, because a header comment and a
+trailing comment both mention the key, while the actual count of `hf_pin:` **keys is 5**; the check now
+counts the key. **And one wrong timestamp**: the cursor entry was first stamped `2026-08-04 ~01:15 UTC`
+when UTC was `2026-08-03 23:56` — local is BST, `dst=1`, so the local date had rolled and UTC had not.
+⚠ **That last one was checked against the RUN 18 host-clock bug before being corrected**, because the
+symptom looked identical; `time.gmtime()` is correct here and the fault was mine.
+
+**FUTURE.**
+
+**Three items are open and none of them is mine to close:**
+
+1. **KIMI'S REPOSITORY AND COMMIT ARE UNRECORDED**, so the sixth open-weight claim is **true but not
+   independently checkable**, and R85 is explicit that *a pin nobody can verify is FICTIONAL*. It **cannot**
+   go in `config/legs.yaml`, which is hash-bound. It belongs in the reporting layer as a dated post-freeze
+   observation, which is exactly what `closed-until-weights` set up.
+2. **FOUR DISSERTATION SITES UNDERSTATE THE COUNT**, and the enumeration is now exhaustive:
+   `paper/FRONT_MATTER.md:110` (*"five carry a permanent open-weight anchor"*), `:122` (the roster row
+   `| replication leg | Kimi-K3 | no |`), `:183` (*"five of them open-weight"*), and
+   **`paper/CH4_methods.md:204`** (*"ten further models, five of them open-weight"*).
+   `paper/_build/dissertation.md` mirrors all four and regenerates, so it is not a source site.
+   **All untouched: `paper/**` is under Tamer's hold.**
+
+   ⚠ **`paper/APPENDIX_B_limitations.md:95` IS CORRECT AND MUST NOT BE "FIXED".** It says *"five
+   open-weights **with hash-pinned checkpoints**"*, which is scoped to the pin and not to the licence.
+   **There are exactly five `hf_pin` keys**, and Kimi is precisely the open-weight model without one, so
+   the sentence is true. **"Correcting" it to six would insert a false claim while looking like a fix.**
+
+   ⚠⚠ **SITES 3 AND 4 WERE MISSED IN THIS ENTRY'S FIRST DRAFT, AND THE METHOD IS THE LESSON.** The draft
+   listed two, found with `grep "open-weight"` — a search that **cannot match site 2's table row** and that
+   **was never run over `CH4_methods.md` at all**. Running the handover's own audit section against the
+   handover surfaced site 3; an exhaustive sweep across all of `paper/` then surfaced site 4 and reprieved
+   Appendix B. **A search that cannot match one member of a set reports the set as smaller than it is, and
+   reports it cleanly.** Same class as the line-based false negatives below, arriving by a different route,
+   and the third time in two sessions that a non-exhaustive instrument produced a confident undercount.
+3. **`PREREGISTRATION.md` CARRIES STALE "SEVEN ARMS" TEXT AT LINES 140 AND 767** while its own §3 says *"The
+   nine arms"*. **This is a defect inside a hash-bound document**, which is why it is flagged rather than
+   fixed: the unfreeze/amend/re-freeze protocol is Tamer's to authorise, not mine to invoke.
+
+**The write-up work the exposé was a rehearsal for is unstarted**, and the exposé now demonstrates on two
+pages of prose what the dissertation has not yet done across 275 pages: the register at zero, the headings
+claim-shaped and specific, the frame before the detail, and every claim checked against an artefact rather
+than against memory. **The gap is the whole distance to Criterion 4.**
+
 ## [2026-08-03h] ★★★★★ RUN 18 (second half) — **THE ETA WAS WRONG FOUR TIMES AND I WROTE THREE OF THEM** · the status page showed YESTERDAY · a crashed watcher told us to re-author a confirmatory candidate · **and the "why aren't we at 2k cores" question is now closed by ELEVEN independent measurements**
 
 **PAST.** Continues `[2026-08-03f]`. Tamer, in order: *"why last hours records per hour became so low"* · *"so we have 10/12 lines working, why dont we retract the power"* · *"where is opus"* · *"why dont you let everyone climb now"* · *"is there a way to speed up through optimisation"* · *"technical works on myriad on 12th of august, are we fully ready"* · *"ensure everything is moving... bring the ETA to an absolute minimum and cores to an absolute maximum"*.

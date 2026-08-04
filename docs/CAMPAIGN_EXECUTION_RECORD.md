@@ -19826,3 +19826,130 @@ ACROSS EIGHT SESSIONS AND ALL EIGHT FOUND MORE THAN THE AUTHOR DID** — includi
 *inside* the fix written to prevent vacuous passes, a mutation control that was itself a tautology,
 and a "verified byte-identical" claim about a file that had never been modified. **The author must
 not grade their own work is not a formality here; it is the highest-yield action available.**
+
+## 132 — RUN 19: THE INSTRUMENT THAT REPORTS "THE RESULT" WAS COMPUTING IT OVER THE WRONG POPULATION
+
+**PAST.** RUN 18 closed at 2026-08-03 23:35 UTC with records 10,552, preflight VERDICT OK on all 17
+rows, seven record layers RC=0 and the handover brief `docs/RUN19_SESSION_PROMPT.md`. Its §3 ladder
+table recorded the banked rungs as: gemini and h3 at 568, gpt at 189, **core / glm / haiku / kimi /
+nemotron / qwen3.5 / qwen3.6 / sonnet at 30**, deepseek at **0**, and it named the cause of the zero
+as deepseek's `placebo_shuffled` hole at seeds 16-23, with queued repair job **85065** as the thing
+that would lift it. Every number in that table came from S15
+(`docs/analysis/record_seed_completeness.py`), the layer built in RUN 17 precisely to answer "what
+rung does this line actually bank".
+
+**PRESENT.** The campaign is healthy and was healthy throughout. Verified first-hand this session:
+`loginnode_guard` **comfortable** (no UCL penalty), ssh live on all three login nodes, preflight
+**VERDICT OK on all 17 rows**, **ALL SEVEN RECORD LAYERS RC=0** at 10,654 records, `line_balance`
+**CLEAN**, `crash_watchdog` CLEAN, drift **0** on both arms, freeze `3ca6f01ab772` **MATCHES**,
+reproducibility **8 pass / 0 warn / 0 fail**, C: 41.2 GB free, mirror 0.1 h old, phone page 1.2 min
+old, 10/12 lines up with 2 COMPLETE, spend $45.5019. Ten drivers and ten supervisors, one cycle
+loop, one sentinel — the apparent duplicate process pairs were resolved by **ancestry** (each venv
+launcher is the PARENT of its base-interpreter child), not assumed away.
+
+### 132.1 P244 — S15's PER-LINE BANKED RUNG WAS A MINIMUM OVER THE ARMS THAT HAPPENED TO HAVE STARTED
+
+`scan()` dropped any arm holding zero records (`if not seeds: continue`), and `report()` then took
+each line's minimum over the survivors. An arm that is REGISTERED — it has a frozen winner — but has
+not yet landed a single sealed-test record was **invisible to the population**, so a line whose two
+headline arms had not begun printed the rung of whatever else was running.
+
+**MEASURED LIVE, and confirmed three independent ways** (S15 itself, a throwaway census written to
+share no code with it, and a read-only auditor counting cells for a different purpose):
+
+| line | S15 printed | actually banks | why |
+|---|---:|---:|---|
+| `test` (CONFIRMATORY core) | **30** | **0** | frozen `distributional-winner` + `scalar-winner`, **no test directory for either** |
+| `test_leg_glm_5_2` | **30** | **0** | `distributional`, `scalar` directories exist and hold **zero** records |
+| `test_leg_kimi_k3` | **30** | **0** | same |
+| `test_leg_nemotron_3_super` | **30** | **0** | `distributional`, `scalar` absent; `scalar_cvar5` empty |
+| `test_leg_deepseek_v4_pro` | 0 | 0 | correct, but for an incomplete reason |
+
+**THE COST WAS A MISDIRECTED SESSION, NOT A WRONG SCIENCE RESULT.** RUN 18 read that table and
+concluded one queued 8-record repair job was the single thing holding the campaign at rung 0.
+Recomputed from the seed sets: filling deepseek's hole takes `placebo_shuffled` from prefix 16 to
+prefix **30** (it already holds seeds 24-29), and the common rung is **still 0**, because four other
+lines have not begun their headline arms at all. Landing BOTH repair jobs leaves it at 0. Filling
+EVERY existing hole in the whole archive leaves it at 0.
+
+⚠ **AN ERROR OF MY OWN, CORRECTED BEFORE IT WAS PUBLISHED.** My first counterfactual assumed filling
+seeds 16-23 would take that prefix to 24. It takes it to 30. The conclusion was unchanged, but the
+intermediate was wrong and was recomputed from the seed sets rather than from an assumed number. The
+second script carries that correction in its docstring.
+
+**THE TRUE CRITICAL PATH TO A NON-ZERO REPORTED RESULT**, measured: **338 records (~43 pack-8 jobs)**
+across five lines, dominated by the `h2_pair` (`distributional` + `scalar`) that every line tests
+LAST. The core line gates most of it: it has **never entered C4** (`grep -c "C4" driver_core.log` =
+**0**, re-verified) and its serial C1 DFO chain still owes candidates.
+
+**THE FIX** adds **C6**: the roster is read from each line's `frozen*/` winner directories,
+registered arms with no records enter the population at rung 0, the per-line note reports an idle arm
+as the binding cause ahead of any hole, and the common rung is printed explicitly. The rung is
+labelled an **UPPER BOUND**, because an arm still in C1 has no frozen winner and so appears in
+neither population — a disclosure rather than a silent gap. The vacuity guard was deliberately
+re-keyed onto STARTED arms so that reading the roster could not weaken it (P197/P213).
+
+**FALSIFICATION, because a passing selftest is not evidence.** Selftest **9 to 16 cases**, and the
+four new C6 cases were run against a verbatim in-memory reconstruction of the pre-fix `scan()`: J, K,
+L and N each read TRUE after and **FALSE before**. Case M is a regression guard and reads 30 both
+before and after, proving the fix did not damage the number that was already right.
+
+### 132.2 P245 — THE CRITICAL-CHAIN FLOOR WAS DECAYING WITH WALL-CLOCK AND PRINTED "0.00 d STILL TO RUN"
+
+Raised by a read-only auditor sent at `stage_eta.py`. `floor_left = max(0.0, floor_total -
+elapsed_d)` assumed the serial DFO chain had been consuming time since LAUNCH and never checked that
+it had. With elapsed 6.9 d against a 4.64 d floor it returned exactly **0.00**, the clamp inside
+`eta_from_rate` became a no-op at every row, and the page told Tamer the chain was finished while
+`search/bayes_opt` held **26 of 30** candidates and `tpe` **25 of 30** — four to five strictly serial
+trainings, about **0.93 d**, reported as done.
+
+Now measured from candidate RECORDS on disk against `lanes.SERIAL_CHAIN_BUDGET`, never from elapsed
+time, and counted in records rather than dispatch steps — that exact unit confusion is **D27**, where
+the sentinel read "cma_es 9/4" and declared the campaign's longest chain COMPLETE. An unreadable
+search tree now returns **None, printed as UNKNOWN**, never 0: the verdict-channel rule this file
+already learned twice (P230, P232). Live output is now `0.93 d still to run (tpe owes 5 of 30
+candidates)`. Selftest **38 to 42**, ruff clean, page render rc=0 with **0 non-ASCII characters**,
+and the publisher's own `import stage_eta` / `canon_depth` path re-verified at 30.
+
+### 132.3 AN AUDITOR CLAIM I REFUTED BEFORE ACTING ON IT
+
+The same auditor reported as MAJOR that the ETA table would be printing `GATED` for low rungs while
+dating higher ones — a live logical contradiction. **Refuted by running it: every row is dated, none
+GATED.** The structural half of the finding stands and is recorded as an open item (the monotonicity
+assertions filter GATED rows out before comparing, so the check is blind to that shape by
+construction), but it is not live today. It also **REFUTED an inherited claim of RUN 18's own §10**:
+the `-1h` predicate `max(0, min(k, rung-(len-k)))` is CORRECT in all three regimes, and deleting the
+column IS caught by the parser. Two disclosed defects that were not defects.
+
+### 132.4 THE TWO REPAIR JOBS: WAITING, AND NOW PRICED
+
+Both were probed rather than assumed. `qalter -w p` returns *"found possible assignment with 8
+slots"* for **83464** and **85065**; both request the real PE `smp-[D]*` and carry `reserve: y`, so
+neither is unschedulable-by-construction like the eight jobs RUN 17 deleted. They rank **309th and
+314th of 314** pending jobs, because SGE priority here is monotone in submission time (verified
+across the whole pending set, not sampled) and they were submitted last. Dispatch rate measured from
+running-job start times: **199 jobs in the last 11 h**, self-consistent with 204 concurrent jobs at
+~10 h walls. **So 313 jobs must drain at 17-35/h, which is 9-18 h.** Nothing we control changes their
+position: raising priority is operator-only, lowering ours is prohibited and one-way, and
+resubmitting would make them NEWER and therefore later.
+
+### 132.5 P246 — THE HEREDOC TRAP, SEVENTH OCCURRENCE, MINE
+
+Appending this very section, I put a multi-line document into a quoted heredoc inside a `bash -c`
+string. It died on `unexpected EOF while looking for matching quote`. The standing rule has now been
+broken **seven times across four sessions** and says exactly this: **write to a FILE**. Blast radius
+NIL (the append simply did not happen). The section was then written with the Write tool and appended
+by a script that does no shell quoting at all, which is what the rule has meant every previous time.
+
+**FUTURE.** The reported result stays **0** until the core line clears C1, passes C2/C3 into C4 and
+runs its `h2_pair` to 30 seeds, and until glm, kimi, nemotron and deepseek do the same. That is the
+number to watch, and it is now the number S15 prints. Myriad maintenance is **Wednesday 2026-08-12**
+(`docs/ops/MAINTENANCE_2026-08-12.md`); the Aug-11 pre-window check must confirm no line is still in
+the SEARCH lane, and on today's measurement core's chain clears well before it.
+
+**THE FINDING THAT GENERALISES: A MINIMUM IS ONLY AS HONEST AS ITS POPULATION.** Both defects this
+session are the same shape one level apart, a quantity computed correctly over a set that silently
+excluded the very members that would have made it bad news. S15 excluded the arms that had produced
+nothing; the chain floor excluded the work that had not happened. **Neither looked like a bug, and
+both read as good news.** When a check summarises over a set, the question to ask is not "is the
+arithmetic right" but "what is NOT in the set, and would including it change the verdict".

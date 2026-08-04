@@ -209,6 +209,52 @@ def concentration(cells: dict, now_epoch: float, hours: int) -> list[tuple[str, 
     return sorted(((k, v) for k, v in per.items() if v), key=lambda kv: -kv[1])
 
 
+def chain_remaining_days(root: str, floor_total: float) -> tuple[float | None, str]:
+    """How much of the SERIAL DFO chain is genuinely LEFT, measured from the archive.
+
+    ⚠ GEN-5 DEFECT (P245, found by an auditor 2026-08-03). This was
+    ``max(0.0, floor_total - elapsed_d)`` -- pure wall-clock decay, which assumes the serial chain
+    has been consuming time since LAUNCH and never checks that it has. Because elapsed (6.9 d)
+    exceeded the 4.64 d floor, it returned exactly 0.00, the clamp in ``eta_from_rate`` became a
+    no-op at every row, and the page printed *"critical-chain floor: 4.64 d total, 0.00 d still to
+    run"* while ``search/bayes_opt`` held 26 of its 30 candidates and ``tpe`` 25 of 30. Four to five
+    strictly-serial trainings -- about 0.9 d -- were reported as finished. Elapsed time is not
+    progress; only records are.
+
+    Counted in RECORDS against ``SERIAL_CHAIN_BUDGET``, never against ``SERIAL_CHAIN_STEPS``: that
+    exact unit confusion is D27 (record s.101.2), where the sentinel read "cma_es 9/4" and declared
+    the campaign's longest chain COMPLETE.
+
+    Returns ``(days_left, note)``; ``days_left`` is **None** when the search tree cannot be read.
+    A missing measurement must not be reported as zero remaining work -- that is the verdict-channel
+    rule this file already learned once (P230/P232): reserve a value for "I could not tell".
+    """
+    from src.cluster.lanes import SERIAL_CHAIN_BUDGET, SERIAL_CHAIN_STEPS
+
+    sp = os.path.join(root, "search")
+    if not os.path.isdir(sp):
+        return None, "search tree unreadable -- remaining chain UNKNOWN, NOT zero"
+
+    # One serial step costs the same on every DFO arm (identical B*), so the binding arm's
+    # step length prices them all.
+    per_step_d = floor_total / max(1, max(SERIAL_CHAIN_STEPS.values()))
+
+    worst_arm, worst_left = None, 0
+    for arm, budget in sorted(SERIAL_CHAIN_BUDGET.items()):
+        ap = os.path.join(sp, arm)
+        if not os.path.isdir(ap):
+            continue
+        done = sum(1 for d in os.listdir(ap)
+                   if os.path.isfile(os.path.join(ap, d, "record.json")))
+        left = max(0, budget - done)
+        if left > worst_left:
+            worst_arm, worst_left = arm, left
+    if worst_arm is None:
+        return 0.0, "every DFO arm has spent its full candidate budget"
+    return worst_left * per_step_d, (f"{worst_arm} owes {worst_left} of "
+                                     f"{SERIAL_CHAIN_BUDGET[worst_arm]} candidates")
+
+
 def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
            page: bool = False) -> str:
     # ⚠ ONE CLOCK, AND IT IS time.time(). See gen-2 defect 1.
@@ -223,7 +269,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
 
     chain = plan_lanes(rung=568, cpu_cores=modelled, chain_threads=CHAIN_THREADS)
     floor_total = chain.critical_chain_days
-    floor_left = max(0.0, floor_total - elapsed_d)
+    floor_left, floor_note = chain_remaining_days(root, floor_total)
 
     L: list[str] = []
     L.append(f"generated {now:%Y-%m-%d %H:%M} UTC | elapsed {elapsed_d:.2f} d | "
@@ -293,11 +339,17 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         # The docstring claimed "numerator subset of denominator by construction"; that was true of
         # the file and FALSE of every row it printed. Same defect as gen 2, one level down.
         #
-        # For a target rung R:
+        # ⛔ SUPERSEDED BY P239b -- THE SEVEN LINES BELOW DESCRIBE CODE THAT NO LONGER EXISTS.
+        # They are kept as the provenance of the next paragraph's correction, NOT as a description
+        # of behaviour. The live divisors are FLEET-WIDE (see `fleet_rate`/`goforward_rate` ~20
+        # lines down), and the go-forward test is against the fixed ceiling 568, never "toward R".
+        # A reader who stops here concludes the columns are per-rung rates, which is exactly the
+        # refuted model. Flagged by an auditor 2026-08-03 (it had been left unmarked once already).
         #   FAST(R) = records in the window that landed in cells still BELOW R
         #             -> work that actually reduces R's backlog; assumes perfect redirection
         #   SLOW(R) = records in the window from cells that still owe MORE THAN ONE PACK toward R
         #             -> cells that will keep reducing R after their current job; assumes none
+        # ⇩ STILL LIVE (implemented in the GATED branch further down), unlike the two lines above:
         # A rate of zero is NOT a fast answer: it means nothing on the critical set is producing, so
         # the row says GATED rather than inventing a date.
         eh2 = min(h for h, _ in rates)
@@ -397,8 +449,10 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
                 L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'GATED':<16}  {'GATED':<16}  "
                          f"barrier")
                 continue
-            e_fast, _ = eta_from_rate(rem, fleet_rate, now, floor_left)
-            e_slow, _ = eta_from_rate(rem, goforward_rate, now, floor_left)
+            # An UNKNOWN chain floor must not silently become a zero clamp.
+            clamp = 0.0 if floor_left is None else floor_left
+            e_fast, _ = eta_from_rate(rem, fleet_rate, now, clamp)
+            e_slow, _ = eta_from_rate(rem, goforward_rate, now, clamp)
             cf = f"{e_fast:%Y-%m-%d %H:%M}" if e_fast else "GATED"
             cs = f"{e_slow:%Y-%m-%d %H:%M}" if e_slow else "GATED"
             if e_slow and e_slow <= STOP:
@@ -450,7 +504,10 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
 
     L.append("")
     L.append(f"    saturation: more than ~{chain.saturation_cores:.0f} cores buy NOTHING at rung 568")
-    L.append(f"    critical-chain floor: {floor_total:.2f} d total, {floor_left:.2f} d still to run")
+    left_txt = "UNKNOWN" if floor_left is None else f"{floor_left:.2f} d"
+    L.append(f"    critical-chain floor: {floor_total:.2f} d total, {left_txt} still to run"
+             f"   ({floor_note})")
+    L.append("    (measured from candidate RECORDS on disk, never from elapsed wall-clock -- P245)")
     L.append("    (serial by design, immune to more cores; every ETA above is clamped to it)")
     if not page:
         for n in chain.notes:
@@ -474,6 +531,37 @@ def selftest() -> int:
     # A. AN ETA IS NEVER IN THE PAST (P234).
     eta, days = eta_from_rate(1000, 100.0, now)
     ck("A1 eta is in the future", eta > now, True)
+
+    # A0. THE CHAIN FLOOR IS MEASURED FROM RECORDS, NOT FROM ELAPSED WALL-CLOCK (P245).
+    # Every case here FAILS against the pre-fix `max(0.0, floor_total - elapsed_d)`, which
+    # returned exactly 0.00 once elapsed exceeded the floor no matter what was on disk.
+    import tempfile as _tf
+    from src.cluster.lanes import SERIAL_CHAIN_BUDGET as _BUD
+    with _tf.TemporaryDirectory() as _td:
+        _sp = os.path.join(_td, "search")
+        for _arm, _done in (("bayes_opt", 26), ("cma_es", 29), ("tpe", 25)):
+            for _c in range(_done):
+                _d = os.path.join(_sp, _arm, f"{_arm}-c{_c}")
+                os.makedirs(_d, exist_ok=True)
+                with open(os.path.join(_d, "record.json"), "w", encoding="utf-8") as _fh:
+                    _fh.write("{}")
+        _left, _note = chain_remaining_days(_td, 4.64)
+        # tpe owes 5 of 30, the worst of the three -> 5 steps at 4.64/25 d each.
+        ck("A0a an UNFINISHED chain reports work LEFT, not 0.00", round(_left, 2),
+           round(5 * 4.64 / 25.0, 2))
+        ck("A0b and it names the arm that binds", "tpe owes 5 of 30 candidates" in _note, True)
+        # Spend every budget: only NOW is the chain genuinely done.
+        for _arm in _BUD:
+            for _c in range(_BUD[_arm]):
+                _d = os.path.join(_sp, _arm, f"{_arm}-c{_c}")
+                os.makedirs(_d, exist_ok=True)
+                with open(os.path.join(_d, "record.json"), "w", encoding="utf-8") as _fh:
+                    _fh.write("{}")
+        ck("A0c a FULLY SPENT budget reports 0.0", chain_remaining_days(_td, 4.64)[0], 0.0)
+    with _tf.TemporaryDirectory() as _td:
+        # No search tree at all: UNKNOWN, never 0. A missing measurement is not an answer.
+        ck("A0d an unreadable search tree is None (UNKNOWN), NOT zero",
+           chain_remaining_days(_td, 4.64)[0], None)
     ck("A2 days = remaining/rate", round(days, 6), round(1000 / 100.0 / 24.0, 6))
     ck("A3 zero remaining is now", eta_from_rate(0, 100.0, now), (now, 0.0))
     ck("A4 zero rate cannot fabricate a date", eta_from_rate(500, 0.0, now), (None, None))

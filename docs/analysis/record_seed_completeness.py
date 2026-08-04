@@ -26,6 +26,25 @@ WHAT THIS LAYER ASKS, and no other does:
   C3  Do all arms of a line agree on that rung (a line banks its own minimum)?
   C4  Are there seeds ABOVE the registered ladder (568), which would mean an unregistered seed ran?
   C5  Are there DUPLICATE seed directories for one arm?
+  C6  Is every arm the line is REGISTERED to run actually PRESENT in the minimum? (added 2026-08-03)
+
+**C6 EXISTS BECAUSE C2/C3 WERE COMPUTED OVER THE WRONG POPULATION, AND THE ERROR RAN TOWARD
+REASSURANCE (P244).** `scan()` dropped any arm holding zero records (`if not seeds: continue`), so a
+line's "minimum over arms" was a minimum over the arms that had STARTED. Measured live on
+2026-08-03: `test` (the CONFIRMATORY core line) holds a frozen `distributional-winner` and a frozen
+`scalar-winner` and has **no sealed-test directory for either**, yet this file printed
+`banked rung 30`. Same for `glm_5_2`, `kimi_k3` and `nemotron_3_super`. All four bank **0**.
+
+The cost was not academic. RUN 18's handover read this table and concluded that deepseek's
+`placebo_shuffled` hole was the single thing capping the campaign at rung 0, and that landing one
+queued 8-record repair job would lift it. It would not: with that hole filled the common rung is
+STILL 0, because four other lines have not begun their two headline arms at all. A session was
+pointed at the wrong critical path by an instrument that looked precise.
+
+⚠ **THE ROSTER IS ITSELF A LOWER BOUND, AND THAT IS DISCLOSED RATHER THAN HIDDEN.** It is read from
+the `frozen*/` winner directories, so an arm still in C1 that has not frozen yet (core's `bayes_opt`,
+`cma_es` and `tpe` on 2026-08-03) is in NEITHER population and cannot be counted. Every per-line rung
+printed here is therefore an UPPER BOUND on what the line banks. It is labelled as one.
 
 THE RUNGS ARE READ FROM THE FROZEN REGISTRATION, never hardcoded - the R84 lesson ("a registered
 NAME requires a registered VALUE"), and the reason this file cannot silently drift from the design.
@@ -84,8 +103,32 @@ def banked_rung(seeds: set, rungs: list) -> int:
     return best
 
 
+def registered_arms(root: str, line: str) -> set:
+    """The arms `line` is registered to run, read from its `frozen*/` winner directory.
+
+    A line's sealed-test roster is exactly the set of arms that have a frozen winner: the C4
+    precondition is "every arm this line runs has a frozen winner", and the test leg then re-trains
+    each winner across the seed ladder. Reading the roster from the archive rather than from a
+    hardcoded list means a roster change cannot silently desynchronise this check (the R84 lesson).
+
+    ⚠ RETURNS A LOWER BOUND. An arm still searching in C1 has no winner yet and so is absent here.
+    Callers must treat a rung computed from this roster as an UPPER BOUND on the line's true bank.
+    """
+    fp = os.path.join(root, "frozen" + line[len("test"):])
+    if not os.path.isdir(fp):
+        return set()
+    return {d[: -len("-winner")] for d in os.listdir(fp)
+            if d.endswith("-winner") and os.path.isdir(os.path.join(fp, d))}
+
+
 def scan(root: str) -> dict:
-    """{(line, arm): {seeds, holes, frontier, dupes}} over every sealed-test root."""
+    """{(line, arm): {seeds, holes, frontier, dupes, n, started}} over every sealed-test root.
+
+    ⚠ INCLUDES REGISTERED ARMS THAT HAVE NOT STARTED, with `started=False` and an empty seed set.
+    They are the reason C6 exists: an arm with zero records banks rung 0, and dropping it from the
+    population turns a line's minimum into a minimum over whatever happened to be running. See the
+    module docstring (P244).
+    """
     out = {}
     if not os.path.isdir(root):
         return out
@@ -95,6 +138,7 @@ def scan(root: str) -> dict:
         lp = os.path.join(root, line)
         if not os.path.isdir(lp):
             continue
+        seen = set()
         for arm in sorted(os.listdir(lp)):
             ap = os.path.join(lp, arm)
             if arm.startswith(("_", ".")) or not os.path.isdir(ap):
@@ -108,12 +152,20 @@ def scan(root: str) -> dict:
                 if s in seeds:
                     dupes += 1
                 seeds.add(s)
+            seen.add(arm)
             if not seeds:
+                # An empty test DIRECTORY is an arm that has been dispatched and has landed
+                # nothing yet. It banks 0 exactly like an arm with no directory at all.
+                out[(line, arm)] = {"seeds": set(), "holes": [], "frontier": -1,
+                                    "dupes": 0, "n": 0, "started": False}
                 continue
             frontier = max(seeds)
             holes = sorted(set(range(frontier + 1)) - seeds)
             out[(line, arm)] = {"seeds": seeds, "holes": holes, "frontier": frontier,
-                                "dupes": dupes, "n": len(seeds)}
+                                "dupes": dupes, "n": len(seeds), "started": True}
+        for arm in sorted(registered_arms(root, line) - seen):
+            out[(line, arm)] = {"seeds": set(), "holes": [], "frontier": -1,
+                                "dupes": 0, "n": 0, "started": False}
     return out
 
 
@@ -124,7 +176,13 @@ def report(root: str, verbose: bool = False) -> int:
         print("*** cannot read the registered rungs: %r" % (exc,))
         return 2
     data = scan(root)
-    if not data:
+    started = {k: v for k, v in data.items() if v["started"]}
+    unstarted = {k: v for k, v in data.items() if not v["started"]}
+    # ⚠ THE VACUITY GUARD KEYS ON *STARTED* ARMS, DELIBERATELY. Since C6 the roster is read from
+    # `frozen*/`, so an archive with winners but not one sealed-test record would populate `data`
+    # and this guard would pass on an input it had learned nothing from -- the exact P197/P213
+    # shape the guard exists to stop.
+    if not started:
         print("*** NO started test arms found. This check inspected NOTHING and is VACUOUS.")
         print("    A vacuous pass banks a property that was never tested (P197/P213). Exiting 2.")
         return 2
@@ -132,7 +190,9 @@ def report(root: str, verbose: bool = False) -> int:
     top = max(rungs)
     print("=== S15 SEED-SET COMPLETENESS (sealed test) ===")
     print("  registered rungs (READ from config/preregistration.yaml): %s" % rungs)
-    print("  (line, arm) started arms inspected                      : %d" % len(data))
+    print("  (line, arm) STARTED arms inspected                      : %d" % len(started))
+    print("  (line, arm) REGISTERED arms holding NO record yet       : %d  <- these bank rung 0"
+          % len(unstarted))
     print()
 
     holed = {k: v for k, v in data.items() if v["holes"]}
@@ -141,21 +201,33 @@ def report(root: str, verbose: bool = False) -> int:
     dupes = {k: v["dupes"] for k, v in data.items() if v["dupes"]}
 
     print("--- C2/C3: the rung each LINE has actually banked (its own MINIMUM over arms) ---")
+    print("    the minimum is over REGISTERED arms, NOT over the arms that happen to have started")
     by_line = {}
     for (line, arm), v in data.items():
         by_line.setdefault(line, []).append((arm, banked_rung(v["seeds"], rungs), v["n"],
-                                             v["frontier"], len(v["holes"])))
+                                             v["frontier"], len(v["holes"]), v["started"]))
     for line in sorted(by_line, key=lambda x: min(a[1] for a in by_line[x])):
         arms = by_line[line]
         lo = min(a[1] for a in arms)
-        note = ""
-        worst = max(arms, key=lambda a: a[4])
-        if worst[4]:
+        # An arm with NO records caps the line at 0 outright, and that outranks any hole as the
+        # explanation -- report the binding cause, not the most eye-catching one.
+        idle = sorted(a[0] for a in arms if not a[5])
+        if idle:
+            note = ("   <<< %d registered arm(s) hold NO record: %s -- that is what caps this line"
+                    % (len(idle), ", ".join(idle)))
+        else:
+            worst = max(arms, key=lambda a: a[4])
             note = ("   <<< %s has %d HOLE(S) below its frontier %d -- that is what caps this line"
-                    % (worst[0], worst[4], worst[3]))
+                    % (worst[0], worst[4], worst[3])) if worst[4] else ""
         print("  %-30s banked rung %4d  (arms: %s)%s"
               % (line, lo, " ".join("%s=%d" % (a[0][:12], a[1]) for a in arms) if verbose
                  else "%d arms" % len(arms), note))
+    common = min(min(a[1] for a in arms) for arms in by_line.values())
+    print()
+    print("  ==> COMMON RUNG (the MINIMUM over every line -- under R101 this IS the result) = %d"
+          % common)
+    print("      it is an UPPER BOUND: arms still in C1 have no frozen winner and so appear in")
+    print("      neither population above. The true bank is this number or lower, never higher.")
 
     print()
     print("--- C1: HOLES below an arm's own frontier (the defect no other layer sees) ---")
@@ -175,6 +247,20 @@ def report(root: str, verbose: bool = False) -> int:
     print("  NONE." if not over else "  *** %s" % over)
     print("--- C5: duplicate seed directories ---")
     print("  NONE." if not dupes else "  *** %s" % dupes)
+
+    print()
+    print("--- C6: REGISTERED arms holding NO sealed-test record (each banks rung 0) ---")
+    if not unstarted:
+        print("  NONE -- every arm with a frozen winner has begun its sealed-test ladder.")
+    else:
+        for line in sorted({ln for ln, _ in unstarted}):
+            arms = sorted(a for ln, a in unstarted if ln == line)
+            print("  %-30s %s" % (line, ", ".join(arms)))
+        print()
+        print("  A frozen winner with no sealed-test record is the NORMAL state before a line")
+        print("  enters C4, and on every line the h2_pair (distributional + scalar) is tested LAST.")
+        print("  It is reported here because it is what the per-line minimum above is made of, and")
+        print("  because omitting it is what made this table read 30 for four lines that bank 0.")
 
     print()
     print("EFFECT-BLIND: directory names and counts only. No record was opened, no metric read.")
@@ -248,6 +334,66 @@ def selftest() -> int:
 
     check("I the rungs are READ from the registration, not hardcoded",
           registered_rungs() == R, str(registered_rungs()))
+
+    # ---------------------------------------------------------------------------------------
+    # C6 -- THE LIVE DEFECT (P244). Every case below FAILS against the pre-fix code, which
+    # dropped zero-record arms from the population before taking the per-line minimum.
+    # ---------------------------------------------------------------------------------------
+    def _plant(base, line, arm, seeds):
+        d = os.path.join(base, line, arm)
+        os.makedirs(d, exist_ok=True)
+        for s in seeds:
+            u = os.path.join(d, "%s-s%d" % (arm, s))
+            os.makedirs(u, exist_ok=True)
+            with open(os.path.join(u, "record.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+
+    def _freeze(base, line, arms):
+        d = os.path.join(base, "frozen" + line[len("test"):])
+        for a in arms:
+            os.makedirs(os.path.join(d, "%s-winner" % a), exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as td:
+        # THE EXACT LIVE SHAPE: a line with a frozen winner for an arm that has no test dir.
+        _plant(td, "test", "placebo", range(30))
+        _freeze(td, "test", ["placebo", "distributional", "scalar"])
+        d = scan(td)
+        check("J a REGISTERED arm with no test directory IS in the population",
+              ("test", "distributional") in d and ("test", "scalar") in d,
+              str(sorted(k[1] for k in d)))
+        check("K and it is marked started=False with an empty seed set",
+              d[("test", "distributional")]["started"] is False
+              and d[("test", "distributional")]["n"] == 0)
+        check("L so the line's minimum is 0, NOT the 30 its started arm holds",
+              min(banked_rung(v["seeds"], R) for v in d.values()) == 0,
+              str({k[1]: banked_rung(v["seeds"], R) for k, v in d.items()}))
+        check("M while the STARTED arm still reads 30 -- the fix must not damage the real number",
+              banked_rung(d[("test", "placebo")]["seeds"], R) == 30)
+
+    with tempfile.TemporaryDirectory() as td:
+        # An arm whose test DIRECTORY exists but is EMPTY is the same condition, and it was the
+        # live shape on glm_5_2 and kimi_k3 -- the directory was created, no record had landed.
+        _plant(td, "test_leg_x", "placebo", range(30))
+        os.makedirs(os.path.join(td, "test_leg_x", "scalar"), exist_ok=True)
+        d = scan(td)
+        check("N an EMPTY arm directory also banks 0 rather than vanishing",
+              ("test_leg_x", "scalar") in d
+              and d[("test_leg_x", "scalar")]["started"] is False
+              and min(banked_rung(v["seeds"], R) for v in d.values()) == 0)
+
+    with tempfile.TemporaryDirectory() as td:
+        # The vacuity guard must survive C6: winners but no records is LEARNING NOTHING, not a pass.
+        _freeze(td, "test", ["placebo", "scalar"])
+        os.makedirs(os.path.join(td, "test"), exist_ok=True)
+        check("O winners but ZERO records still exits 2 (the guard was not weakened by C6)",
+              report(td) == 2, str(report(td)))
+
+    with tempfile.TemporaryDirectory() as td:
+        # The roster is READ, not assumed: no frozen dir means no phantom arms are invented.
+        _plant(td, "test_leg_y", "placebo", range(30))
+        d = scan(td)
+        check("P with no frozen/ directory the roster adds NOTHING (no invented arms)",
+              set(d) == {("test_leg_y", "placebo")}, str(sorted(d)))
 
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1
