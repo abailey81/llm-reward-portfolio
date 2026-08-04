@@ -3,6 +3,173 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04f] ★★★★★ RUN 20 (OPS), passes 9-18 and CLOSE — **I SENT AN AUDITOR AT MY OWN FIXES AND IT FOUND FOUR STRUCTURAL DEFECTS PLUS A FALSE CLAIM I WAS PRINTING ON THE LIVE BOARD EVERY CYCLE** · the OOM trajectory closed by measuring the right population at last · the throughput ceiling and the ETA settled per job · **and the board went green for the first time in the session**
+
+**PAST.** Continues `[2026-08-04e]` (RUN 20 passes 2-8), which closed the six vacuity guards and
+built the scientific-plausibility auditor. Board at the start of pass 9: preflight OK all 17, seven
+layers RC=0, common rung 0, records ~13,000, verdict `ATTN` on 27 of the last 30 cycles.
+
+### ★★ THE ETA, SETTLED PER JOB (Tamer: *"bring ETA to global minimum"*)
+
+Resolving the queue job by job with `qstat -xml` joined to the per-arm seed census:
+
+```
+CRITICAL   running  24 jobs /   192 slots      queued   0 jobs /     0 slots
+NON-CRIT   running 218 jobs / 1,744 slots      queued  70 jobs /   560 slots
+```
+
+**Not one job on the critical path is waiting for a slot**, so no reallocation can shorten the ETA —
+adding capacity to a path with nothing queued on it does nothing, and the "our own jobs block our
+critical path" hypothesis is **refuted by measurement**. By pass 17 the queue had fallen to **18
+against 231 running**: the scheduler takes everything we submit essentially on arrival, so **there is
+no fair-share wait left to recover.** One foreseeable delay was checked and is not real: core's future
+`h2_pair` would queue behind `leg4`'s 68 non-critical jobs, but 243 jobs at a 9.4 h mean complete at
+~26/h, draining that queue in **2.6 h**, ten times sooner than core needs it.
+
+### ★ CHAIN-3 — THE ONE AT-RISK STEP, AND THE CHECK THAT SETTLED IT
+
+`c1_bayes_opt_c27` had read "owes 3" for five consecutive passes — **exactly the shape of a stall.**
+`qstat -j` gave `cpu=98:43:36` on 8 slots: **ratio 8.01, every thread flat out.** Not hung. Context
+measured: over 1,581 successful SEARCH tasks the median is 4.24 h and only **7 ever exceeded 12 h**;
+`bayes_opt`'s own maximum was **8.66 h**, so c27 ran **42% beyond it**. **It COMPLETED — `rc=0`,
+`secs=44541` = 12.37 h**, clearing its 15.0 h wall with 2.6 h to spare. `bayes_opt` fell 3 → 2, the
+chain floor **0.56 → 0.37 d**, and core's ETA to rung 30 improved **~23 h → ~18 h**.
+**⇒ THE LESSON: `cpu` against `wall`, not elapsed time. Elapsed time alone supports either conclusion.**
+
+### ⭐⭐⭐ THE OOM TRAJECTORY IS CLOSED — 20.7 GB OF PEAK MEMORY REDUCED TO 2.05 GB
+
+Sampling every python process **with its command line** across a full seven-layer run:
+
+| tool | before | after |
+|---|---:|---:|
+| `results_audit` | **8,032 MB** | **689 MB** (11.7x) |
+| `integrity_gate` | **6,899 MB** | **678 MB** (10.2x) |
+| `science_watch` | 5,776 MB | 683 MB (8.7x, P280) |
+| the lane loader probe | **7,138 MB** every preflight | hourly |
+| **all seven record layers** | **under 55 MB** — the certification stack was never the hazard | |
+
+⚠ **P270 measured `results_audit` at 1,475 MB — it is 5.4x that now — and `integrity_gate` WAS NOT
+IN P270's LIST AT ALL**, so its serialisation mitigation never covered the second-largest consumer.
+**Together the two were 14.9 GB against a 15.64 GB box hosting ~30 driver processes**, and the
+free-RAM floor during the run was **0.46 GB**. **PROVEN END TO END on the command that used to be the
+hazard: a full `session_preflight --full` now peaks at 691 MB with a free-RAM floor of 6.3 GB against
+0.14 GB before — a 45x improvement in headroom — at `VERDICT: OK, all 17`.**
+
+The `integrity_gate` fix carried the higher bar because **it guards the confirmatory path**: every
+field it reads was ENUMERATED (all scalars or strings, zero arrays), the shrink applied once at the
+parse site because three lists share the object, and **the pre-fix verdict was captured BEFORE the
+patch and byte-diffed against the post-fix one: IDENTICAL.**
+
+### ⭐ P288 — THE INSTRUMENTS THAT REPORT THE SAME QUANTITY NOW PROVABLY AGREE
+
+`docs/analysis/instrument_agreement.py`. **The design rule is the P259 test applied to a comparison:
+a tool that prints "these differ, as expected" every run carries ZERO BITS**, so every row states an
+EXPECTED RELATIONSHIP and checks whether it holds. Live: `guards=13,009 = test 11,470 + search 1,539
++ other 0` **as an exact identity**, rosters identical on all 12 lines, per-arm depths identical on
+every (line, arm), **and `--deep` closes the loop on P282: `S10=0  S15=0`** — the disagreement that
+read **12 against 0** is now proven closed by a third instrument sharing no code with either.
+
+### ⭐ P287 — A6 WAS NEVER A PRE-REGISTRATION QUESTION
+
+It had been escalated to Tamer and Dr Okhrati. **R101 answers it in its own words:** *"the
+confirmatory Opus 4.8 + **all 10 legs** climb ONE COMMON assurance-tier ladder … whatever COMMON rung
+**all 11** have COMPLETED"*. `test_h3_singleshot` is the H3 single-shot CONTROL and the 11
+`baseline_*` arms are the human canon for H1 — **both excluded by the frozen text.** It was an
+INSTRUMENT BUG, and the correct action was to make the instrument match the freeze. S15 now prints
+`population = 11 model line(s); EXCLUDED by R101: test_h3_singleshot`. Value unchanged at 0, because
+h3 banks 568 and was never the minimum — **which is exactly why it was safe to fix: a definitional
+correction made while nothing is at stake cannot be a forking path.**
+
+### ⛔ TAMER SAW TIMEOUTS AND A RISING "FATAL" — AND HE WAS RIGHT THAT SOMETHING WAS WRONG
+
+**The alarms were wrong, not the campaign.** Measured per driver log: core's last pull failure was
+**137 minutes earlier**, the tail of INC-1; every other line's was **28 hours to 5.5 days** old; the
+last `TimeoutExpired` anywhere was ~3 h old; `crash_watchdog` CLEAN.
+
+**P292** — the row read *"worst streak 21/240 (8.8% to fatal)"* **with no age.** The module's own
+comment says *"a stale `last` is only meaningful together with its timestamp, WHICH IS WHY BOTH ARE
+PRINTED"* — and `oneline()`, the function the page renders, **never printed it.** Now:
+*"… pull on core, **2.4 h ago; none live, newest failure 2.3 h ago**"*.
+
+**P293** — sweeping `ALERTS.txt` then found an `ATTN` that had fired **every cycle for 42 hours** on
+a crash that had fully self-healed: nemotron's `scalar_cvar5` has a **frozen winner** and is in sealed
+testing. A strictly stronger discriminator (a frozen winner, not merely a record) demotes it to
+`info`; the marker is **preserved as crash evidence**. **⭐ FALSIFIED BY THE LIVE LOOP: the board's
+verdict flipped `ATTN` → `OK` on its very next two invocations, after 27 of the previous 30 read
+`ATTN` — a single stale marker had been holding the whole board off green.**
+
+### ⚠⚠⚠ AND THEN I SENT AN AUDITOR AT MY OWN FIXES
+
+**Twelve findings. Four structural, one a false claim, one a class fix over the wrong population.**
+
+**P294 (A) — THE LIVE ONE.** My own P286 vacuity guard fires on a **legitimate zero**: `cycle.py`
+runs the seal with `--since-state`, where an already-sealed record never reaches `n += 1`, so `n == 0`
+also means *"no NEW record"* — the normal state during any quiet interval, every outage, **the
+announced Aug-12 maintenance**, and permanently after the stop. **I built a false-alarm generator
+while removing one.** (B) the same guard sat AFTER the `CLEAN` banner, defeating the method my own
+commit named that day. (C) my D14 demotion could **borrow another line's frozen winner**. (D)
+`_shrink` sat inside `integrity_gate`'s swallowing `try`, in the confirmatory-path gate.
+⚠ **And I made a fifth error fixing the fourth: the patch REMOVED the `_shrink` call instead of
+relocating it, silently undoing a 10.2x memory saving — caught by grepping the artefact after the
+script reported `OK`.**
+
+**P295 — A FALSE REASON, PRINTED ON THE BOARD EVERY CYCLE.** I asserted the ARM_CRASH marker *"CANNOT
+clear"* because `campaign.py` unlinks it *"only inside the C1 path"*. **False.** The unlink sits at
+the TOP LEVEL of `run_campaign_tiered`, and every invocation re-runs C1 before reaching it. What is
+true is narrower and different: the clear horizon is DAYS, the clear condition is **weaker** than the
+alarm condition, and the unlink's `except Exception: pass` is **silent** — *that* is the real
+cannot-clear path. **The fix was right and the reason was false, and the next session would have
+reasoned from the reason.**
+
+**P296 — A CLASS FIX OVER THE WRONG POPULATION.** `science_watch`, `results_audit` and
+`integrity_gate` still certified an EMPTY archive as clean — **P286 exactly, in three files I edited
+the same day I fixed it in six others.** The cause is the shape of my own search: **I enumerated "the
+seven gated layers" instead of "everything that walks the archive."**
+
+**P297 — AND THE ONE WHERE I WAS SIMPLY WRONG TO TAMER.** I told him the lane cache was *"not a
+weakening"*. It is, bounded to an hour: the key covered only `analyze_campaign.py`, which is
+**drift-fenced and therefore never changes**, leaving the TTL as the sole invalidator. The key now
+carries an archive signature. **Falsified: the pre-fix key does not change when a line appears; the
+shipped key does.** The probe's discarded return code is fixed too, and all three `_shrink`
+docstrings' *"fails loudly"* claim is corrected — false where the guard is `isinstance(x, (int,
+float))`, which **accepts** the replacement int.
+
+### ⛔ D37-D48 — THE FENCED-MODULE REGISTER IS OPEN
+
+A read of **100% of `driver.py` (673 lines) and `campaign.py` (2,072)** plus `poll.py`, `ledger.py`,
+`integrity.py`, both launchers, the supervisor script and `sentinel.py`. Headed by **D37 (CRITICAL):
+an arm that fails SELECTION vanishes from C2 AND C4 with no log, no marker and no summary field** —
+its LOUD variant is covered by the C3 gate, **its SILENT variant is covered by nothing**, and it is a
+silent cap on the COMMON RUNG. **D39:** the shared throttled puller **returns SUCCESS without
+pulling**, resetting the consecutive-failure counter and the 12 h outage clock on a non-pull. Also
+recorded: what was swept and found CLEAN, so nobody re-derives it.
+
+### ★ SPEED — EIGHT CONSECUTIVE IMPROVEMENTS
+
+| when (UTC) | 12h | 24h | slots | run/queue | 1-line |
+|---|---:|---:|---:|---|---:|
+| 12:00 | 164.7 | 159.0 | 2,018 | 242/90 | 70% |
+| 15:42 | **180.3** | **164.9** | 1,868 | 231/**18** | 94% |
+
+**The queue fell 90 → 70 → 57 → 35 → 31 → 30 → 18 with `Eqw`/`hqw` at 0 throughout**, and the verdict
+has read `OK` on every cycle since 14:59Z.
+
+**FUTURE.** The common rung stays **0** until core clears C1 (`bayes_opt` and `tpe` each owe 2) and
+runs its `h2_pair`, and until deepseek, glm, nemotron and kimi do the same — all confirmed as
+pipeline-stage waits by `arm_jobs`. **Core reaches rung 30 around 2026-08-05 09:00-10:00 UTC**, which
+is the checkpoint **R101 point (4) registers for provisional draft-filling** and the first honest look
+at all eleven models. `gpt-5.6-luna`'s round-2 repair for seeds 192/193 is running; if it lands, that
+line moves from 189 toward 568 without touching the common rung. Maintenance **Wed 12 Aug, possibly
+into Thu 13**. Handover: **`docs/RUN21_SESSION_PROMPT.md`**. Next P-number: **P298**.
+
+**⇒ THE LESSON RUN 20 EARNED, AND IT IS ABOUT THE AUTHOR RATHER THAN THE CAMPAIGN.** Twenty-four
+findings across two auditors, **six of them about my own work that same day** — four structural
+defects in fixes made hours earlier, a false reason printed on the live board, and a class fix that
+missed three members of its own class. **Not one of the twenty-four touched a record.** Every defect
+this session found was in the layer that WATCHES the campaign, and the most dangerous ones were in
+the layer I had just repaired. **Send an auditor at your own fixes; a class fix is only as complete
+as the population you drew it over; and verify the artefact, never the patch script's exit code.**
+
 ## [2026-08-04e] ★★★★★ RUN 20 (OPS), passes 2-8 — **A LIVE TRANSPORT OUTAGE, AND THE ONE INSTRUMENT THE PLAYBOOK SAYS TO TRUST ON THE DAY WENT SILENT AND EXITED 0 THROUGH ALL OF IT** · six of the seven gated layers certified an empty archive as CLEAN · the science monitor held 5.8 GB of a 15.6 GB box · **and nothing anywhere asked whether the numbers were physically sensible until Tamer said so**
 
 **PAST.** Continues `[2026-08-04d]` (RUN 20 pass 1), which closed A-d14 with `docs/ops/arm_jobs.py`,
@@ -509,6 +676,215 @@ guide, page 11, lists **eight** bullets. Six is the count of the *content* exclu
 (mathematics, code, figures, tables, footnotes, appendices); the guide adds the title page with the
 declaration, and the contents and lists and glossary, and names the abstract separately. Minor, and recorded
 because the gate is meant to be answerable from the source.
+
+### ★★★★★ SECOND HALF — THE WORD BUDGET MOVED TO 11,000, AND THE PAGE AUDIT REDIRECTED THE STRATEGY
+
+**Tamer relayed a supervisor decision: no more than 11,000 words**, and confirmed that appendices,
+footnotes, pseudocode, tables, figures and captions are excluded and are to be exploited heavily.
+
+⚠ **PROCEDURAL ITEM SURFACED, NOT CLOSED.** The guide, p.11, requires the over-run to be discussed
+*"with your supervisor **first, followed by the Programme Director for approval**."* The supervisor step
+is done. **The Programme Director step may still be owed**, and an approved over-run and a penalised one
+differ by one email.
+
+**THE POSITION, EXACTLY.** 13,561 counted + **2,948** uncounted running prose in the six chapter-wired
+`paper/tables/*.md` files = **16,509 honest** against a 10,800 target (200 under 11,000 for late drift).
+Gap **5,709**. About **2,900 of it is convertible rather than cuttable**, because that prose is largely
+*about the table it sits with* and the finance-journal self-contained `Notes:` block is a real
+convention (16 of 211 corpus papers). **The test that keeps this honest, and it must be applied every
+time: would this text still make sense if the table were deleted? If yes it is argument and it counts.
+If no it is table apparatus and it is excluded.** Moving argument into a caption to dodge the count is
+evasion and is refused. After conversion, roughly **2,800 words of genuine prose** remain to cut, which
+§27.1 has already located.
+
+**⇒ AT 11,000 THE DOCUMENT IS NOT FIGHTING FOR SURVIVAL. THERE IS ROOM TO ADD.**
+
+### ⚠⚠ THE PAGE AUDIT OVERTURNED THE STRATEGY I WAS ABOUT TO RECOMMEND
+
+Mapped all 275 pages from the **PDF's own outline**, after a first attempt regexed page text and matched
+table-of-contents entries as headings, inventing a 36-page Chapter 1 and a 49-page "Chapter 5."
+
+| unit | pp | counted words | words/page |
+|---|---:|---:|---:|
+| CH1 | 18 | 1,875 | 104 |
+| CH2 | 18 | 2,087 | 116 |
+| CH3+CH4 | 58 | 4,913 | **85** |
+| CH5 Results | 25 | 2,385 | 95 |
+| **CH6 Discussion** | **10** | **1,912** | **191** |
+| CH7 | 5 | 389 | 78 |
+| References | 31 | — | — |
+| Appendices A–F | 81 | 0 | — |
+
+Body 134pp (48.7%) · appendices 81pp (29.5%) · front/back 60pp (21.8%).
+
+**A full A4 page at 1.5 spacing holds 400–450 words of pure prose, so CH4 is already ~80% exhibits.**
+The "exploit the exclusions" strategy is **not a new idea for this document, it is already its dominant
+mode**, which is why 4,913 words occupy 58 pages. **⇒ The remaining opportunity is CH6, at 191 words per
+page, more than twice CH4's rate, and CH7.** Those two have never been through the conversion, and CH6
+is where the unwired wider-context subsection belongs.
+
+### ⚠⚠⚠ THE LLM-TOPIC AUDIT — the document never uses the word *transformer*
+
+Measured over CH1/CH2/CH4/CH6/CH7 + theory + limitations + every table and appendix:
+
+**transformer 0 · attention 0 · autoregressive 0 · next-token 0 · RLHF 0 · chain-of-thought 0 ·
+reasoning tokens 0 · few-shot 0 · fine-tuning 0 · top_p 0 · context window 0 · prompt caching 0 ·
+format compliance 0 · hallucination 0** · embedding 1 · in-context learning 1 · pretraining 1 ·
+tokenization 3.
+
+**All three tokenization hits are inside Appendix B, the limitations register.**
+
+⚠ **CORRECTION TO MY OWN CLAIM EARLIER IN THIS SESSION.** I reported `refs.bib` as holding *zero*
+interpretability citations, from a keyword grep over bib keys. **That was wrong.** B.3.2 is a genuinely
+strong mechanistic paragraph citing `wallace2019numbers`, `yang2025cookbook`, `sandoval2025evenheads`,
+`singh2024tokenization` and `zhang2025comprehension`. **The material exists and is filed under
+limitations**, while R87 registers that same mechanism as the *headline prediction*. The content is in
+the wrong chapter doing the wrong job. Verify in both directions.
+
+**AND A PRIORITY 5 DEFECT FOLLOWS.** `config/llm.yaml` and `config/legs.yaml` pin the whole generation
+stack: `temperature: 1.0` (with the Opus lane rejecting it, so diversity comes from prompt variation,
+ADR-038), `top_p: 1.0`, `max_tokens: 16384` uniform (R106), `reasoning: {enabled: false}` uniform,
+provider routes, five `hf_pin` commits, and `served_model` archived per call. **None of it reaches the
+PDF, and `top_p` appears zero times in the paper.** `audit_reproducibility.py` returns 8/0/0 because it
+audits the repo, and the repo is not the deliverable. **A pin a reader of the PDF cannot verify is, by
+R85's own words, fictional.**
+
+### ★★★★★ THE DATED LITERATURE SWEEP — 211 → 229 PDFs, all 18 verified first-hand
+
+Corpus census found the newest arXiv identifier was **2606 (June 2026)**, so **July and August 2026 were
+uncovered** and three whole literatures were absent. Full artefact:
+**`01_literature/M_sweep_2026-08-04/sweep_log_2026-08-04.md`**.
+
+**NOVELTY VERDICT: THE CLAIM SURVIVES.** Nothing found occupies the conjunctive cell. Six July/June 2026
+reward-design papers were checked and all differ structurally.
+
+⚠ **ONE NEIGHBOUR IS NOW MUCH CLOSER IN METHOD AND MUST BE CITED.** `Scaffold, Not Vocabulary?` (Iscan,
+**2606.06454**, 4 June 2026) pre-registers a two-tier LLM code-generation ablation with **a
+length-matched placebo, a labels-only scaffold and an execution oracle**, and reports **no separable
+benefit of procedural content beyond a labels-only scaffold**. That is our control architecture and our
+predicted null, independently, in another domain. **C2 survives** because it is scoped to *automated
+reward design* and this is HumanEval prompting with no reward function, no RL agent and no tail.
+**It is an asset**, and not citing it would be a visible gap.
+
+**THREE LITERATURES ADDED, none of which the corpus held:** transformer numeric representation (6
+papers, incl. the `EvenHeads` PDF whose format-dependence numbers — 100% error in Q&A format, 0% in
+simple format — are the strongest external motivation for our registered legible-format probe); LLM
+evaluation methodology (5, incl. `SoberLook` at **pass@1 varying up to 15% across 20 seeds**); and
+measured reward-hacking in generated code (3, incl. `SpecBench` naming **exploiting default values**,
+the closest published analogue to our C4).
+
+⚠ **PRIOR-ART CHECK ON MY OWN SYNTHESIS, RUN BEFORE CLAIMING ANYTHING.** `HiddenMeasurementError`
+(Messing, 2604.11581) is the nearest neighbour to the instrument-resolution argument. Fetched and read
+first-hand: it decomposes judge/temperature/prompt variance into a Total Evaluation Error (naive SEs
+**40–60% smaller** than corrected) and does **not** treat number rendering, metric non-injectivity or
+seed-count resolution. **Not a duplicate. Cite as corroboration of the evaluation half.**
+
+⛔ **STATED PLAINLY: none of the 18 has been READ IN FULL.** PRIORITY 4 requires first-hand reading
+before citation, so **no `refs.bib` entry may be created for any of them yet**. Downloading a paper is
+not reading it.
+
+### ★★★★★ THIRD HALF — THE 95%+ GUIDE REWRITTEN ON A BAND-DIFFERENTIAL ANALYSIS (`GRADE_95_MASTER_PLAN.md` §28)
+
+Tamer's instruction: analyse everything, both supervisors, the guides, the corpus, the priorities, then
+**update the 95%+ guide, verifying every change is grade-positive rather than a downgrade.**
+
+**⇒ THE FRAME CORRECTION THAT MAKES THE TARGET ACHIEVABLE. The marking criteria contain NO 95 LINE.** The
+grid is 4 dimensions × **9 bands**, top band **90-100**. There is no descriptor for 95, 93 or 97. So
+"score 95+" is not a point on a continuum, it is **be securely inside the top band on all four
+dimensions**. That retires the playbook's "dim 4: ~70 → 88+" style estimates as **false precision on a
+scale the rubric does not have**, and it closes the question `CLAUDE.md` doctrine §0 raised and never
+resolved (*"no dimension is recorded as able to reach 95 ... re-derive the ceilings"*).
+
+**⇒ THE OPERATIVE METHOD: read what appears in the 90-100 descriptor and NOT in 80-89.** Done clause by
+clause from the criteria PDF, and it produced one finding that reorganises the largest workstream:
+
+⚠⚠⚠ **CRITERION 4's 80-89 BAND ALREADY READS *"Excellent write up ... highly readable, extremely clear
+with excellent structure."*** Excellent, highly readable, extremely clear prose with excellent structure
+earns the band BELOW. **The ONLY thing 90-100 adds is *"with FAULTLESS PRESENTATION OF DATA."***
+**⇒ The register pass (172 em dashes, 72 semicolons, 47.2-word mean) is necessary and is NOT the
+differentiator.** The differentiator is the data layer: figure double-numbering **whose two schemes
+disagree**, the title page breaking mid-sentence, the empty PDF metadata title, the ToC failing the
+mandated sixteen, four stale open-weight sites, contents-only captions, and **no committed
+cross-reference checker**. **The data-presentation sweep now OUTRANKS the register pass.**
+
+**The other three differentials.** **C1:** 80-89 already grants reading + critical thought + original
+interpretation, so the differentiator is the whole second sentence, *"exceptional insight into the
+problem AND ITS WIDER CONTEXT"* — and `paper/sections/CH7_wider_context.md` is **written and reaches no
+PDF**, so the single clause separating the bands is unclaimed by a file that already exists. **C2:**
+80-89 explicitly **tolerates "only very minor faults"** and the top band tolerates none, which prices
+every execution defect. **C3:** the differentiator is the venue class, **"publishable in peer-reviewed
+journal" against "publishable in international conference"** — TMLR maps onto the top band exactly, and
+the difficulty denominator (42,128 trainings, ~326,254 core-hours) is stranded in Appendix E.
+
+**§28 also supersedes two things in the existing plan.** §27.1's arithmetic (baseline 13,561, target
+9,300, limit 10,000) is replaced by the 11,000 limit and the honest 16,509 baseline with the conversion
+lever and the deletion test. §27.5's write order is replaced, because a page audit shows **CH4 is already
+~80 % exhibits at 85 words per page** and the un-converted chapter is **CH6 at 191**.
+
+**§28.4 adds the APPARATUS LAYER**, on the principle *teach exactly the path the claim runs through*.
+Measured against Tyukin's UCL MSc (`2404.05741v1`: 74pp, 16,397 words, 16 figures, 12 tables, **0 numbered
+equations**, 61 refs, **22 of 74 pages building the transformer**). He teaches it because he **cuts into
+it**. We do not, so we owe only the one path our registered R87 claim runs through. **§28.6 is a
+change-verification table**: every change with why it raises the band, what it could downgrade, and the
+mitigation.
+
+**⚠ §28.8 ADDED ON TAMER'S CORRECTION, AND IT IS THE HALF §28.0 WAS MISSING.** His words: *"when I say
+95%+, I mean the higher ends of that 90-100 rubric."* 28.0 is necessary and **not sufficient**: markers
+award a NUMBER inside the band, and satisfying every clause of the descriptor says nothing about whether
+that number is 91 or 98. **Nothing in the criteria document discriminates within a band**, so the
+discriminator is a property of the MARKER'S STATE, and the engineerable half of it is confidence.
+
+> **A SATISFIED marker awards 91. A CONFIDENT marker awards 97. Confidence is not produced by quality, it
+> is produced by CHECKABILITY.** At the high end, being right is the floor; being visibly and quickly
+> verifiable is the work.
+
+Two corollaries that cut against our instincts. **Legibility to the any-discipline second marker is not
+only a C4 concern, it is the mechanism by which every OTHER dimension earns a high number rather than a
+safe one**, because an unconfident marker regresses to mid-band. And **275 pages against an exemplar
+41-64 destroys navigability**, which re-prices the appendix-to-claim map from a nicety to a requirement.
+
+**§28.8 tabulates, per dimension, what MEETS the descriptor against what EXCEEDS it — and every item in
+the EXCEEDS column is evidence we already hold and under-present:** the corpus **census** rather than a
+corpus reading (prereg **0/211**, exact seeds **1/211**, artefact hash **1/211**, version pins **2/211**,
+wall-clock **9/211**); the B\* rule **firing against the analyst's own recommendation the same day it was
+registered**; the publishability claim made literally checkable against TMLR's two published criteria;
+and exhibits that teach rather than merely being faultless. It also lists what pulls a document DOWN
+inside the band, and closes with the operational test: **pick any claim at random, and ask whether a
+marker can verify it in under sixty seconds without leaving the PDF and without already believing us.**
+
+⚠ **§28.8 explicitly does NOT license adding material.** The high end is won by surfacing and making
+checkable what exists. Stefan's S8 and S11.5 both bind: stop expanding what ships.
+
+⚠ **COORDINATION ITEM, NOT ACTIONED: `scripts/word_budget.py` still hard-codes `limit=10000`.** The limit
+is now 11,000, so the gate will report FAIL on a compliant document. **`scripts/**` is on the OPS lane
+hold and was not touched.**
+
+### ⚠ SELF-VERIFICATION CAUGHT TWO OVERSTATEMENTS IN MY OWN NEW SECTION
+
+Run against §28 immediately after writing it, per the rule that the author must not grade their own work.
+
+8. **I wrote "over 30 per cent degradation" for Lost in the Middle from a search summary.** Opened the
+   downloaded PDF: the abstract says *"significantly degrades"* and **carries no such figure**. Corrected
+   in place to the abstract's own words, with the number marked not-yet-quotable.
+9. **I wrote "our prompts are 898 tokens".** `docs/DISSERTATION_MASTER_OVERVIEW.md:770` says 898 is the
+   **shared PREFIX**, the cacheable part, not the full prompt, which additionally carries the feedback
+   block. **The exclusion argument was resting on the wrong quantity.** Corrected, and the section now
+   requires the real prompt length to be measured from the archive before the argument is made at all.
+
+**Both were caught by checking my own new text against artefacts rather than against my memory of the
+search results, and both would have shipped into the guide as fact.**
+
+### ⚠ FURTHER ERRORS THIS HALF, all mine, all the same shape as the first four
+
+5. **`find . -name "*.pdf"` returned 0 against a 211-PDF corpus**, because of a working-directory reset
+   between compound commands. Caught by cross-checking with `ls`. **A zero from a search is a claim
+   about the search.**
+6. **A topic grep over `refs.bib` keys reported zero interpretability citations when five exist**, because
+   author-year keys do not contain topic words. **This one reached Tamer as a stated fact and had to be
+   corrected in the next message.**
+7. **The page-structure regex matched table-of-contents entries as headings**, producing a 36-page
+   Chapter 1 and a fictitious 49-page unit. Fixed by using the PDF's own outline. **Authoritative
+   structure beats inferred structure.**
 
 **FUTURE.** Nothing in §7 moved, because none of it is this session's to close. `paper/**` stays on Tamer's
 hold, so the four open-weight understatements and the ten registry rows above stay open. The
