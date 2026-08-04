@@ -36,8 +36,43 @@ from pathlib import Path
 SEARCH_ARMS = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
 
 
+#: Any list longer than this is replaced by its LENGTH when a record is loaded (see `_shrink`).
+#: 64 is comfortably above every scalar-ish list a record carries and far below the 1,571-point
+#: series that dominate its size.
+_BIG = 64
+
+
+def _shrink(obj):
+    """Replace every long list inside a parsed record with its LENGTH, recursively.
+
+    ⚠ P280, 2026-08-04. WHY THIS EXISTS, MEASURED RATHER THAN MODELLED. A per-process census taken
+    while a preflight ran showed THIS tool at **5,776 MB** working set at 12,633 records -- 37% of
+    a 15.64 GB box that also hosts ~30 driver and supervisor processes. P270 recorded 1,603 MB for
+    the same tool at 12,514 records, so the true slope is far steeper than P270's projection and its
+    ThreadPoolExecutor mitigation does not reach it. The cause is `_records` holding the FULL parsed
+    record, and the mean sealed test record is ~477 KB of JSON.
+
+    ⚠ THIS IS SAFE ONLY BECAUSE THE BIG ARRAYS ARE NEVER READ, WHICH WAS CHECKED RATHER THAN
+    ASSUMED. `test_returns` and `train_curve` occur on exactly ONE line in this file and only as a
+    truthiness test. No element is indexed, summed or measured anywhere. Replacing a list by its
+    LENGTH preserves that exactly -- an empty list becomes 0 (falsy), a non-empty list becomes a
+    positive int (truthy) -- while carrying strictly more information than a bool, and any future
+    code that tries to index or `len()` one FAILS LOUDLY rather than silently reading a wrong value.
+
+    The rule is STRUCTURAL, not a whitelist of field names, so a record schema that grows a new
+    array is covered without anyone remembering to update a list.
+    """
+    if isinstance(obj, list):
+        if len(obj) > _BIG:
+            return len(obj)
+        return [_shrink(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _shrink(v) for k, v in obj.items()}
+    return obj
+
+
 def _records(root: Path) -> list[tuple[str, str, dict]]:
-    """(stage, unit, record) for every archived record."""
+    """(stage, unit, record) for every archived record, with long arrays reduced to their lengths."""
     out = []
     for p in glob.glob(str(root / "**" / "record.json"), recursive=True):
         parts = p.replace("\\", "/").split("/")
@@ -53,7 +88,7 @@ def _records(root: Path) -> list[tuple[str, str, dict]]:
             r = json.load(open(p, encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
-        out.append((parts[-4] if len(parts) >= 4 else "?", parts[-3], r))
+        out.append((parts[-4] if len(parts) >= 4 else "?", parts[-3], _shrink(r)))
     return out
 
 
