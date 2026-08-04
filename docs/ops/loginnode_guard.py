@@ -110,6 +110,43 @@ def _append(line: str) -> None:
         fh.write(line + "\n")
 
 
+#: Exit codes. 0 OK * 1 WARN * 2 OVER * 3 UNKNOWN (the probe did not produce a reading).
+#: ⚠ P279, 2026-08-04. BOTH failure branches used to `return 0` -- the SAME code as "comfortable" --
+#: and printed NOTHING AT ALL, because the only `print` sits in the success path below. So
+#: `loginnode_guard.py --once` produced EMPTY STDOUT AND rc=0 while its own log recorded
+#: `PROBE-UNPARSED ''`. That was not hypothetical: it was the LIVE state from 2026-08-04T12:00:29Z
+#: through a real login13 transport refusal (`kex_exchange_identification: Connection reset by
+#: peer`), for seven consecutive probes, while twelve driver lines were accumulating pull failures.
+#: A session running the documented FIRST command of the session-prompt board saw nothing and would
+#: have read it as healthy. The old comment justified this as "never let the guard itself fail
+#: loudly" -- but the maintenance playbook names this tool as THE ONE INSTRUMENT whose verdict
+#: should change behaviour on an at-risk day, so a guard that goes silent exactly when the login
+#: node is in trouble is worse than no guard. Failing loudly is the entire point.
+#: No caller reads this exit code programmatically (verified by grep across docs/, scripts/, src/
+#: and .claude/ -- every reference is documentation or a human invocation), so widening the code
+#: space breaks nothing.
+UNKNOWN_RC = 3
+
+
+def _unknown(kind: str, detail: str) -> int:
+    """Record AND announce a probe that produced no reading. Never silent, never 0."""
+    line = "%s  %-4s  %s  %s" % (_utc(), "UNKN", kind, detail)
+    _append(line)
+    print(line)
+    print("  *** THE LOGIN-NODE GUARD HAS NO READING. This is NOT 'comfortable'. ***")
+    print("  The probe reached no usable answer, so nothing is known about our CPU/memory")
+    print("  footprint on the login node or about whether a UCL penalty is in force.")
+    print("  Most likely causes, in the order they have actually occurred here:")
+    print("    1. the login node is refusing SSH (kex reset / connection closed) -- a transport")
+    print("       event, ours or UCL's; check driver logs for rising 'pull failed' counts;")
+    print("    2. a probe that lost its slot behind gated driver traffic (the 2026-08-03 cause);")
+    print("    3. the node was renamed or the ps/awk output shape changed.")
+    print("  DO NOT retry in a loop and DO NOT relaunch lines by hand: a stampede of reconnects")
+    print("  is exactly what earned the 2026-08-03 00:33:47Z penalty. Wait for the drivers'")
+    print("  own backoff. Death clocks: TEST 240 x 180 s = 12.0 h, SEARCH 240 x 45 s = 3.0 h.")
+    return UNKNOWN_RC
+
+
 def sample(penalised: bool = False, quiet: bool = False) -> int:
     try:
         out = subprocess.run(
@@ -117,12 +154,10 @@ def sample(penalised: bool = False, quiet: bool = False) -> int:
             capture_output=True, text=True, timeout=90,
         ).stdout.strip()
     except Exception as exc:                                   # noqa: BLE001
-        _append("%s  PROBE-FAIL  %s: %s" % (_utc(), type(exc).__name__, exc))
-        return 0                                               # never let the guard itself fail loudly
+        return _unknown("PROBE-FAIL", "%s: %s" % (type(exc).__name__, exc))
     parts = out.split()
     if len(parts) < 4:
-        _append("%s  PROBE-UNPARSED  %r" % (_utc(), out[:120]))
-        return 0
+        return _unknown("PROBE-UNPARSED", repr(out[:120]))
     node, cpu_pct, mem_gb, nqacct = parts[0], float(parts[1]), float(parts[2]), int(parts[3])
     cores = cpu_pct / 100.0
     level, reason = classify(cores, mem_gb, penalised)
