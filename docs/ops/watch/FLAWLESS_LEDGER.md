@@ -202,6 +202,67 @@ sealed-test record and that the compute is recoverable from `ledger/*.epilogue.j
 above IS that recovery**: the sealed-test tier's per-training wall is 9.39 h mean / 9.45 h median,
 measured, with its own distribution. The write-up's compute accounting can be built from it.
 
+### ★★★★★ 2026-08-04 13:00 UTC — "BRING THE ETA TO ITS GLOBAL MINIMUM" (Tamer). IT IS ALREADY THERE, AND THIS IS THE FIRST TIME THAT HAS BEEN PROVEN **PER JOB** RATHER THAN ARGUED
+
+Every previous statement of this rested on aggregates (98.9% of output lands above the common rung;
+the chain floor is 21.9 h). **This one resolves the queue job by job**, using `qstat -xml` for
+untruncated names (P276) joined to the per-arm seed census, and it settles the question.
+
+**STEP 1 — WHICH ARMS ACTUALLY CAP THE RESULT.** Arms below rung 30, i.e. the only work whose
+completion can move the common rung off 0:
+
+| line | tag | capping arms (current seeds) |
+|---|---|---|
+| `test` (core) | `c1` | cma_es(0), **distributional(0), scalar(0)** |
+| `test_leg_deepseek_v4_pro` | `leg1` | distributional(0), placebo_shuffled(22), scalar(0) |
+| `test_leg_glm_5_2` | `leg2` | **distributional(0), scalar(0)** |
+| `test_leg_kimi_k3` | `leg10` | distributional(12), scalar(12) |
+| `test_leg_nemotron_3_super` | `leg7` | distributional(0), scalar(0), scalar_cvar5(0) |
+
+**STEP 2 — WHERE THE FLEET ACTUALLY IS.**
+
+```
+CRITICAL   running  24 jobs /   192 slots      queued   0 jobs /     0 slots
+NON-CRIT   running 218 jobs / 1,744 slots      queued  70 jobs /   560 slots
+=> 90% of the slots we are running are on work that CANNOT raise the result
+=> and ZERO critical jobs are queued
+```
+
+**STEP 3 — THE ANSWER, AND IT FOLLOWS DIRECTLY.** **Not one job on the critical path is waiting for
+a slot.** Every capping arm's work is executing right now. **Therefore no reallocation of slots can
+shorten the ETA**: adding capacity to a path with nothing queued on it does nothing, and the 1,744
+non-critical slots could be freed entirely without moving the result by a minute. The
+earliest-submitted critical queued job does not exist, so the "our own jobs are blocking our
+critical path" hypothesis is **REFUTED by measurement**, not assumed away.
+
+**STEP 4 — WHAT THE REMAINING TIME IS MADE OF, and every term is frozen.**
+
+| line | what is running now | then | ETA to rung 30 |
+|---|---|---|---|
+| glm (`leg2`) | **h2_pair, 8 jobs** — the capping work itself | — | **~9.4 h** |
+| kimi (`leg10`) | **h2_pair, 5 jobs** — the capping work itself | — | **~9.4 h** |
+| nemotron (`leg7`) | `scalar_cvar5_test`, 4 jobs | then submit h2_pair | ~19 h |
+| deepseek (`leg1`) | `placebo_shuffled_test`, 1 job | then submit h2_pair | ~19 h |
+| **core (`c1`)** | **the serial C1 DFO chain** (`bayes_opt` owes 3 of 30) | then C2 `h2_pair` | **~23 h** |
+
+**⇒ THE COMMON RUNG REACHES 30 IN ROUGHLY 23 HOURS, AND CORE IS THE BINDING TERM.** Both components
+are immovable: the DFO chain is serial **by construction** (each proposal is a function of fitnesses
+already observed), and the sealed-test training wall is **9.39 h measured**, being 400,000 frozen
+steps at ~13 steps/s on one thread. Cutting either means changing a pre-registered value or the
+thread count, and the second changes floating-point reduction order and destroys CRN determinism.
+
+**⚠ ONE FUTURE DELAY WAS CHECKED AND IS NOT REAL.** When core finishes C1 it will SUBMIT its
+`h2_pair`, and that job will be newer than `leg4`'s **68 queued jobs / 544 slots** — which are
+non-critical (qwen3.5-9b already banks 100). Since SGE orders one user's jobs by submit time, that
+looked like a foreseeable self-inflicted delay on the critical path. **Measured instead of assumed:
+243 jobs are running at a 9.4 h mean wall, so jobs complete at ~26/h and the 68-job queue drains in
+~2.6 h — roughly ten times sooner than core needs the slots.** No action is owed, and taking one
+(holding another line's jobs) would cost real science for no gain.
+
+**⇒ THE STANDING CONCLUSION, NOW EVIDENCED AT JOB GRANULARITY: THE ETA IS AT ITS GLOBAL MINIMUM
+UNDER THE FROZEN DESIGN. The only remaining lever is the human one — asking UCL RC for a larger
+allocation — and even that cannot help, because the critical path is not slot-starved.**
+
 ### ⛔ WHAT IS CLOSED, AND MUST NOT BE RE-LITIGATED EVERY THIRTY MINUTES
 
 The cores question is **closed by fourteen independent measurements** (no quota, no job cap, no PE
@@ -363,6 +424,8 @@ session; see CHANGELOG `[2026-08-04b]` and execution record §132)*
 
 | id | resolved | state | evidence |
 |---|---|---|---|
+| **CHAIN-3** | 2026-08-04 RUN20 pass 5 | ⚠ **THE ONE THING ON THE CRITICAL PATH THAT IS AT RISK, MEASURED AND NAMED. NOT HUNG, AND NO LEVER EXISTS.** | Tamer asked what has not started and is holding the speed. **It is `c1_bayes_opt_c27`, job 85816, and it is the single serial step on the campaign's binding path.** MEASURED from `qstat -j`: started 01:47:34, **elapsed 12.3 h**, `usage cpu=98:43:36` on 8 granted slots -> **CPU/wall = 8.01, i.e. every thread flat out.** ⇒ **IT IS COMPUTING, NOT HUNG** -- the check RUN 19's CORE-1 established, run again rather than assumed. **BUT `hard resource_list: h_rt=54000` = 15.0 h, so it has ~2.7 h before the scheduler kills it `rc=126`.** ⚠ **HOW UNUSUAL IS 12.3 h? MEASURED OVER 1,581 SUCCESSFUL SEARCH TASKS:** median **4.24 h**, p90 6.65, p99 10.79, **max ever 14.32**; only **7 of 1,581 (0.44%)** ever exceeded 12 h. And `bayes_opt`'s OWN history is n=28, median **4.08 h**, p90 6.99, **max 8.66 h** -- **c27 is already 42% beyond the worst candidate bayes_opt has ever completed.** Of the tasks that reach this depth, 5 finished and ~16 were wall-killed, so completion is precedented but is the minority outcome. **THE COST IF IT WALLS:** no record for c27, the driver's own repair round resubmits (the `_r1` mechanism, seen live on `c1_tpe_c26`), and the common-rung-30 ETA moves from ~23 h toward ~35 h. **NO LEVER EXISTS AND EVERY CANDIDATE WAS CHECKED:** `qalter -l` is REFUSED SITE-WIDE so the wall cannot be extended; raising priority is operator-only; lowering ours is a standing prohibition and one-way; and killing it forfeits 12.3 h of completed compute for nothing. ⚠ **AND THE STRUCTURAL OBSERVATION WORTH RECORDING BUT NOT ACTING ON:** core's `distributional`/`scalar` winners are ALREADY FROZEN, so its C2 `h2_pair` has no SCIENTIFIC dependency on `bayes_opt` -- which is an H4 comparator. The dependency is the C1 -> C2 ORDERING in `campaign.py`. **That file is drift-fenced, and changing it would mean editing fenced code and relaunching the core driver mid-chain to save ~13 h against a 22.5-day budget with rung 403 projected 08-09. The trade is bad and it is not taken.** |
+| **P281** (completes P275) | 2026-08-04 RUN20 pass 5 | **ROOT-CAUSED IN FULL, AND IT IS NOT WHERE I FIRST SAID** | The second memory hog is now traced end to end by catching it in the act with a CIM census carrying full command lines AND parent command lines. The chain is: **`session_preflight.py:578` -> `.claude/lanes/openitems.py --open` -> `openitems.py:377` builds an inline `python -c` -> `from analyze_campaign import load_campaign_records; recs = load_campaign_records(root)` -> the WHOLE archive is materialised in one list.** **MEASURED PEAK: 7,138 MB**, larger than `science_watch`'s pre-P280 5,776 MB and the largest single process observed in this campaign. **So P275's instinct that "a preflight run costs 4.7 GB" was directionally right and its ATTRIBUTION was wrong** -- preflight does trigger the spike, but through a lane-infrastructure grandchild, not in its own address space. The verifier itself is legitimate: it runs the real loader to assert the LOADER-POOLING property, which the board wants asserted rather than grepped. ⚠ **ESCALATED RATHER THAN PATCHED, DELIBERATELY:** `.claude/lanes/**` is shared multi-session infrastructure that RUN 20's own brief says is ABANDONED and must not be registered with, `scripts/analyze_campaign.py` (where the memory actually lives) is DRIFT-FENCED, and the spike is transient and only fires on `--full`. **THE OPERATIONAL RULE UNTIL IT IS FIXED, and it is cheap: do not run `session_preflight --full` while free RAM is under ~8 GB.** The fix when a window opens is a TTL cache on that one verifier row so the loader runs hourly rather than per preflight. |
 | **P279** | 2026-08-04 RUN20 pass 2 | ⭐ **FIXED + FALSIFIED AGAINST A LIVE OUTAGE, WHICH IS THE STRONGEST FALSIFICATION AVAILABLE** | ⛔ **THE LOGIN-NODE GUARD WENT SILENT AT EXACTLY THE MOMENT THE LOGIN NODE FAILED, AND EXITED 0.** Found by running the session-prompt board's FIRST command and noticing it printed **nothing** where it had printed `OK ... comfortable` forty minutes earlier. `loginnode_guard.py` returned **0 -- the same code as "comfortable" -- on BOTH failure branches**, and the only `print` in `sample()` sits in the success path, so a broken probe produced **EMPTY STDOUT AND rc=0**. Its own log knew: `PROBE-UNPARSED ''`, seven consecutive entries from **2026-08-04T12:00:29Z**. The old code justified this in writing as *"never let the guard itself fail loudly"* -- but `MAINTENANCE_2026-08-12.md:148` names this tool as **the ONE instrument whose verdict should change behaviour on an at-risk day**, so silence exactly when the login node is in trouble is worse than no guard at all. **THE CAUSE WAS REAL AND CONCURRENT, NOT A FIXTURE:** `ssh myriad13` returned `kex_exchange_identification: read: Connection reset by peer` / `Connection reset by 193.60.252.109 port 22`, the gated alias returned `Connection closed by UNKNOWN port 65535`, both aliases resolve to the same `login13.myriad.rc.ucl.ac.uk`, and the twelve driver logs were accumulating `pull failed` counts through 2, 3, 4 and on to **17 consecutive** while the guard said nothing. **FALSIFIED ON THAT EVENT: pre-fix `--once` produced 0 bytes and rc=0; the shipped version produced 919 bytes and rc=3 on the same failure, minutes apart.** New `UNKNOWN_RC = 3` is distinct from 0/1/2 and breaks nothing -- verified by grep across `docs/`, `scripts/`, `src/` and `.claude/` that **no consumer reads this exit code programmatically**; every reference is documentation or a human invocation. The UNKN block names the three causes this has actually had, and tells the reader NOT to retry in a loop or relaunch by hand, because a reconnect stampede is what earned the 2026-08-03 00:33:47Z penalty. Selftest still ALL PASS, ruff clean, AST parsed before the run, ASCII only. ⚠ The running 120 s daemon holds the old module in memory and is INERT until restarted; `--once` and every future session get the fix immediately. |
 | **INC-1 RESOLUTION** | 2026-08-04 RUN20 pass 3 | ⭐ **ROOT CAUSE CONFIRMED BY THE REMEDY WORKING. 31 m 50 s, ZERO MEASURABLE COST.** | **THE DIAGNOSIS WAS TRACED TO THE PACKET, NOT GUESSED.** `ssh -vv` showed `Connection established` and `Local version string SSH-2.0-OpenSSH_10.2` and then `kex_exchange_identification: read: Connection reset by peer` -- **TCP completed, we sent our banner, and the server never sent its.** `Test-NetConnection` confirmed **port 22 OPEN on all three login IPs** (193.60.252.107/.108/.109) and `www.rc.ucl.ac.uk:443` reachable, so it was neither a lost route nor a network outage; the last good guard reading (`cores=0.00/6.0 mem=0.00GB qacct=0 comfortable`, 11:58:29Z) rules out a UCL usage penalty, which caps CPU and memory rather than blocking SSH. Reset timing 76 ms then ~1,072 ms twice, and **every login node refusing identically**, points at the SOURCE ADDRESS being refused site-wide. **Our VPN address was 10.151.114.155 -- and `acknowledged_alarms.txt:340` records the identical event from the identical /24: *"the 10.151.114.0/24 pool lost its route to 193.60.252.0/24; a reconnect onto 10.151.109.237 restored all three login nodes."*** Escalated to Tamer with one action. **He reconnected; the address became 10.151.110.107, outside the failing pool; the very next `ssh` returned `login13.myriad.ucl.ac.uk` and the guard read `OK ... comfortable` at 12:32:19Z.** ⚠ **NOTE THE MECHANISM IS STILL NOT FULLY EXPLAINED: a lost ROUTE cannot produce a completed TCP handshake, so the 2026-08-03 note's stated mechanism is inconsistent with what was measured today, even though its stated REMEDY is exactly what worked.** The honest statement is that the 10.151.114.0/24 pool is refused by the Myriad login nodes and a reconnect off it restores service; why is not established from this side. **COST, MEASURED AFTER RECOVERY: none detectable.** Records resumed and the backlog flushed (test tier 11,096 -> **11,196**, +100 in 28 min), the 12 h rate came back **ABOVE** its pre-outage value (164.7 -> 161.8 -> **165.1 rec/h**), the fleet never shrank (**2,018 -> 2,033 -> 2,015 slots**, zero `Eqw`/`hqw`), no driver died (worst consecutive peaked at 21 against a SEARCH death clock of 240), and `session_preflight --full` reads **VERDICT OK, all 17**. The jobs ran on the compute nodes throughout; only the pull was blocked, so the outage cost visibility and a queue of unpulled records, not work. |
 | **INC-1** | 2026-08-04 RUN20 pass 2 | **LIVE INCIDENT, RIDDEN BY THE BOOK, NO ACTION TAKEN AND NONE OWED** | **login13 began refusing SSH at 12:00:29Z.** Signature `kex_exchange_identification: Connection reset by peer` -- sshd refusing before authentication, i.e. a transport/node event, **not** a UCL usage penalty (a penalty caps CPU and memory and arrives with an email; our last good reading at 11:58:29Z was `cores=0.00/6.0 mem=0.00GB qacct=0 comfortable`). Identical signature to the two `PROBE-UNPARSED` entries during the 2026-08-03 VPN outage, which recovered after 7 h 24 m. **MEASURED CONSEQUENCES, all expected:** `records=12633 (+0)` flattened, the 1 h rate fell 143 -> 118 rec/h, and worst-consecutive pull failures climbed 2 -> 17 in twelve minutes. **THE JOBS THEMSELVES ARE UNAFFECTED** -- they run on compute nodes; only the PULL of finished records is blocked, so nothing is lost, merely delayed. **Death clocks: TEST 240 x 180 s = 12.0 h; SEARCH 240 x 45 s = 3.0 h**, and ⚠ **core's C1 chain (`c1_tpe_c27`, `c1_bayes_opt_c27`) is in the SEARCH lane, so the confirmatory driver is on the 3.0 h clock** -- the fragile one, and the one that died in the Aug-3 outage. That is E1/E2 and it is expected: the supervisor relaunches on a 600 s backoff and no data is lost. **POSITION: RIDE IT.** Per `MAINTENANCE_2026-08-12.md` §5, check the guard and nothing else; do NOT relaunch by hand; do NOT retry in a loop. ⚠ **AND THE HONEST SELF-CHECK: this session made roughly ten gated `ssh` calls in the preceding thirty minutes** (hostname, qstat, four `qstat -xml`). They are unlikely to be decisive against twelve continuously-polling drivers and a 2-minute guard probe, but the possibility is recorded rather than dismissed, and ssh use was stopped on discovery. |
