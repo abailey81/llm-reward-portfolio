@@ -306,6 +306,26 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 17:42 **RUN 21 pass 2** | **191.2** | **171.2** | 1,664 | 210/**0** | **100%** (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 19:15 **RUN 21 pass 4** | **200.4** | **180.8** | **1,248** | 158/**0** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
 | 2026-08-04 19:54 **RUN 21 pass 5** | **198.9** | **180.9** | **1,096** | 139/**0** | 92% (sonnet-5) | **bayes_opt 1**, tpe 2 | GATED | GATED | GATED |
+| 2026-08-04 20:27 **RUN 21 pass 6** | 193.6 | **182.0** | **984** | 125/**0** | **86%** (sonnet-5) | bayes_opt 1, tpe 1 | GATED | GATED | GATED |
+
+**RUN 21 pass 6 (20:27Z) — CORE'S `cma_es` CAME OFF ZERO AND THE FLEET IS NOW GENUINELY BROAD.**
+12 h 193.6 rec/h, 24 h **182.0** (a session high). Slots **984**, 125 running, queue **0**.
+⭐ **The core line no longer has `cma_es` at zero — only `distributional` and `scalar`, its C2
+`h2_pair`, remain.** `c1_cma_es_test` reads **1/30 done** and `c1_tpe_c29` has advanced from c28, so
+the C1 chain is actively closing. `bayes_opt` still owes 1 of 30 and the floor holds at **0.19 d**.
+⭐ **CONCENTRATION HAS COLLAPSED FROM 100% TO 86%, AND THE NUMBER OF LINES CONTRIBUTING IN THE 12 h
+WINDOW HAS GONE 2 -> 5 -> 9.** haiku climbed 55 -> 69, qwen3.6-27b 32 -> 33 with a frontier at 44,
+glm 7 -> 14, and sonnet is at 566 of 568.
+
+⚠ **A PREDICTION, RECORDED SO THE NEXT SESSION DOES NOT MISREAD IT AS A FAULT: THE 12 h RATE IS ABOUT
+TO FALL, AND THAT WILL BE CORRECT.** sonnet-5's C4 sweep produced the great majority of the last 12
+hours' records and is now down to **1 running job** from 83 at pass 1. As its output ages out of the
+window the trailing rate must drop toward what the remaining lines actually generate. Slots have
+already fallen 1,848 -> 1,664 -> 1,248 -> 1,096 -> **984** across six passes, a 47% decline, while
+the 12 h rate went 183 -> 191 -> 200 -> 199 -> 194 — i.e. **throughput per slot rose sharply**,
+because the surviving jobs are the ones actually landing records. **A falling rate over the next few
+passes is the sweep ending, not the campaign slowing.** The discriminator remains what it has always
+been: `line_balance` CLEAN, queue 0, and no line idle with work owed. All three hold now.
 
 **RUN 21 pass 5 (19:54Z) — THE CRITICAL CHAIN IS CLOSING AND THREE CAPPING LINES MOVED OFF ZERO.**
 12 h **198.9 rec/h**, 24 h **180.9**, both holding at the session highs. Slots **1,096** (1,848 ->
