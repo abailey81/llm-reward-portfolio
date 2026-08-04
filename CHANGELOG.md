@@ -367,7 +367,42 @@ single-shot CONTROL. Non-binding today (h3 reads 568), and the direction is too 
 changes the definition of the reported scientific result, which is a pre-registration question for
 Tamer and Dr Okhrati, not an ops patch.**
 
-**OPEN ROWS REMAINING: 1** (A6, escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 5 (02:05-02:30 UTC) — **THE CORE LINE BEGAN TESTING A FROZEN ARM**, and a WATCH item turned out to be an alarm that can never clear
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · `line_balance` CLEAN · drift 0 ·
+Eqw/hqw **0** · census all six roster rows `ok` · records 10,891 -> 10,897 · disk 40.9 GB.
+SPEED 141.7 rec/h 12 h (from 141.9), 1,696 slots, 212/253, concentration 98%. Flat; the pass-3
+line-handover diagnosis still holds and nothing new was found in it.
+
+**★ CORE-1 — THE CORE LINE HAS BEGUN ITS SEALED TEST, and it was found by checking a suspicious
+flat number.** `tpe` read `25/30` for a FOURTH consecutive pass, which is exactly the shape of a
+stall, so it was verified rather than assumed: `c1_tpe_c25` has been RUNNING since 23:41 UTC (~2.5 h
+into a ~4.45 h modelled serial step) and `c1_bayes_opt_c27` since 00:47 UTC, with bayes having
+advanced 26 -> 27 between passes. **And four jobs queued under a `c1_` prefix turned out to be the
+headline:** `c1_cma_es_test_p01..p04`, submitted 00:28 UTC, are the **sealed-test ladder for cma_es**
+— the first core arm to freeze. `test/cma_es/` now exists and the driver reports
+`[c1_cma_es_test] 0/30 done, 30 pending`. ⚠ Stated precisely: this is per-arm test work **ahead of**
+the pipelined C4 block. `grep -c "C4" driver_core.log` is still **0**, so nothing here may be
+reported as "core entered C4". Those jobs are also the newest in the queue and therefore last.
+
+**⚠⚠ W1 / D36 — `gate_failure_drift` IS A CUSUM THAT CAN NEVER CLEAR.** The ledger's own watch rule
+said to investigate if it kept climbing; it climbed **0.21 -> 0.99 -> 2.56 -> 4.10**. Proven
+arithmetically, not argued: `sentinel.py:640` runs the CUSUM against **target 0** with `k=0.03`,
+while the aggregate gate-failure rate is **0.1530** (257 lost of 1,680 slots). Every sample adds
+`0.1530 - 0 - 0.03 = +0.1230`, strictly positive, so `S` rises without bound and **can never return
+below `h=0.15`**. It crosses after **1.2 samples** and the log says *"since sample 2"* — an exact
+match; 4.10 implies ~33 samples, also consistent. **Fifth appearance of the "counter that cannot go
+down" pathology** (cf. P205, `guard:transport`, the cumulative-ever timeout counter), and it is the
+always-on-alarm shape that let `guards=2` hide P202 for 31 h. **Root cause:** target 0 encodes *"we
+expect ZERO gate failures"*, but per-model reliability runs **0 % to 86 %** and that variation **is
+the science** (D34). The 2026-07-30 triage identified the mixture structure and then ACKNOWLEDGED the
+alarm instead of correcting the target.
+**⛔ ESCALATED, not fixed: `scripts/` is DRIFT-FENCED while live.** No campaign result is affected —
+it is a monitor, and the rates are measured correctly by `authoring_reliability.py`. Everything
+around it IS fixed: `acknowledged_alarms.txt` now carries the structural proof so no future session
+re-triages it, and it is registered as **D36** for the next deploy window.
+
+**OPEN ROWS REMAINING: 2** (A6 and W1/D36, both escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
