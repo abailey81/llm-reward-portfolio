@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-04"
-  head: "44d63fb0"
+  head: "e4632d03"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 19; 7 record layers RC=0 at 10,654; S15 C6 16/16; stage_eta 42/42)"
+  suite_status: "exit 0 (RUN 19 close; 7 record layers RC=0 at 12,498; 28 defects fixed, all falsified)"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```
@@ -95,7 +95,7 @@ handoff_state:
 | Load-bearing decisions → rationale · evidence grade · fragility | `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md` (maintained continuously; 2026-07-27 added the capacity-lane rows incl. the **R107 retraction** row) |
 | Myriad scheduler + hardware truth | `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` (live-probed formula, pools, two-regime chunking doctrine, dead ends, the ★ priority rule) |
 | The live allocation system | `src/cluster/telemetry.py` + `src/cluster/allocation.py` (sensors + brain) · `scripts/allocation_advisor.py` (CLI/--watch; runbook §2.0 step 5) — ADVISORY-only; at GO its values supersede the supervisor's embedded defaults (step 4 precedence note) |
-| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–**45**, verified contiguous with no gaps 2026-08-01; none may silently drop). ⚠ This line read "rows 1–36" until 2026-08-01 and was silently dropping rows 37–45 — which include **rows 38–41, the four things Dr Okhrati personally asked for on 2026-07-31** (seed trajectory · the why-it-happened spine · the what-would-get-a-more-expected-result subsection · the turnover worked example), plus row 37 (the pre-registered equal-*k* sensitivity) and rows 42–45. |
+| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–**55**, counting the extra row 54b, re-verified contiguous 2026-08-04 by counting the `^N.` row markers in the file rather than trusting this line; none may silently drop). ⚠⚠ **THIS LINE HAS NOW UNDERSTATED THE REGISTRY TWICE, THE SAME WAY BOTH TIMES.** It read "rows 1–36" until 2026-08-01, silently dropping rows 37–45 — which include **rows 38–41, the four things Dr Okhrati personally asked for on 2026-07-31** (seed trajectory · the why-it-happened spine · the what-would-get-a-more-expected-result subsection · the turnover worked example), plus row 37 (the pre-registered equal-*k* sensitivity) and rows 42–45. It then read "rows 1–45" until 2026-08-04, silently dropping **rows 46–55, which are the ENTIRE Stefan-feedback and clarity body of work** (46 premise-first over CH4/CH5 · 47 claim-shaped headings · 48 the RL formalism in CH4 · 49 the Sutton–Barto system diagram · 50 the error analysis against the eleven-name canon · 51 the training budget as a scope condition · 52 the Gemma answer · 53 the two-question presentation order · 54 the Eureka-mirroring framing · 54b the open-weight re-derivation · 55 the C1–C8 clarity pass). Those ten rows carry most of Criterion 4. **The recurrence is the lesson: a hand-maintained count beside a growing file goes stale silently and looks authoritative while doing it. COUNT THE FILE, never quote this number.** |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
 | The writing plan | `docs/WRITEUP_95PLUS_PLAYBOOK.md` (under the raised bar; registry rows 19–24) |

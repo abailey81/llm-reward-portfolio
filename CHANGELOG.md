@@ -551,7 +551,45 @@ F821 — and the live loop invoked the broken file once before I finished checki
 at 10:21:34Z. **The rule it earns, applied immediately to P269: for an instrument invoked every few
 minutes, verify a COPY and then move it in atomically. Post-hoc verification is too late.**
 
-**OPEN ROWS REMAINING: 3** (A6, W1/D36 escalated; C1-loop queued) — F14, the 18 style-only lint items inside live instruments, deliberately
+### RUN 19 CLOSES (11:10 UTC) — ELEVEN PASSES, 28 DEFECTS, AND NOT ONE OF THEM IN THE CAMPAIGN
+
+Tamer: *"I want to transition into the next claude code session... document absolutely everything...
+tell it to very deeply and extensively study absolutely all files... zero gaps in knowledge...
+preserves these loops, but dives much deeper... minimises the ETA to an absolute minimum."*
+**The successor brief is `docs/RUN20_SESSION_PROMPT.md`; the detail is execution record §133.**
+
+**FINAL STATE:** records **12,490** · spend $45.5019 · drift **0** · freeze MATCHES · preflight
+**VERDICT OK all 17** · seven record layers **RC=0** · `line_balance` CLEAN · Eqw/hqw **0** ·
+disk 38.7 GB · 10/12 lines up · **common rung 0** · backup branch pushed.
+
+**THE SESSION IN ONE LINE: every defect was in the layer that WATCHES the campaign, every one failed
+toward REASSURANCE, and none looked like an error.** A verdict pinned RED for 4,558 cycles. Three
+fields constant across all 5,038 lines. A minimum taken over the wrong population, three times. A
+clean `drift=0` from a probe that never ran. A gate reading CLEAN from an empty file. A false
+run-killer that had already fired at 908 s against a 900 s cap. And the monitors themselves growing
+O(archive) in MEMORY toward an OOM **before the registered primary target**.
+
+**TEN OF THE 28 WERE MINE**, including a fix that **failed OPEN** (P257 — it inverted the failure
+direction of the one alarm it promised to preserve) and a live cycle crashed by a use-before-
+assignment that both `ruff` and `ast.parse` passed (P268). That earned the rule now in force:
+**verify a COPY, then move it in atomically.**
+
+**THE ETA QUESTION, RE-MEASURED ON TAMER'S DIRECT REQUEST AND CLOSED HARDER THAN BEFORE:** 98.9% of
+the fleet's output lands in cells that cannot raise the result; the floor with **infinite** cores is
+**>= 21.9 h** because `bayes_opt`'s chain is strictly sequential; we are **already the largest
+consumer on the cluster** (19.9% of 8,886 slots across 98 users); fragmentation is refuted (128 hosts
+hold >=8 contiguous free); and correlation(queued, slots) = **-0.94**, so queuing more buys nothing.
+**The ETA is not core-bound. It is bound by a serial dependency chain.**
+
+**Myriad maintenance:** UCL's official notice is now in the playbook — **Wed 12 Aug, possibly into
+Thu 13**, with an official job drain that will flatten `records=` from ~17:00 Tue 11. That flattening
+is correct behaviour.
+
+**OPEN: 4.** A6 and W1/D36 escalated to Tamer; **A-d14** (the modern D14 path has no cover — an arm
+can be silently dropped from the entire C4 sweep while `arm_coverage` prints 5/5) and **A-attr**.
+Next P-number: **P272**.
+
+**OPEN ROWS REMAINING: 4** (A6, W1/D36 escalated; A-d14, A-attr queued) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**

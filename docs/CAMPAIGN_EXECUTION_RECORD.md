@@ -19953,3 +19953,135 @@ excluded the very members that would have made it bad news. S15 excluded the arm
 nothing; the chain floor excluded the work that had not happened. **Neither looked like a bug, and
 both read as good news.** When a check summarises over a set, the question to ask is not "is the
 arithmetic right" but "what is NOT in the set, and would including it change the verdict".
+
+## 133 — RUN 19: THE MONITORING LAYER WAS LYING IN FIVE PLACES AT ONCE, AND ONE OF THEM WAS THE VERDICT ITSELF
+
+**PAST.** RUN 19 opened 2026-08-03 23:41 UTC from `docs/RUN19_SESSION_PROMPT.md` with records 10,552,
+preflight VERDICT OK on all 17 rows, seven record layers RC=0, and a handover naming two queued
+repair jobs as the thing capping the campaign at rung 0. Tamer's standing brief was carried verbatim
+and he added four instructions during the session, each of which changed the operating contract:
+a **30-minute deep check**, then **"if something is found, it is ALWAYS FIXED"**, then **"the checks
+do not stop until everything is flawless"**, then **"add the speed check component all the time, and
+its maximisation"**.
+
+**PRESENT.** Eleven passes. **28 defects found and fixed, 10 of them mine.** The campaign itself was
+healthy throughout and is healthy now: records **10,552 -> 12,490**, drift 0 every pass, freeze
+`3ca6f01ab772` MATCHES, seven record layers RC=0 on every run, `line_balance` CLEAN on every run,
+zero `Eqw`/`hqw`, login node comfortable, disk 38.7 GB, spend $45.5019 unchanged.
+
+**⇒ NOT ONE DEFECT WAS IN THE CAMPAIGN. EVERY ONE WAS IN THE LAYER THAT WATCHES IT.** That is the
+finding of record, and it is the fifth consecutive session to produce it.
+
+### 133.1 THE HEADLINE: `RED` HAD MEANT NOTHING FOR 4,558 CYCLES
+
+`cycle.py` derived a `★ C4 PRECONDITION MET` alert from `frozen*/` markers **on disk, which never
+disappear**. Once every line held its full frozen roster it fired every cycle forever, and with the
+SWEEP-BOUND attention it pinned `verdict = "RED" if alerts` permanently. **Measured: 4,592 RED of
+5,038 lines; the last non-RED line was 2026-07-31T19:22:15Z.** A cycle carrying
+`sentinel: UNACKNOWLEDGED ram:CRITICAL` was **byte-identical in every field** to its neighbours.
+
+Two further fields were constants across **all 5,038 lines**: `guards=2` (the raw exit code,
+permanently 2 because two guards are acknowledged-failing) and `arms_full=10/10`.
+
+**Falsified without a fixture.** Running `cycle.py` by hand would have created a duplicate log line
+(108 such pairs already exist), so the fix was left to the loop's own next invocation and read off
+live data: **the verdict flipped RED -> ATTN on the very next cycle.** Within two hours the
+un-pinned RED surfaced a real, escalating defect that had been invisible (§133.3).
+
+### 133.2 THE INSTRUMENT THAT REPORTS THE RESULT WAS COMPUTING IT OVER THE WRONG POPULATION
+
+S15 (`record_seed_completeness.py`) dropped any arm holding zero records before taking each line's
+minimum, so **`test` (the CONFIRMATORY core line), `glm`, `kimi` and `nemotron` printed rung 30 while
+banking 0.** RUN 18's handover read that table and named one queued 8-record repair job as the single
+cap; recomputed from the seed sets, filling that hole leaves the common rung at **0**, and so does
+filling every hole in the archive. The true path is **338 records across five lines**, dominated by
+the `h2_pair` every line tests LAST.
+
+Fixed as check **C6**, and then twice more as the fix's own consequences emerged: **P253** (the
+binding cause was picked by hole COUNT, not banked RUNG — the P244 failure mode recurring inside the
+P244 fix, found by an auditor) and **P258** (the P253 fix then named NO arm when the capping arm was
+merely shallow, so the most important number in the campaign printed with a blank reason).
+
+### 133.3 THE MONITORS ARE O(ARCHIVE) IN MEMORY AND PROJECT TO OOM BEFORE RUNG 403
+
+Surfaced by the first meaningful RED after §133.1. **Measured at 12,514 records:** `science_watch.py`
+**1,603 MB** + `results_audit.py` **1,475 MB** + a cycle sub-tool **1,396 MB** = **4.4 GB**, run
+CONCURRENTLY, on a **15.6 GB** box hosting **30 driver and supervisor processes**. RAM read **96.7%
+used, 0.5 GB free**.
+
+**Independently confirmed rather than extrapolated from one point:** `ram:CRITICAL` never fired below
+~5k records, fired **5 times on 08-03** (10,653 records) and **14 times in the first 11 hours of
+08-04** (12,435). The alarm rate tracks archive growth.
+
+**Projection at 0.357 MB/record:** 8.4 GB at rung 100, 10.5 GB at 189, **14.0 GB at rung 403 — the
+REGISTERED PRIMARY TARGET** — 14.7 GB at 568. The box is exhausted at ~37,500 records; the ladder
+tops out at 42,128. **A timeout degrades to `sci=BLIND`; an OOM kills a process.** Mitigated by
+serialising the two heaviest tools (`max_workers` 2 -> 1), halving the pair's peak and taking the
+survivable record count past the whole ladder. **Escalated: the mitigation buys headroom, it does not
+make the tools streaming.**
+
+### 133.4 `drift=0` COULD PRINT FROM A PROBE THAT NEVER RAN
+
+`drift` is the invariant that says the running drivers execute the code we think they do. The return
+code was discarded, and `_run` returns `(99, "<probe failed: ...>")` on any exception, which the
+`<`-prefix filter emptied to `[]` — the clean value, silently. Separately there was **no alert for
+committed drift anywhere in the file**: 191 historical lines read `drift=2` without ever touching the
+exit code, while the docstring promised exit 1.
+
+### 133.5 A FALSE RUN-KILLER THAT HAD ALREADY FIRED
+
+The cycle line was stamped at sweep START and appended at END, so its own age when the next line
+landed was `S_k + sleep + S_k+1`. **Measured on the live log: the 08:07:18Z line was 908 s old
+against `session_preflight`'s 900 s cap** — a preflight in that window would have declared the live
+monitoring loop DEAD. The file's own comment predicted this "for the future" while it was already
+happening.
+
+### 133.6 `arms_full` EXCLUDED THE CONFIRMATORY LINE BY A SILENT REGEX FAILURE
+
+The arm regex requires a MIDDLE segment (`^(line)_.*?_(arm)`), but core batches are
+`c1_distributional_g5_p01`. **All 380 `c1_*` entries match ZERO times**, so the confirmatory line
+never entered the map and `arm_coverage.py`'s `if line == "c1": continue` is **dead code that has
+never executed** — the line was unmonitored by two independent mechanisms. **2,817 of 4,331 entries
+(65%) are unparseable**, because C4 sweep batches carry no arm token: the check measures the SEARCH
+stage, which has ended. The value now reads `10/10legs-ever`; the KEY was deliberately not renamed
+because three consumers parse it by string and `health_watch.sh` empties silently.
+
+### 133.7 THE CORES AND ETA QUESTION, RE-MEASURED ON TAMER'S DIRECT REQUEST
+
+Every constraint re-tested unchanged (357 jobs of a 1,000 cap, `qquota` EMPTY, zero `Eqw`, queued
+jobs schedulable). **But the important answer is not fair-share:**
+
+* **98.9% of the fleet's output cannot raise the result** — 2,098 of 2,122 records in 12 h landed in
+  cells already at or above rung 30.
+* **The floor with INFINITE cores is >= 21.9 h** — `bayes_opt` owes 3 strictly-serial candidates
+  (13.4 h) and a 1-thread test training is 8.5 h.
+* **We are already the largest consumer on the cluster** — 1,768 slots vs 820 and 714, **19.9% of
+  8,886 running slots across 98 users**, with ~2,900 slots free and **128 hosts holding >=8
+  contiguous free** (fragmentation refuted: only 8% stranded).
+* **Queuing more buys nothing** — correlation(queued, slots) = **-0.94**; 357 submitted is all the
+  work that exists, and every blocked line has submitted exactly its packs.
+
+**⇒ THE ETA IS NOT CORE-BOUND. It is bound by a serial dependency chain.**
+
+### 133.8 MY OWN TEN ERRORS
+
+**P246** heredoc, 7th occurrence · **P247** cases testing a function but not that `render()` uses it
+(caught by the mutation harness, not review) · **P248** my own fix creating vacuous passes ·
+**P249** an ad-hoc census double-counting a shared launcher · **P250** editing a running bash script,
+which corrupted a layer run mid-flight · **P252** three different values published for one quantity ·
+**P255** a false alarm raised on my own shell · **P256** inline quoting that committed code without
+its record · **P257 a fix that FAILED OPEN** — the worst, an inverted failure direction on the one
+alarm it promised to preserve · **P268** a live cycle crashed by use-before-assignment that `ruff`
+and `ast.parse` both passed.
+
+**FUTURE.** Four rows open: **A6** and **W1/D36** escalated to Tamer; **A-d14** (the modern D14 path
+has no cover — `campaign.py:1795` returns `ok: False` without setting `winners[arm]` and `:1980` then
+silently drops that arm from the entire C4 sweep) and **A-attr** (cross-line pooling in a
+within-line contrast). The next session's brief is `docs/RUN20_SESSION_PROMPT.md`, which preserves
+the 30-minute loop and names the seven instruments still unaudited.
+
+**⇒ THE FINDING THAT GENERALISES, AND IT IS THE SAME ONE FIVE SESSIONS RUNNING: EVERY DEFECT WAS IN
+THE WATCHING LAYER, EVERY ONE FAILED TOWARD REASSURANCE, AND NONE LOOKED LIKE AN ERROR.** A pinned
+alarm, a constant field, a minimum over the wrong population, a clean value from a probe that never
+ran. **The question that finds them is not "is this correct" but "could this ever have said
+otherwise".**
