@@ -116,3 +116,27 @@ docs/ops/watch/.record_seal_state
 docs/ops/watch/.sandbox_gap_last
 docs/ops/watch/.science_audit_stamp
 docs/ops/watch/.sshgate/
+
+# ---------------------------------------------------------------------------------------------
+# TELEGRAM -- EVERYTHING, at Tamer's explicit instruction (2026-08-04): 'make sure absolutely
+# everything about telegram is in gitignore'. This repo is pushed to GitHub roughly every 77 s by
+# publish_status.sh, so anything Telegram-related that is tracked is Telegram-related that is
+# PUBLISHED. It is a private repo, which lowers the blast radius but does not remove it: a token
+# or an MTProto session file is a live credential and a private repo is one access-grant away from
+# not being private.
+#
+# The CREDENTIALS do not live here at all -- they sit under %USERPROFILE%/.claude/ , outside the
+# repository, so they cannot be committed even by a mistake. These patterns are the second line of
+# defence, covering anything Telegram-shaped that ever lands inside the tree.
+#
+# CONSEQUENCE, STATED RATHER THAN HIDDEN: the bridge SCRIPT is ignored too, so it is not on the
+# backup branch and would not survive losing this machine. That is the instruction as given; say
+# the word and the script (never the credentials) can be tracked instead.
+telegram*
+*telegram*
+*.session
+*.session-journal
+docs/ops/telegram_bridge.py
+docs/ops/telegram_watch.py
+docs/ops/TELEGRAM*.md
+docs/ops/watch/.remote_inbox_state.json
