@@ -436,6 +436,36 @@ zero across the write. Live publisher verified healthy after: page 0.8 min old, 
 into the campaign-wide minimum — a pre-registration question) and **W1/D36** (`gate_failure_drift`
 is a CUSUM that can never clear — `scripts/` is drift-fenced while live).
 
+### PASS 7 (08:39-09:05 UTC) — speed improves a second time, and a closed claim is refined rather than contradicted
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · **ALL 7 LAYERS RAN, ALL RC=0** ·
+`line_balance` CLEAN · census all six `ok` · drift 0 · Eqw/hqw **0** · every monitor fresh ·
+records 11,953 · disk 39.4 GB.
+
+**SPEED-4 — second consecutive improvement.** 12 h rate **169.4 -> 171.2**, concentration
+**67% -> 64%**, critical-chain floor **0.74 -> 0.56 d**, rung-403 ETA **08-09 08:03 -> 06:41**,
+rung-568 **08-11 17:15 -> 15:18**. `tpe` advanced **25 -> 27/30** and the binding DFO arm changed
+from `tpe` to `bayes_opt`.
+
+**CHAIN-2 — a suspicious shape resolved, and it REFINES section 6.2 rather than contradicting it.**
+Both `tpe` jobs showed `qw` with none running, and one was queued for a candidate that **already
+held a record**. From the driver log: `tpe-c26` completed at 09:39:09 via round 1, so the queued
+`c1_tpe_c26_r1` is a **superseded round-2 retry** the driver had already submitted — its own
+self-repair mechanism, the same one that produced jobs 83464/85065. `c1_tpe_c27` is the live next
+step.
+
+The measurement underneath matters more. Section 6.2 records core's jobs as starting in
+*"9-30 min, not queue-starved"*. **That holds for the SEARCH chain** — `c1_bayes_opt_c27` waited
+**31 min** (submitted 01:16:04, started 01:47:34). **It does NOT hold for core's TEST work** —
+`c1_cma_es_test_p01..p04` were submitted 01:28 and are still `qw` at 09:41, an **8 h 13 m** wait,
+because pack-8 test jobs queue by submit time exactly like every other line's. So core's C1 chain is
+compute-bound as recorded, while its first sealed-test ladder is queue-bound. Not a fault, and every
+lever remains prohibited, but **the two must not be quoted under one claim.**
+
+**Nothing was found to fix this pass.** The two remaining rows are both escalated to Tamer: **A6**
+(h3 folded into the campaign-wide minimum — a pre-registration question) and **W1/D36**
+(`gate_failure_drift` is a CUSUM that can never clear — `scripts/` is drift-fenced while live).
+
 **OPEN ROWS REMAINING: 2** (A6 and W1/D36, both escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
