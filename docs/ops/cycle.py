@@ -784,7 +784,16 @@ def main() -> int:
             _int_stamp.parent.mkdir(parents=True, exist_ok=True)
             _int_stamp.write_text(f"{_int_rc}\n{_int_out}", encoding="utf-8")
         else:
-            _int_rc = int((_int_stamp.read_text(encoding="utf-8").splitlines() or ["0"])[0])
+            # ⚠ C6-loop / P261: THIS WAS THE F-5 DEFECT AGAIN, 60 LINES BELOW ITS OWN FIX. An EMPTY
+            # stamp -- the state left by a write interrupted between mkdir and write_text -- gave
+            # `[] or ["0"]` -> "0" = CLEAN for up to 600 s, and a non-integer first line raised a
+            # ValueError that the outer handler swallowed, silently SKIPPING the gate entirely. The
+            # sandbox_gap guard directly above was corrected for exactly this and the correction was
+            # not carried across -- and this is the gate that guards the CONFIRMATORY path, i.e. the
+            # headline result. Unreadable now means UNKNOWN (98), which routes to the not-clean
+            # branch below rather than to silence.
+            _int_first = (_int_stamp.read_text(encoding="utf-8").splitlines() or [""])[0].strip()
+            _int_rc = int(_int_first) if _int_first.lstrip("-").isdigit() else 98
         if _int_rc == 2:
             alerts.append(
                 "integrity_gate: a CONFIRMATORY-PATH INVARIANT IS BREACHED -- the search->frozen->test "
@@ -1040,15 +1049,39 @@ def main() -> int:
                           f"-- that line has stopped progressing (defect D14)")
 
     # 7. drift vs the RUNNING sha, not vs HEAD
-    _, drift_out = _run(["git", "diff", "--name-only", RUNNING_SHA, "HEAD", "--", *DRIFT_PATHS])
+    # ⚠⚠ C5-loop / P260: THE RETURN CODE WAS DISCARDED, SO drift=0 COULD PRINT FROM A MEASUREMENT
+    # THAT NEVER RAN. `_run` returns `(99, "<probe failed: ...>")` on ANY exception -- a git timeout,
+    # a spawn failure, an `index.lock` collision with the live publisher's `git pull --rebase` -- and
+    # the `<`-prefix filter then emptied the list, yielding the CLEAN value with no alert. `drift` is
+    # an INVARIANT: it is the check that says the running drivers execute the code we think they do.
+    # An invariant that can print its clean value from a failed probe is not an invariant.
+    drift_rc, drift_out = _run(["git", "diff", "--name-only", RUNNING_SHA, "HEAD",
+                                "--", *DRIFT_PATHS])
     drift = [ln for ln in drift_out.splitlines() if ln.strip() and not ln.startswith("<")]
+    drift_unknown = drift_rc != 0
     # ⚠ ...AND the working tree. `git diff <sha> HEAD` compares two COMMITS and is therefore blind to
     # an applied-but-uncommitted edit to `src/` — which would read as zero drift while the drivers ran
     # something else entirely. Found by an independent auditor 2026-07-31; the tree was clean, so this
     # closes a hole rather than a live exposure. An uncommitted change to a drift-fenced path is MORE
     # dangerous than a committed one, not less, because nothing else in the repo records it.
-    _, dirty_out = _run(["git", "status", "--porcelain", "--", *DRIFT_PATHS])
+    dirty_rc, dirty_out = _run(["git", "status", "--porcelain", "--", *DRIFT_PATHS])
     dirty = [ln.strip() for ln in dirty_out.splitlines() if ln.strip() and not ln.startswith("<")]
+    drift_unknown = drift_unknown or dirty_rc != 0
+    if drift_unknown:
+        alerts.append(
+            f"DRIFT COULD NOT BE MEASURED this cycle (git rc diff={drift_rc} status={dirty_rc}): "
+            f"{(drift_out or dirty_out)[:200]} -- treat drift as UNKNOWN, NEVER as 0. The drivers "
+            f"may be running code that no longer matches HEAD and this probe cannot tell you.")
+    # ⚠ COMMITTED drift now ALERTS. It never did: there was no alerts/attention append for `drift`
+    # anywhere in this file, only a `note` line, so 191 historical lines read `drift=2` without
+    # touching the exit code -- while the module docstring promises exit 1 for drift. If drift had
+    # ever been the ONLY problem, nothing would have reached ALERTS.txt, "the one file to check
+    # after being away".
+    if drift:
+        alerts.append(
+            f"DRIFT vs RUNNING_SHA {RUNNING_SHA}: {len(drift)} fenced file(s) differ between the "
+            f"sha the drivers were launched from and HEAD -- {', '.join(drift[:4])}"
+            f"{' ...' if len(drift) > 4 else ''}. Either the drivers are stale or RUNNING_SHA is.")
     if dirty:
         alerts.append(f"UNCOMMITTED changes under {'/'.join(DRIFT_PATHS)}: {', '.join(dirty[:4])}"
                       f"{' …' if len(dirty) > 4 else ''} — the drift diff compares COMMITS and cannot "
@@ -1295,7 +1328,14 @@ def main() -> int:
     # degrades that row to FAIL rather than silently passing.
     sci = _sci_token(science)
     summary = (f"{stamp}  {verdict}  records={records}"
-               f"{'' if d_rec is None else f' ({d_rec:+d})'}  spend=${spend}  guards={guards_rc}  "
+               f"{'' if d_rec is None else f' ({d_rec:+d})'}  spend=${spend}  "
+               # ⚠ C2-loop / P262: this printed the raw guard EXIT CODE, permanently 2
+               # because two guards are acknowledged-failing -- a CONSTANT on all 5,038
+               # lines, so a NEW guard verdict moved nothing on the line a session is told
+               # to read first. Live proof: a cycle carrying `ram:CRITICAL` was
+               # byte-identical to its neighbours. The new/known split already existed; it
+               # just never reached this line.
+               f"guards={len(new_guards)}n/{len(known_guards)}k  "
                f"arms_full={full_lines}/10  budget={bud_rc}  stalest={stalest:.1f}m  "
                # ⚠ THE TOKEN MUST CARRY BOTH ARMS (RUN 9, record §98). This printed `len(drift)` —
                # the COMMITS-only arm — so the cycle log and Tamer's status page both read `drift=0`
@@ -1304,7 +1344,8 @@ def main() -> int:
                # and the headline is what a session reads during its first-hand state check. Caught
                # live on 2026-08-01 by watching my own D16/D12 edits fail to move it.
                # `drift=0` must be able to mean ONLY "genuinely clean"; anything else is unmissable.
-               f"drift={len(drift)}{f'+{len(dirty)}dirty' if dirty else ''}  "
+               f"drift={'UNKNOWN' if drift_unknown else len(drift)}"
+               f"{f'+{len(dirty)}dirty' if dirty else ''}  "
                f"sci={sci}  r115={science.get('sw_r115_breaches')}"
                f"{'B' if science.get('sw_r115_binding') else ''}"
                + (f"  cores={cores}" if cores else "")
