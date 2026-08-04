@@ -780,7 +780,14 @@ def main() -> int:
                     or (time.time() - _int_stamp.stat().st_mtime) > 600)
         if _int_due:
             _int_rc, _int_out = _run([sys.executable, "docs/ops/integrity_gate.py", "--quiet"],
-                                     timeout=300)
+                                     # C7-loop / P264: 300 s was the ONLY full-archive budget
+                                     # never raised, while sandbox_gap went to 900 s and the
+                                     # science layer to 600 s -- and this probe does TWO
+                                     # complete os.walk + json passes over every record. At 12k
+                                     # and heading for ~40k it would have begun timing out
+                                     # silently into `attention`, on the gate that guards the
+                                     # CONFIRMATORY path. Raised to match its siblings.
+                                     timeout=900)
             _int_stamp.parent.mkdir(parents=True, exist_ok=True)
             _int_stamp.write_text(f"{_int_rc}\n{_int_out}", encoding="utf-8")
         else:
@@ -1118,7 +1125,18 @@ def main() -> int:
     # one filled the alert file with noise the moment the cadence was automated (2026-07-31), which is
     # the same alarm-hygiene failure being fixed everywhere else in this file. What is diagnostic is a
     # SUSTAINED drought, so the streak is carried in STATE.json and only a long one speaks.
-    zero_streak = (prev.get("zero_delta_streak") or 0) + 1 if d_rec == 0 else 0
+    # C10-loop / P266: `records=None` (a FAILED probe) is not a zero delta, but because
+    # `None == 0` is False the streak RESET to 0 -- so an intermittent probe failure once every
+    # 15 cycles meant the drought alarm could never fire at all. A probe that could not measure
+    # is not evidence that records arrived: carry the streak forward and say so.
+    if records is None:
+        attention.append(
+            "the records/spend probe FAILED this cycle so `records=None`. The drought streak is"
+            " CARRIED FORWARD, not reset -- a probe that could not measure is not evidence that"
+            " records arrived (P266).")
+        zero_streak = prev.get("zero_delta_streak") or 0
+    else:
+        zero_streak = (prev.get("zero_delta_streak") or 0) + 1 if d_rec == 0 else 0
     if zero_streak and zero_streak % ZERO_DELTA_CYCLES == 0:
         attention.append(f"no new record for {zero_streak} consecutive cycles "
                          f"(~{zero_streak * 2} min) -- trainings take 4-6 h so bursts are normal, but "
@@ -1278,7 +1296,17 @@ def main() -> int:
         "alerts": alerts,
         "attention": attention,
     }
-    STATE_PATH.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    # C9-loop / P265: this was a bare write_text, so an interrupted or CONCURRENT write left a
+    # TORN file -- and `_prev_state` swallows the parse error and returns `{}`, which SILENTLY
+    # disables the REMOTE_CONTROL change detector, the record delta, the spend-fell RED, the
+    # watch-rising diffs and the R115 arrival alert, with nothing anywhere reporting that the
+    # baseline was lost. Concurrent invocations are not hypothetical: 108 duplicate timestamps
+    # exist in the log. temp + Path.replace makes the swap atomic. (`Path.replace`, not
+    # `os.replace`: this module does not import `os` and a live instrument is the wrong place
+    # to add one.)
+    _tmp_state = STATE_PATH.with_name(STATE_PATH.name + ".tmp")
+    _tmp_state.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    _tmp_state.replace(STATE_PATH)
 
     # ── SWEEP DURATION: the cadence is only as fast as the SLOWER of sleep and sweep ──────────────
     # ADDED 2026-07-31 (record 78). Both heavy layers read EVERY record, so the sweep is LINEAR in
@@ -1327,6 +1355,14 @@ def main() -> int:
     # `session_preflight.check_cycle_log` tests `sci == "OK"` by equality, so BLIND correctly
     # degrades that row to FAIL rather than silently passing.
     sci = _sci_token(science)
+    # C4-loop / P263: THE LINE WAS STAMPED AT SWEEP *START* AND APPENDED AT *END*, so its own
+    # age when the next line lands is `S_k + sleep + S_k+1`. MEASURED on the live log: the
+    # 08:07:18Z line was **908 s** old when its successor arrived, against session_preflight's
+    # 900 s cap -- a preflight in that window would have reported `cycle_log FAIL`, "the
+    # monitoring loop is DEAD", on a loop that was plainly alive. A FALSE RUN-KILLER on the
+    # campaign's primary liveness signal. Stamping at append time makes the worst case
+    # `sleep + S_k+1`; the sweep start stays recoverable as stamp - sweep.
+    stamp = _utc()
     summary = (f"{stamp}  {verdict}  records={records}"
                f"{'' if d_rec is None else f' ({d_rec:+d})'}  spend=${spend}  "
                # ⚠ C2-loop / P262: this printed the raw guard EXIT CODE, permanently 2

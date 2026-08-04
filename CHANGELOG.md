@@ -497,7 +497,35 @@ the live loop: the token now reads `guards=0n/2k`.**
 
 **P259 is holding** — four consecutive non-RED cycles, the first since 2026-07-31.
 
-**OPEN ROWS REMAINING: 9** (A6, W1/D36 escalated; seven cycle.py findings queued with falsification owed on each) — F14, the 18 style-only lint items inside live instruments, deliberately
+### PASS 9 (09:39-10:00 UTC) — four more loop defects closed, including a false run-killer that had already fired
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · drift 0 · Eqw/hqw **0** ·
+records **12,280** · **SPEED fourth consecutive improvement**: 12 h rate **175.8 -> 179.3**,
+concentration **56% -> 51%**, rung-403 ETA **08-09 03:14 -> 00:44**, rung-568 **08-11 10:21 ->
+06:46**.
+
+**P263 — a FALSE RUN-KILLER that had already fired.** The cycle line was stamped at sweep START and
+appended at END, so its own age when the next line landed was `S_k + sleep + S_k+1`. Measured on the
+live log: **the 08:07:18Z line was 908 s old against a 900 s cap** — a preflight in that window would
+have declared the live monitoring loop DEAD. The file's own comment predicted this "for the future"
+while it was already happening. Stamped at append time now.
+
+**P264** — `integrity_gate` does two complete `os.walk` + json passes over every record and carried
+the **only full-archive budget never raised** (300 s, against 900 s for `sandbox_gap` and 600 s for
+the science layer). At 12k records heading for ~40k it would have begun timing out silently, on the
+gate that guards the confirmatory path.
+
+**P265** — `STATE.json` was written non-atomically, and a torn file makes `_prev_state` return `{}`,
+**silently disabling five detectors** with nothing reporting the loss. Concurrent writes are not
+hypothetical: 108 duplicate timestamps exist in the log. Now temp + atomic replace.
+
+**P266** — a failed records probe **silently reset the drought streak**, because `None == 0` is
+False. An intermittent failure once every 15 cycles meant the drought alarm could never fire at all.
+
+All four falsified or structurally proven; the live loop verified running the patched code with
+`guards=0n/2k`, `drift=0`, a valid `STATE.json` and no stray temp files.
+
+**OPEN ROWS REMAINING: 5** (A6, W1/D36 escalated; C1/C3/C8-loop queued) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
 ## [2026-08-04a] ★★★★★ WRITE-UP — **THE EXPOSÉ WAS REBUILT FROM NOTHING, AND FIVE OF ITS FACTS WERE ALREADY FALSE WHEN STEFAN READ IT** · the full transcript overturned four things the relayed summary had told us · **and the reader-facing prose was rewritten twice, first for difficulty and then for vocabulary, because "clearer" turned out to mean two different repairs**
