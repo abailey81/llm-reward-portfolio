@@ -492,9 +492,31 @@ def main(argv=None) -> int:
     print()
     print("=== S10 CRN PAIRING / BANKED RUNG (under R101 the COMMON rung IS the result) ===")
     _legs = {k: v for k, v in line_prefix.items() if k != "test_h3_singleshot"}
+    # ⚠ P282, 2026-08-04. THE HEADLINE NUMBER USED TO BE A MINIMUM OVER THE ARMS THAT HAD STARTED.
+    # `pair_seeds` only ever acquires a key when a record exists, so a line holding a REGISTERED
+    # frozen-winner arm with ZERO sealed-test records contributed its OTHER arms' depth instead of
+    # the 0 it actually banks. Measured live 2026-08-04: this GATED layer printed the core line at
+    # prefix 30 while `record_seed_completeness` (S15/C6), the ungated measurement, printed 0 -- two
+    # instruments disagreeing about THE REPORTED SCIENTIFIC RESULT, and the gated one reading high.
+    # The `!!` note below already DISCLOSED the gap in prose, but a session that quotes the number
+    # rather than reading the note overstates the bankable result, and that is exactly the P244
+    # failure this repository has now found three times: a minimum taken over a population that
+    # silently excludes the members that would make it bad news.
+    # THE CORRECTION IS NARROW AND MATCHES S15 EXACTLY: a line with any registered arm holding no
+    # record banks 0. Nothing else about this section changes, and the started-arms figure is still
+    # printed beside it because it is the right number for the CRN-pairing question S10 asks.
+    _started = dict(_legs)
+    for _ln in list(_legs):
+        _kk = 'core' if _ln == 'test' else _ln.replace('test_leg_', '')
+        if roster.get(_kk, set()) - set(pair_seeds.get(_ln, {}).keys()):
+            _legs[_ln] = 0
     if _legs:
         _common = min(_legs.values())
         _banked = max([r for r in REGISTERED_RUNGS if r <= _common], default=0)
+        _common_started = min(_started.values())
+        if _common != _common_started:
+            print(f"  (over STARTED arms only this would read {_common_started}; the number below")
+            print("   counts a registered arm with NO record as the 0 it actually banks -- P282)")
         _slow = sorted(k for k, v in _legs.items() if v == _common)
         _lead = sorted(((v, k) for k, v in _legs.items()), reverse=True)[:1]
         print(f"  lines {len(_legs)}   COMMON contiguous prefix {_common}   "
@@ -516,10 +538,16 @@ def main(argv=None) -> int:
                 _short.append((_ln, _miss))
         if _short:
             print(f"  !! {len(_short)} of {len(_legs)} line(s) have an arm with a FROZEN WINNER but")
-            print("     NO sealed-test record, so the prefix above is over the arms that STARTED:")
+            print("     NO sealed-test record. Since P282 each of those lines is scored 0, which is")
+            print("     what it actually banks; before P282 they contributed their STARTED arms'")
+            print("     depth and this section read HIGH. The arms are named so the cause is visible:")
             for _ln, _miss in _short:
                 print(f"       {_ln:34s} missing: {', '.join(_miss)}")
-            print("     => 'banked rung' describes the STARTED arms; it is not a full-roster bank.")
+            print("     => the rung above IS a full-roster bank over frozen winners, and it agrees")
+            print("        with record_seed_completeness (S15/C6). It is still an UPPER bound for")
+            print("        the four reasons S15 lists (an arm still in C1, a line with no test dir,")
+            print("        an unreadable frozen roster, and the 11 H1 baselines, which are excluded")
+            print("        from pair_seeds by design and are checked separately by S15).")
 
     print()
     print("=== S5 DISCLOSURE: safe-default fallback BELOW the registered R115 floor ===")
