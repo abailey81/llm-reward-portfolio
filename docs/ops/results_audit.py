@@ -283,5 +283,11 @@ if hard_failures:
     for f in hard_failures:
         print("      -", f)
     sys.exit(2)
+if not records:
+    # P296: ZERO IS NOT CLEAN -- see record_validator.py. This tool walks the archive and was
+    # missed when the guard went into the seven gated layers, because I looked at the layer
+    # list rather than at everything that walks.
+    print("  *** CANNOT VOUCH FOR ANYTHING -- ZERO records were inspected. NOT a clean result.")
+    sys.exit(2)
 print("  no hard invariant failed. NOTEs above are properties to REPORT, not faults to fix.")
 sys.exit(0)

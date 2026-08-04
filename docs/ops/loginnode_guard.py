@@ -41,7 +41,7 @@ USAGE
     python docs/ops/loginnode_guard.py                  # loop, default 120 s
     python docs/ops/loginnode_guard.py --selftest       # no network
 
-Exit codes for --once: 0 = comfortable, 1 = WARN (approaching), 2 = OVER the policy limit.
+Exit codes for --once: 0 = comfortable, 1 = WARN (approaching), 2 = OVER the policy limit, 3 = UNKNOWN (the probe produced no reading -- P279).
 
 Printed output is ASCII-only: this repo's PowerShell console is cp1251 and a non-ASCII glyph in
 a print() raises UnicodeEncodeError.

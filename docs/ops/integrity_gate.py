@@ -163,6 +163,19 @@ def check(root: Path) -> list[dict]:
         breaches.append({"invariant": inv, "lane": lane,
                          "confirmatory": lane in CORE_LINES, "detail": detail})
 
+    # ⚠ P296: ZERO IS NOT CLEAN, and this gate was missed when that guard went into the seven
+    # gated layers -- because I looked at the LAYER LIST rather than at everything that walks the
+    # archive. `rglob` over a missing or empty tree returns an empty iterator and raises nothing, so
+    # an absent archive used to print "I1 ... I6 -- all clean" and return 0. The archive is a PULL
+    # MIRROR, so "not here yet" is reachable, and this is the CONFIRMATORY-path gate.
+    # It is raised as a BREACH rather than a bare exit because that is this file's own contract: an
+    # empty breach list means "every invariant held", and it did not hold -- it was never evaluated.
+    if not every:
+        fail("I0 vacuity", "-",
+             "ZERO records found under the archive root: I1-I6 were NEVER EVALUATED. "
+             "This is NOT a clean result.")
+        return breaches
+
     # I1 -- SELF-HASH
     for rec in every:
         src, h = rec.get("reward_source"), rec.get("reward_source_hash")

@@ -95,6 +95,13 @@ def _records(root: Path) -> list[tuple[str, str, dict]]:
 def main(argv: list[str]) -> int:
     root = Path(argv[1] if len(argv) > 1 else "outputs/campaign_cluster_run4")
     recs = _records(root)
+    if not recs:
+        # P296: ZERO IS NOT CLEAN -- see record_validator.py for the full note. This tool
+        # walks the archive and was missed when the guard was applied to the seven gated
+        # layers, because I looked at the layer list rather than at everything that walks.
+        print("*** CANNOT VOUCH FOR ANYTHING -- ZERO records under %s." % root)
+        print("    This is NOT a clean result: no science check was evaluated.")
+        return 2
     # ⚠ SAY WHAT THE NUMBER COUNTS (RUN 9, record §88). This header printed a bare "N records" that
     # disagreed with the cycle log's `records=` under the SAME word — 1,560 here against 1,532 there,
     # on the same archive at the same moment. Neither was wrong; they count different things. The
