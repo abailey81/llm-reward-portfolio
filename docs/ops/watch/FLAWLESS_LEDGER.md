@@ -300,6 +300,26 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 14:10 | **174.5** | 158.2 | 1,867 | 226/57 | 83% (sonnet-5) | bayes_opt 2 | -- | -- | -- |
 | 2026-08-04 14:43 | **178.8** | 160.3 | **1,925** | 236/35 | 87% (sonnet-5) | bayes_opt 2 | -- | -- | -- |
 | 2026-08-04 14:46 | **179.1** | 160.6 | 1,929 | 237/**31** | 87% (sonnet-5) | bayes_opt 2, tpe 2 | -- | -- | -- |
+| 2026-08-04 15:09 | **179.7** | **162.7** | 1,864 | 229/30 | 90% (sonnet-5) | bayes_opt 2, tpe 2 | -- | -- | -- |
+
+**RUN 20 pass 14 speed verdict — SEVENTH CONSECUTIVE IMPROVEMENT, AND THE BOARD IS GREEN.** 12 h
+**179.7 rec/h** and 24 h **162.7**, both session highs; slots 1,864 with the queue at 30 and
+`Eqw`/`hqw` **0**. ⭐ **The cycle verdict has now read `OK` on three consecutive lines** (14:59:10Z,
+15:02:17Z, 15:06:05Z) after 27 of the previous 30 read `ATTN` -- P293 removed the last unacknowledged
+attention row and nothing has replaced it. Concentration 90% on sonnet-5, unchanged in meaning: it is
+the only line deep in a C4 sweep and its records land above the common rung.
+
+**★ P293's OWN P259 TEST, RUN ON MY OWN FIX RATHER THAN LEFT TO THE AUDITOR.** A demotion is the shape
+most likely to be a weakening, so the three branches were re-read as shipped and each proven still
+reachable: the **RED** branch (`_resumed` False -- no crashed arm has archived a record) is **entirely
+untouched**; the **ATTENTION** branch is reached whenever `_resumed` is True and `_all_frozen` False,
+which is exactly a crash that recovered but has not yet frozen a winner -- the normal mid-search
+state; and the seed is `_all_frozen = bool(_arms_map)`, **not `True`**, so an unreadable marker
+(`_arms_map == {}`) cannot produce a vacuous demotion and still falls to RED, preserving the original
+"unknown is never downgraded" contract. **No branch was made unreachable and no path was weakened.**
+
+**Watch, no action:** `83464` (`gpt-5.6-luna`'s round-2 repair for seeds 192/193) is still RUNNING
+after 2.4 h, inside the 9.4 h sealed-test wall. LADDER-1.
 
 **RUN 20 pass 12 speed verdict — SIXTH CONSECUTIVE IMPROVEMENT, AND THE QUEUE IS NEARLY DRY.**
 12 h **179.1 rec/h**, 24 h **160.6**, slots **1,929**, and the queue fell **70 -> 57 -> 35 -> 31**
