@@ -402,6 +402,40 @@ it is a monitor, and the rates are measured correctly by `authoring_reliability.
 around it IS fixed: `acknowledged_alarms.txt` now carries the structural proof so no future session
 re-triages it, and it is registered as **D36** for the next deploy window.
 
+### PASS 6 (08:17-08:45 UTC) — **THE THROUGHPUT DECLINE REVERSED**, and the last fixable row closed
+
+**COMMON RUNG 0**, unchanged. Preflight **VERDICT OK all 17** · **ALL 7 LAYERS RAN, ALL RC=0** ·
+`line_balance` CLEAN · census all six `ok` · drift 0 · Eqw/hqw **0** · records **11,867** · disk
+39.4 GB · login node comfortable.
+
+**★ SPEED-3 — THE FOUR-PASS DECLINE REVERSED, AND IT CONFIRMS THE PASS-3 DIAGNOSIS.** 12 h rate
+**141.7 -> 169.4 rec/h**, slots **1,696 -> 1,904**, single-line concentration **98% -> 67%**. That is
+the line handover completing: sonnet's jobs, dispatched ~6 h earlier, have begun returning records,
+so the fleet now has two real producers instead of one. Corroborating on four independent numbers:
+rung-30 remaining **428 -> 404**, `tpe` **25 -> 26/30**, the critical-chain floor **0.93 -> 0.74 d**,
+and the rung-403 ETA **08-10 -> 08-09**. **The declining trailing rate was never a fault; it was the
+cost of the handover, and this is the other side of it.**
+
+**A-f4 FIXED.** `publish_status.sh` sent the status commit's stderr to `/dev/null`, so a
+`git commit --only` returning **rc=128** (*"cannot do a partial commit during a merge"*) killed BOTH
+pushes through the `&&` chain while the loop printed *"no change to publish"* — indistinguishable
+from benign, with `check_status_page` measuring only the page MTIME so the board stayed green while
+the page never left the machine. Falsified across four states in a throwaway repo: merge in progress
+now reports `COMMIT FAILED rc=128`, a real change still commits, **and a no-op cycle stays SILENT**
+so no routine false alarm is added. ⚠ The edit itself was the hazard — that script runs every ~2 min
+and editing a running bash script is P250, which I caused earlier today. A waiter polled until a
+**verified idle window**, discriminating the real publisher (`bash.exe <path>`) from my own shells
+(which always carry `-c`, the P255 lesson), patched inside it, and re-confirmed the count was still
+zero across the write. Live publisher verified healthy after: page 0.8 min old, commits landing.
+
+**P251 RE-VERIFIED ON LIVE TRAFFIC.** Status commits `af97b6b3` and `6ac5ae4f` each touch **exactly
+`docs/RUN4_STATUS.md` and nothing else** — the `--only` fix is holding where, before it, a
+366-insertion instrument change was swept into one.
+
+**Nothing new was found this pass**, and the two remaining rows are both yours: **A6** (h3 folded
+into the campaign-wide minimum — a pre-registration question) and **W1/D36** (`gate_failure_drift`
+is a CUSUM that can never clear — `scripts/` is drift-fenced while live).
+
 **OPEN ROWS REMAINING: 2** (A6 and W1/D36, both escalated) — F14, the 18 style-only lint items inside live instruments, deliberately
 deferred to after the exogenous stop.
 
