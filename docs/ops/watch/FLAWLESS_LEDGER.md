@@ -469,11 +469,42 @@ quantities. RUN 21 read a rise in the first as a recoverable loss in the second.
 more of what we cannot take buys nothing.** The fourteen RUN 20 measurements were RIGHT: this is
 functional fair-share by user, and nothing we control changes it.
 
-⚠ **ONE HONEST CAVEAT, STATED RATHER THAN SMOOTHED.** Nine minutes is roughly ONE scheduling
-interval, so this is one observation of a flat line, not a trend. The dispatch sampler is still
-running and the next passes must confirm it. **Do not quote "we are throttled" as settled until
-three passes agree** — that is the same discipline that turned the RUN 21 trough alarm into a
-retraction.
+⚠ **A CAVEAT WAS ENTERED HERE AND THE MEASUREMENT HAS NOW DISCHARGED IT.** The first version of this
+section rested on NINE MINUTES — roughly one scheduling interval — which is one observation of a flat
+line, not a trend, and this ledger has already had to retract one alarm raised on less. **The sampler
+ran to completion: 15 samples, 3 minutes apart, 42 minutes, 4.2 scheduling intervals.**
+
+```
+running slots  1,144 -> 1,232    sd 28.3    full range 8.0% of the mean    =  +126 slots/h
+queued  slots  2,800 -> 5,384                                              = +3,691 slots/h
+```
+
+**⇒ WE PRESENT WORK 29 TIMES FASTER THAN WE ARE GIVEN IT, AND OUR HELD SLOTS DO NOT MOVE.** Across
+4.2 scheduling intervals the running total is flat to within 8%. This is fair share, measured rather
+than inferred, and it closes the question for the conditions it was measured under.
+
+### ⭐ AND THE SHARE DECLINE ITSELF WAS THEN EXPLAINED, WHICH ANSWERS TAMER'S "WE FELL VERY BADLY" DIRECTLY
+
+Our share read **2,018 slots at 12:00Z** and **~1,232 now** — a 39% reduction inside twelve hours,
+and NOT the sawtooth (the sawtooth is our own queue emptying, and our queue is 5,384 slots deep). So
+it was measured rather than assumed, per user, cluster-wide:
+
+```
+cluster-wide RUNNING slots ........ 8,238        ucbtjji  1,408   <- #1
+ucestes (us) ...................... 1,232        ucestes  1,232   <- #2, 15.0% of the whole cluster
+                                                 uctpec1  1,020   <- #3
+```
+
+⇒ **WE DID NOT FALL THROUGH ANY MISCONFIGURATION. OTHER LARGE USERS ARRIVED AND FAIR SHARE
+REDISTRIBUTED, WHICH IS THE MECHANISM WORKING AS DESIGNED.** We are the **second-largest consumer on
+Myriad and hold 15% of every running slot on the machine**, with zero `Eqw`, no quota, and 5,384
+slots queued ready to take anything that frees. **There is no lever here and nothing to fix.**
+
+⚠ **WHAT REMAINS A WATCH, AND IT IS THE ONLY ETA SIGNAL THAT MATTERS NOW:** the forward rate scales
+directly with held slots — at 1,232 cores rung 568 lands ~13 August; at ~600 it would not land before
+the stop. **Record held slots every pass. A sustained decline is the OPEN finding.** Not the queue
+depth, which is now meaningless as a signal, and not the placeable-core count, which measures the
+wrong thing entirely.
 
 ### ⚠ AND A CORRECTION TO THE PARAGRAPH THAT STOOD HERE FIFTEEN MINUTES AGO — I OVER-WEIGHTED A LABEL
 
