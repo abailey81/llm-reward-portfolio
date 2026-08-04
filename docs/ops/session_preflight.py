@@ -482,10 +482,39 @@ def check_records() -> None:
 
 
 def check_git_backup() -> None:
+    """Is this session's work SAFE OFF-MACHINE? That is the question the row exists to answer.
+
+    ⚠ IT USED TO ASK A NARROWER ONE (fixed 2026-08-04). It compared HEAD only against
+    `origin/myriad-cluster-and-tier-system` and then said, in its own message, *"the backup branch
+    may still carry them"* -- an imprecision the author DOCUMENTED instead of MEASURING. The result
+    was an ATTENTION every single time a session committed, for the ~2 minutes until the status
+    publisher's next push, on work that was already safe on the backup branch. It fired three times
+    in one session. **A board that raises a routine, self-clearing ATTENTION teaches its reader to
+    ignore ATTENTIONs**, which is the cost that matters -- the same reasoning as the always-on-alarm
+    pathology that let `guards=2` hide P202 for 31 h.
+
+    This is NOT a weakened check. The dangerous state -- a commit that exists on NO remote at all --
+    still raises ATTENTION. What no longer raises one is a commit that IS backed up but has not yet
+    reached the working branch, which is a sequencing fact, not a risk.
+
+    Caveat, stated rather than hidden: this reads LOCAL remote-tracking refs, so it is only as
+    current as the last fetch. A stale ref can only make it MORE pessimistic, never less.
+    """
     _, out = sh(["git", "log", "--oneline", "origin/myriad-cluster-and-tier-system..HEAD"])
-    n = len([x for x in out.splitlines() if x.strip() and not x.startswith("fatal")])
-    add("unpushed", OK if n == 0 else ATTN,
-        f"{n} commit(s) not on the working branch remote (the backup branch may still carry them)")
+    n_working = len([x for x in out.splitlines() if x.strip() and not x.startswith("fatal")])
+    _, refs = sh(["git", "for-each-ref", "--contains", "HEAD", "--format=%(refname:short)",
+                  "refs/remotes/"])
+    holding = [r.strip() for r in refs.splitlines()
+               if r.strip() and not r.startswith("fatal") and not r.endswith("/HEAD")]
+    if not holding:
+        add("unpushed", ATTN,
+            f"{n_working} commit(s) on NO REMOTE AT ALL -- this work exists only on this machine")
+    elif n_working:
+        add("unpushed", OK,
+            f"{n_working} commit(s) not yet on the working branch, but BACKED UP on "
+            f"{', '.join(holding[:3])} -- safe off-machine; the publisher pushes within ~2 min")
+    else:
+        add("unpushed", OK, f"0 unpushed; HEAD is on {len(holding)} remote ref(s)")
 
 
 def check_full() -> None:
