@@ -304,6 +304,27 @@ more than it saves. **Never trade correctness, CRN determinism or the frozen des
 | 2026-08-04 15:42 | **180.3** | **164.9** | 1,868 | 231/**18** | 94% (sonnet-5) | bayes_opt 2, tpe 2 | -- | -- | -- |
 | 2026-08-04 16:14 **RUN 21 pass 1** | **183.2** | **165.6** | 1,848 | 231/**3** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | 08-05 ~11:00 (chain-aware, see below) | 08-09 00:15 | 08-11 03:44 |
 | 2026-08-04 17:42 **RUN 21 pass 2** | **191.2** | **171.2** | 1,664 | 210/**0** | **100%** (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
+| 2026-08-04 19:15 **RUN 21 pass 4** | **200.4** | **180.8** | **1,248** | 158/**0** | 96% (sonnet-5) | bayes_opt 2, tpe 2 | GATED | GATED | GATED |
+
+**RUN 21 pass 4 (19:15Z) — RATES AT ANOTHER NEW HIGH WHILE SLOTS FELL 32%, AND THE TWO FACTS HAVE
+THE SAME CAUSE.** 12 h **200.4 rec/h** (183.2 -> 191.2 -> 200.4 across the three passes), 24 h
+**180.8**. Slots **1,848 -> 1,664 -> 1,248**, jobs 231 -> 210 -> 158, queue **0** throughout.
+
+⚠ **A 32% SLOT DROP IS A MATERIAL DROP AND THE CONTRACT SAYS WORK IT TO A CAUSE, SO IT WAS WORKED.
+IT IS NOT A FAULT — IT IS sonnet-5's C4 SWEEP DRAINING.** Per-line running jobs on that one line:
+**83 -> 71 -> 35 -> 11**, while its records went 454 -> 475 -> 541 -> 565 and its **banked rung moved
+30 -> 100**. The fleet shrank because its single largest consumer is FINISHING, and the record rate
+hit a new high for exactly the same reason: those completions are landing as records. This is the
+line-handover shape recorded as SPEED-1/SPEED-3, seen at the END of a handover rather than the start.
+**`line_balance` reads CLEAN, no line is idle with work owed, and the queue is 0 — so nothing of ours
+is waiting on the scheduler.** Nothing to fix.
+
+⭐ **AND THE LADDER MOVED, WHICH IS THE FIRST SUCH MOVEMENT SINCE THE COMMON RUNG WAS FIRST MEASURED
+AT 0: `glm_5_2` NO LONGER HAS `distributional` AT ZERO.** Its C2 `h2_pair` is landing; only `scalar`
+remains, and both arms of a pair test run as one 60-unit stage, so `scalar` follows shortly.
+**`sonnet_5` banked 30 -> 100.** `haiku_4_5` and `qwen3_6_27b` are both climbing past 30 with holes
+above their banked rung, which is the normal pipelined-C4 shape and self-heals.
+**COMMON RUNG STILL 0**, capped by core, deepseek, nemotron and kimi — unchanged and honest.
 
 **RUN 21 pass 2 (17:42Z) — BOTH RATES AT NEW HIGHS, AND `stage_eta` NOW REFUSES TO DATE THE RUNGS.**
 12 h **191.2 rec/h** (was 183.2), 24 h **171.2** (was 165.6). Slots fell 1,848 -> **1,664** and the

@@ -33,6 +33,7 @@ Exit:   0 every expected relationship holds * 1 a disagreement * 2 could not run
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -121,6 +122,22 @@ def _rung_from(tool: str, root: Path) -> int | None:
     return None
 
 
+def _leg_floor_seeds() -> int:
+    """How many seeds the cross-model synthesis is pinned to, READ from the source, never assumed.
+
+    `src/inference/leg_aggregate.py` is drift-fenced, so this parses the constant rather than
+    importing the module (importing would pull the whole inference stack in for one integer). If the
+    constant cannot be read the caller must treat the row as UNKNOWN, so this raises rather than
+    guessing a default -- a floor nobody verified is exactly the kind of remembered number that made
+    `CLAUDE.md` say 35 output keys when the code said 39.
+    """
+    src = (REPO / "src" / "inference" / "leg_aggregate.py").read_text(encoding="utf-8")
+    m = re.search(r"^T0_FLOOR_SEEDS\s*=\s*list\(range\((\d+)\)\)", src, re.M)
+    if not m:
+        raise ValueError("T0_FLOOR_SEEDS not found in src/inference/leg_aggregate.py")
+    return int(m.group(1))
+
+
 def run(root: Path, deep: bool) -> int:
     if not root.is_dir():
         print("*** CANNOT RUN: %s is not a directory. NOT a clean result. ***" % root)
@@ -172,6 +189,143 @@ def run(root: Path, deep: bool) -> int:
                 "S10=%d  S15=%d" % (s10, s15), s10 == s15)
     else:
         add("A4", "banked rung: S10 vs S15", "SKIPPED (--deep runs both layers, ~5 min)", True)
+
+    # ---- A5 SPEND (RUN 21) --------------------------------------------------------------------
+    # EXPECTED IDENTITY: the total the board prints == the sum of `cost_usd` over every row of every
+    # `spend_ledger_*.jsonl`. The board's figure is what reaches Tamer and, via Raad's cost-discipline
+    # point and Okhrati's compute-reporting mechanic, the dissertation. If a ledger were dropped, a
+    # line double-counted, or a row unparseable, nothing anywhere would have said so.
+    # ⚠ IT ALSO REPORTS THE REALIZED/ESTIMATED SPLIT, because E-spend measured the printed total as
+    # 80.7% MODEL ESTIMATE and the confirmatory line as 100% estimate -- a four-decimal figure that
+    # reads as measurement precision. The split lives in each row's `note`.
+    # ⚠⚠ THESE TWO ROWS READ THE LIVE BOARD, SO THEY ARE ONLY MEANINGFUL AGAINST THE LIVE ROOT.
+    # The first version did not check that, and the selftest caught it within minutes: pointed at a
+    # SYNTHETIC archive it compared the live `STATE.json` against that archive's (empty) ledgers and
+    # reported a disagreement between two things that were never about each other. A row must be
+    # about the root it was pointed at, or it is measuring the wrong pair. Skipping is honest here
+    # and is NOT a weakening: on the live root, which is the only root that has a board, both rows
+    # run in full.
+    state_p = REPO / "docs" / "ops" / "watch" / "STATE.json"
+    live_root = (REPO / "outputs" / "campaign_cluster_run4").resolve()
+    is_live = root.resolve() == live_root
+    if not is_live:
+        add("A5", "spend: the board's printed total vs the sum over spend_ledger_*.jsonl",
+            "SKIPPED -- STATE.json describes the LIVE root only, and --root is %s" % root, True)
+        add("A6", "frozen-winner roster: STATE.json vs the `*-winner` directories on disk",
+            "SKIPPED -- same reason", True)
+    led = sorted((root).glob("spend_ledger_*.jsonl"))
+    try:
+        st = json.loads(state_p.read_text(encoding="utf-8")) if is_live else {}
+        board = sum(float((st.get("budget") or {}).get(k, {}).get("spent", 0.0))
+                    for k in ("anthropic", "openrouter")) if is_live else None
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        board = None
+        add("A5", "spend: the board's total vs the sum over spend_ledger_*.jsonl",
+            "COULD NOT READ STATE.json (%s) -- NOT a clean result" % type(exc).__name__, False)
+    if board is not None:
+        tot = real = est = 0.0
+        n_rows = n_bad = 0
+        for f in led:
+            for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    d = json.loads(line)
+                    c = float(d.get("cost_usd") or 0.0)
+                except (ValueError, TypeError):
+                    n_bad += 1
+                    continue
+                n_rows += 1
+                tot += c
+                if "estimated" in str(d.get("note") or "").lower():
+                    est += c
+                else:
+                    real += c
+        # 1 cent: the board rounds to 4 dp and rows accumulate float error over thousands of adds.
+        ok = (not n_bad) and abs(tot - board) < 0.01
+        add("A5", "spend: the board's printed total vs the sum over spend_ledger_*.jsonl",
+            "board=$%.4f  ledgers=$%.4f over %d row(s) in %d file(s), %d unparseable "
+            "| SPLIT realized $%.4f + estimated $%.4f (E-spend: never quote the pooled figure alone)"
+            % (board, tot, n_rows, len(led), n_bad, real, est), ok)
+
+    # ---- A6 FROZEN WINNERS (RUN 21) -----------------------------------------------------------
+    # EXPECTED IDENTITY: STATE.json's `science.frozen_winners_by_line` == the count of `*-winner`
+    # directories on disk, per line. The board's copy is what the C4-precondition alert is built on,
+    # and a stale or partial copy would announce a freeze boundary that had not been reached.
+    # ⚠⚠ AND THE FIRST VERSION OF THIS ROW WAS WRONG IN THE EXACT WAY THIS FILE EXISTS TO PREVENT:
+    # it compared `frozen_winners_by_line` against EVERY `*-winner` directory and reported
+    # `frozen board=5 disk=7` as a disagreement. `cycle.py:590-598` counts only the FIVE LLM arms --
+    # deliberately, because the C4-precondition alert must not fire on `random_search-winner` or
+    # `cma_es-winner` -- and it also requires a `record.json` inside the marker. Two different
+    # populations, asserted equal by me. **I violated this file's own design rule while extending
+    # it**, and the fix is to compare LIKE FOR LIKE: the LLM-arm count against `frozen_winners_by_line`
+    # and the FULL marker count against `frozen_markers_by_line`, both requiring the record.
+    if board is not None:
+        llm = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
+        disk_llm: dict[str, int] = {}
+        disk_all: dict[str, int] = {}
+        for marker in root.glob("frozen*/*-winner/record.json"):
+            ln_ = marker.parent.parent.name
+            disk_all[ln_] = disk_all.get(ln_, 0) + 1
+            if marker.parent.name[: -len("-winner")] in llm:
+                disk_llm[ln_] = disk_llm.get(ln_, 0) + 1
+        sci = st.get("science") or {}
+        for cid, key, dsk, what in (
+                ("A6", "frozen_winners_by_line", disk_llm,
+                 "frozen-winner roster (LLM arms only, the confirmatory count): STATE.json vs disk"),
+                ("A6b", "frozen_markers_by_line", disk_all,
+                 "frozen-marker roster (EVERY arm): STATE.json vs disk")):
+            b = sci.get(key) or {}
+            bad_w = ["%s board=%s disk=%d" % (k, b.get(k), v)
+                     for k, v in sorted(dsk.items()) if b.get(k) != v]
+            bad_w += ["%s board=%s but NO marker on disk" % (k, v)
+                      for k, v in sorted(b.items()) if k not in dsk]
+            add(cid, what, "identical on all %d line(s)" % len(dsk) if not bad_w
+                else "%d disagreement(s): %s" % (len(bad_w), "; ".join(bad_w[:4])), not bad_w)
+
+    # ---- A7 THE CROSS-MODEL SEED FLOOR (RUN 21) -----------------------------------------------
+    # EXPECTED RELATIONSHIP: `src/inference/leg_aggregate.py` pins `T0_FLOOR_SEEDS = list(range(30))`
+    # and `analyze_campaign` passes no `seeds`, so the cross-model synthesis -- the registered
+    # R86/R101 "across every model we tested" claim -- is computed at a FIXED 30 seeds. Every line it
+    # includes must therefore actually HOLD 30 seeds on every arm it contributes, or the floor is
+    # computed over seeds that do not exist. This is defect D60 made checkable.
+    # An unreadable constant must be a FAILING ROW, never a traceback: this file's contract is that
+    # it always prints a verdict for every row, and a crash mid-run prints none of them. Caught while
+    # testing the candidate from a scratch directory, where REPO resolved elsewhere -- an artefact of
+    # the test, but it exposed a real fail-open-by-crashing path.
+    try:
+        floor = _leg_floor_seeds()
+    except (OSError, ValueError) as exc:
+        add("A7", "cross-model floor: leg_aggregate's fixed seed set vs the depth each line HOLDS",
+            "COULD NOT READ T0_FLOOR_SEEDS (%s: %s) -- UNKNOWN, NOT a clean result"
+            % (type(exc).__name__, exc), False)
+        floor = None
+    short: list[str] = []
+    for ln in (lines if floor is not None else []):
+        arms = sorted(roster_winner_only(root, ln))
+        if not arms:
+            continue
+        m = min(depth_seed_dirs(root, ln, a) for a in arms)
+        if m < floor:
+            short.append("%s(min %d)" % (ln, m))
+    # ⚠ THIS IS A TEARDOWN PRECONDITION, NOT A LIVE INVARIANT, AND SAYING SO IS THE POINT.
+    # `analyze_campaign` computes the cross-model synthesis ONCE, at teardown. Below the floor is the
+    # NORMAL state of a climbing campaign, so a row that goes red for it would be red for weeks and
+    # would teach its reader to ignore this file -- the alarm-fatigue pathology that let `guards=2`
+    # hide a real defect for 31 hours. It therefore PASSES while reporting the live shortfall, and the
+    # number it prints is the bits: it must reach zero before the synthesis is computed. Correcting a
+    # mis-specified check is not weakening it; asserting a teardown condition as a live one was.
+    if floor is not None:
+        add("A7",
+            "cross-model floor (TEARDOWN PRECONDITION): leg_aggregate's fixed %d-seed set vs the "
+            "depth each line HOLDS" % floor,
+            "every line holds at least %d seed(s) on every arm -- the precondition is MET" % floor
+            if not short else
+            "NOT YET MET, which is normal mid-campaign: %d line(s) hold FEWER than %d on some arm, "
+            "so the fixed floor would today be computed over seeds that do not exist there (%s). "
+            "This MUST read zero before the cross-model synthesis is computed at teardown (D60)."
+            % (len(short), floor, ", ".join(short[:6])),
+            True)
 
     # ---- report -------------------------------------------------------------------------------
     print("=== INSTRUMENT AGREEMENT -- do tools reporting the SAME quantity agree? ===")
