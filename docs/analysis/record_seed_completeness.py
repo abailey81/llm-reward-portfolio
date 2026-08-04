@@ -257,10 +257,35 @@ def report(root: str, verbose: bool = False) -> int:
             # written to stop. Found by a read-only auditor, not by me.
             # The cap is an arm whose banked rung EQUALS the line's minimum; among those, the one
             # with the most holes is the most informative to name.
-            capping = [a for a in arms if a[1] == lo and a[4]]
-            worst = max(capping, key=lambda a: a[4]) if capping else None
-            note = ("   <<< %s has %d HOLE(S) below its frontier %d -- that is what caps this line"
-                    % (worst[0], worst[4], worst[3])) if worst else ""
+            # ⚠⚠ P258 -- AND THE P253 FIX LEFT A STATE WITH *NO* EXPLANATION AT ALL. It required the
+            # capping arm to have a HOLE (`and a[4]`), so an arm that is STARTED, perfectly
+            # CONTIGUOUS, and merely SHALLOWER than the next rung named nobody -- the line printed
+            # "banked rung 0" with a blank reason. Live on 2026-08-04: `test_leg_kimi_k3` began its
+            # h2_pair and held `distributional` and `scalar` at 12 contiguous seeds each, so both
+            # banked 0 with zero holes and the most important number in the campaign was reported
+            # with no cause. **P253 stopped naming the WRONG arm and started naming NO arm.**
+            # A cap always has a reason; there are exactly three, and all three are now named.
+            capping = [a for a in arms if a[1] == lo]
+            holed_caps = [a for a in capping if a[4]]
+            if holed_caps:
+                w = max(holed_caps, key=lambda a: a[4])
+                note = ("   <<< %s has %d HOLE(S) below its frontier %d -- that is what caps "
+                        "this line" % (w[0], w[4], w[3]))
+            elif capping and lo < max(rungs):
+                # Shallow-but-clean: name the shallowest, and the rung it is short of.
+                # ⚠ Gated on `lo < max(rungs)`. Without that gate my own first version printed
+                # "holds only 568 contiguous seed(s), short of rung the ceiling" on the two lines
+                # that have FINISHED -- a completed line is not capped, and calling it capped is a
+                # false negative dressed as an explanation. Caught by reading the output.
+                w = min(capping, key=lambda a: a[2])
+                nxt = next((r for r in sorted(rungs) if r > w[2]), None)
+                note = ("   <<< %s holds only %d contiguous seed(s), short of rung %d -- that is "
+                        "what caps this line (no hole; it simply has not climbed yet)"
+                        % (w[0], w[2], nxt)) if nxt is not None else ""
+            elif lo >= max(rungs):
+                note = "   <<< COMPLETE -- every arm holds the full registered ladder"
+            else:
+                note = ""
         print("  %-30s banked rung %4d  (arms: %s)%s"
               % (line, lo, " ".join("%s=%d" % (a[0][:12], a[1]) for a in arms) if verbose
                  else "%d arms" % len(arms), note))
@@ -563,6 +588,49 @@ def selftest() -> int:
         check("R3 yet the verdict FLIPS 0 -> 1, because that arm banks rung 0 (C6 reaches the exit)",
               rc_clean == 0 and rc_unstarted == 1, "clean=%s unstarted=%s"
               % (rc_clean, rc_unstarted))
+
+    # ---------------------------------------------------------------------------------------
+    # P258 -- EVERY CAPPED LINE MUST NAME ITS CAUSE. The P253 fix required the capping arm to have
+    # a HOLE, so a STARTED, perfectly CONTIGUOUS, merely SHALLOW arm named nobody and the line
+    # printed "banked rung 0" with a blank reason. Live shape: kimi's h2_pair at 12 contiguous
+    # seeds. And the first repair over-applied, calling a COMPLETED line "short of the ceiling".
+    # ---------------------------------------------------------------------------------------
+    import contextlib as _cl2
+    import io as _io2
+
+    def _render(td):
+        buf = _io2.StringIO()
+        with _cl2.redirect_stdout(buf):
+            report(td)
+        return buf.getvalue()
+
+    with tempfile.TemporaryDirectory() as td:
+        for arm, n in (("placebo", 30), ("distributional", 12)):
+            for sd in range(n):
+                u = os.path.join(td, "test_leg_s1", arm, "%s-s%d" % (arm, sd))
+                os.makedirs(u, exist_ok=True)
+                with open(os.path.join(u, "record.json"), "w", encoding="utf-8") as fh:
+                    fh.write("{}")
+        d = scan(td)
+        holes = sum(len(v["holes"]) for v in d.values())
+        row = [ln for ln in _render(td).splitlines() if "test_leg_s1" in ln and "banked rung" in ln]
+        check("S1 fixture: a shallow arm with ZERO holes anywhere", holes == 0, "holes=%d" % holes)
+        check("S2 the capped line still NAMES its cause (blank was the P258 defect)",
+              bool(row) and "distributional holds only 12" in row[0],
+              row[0].strip() if row else "NO ROW")
+        check("S3 and it names the rung it is short of", bool(row) and "short of rung 30" in row[0],
+              row[0].strip() if row else "NO ROW")
+
+    with tempfile.TemporaryDirectory() as td:
+        for sd in range(568):
+            u = os.path.join(td, "test_leg_s2", "distributional", "distributional-s%d" % sd)
+            os.makedirs(u, exist_ok=True)
+            with open(os.path.join(u, "record.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+        row = [ln for ln in _render(td).splitlines() if "test_leg_s2" in ln and "banked rung" in ln]
+        check("S4 a COMPLETED line is not described as 'short of the ceiling'",
+              bool(row) and "short of" not in row[0] and "COMPLETE" in row[0],
+              row[0].strip() if row else "NO ROW")
 
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1

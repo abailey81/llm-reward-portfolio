@@ -497,24 +497,61 @@ def check_git_backup() -> None:
     still raises ATTENTION. What no longer raises one is a commit that IS backed up but has not yet
     reached the working branch, which is a sequencing fact, not a risk.
 
-    Caveat, stated rather than hidden: this reads LOCAL remote-tracking refs, so it is only as
-    current as the last fetch. A stale ref can only make it MORE pessimistic, never less.
+    ⚠⚠⚠ AND THE FIRST VERSION OF THAT FIX FAILED **OPEN** -- the worst defect class in this
+    repository, introduced by me while removing a false positive (P257, found by an auditor).
+    `sh()` returns `(stdout + stderr)` and a return code, and I discarded the code (`_, refs = ...`).
+    The only filter dropped lines starting with `fatal`. So:
+      * `warning: ignoring broken ref refs/remotes/origin/x` goes to STDERR, is merged in, survives
+        the filter, and becomes a "holding ref";
+      * `sh()`'s own exception path returns `99, "TimeoutExpired: ..."`, which likewise becomes one.
+    Either way `holding` is non-empty and the row prints **OK -- safe off-machine** while ZERO
+    remotes contain HEAD. The OLD code counted `git log` lines, so an error string INCREASED the
+    count and raised ATTENTION: it failed SAFE. **My rewrite inverted the failure direction of the
+    one alarm it promised to preserve.** This is exactly P230/P232's rule -- a verdict channel must
+    not share a value with a failure channel -- and it is now enforced: a non-zero return code is
+    UNKNOWN, never a backup, and only strict `refs/remotes/<name>` lines count.
+
+    ⚠ THE STALENESS CAVEAT WAS ALSO BACKWARDS. This file previously claimed *"a stale ref can only
+    make it MORE pessimistic, never less."* FALSE: a tracking ref for a branch that was deleted or
+    force-pushed server-side still satisfies `--contains HEAD` locally, so a stale ref makes this
+    OPTIMISTIC. It is stated as the real caveat now rather than as a reassurance.
+
+    SCOPE, narrowed to what is actually measured: this covers COMMITTED work only. Uncommitted
+    edits in the working tree are outside it, and `drift_arm2` covers only
+    `src|scripts|config|prompts`, so `docs/**` and `paper/**` edits are covered by no row.
     """
-    _, out = sh(["git", "log", "--oneline", "origin/myriad-cluster-and-tier-system..HEAD"])
-    n_working = len([x for x in out.splitlines() if x.strip() and not x.startswith("fatal")])
-    _, refs = sh(["git", "for-each-ref", "--contains", "HEAD", "--format=%(refname:short)",
-                  "refs/remotes/"])
-    holding = [r.strip() for r in refs.splitlines()
-               if r.strip() and not r.startswith("fatal") and not r.endswith("/HEAD")]
-    if not holding:
+    rc_log, out = sh(["git", "log", "--oneline", "origin/myriad-cluster-and-tier-system..HEAD"])
+    rc_refs, refs = sh(["git", "for-each-ref", "--contains", "HEAD", "--format=%(refname)",
+                        "refs/remotes/"])
+
+    # A ref line is only a ref if it LOOKS like one. Anything else is git talking, not git answering.
+    def _is_ref(line: str) -> bool:
+        t = line.strip()
+        return (t.startswith("refs/remotes/") and not t.endswith("/HEAD")
+                and all(c.isalnum() or c in "._/-" for c in t))
+
+    holding = [t.strip()[len("refs/remotes/"):] for t in refs.splitlines() if _is_ref(t)]
+
+    if rc_refs != 0 or rc_log != 0:
+        # UNKNOWN is not a backup. Reserve a value for "I could not tell" (P230/P232).
+        add("unpushed", ATTN,
+            f"could NOT determine backup state (git rc log={rc_log} refs={rc_refs}) -- "
+            f"treat as UNBACKED until re-checked, never as safe")
+    elif not holding:
+        n_working = len([x for x in out.splitlines() if x.strip()])
         add("unpushed", ATTN,
             f"{n_working} commit(s) on NO REMOTE AT ALL -- this work exists only on this machine")
-    elif n_working:
-        add("unpushed", OK,
-            f"{n_working} commit(s) not yet on the working branch, but BACKED UP on "
-            f"{', '.join(holding[:3])} -- safe off-machine; the publisher pushes within ~2 min")
     else:
-        add("unpushed", OK, f"0 unpushed; HEAD is on {len(holding)} remote ref(s)")
+        n_working = len([x for x in out.splitlines() if x.strip()])
+        where = ", ".join(holding[:3])
+        if n_working:
+            add("unpushed", OK,
+                f"{n_working} commit(s) not yet on the working branch, but COMMITTED work is on "
+                f"{where} -- the publisher pushes within ~2 min (uncommitted edits are NOT covered)")
+        else:
+            add("unpushed", OK,
+                f"0 unpushed; HEAD is on {len(holding)} remote ref(s) -- committed work only, and "
+                f"local tracking refs may be stale, which makes this OPTIMISTIC not pessimistic")
 
 
 def check_full() -> None:

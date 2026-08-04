@@ -207,12 +207,50 @@ def test_cross_instrument_agreement() -> None:
                       sp.line_terminal_state_by_tag(out_dir, tag), want)
 
 
+def test_git_backup_never_fails_open() -> None:
+    """`check_git_backup` must NEVER print OK on a state it could not measure (P257).
+
+    The 2026-08-04 rewrite failed OPEN: `sh()` returns `(stdout + stderr)`, the return code was
+    discarded, and the only filter dropped lines starting with `fatal` -- so a git WARNING on
+    stderr, or `sh()`'s own `TimeoutExpired` string, became a "holding ref" and the row printed
+    OK / safe off-machine while ZERO remotes contained HEAD. The pre-rewrite code counted `git log`
+    lines, so an error string RAISED the count and the alarm: it failed SAFE.
+
+    Each case below reads OK against that rewrite and ATTENTION now. The control must stay OK, or
+    the fix has simply broken the row instead of correcting it.
+    """
+    states = [
+        ("broken ref warning on stderr", 0, "abc commit\n", 0,
+         "warning: ignoring broken ref refs/remotes/origin/broken\n", sp.ATTN),
+        ("sh() raised -> (99, 'TimeoutExpired: ...')", 0, "abc commit\n", 99,
+         "TimeoutExpired: git timed out\n", sp.ATTN),
+        ("working-branch remote ref vanished", 128,
+         "fatal: ambiguous argument 'origin/x..HEAD'\n", 0, "", sp.ATTN),
+        ("genuinely local-only: git OK, no refs", 0, "abc commit\n", 0, "", sp.ATTN),
+        ("CONTROL: genuinely on a remote", 0, "", 0,
+         "refs/remotes/origin/backup-2026-08-04\n", sp.OK),
+        ("origin/HEAD alone is NOT a backup location", 0, "abc commit\n", 0,
+         "refs/remotes/origin/HEAD\n", sp.ATTN),
+    ]
+    for label, rc_log, out_log, rc_refs, out_refs, want in states:
+        sp._rows.clear()
+        real = sp.sh
+        sp.sh = lambda a, timeout=120, _l=(rc_log, out_log), _r=(rc_refs, out_refs): (
+            _r if "for-each-ref" in a else _l)
+        try:
+            sp.check_git_backup()
+        finally:
+            sp.sh = real
+        check("git_backup never fails open: %s" % label, sp._rows[-1][1], want)
+
+
 def main() -> int:
     print("=== session_preflight RUN-16 additions: mutation-controlled tests ===")
     test_terminal_state()
     test_adaptive_budget()
     test_roster()
     test_cross_instrument_agreement()
+    test_git_backup_never_fails_open()
     print("\nRESULT: %d passed, %d failed" % (len(PASS), len(FAIL)))
     for f in FAIL:
         print("  FAILED: %s" % f)
