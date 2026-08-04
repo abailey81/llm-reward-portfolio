@@ -192,6 +192,135 @@ The 30-minute loop is armed at `7,37 * * * *`. Pass 2 continues the §11.3 deep 
 carries a known open `LOADER-POOLING` defect. Core's C1 chain and the four capping lines' `h2_pair`
 are the only things that move the ETA, and neither can be accelerated; the work is protecting them.
 
+### ★★★★★ RUN 21 CLOSE (2026-08-04 ~21:25 UTC, T+168 h) — passes 3-7, the results, the trough, and the cores
+
+**THE SESSION IN ONE LINE: FOUR AUDITORS WERE SENT AT THIS SESSION'S OWN SAME-DAY FIXES AND EVERY
+ONE FOUND MORE THAN THE AUTHOR DID — INCLUDING A FIX THAT TURNED A FALSE ALARM INTO A FAIL-OPEN, A
+RECOVERY BANNER THAT COULD NEVER FIRE, AND A THRESHOLD WIDENING THAT ONLY A COMMITTED TEST STOPPED.**
+
+#### WHAT THE STATE WAS
+RUN 21 opened at T+163 h with ~13,400 records, the common rung honestly 0, and 27 of the previous 30
+cycle lines reading ATTN. It closes at **T+168 h, 14,487 records, drift 0, freeze MATCHES, preflight
+OK, seven layers RC=0, plausibility PLAUSIBLE, agreement 8/8, line_balance CLEAN, loop stderr 0
+bytes** — and with **three lines COMPLETE at rung 568** rather than two.
+
+#### ⭐ THE LADDER MOVED, AND ONE MOVE PROVES THE WHOLE REPAIR MECHANISM
+**`gpt-5.6-luna` went from banked rung 189 to 568 — COMPLETE.** It was capped by exactly two missing
+seeds, 192 and 193, across five arms; the driver's own repair round `sweep_t3_r1` filled them and the
+line took the entire remaining ladder in one step. Core's `cma_es` came off zero; glm and kimi moved
+from "arms with no record" to "arms with holes", i.e. their C2 pair tests are landing.
+
+#### ★★★ TAMER ASKED TO SEE THE RESULTS, AND THE FIRST TABLE I GAVE HIM WAS WRONG IN ITS FRAMING
+He asked; R101 point (4) licenses interim looks as draft-filling; the look was taken and **recorded
+with its date and scope**. Then he said the Sharpes looked too good — **and he was right.**
+The archived `metrics.test_sharpe` is **RAW**. Subtracting the risk-free rate on the registered R20
+path costs every cell **0.14-0.27 units (median 0.21)**, and against a **costed** equal-weight 1/N at
+**+1.0617 excess**: **0 of 59 model-arm cells beat it** (best +1.0173, median +0.8549) — while
+**25 of 59 have a SHALLOWER CVaR-5% tail**. Costs confirmed four ways including bit-exact against the
+archive. Full derivation, conventions and an independent re-check: **`docs/analysis/EXCESS_AND_BENCHMARK_2026-08-04.md`**.
+⇒ **The finding is not "tail feedback is worse"; it is that none of the authored rewards beats naive
+1/N on return-per-risk, while many produce a shallower tail — which is on-topic for a tail-risk
+study and far more interesting than a flattering absolute number.**
+⚠ **The rule this produced lived ONLY in the session cursor until Tamer asked whether the plan had
+been finished. It is now disclosure D-h**, with D-i registering the `strategies.py` docstring `ddof`
+defect (1.1656/1.1302 recorded, 1.1659/1.1305 correct).
+
+#### ⛔⛔ THE BIGGEST DISCOVERY: `analyze_campaign.py` CANNOT RUN, AND THE OBVIOUS FIX IS A TRAP
+Its loader admits every `test_leg_*` line under the SAME arm labels and `_seed_scores` groups on
+`(arm, seed)` with no line term. **Measured twice independently: 2,145 of 2,145 `distributional` and
+2,137 of 2,137 `scalar` H2 test records are from LEG lines, ZERO from core; 2,840 (arm, seed) cells
+are held by more than one line.** ✔ It **fails loud** — `ValueError`, and `analyze()` guards only
+`AssertionError` — so `bank_gate` stops rather than reporting a pooled verdict. ⚠⚠ **The guard's own
+message says "deduplicate the run archive", and doing so converts the loud failure into a silent
+one. DO NOT DEDUPLICATE THE ARCHIVE.** Registered D49-D51 with the repair already prototyped at
+`docs/analysis/a79_fix_proof.py:60-84`.
+
+#### ⚠⚠ TAMER SAW THE CORE COUNT FALL AND ASKED WHAT WAS HAPPENING. I RAISED THE ALARM TOO HIGH.
+Slots fell **1,952 → 984 in three hours** with the queue at **ZERO**, and **no instrument said
+anything** — `line_balance` was CLEAN because every line had *some* work, preflight passed 17/17.
+Eliminated by measurement: `qquota` **empty**, **~11,644 free slots** per cluster queue, zero
+`Eqw`/`hqw`, every driver log 0.3-2.3 min fresh. **The mechanism is `driver.py:550-553`** — a tier's
+remaining specs are requeued only when NO job of that tier is alive, so each line runs a sawtooth and
+today several tails aligned. **RETRACTION: I reported "~134 vanished packs" and "~5,000 units held
+hostage". That arithmetic mixed populations** — every haiku batch directory and ledger counted
+against the sweep tiers' pending totals. Redone precisely, the 28 sweep epilogues are all LOW pack
+numbers because **those tiers had not been submitted yet**. The mechanism is real; the hostage
+reading was not. **The proof arrived mid-investigation:** sonnet `sweep_t6` at 20:22Z, haiku
+`sweep_t3` and `sweep_t2` as **51 arrays each** at 20:47Z and 20:51Z, and the queue went **0 → 110
+jobs**, then to 1,032 queued slots.
+
+#### ★★★ AND THE CORES QUESTION WAS RE-MEASURED FROM THE SCHEDULER, SUPERSEDING "CORES ARE CLOSED"
+`placeable_capacity.py`, fed `qhost -F slots,memory,tmpfs` and `qstat -f`: **2,256 placeable cores at
+our current pack 8**, of which **our `smp-D` pool holds 1,688**. **THE LEVER IS PACK WIDTH** —
+2,644 at pack 4 (+17%), 2,863 at pack 1 (+27%) — and the mechanism is visible as **441 STRANDED free
+slots on `d00a` alone**. ✔ **It does not touch determinism**: every training is 1-thread whatever the
+pack width. ⛔ It costs a rolling supervisor restart and multiplies job count 8× at pack 1 against a
+1,000-job cap, so **pack 4 is the defensible middle**. **Deferred to RUN 22 by Tamer.**
+⚠ **A measurement error of my own, recorded because it is instructive:** my first `qhost` parse
+summed NCOR and NTHR — both static hardware counts — and nearly reported the cluster as 100% full.
+The real columns are NCPU and LOAD; the D family is 32-92% free.
+
+#### ★ THE SEED QUESTION — TAMER ASKED, AND THE ANSWER IS GOOD
+**ZERO sealed-test seeds are permanently lost: 90 exhausted-retry ledgers exist and ALL 90 are
+`_g<N>` search-tier generation batches.** Every visible hole is one the driver can still fill, and
+gpt-5.6-luna's 189 → 568 jump is the proof it does.
+
+#### THE DEFECTS FIXED, AND THE ONES THAT WERE MINE
+**P298 + P298-b + P301** — the cadence-gated verdict was dropped THREE times in one day. The original
+printed *"the science audit could not run"* on one ssh pass in two while the audit returned clean;
+**my fix then dropped a cached RED for 30 minutes**; a second auditor found the same defect one gate
+higher, where the board could read OK for **54 minutes** during a live breach. All three probes now
+share one `_cached_probe` and "not attempted" reaches no alarm. **P299 + P299-b + P299-c** — the
+backup row cried NO REMOTE on a 77 s publisher race, then **graded on the commit SUBJECT** (commit
+`d7b85965` has subject `status:` and 366 insertions across six files), then its suite proved blind to
+five mutations of the P257 machinery. **P302** `check_status_page` grades publication by a LOCAL
+mtime. **P303** one full-archive scan per sweep. **P304** `vanished_array_watch` rc=2 reported with a
+false reason — **by my own fix, within the hour.**
+**Also fixed:** `vanished_array_watch` said *"no vanished arrays detected"* over **twelve unresolved
+blocks** · `compute_accounting` published an **INVERTED search/test split** (1,295 of 3,399 ledgers;
+SEARCH 19,886 h vs TEST 2,887 h when the truth is 7,410 vs 15,222) **and crashed before printing its
+own honesty caveat** · `crash_watchdog` matched arms by SUBSTRING so `scalar` was recovered by
+`scalar_cvar5` — **and my first fix for that was ALSO wrong**, because `scalar_cvar5` splits into the
+token `scalar` · `myriad_watch` fired *"IS BACK"* **132 times against 22 DOWN lines**, and **my
+edge-trigger then made it fire NEVER** because it read the log it had just written ·
+`science_plausibility` B5 checked **1 of 48** simplex rows · `CLAUDE.md` said the analysis has **35**
+output keys when it has **39**, which the code's own comment had already recorded.
+
+#### ⛔ AND THE LAST FIX OF THE SESSION WAS STOPPED BY OUR OWN MACHINERY
+Fixing SWEEP-1, I let the staleness budget follow the sweep upward. It reached **1,353 s — almost
+exactly the 1,413 s the cap was introduced to prevent** — and the committed test *"capped at 900s
+however slow it gets"* went RED. **The cap stays.** What shipped instead is an early-warning row that
+fires when the adaptive budget would exceed the cap, naming the sweep duration and the real remedy
+(make the three full-archive layers incremental). It is live and correct: 2nd-worst sweep 421 s,
+adaptive 1,353 s, **clamped to 900 s**.
+
+#### THREE NEW INSTRUMENTS, EACH BECAUSE SOMETHING WAS INVISIBLE
+**`docs/ops/occupancy_watch.py`** — fleet size against work owed, per line, alarming only on
+PERSISTENCE. **It caught its own first version being broken**: the line-to-tag mapping never matched,
+so every line read 0 in-flight under a calm *"reported, not alarmed"* over a 2,024-slot fleet.
+**`docs/analysis/loader_collision_watch.py`** — D49 in 4 s from directory names, blindness proven
+over its own AST. **`docs/analysis/blind_quality_report.py`** — the execution-quality report Tamer was
+promised: per-leg completeness, hole positions, wall-clock from the epilogue ledgers, authoring
+reliability, reward-code taxonomy, R115 exclusions, determinism evidence. 19/19 selftests, 105 MB
+peak, 43 s, effect-blindness proven over its own AST.
+
+#### AUDIT COVERAGE BANKED
+**`src/inference/**` — 23 modules, ZERO critical findings.** Every estimator verified line by line
+against its cited source: Bailey & López de Prado PSR/DSR/MinTRL, the CSCV rank machinery,
+Benjamini-Hochberg, Romano-Wolf, **Bretz et al. (2009) graphical alpha propagation implemented
+exactly**, Rouder JZS, Politis-Romano, FZ0 with the HLN correction, Schuirmann TOST — and both IQM
+implementations agree with each other and with rliable. No sign inversion; no live ddof contradiction.
+Four MAJOR items registered as D61-D68. **`analyze_campaign.py`** — the full output-key register,
+**39 keys not 35**, registered D49-D60. **The `docs/ops` monitors** — 36 findings, 18 MAJOR.
+
+#### WHAT HAPPENS NEXT
+**`docs/RUN22_SESSION_PROMPT.md` is the brief.** Re-arm the 30-minute loop first — it is
+session-scoped and dies with the session. The three priorities are **D49 before teardown**,
+**SWEEP-1-fix** (make the three in-cycle layers incremental; the cap must NOT be raised), and
+**pack 4**, which Tamer has deferred to RUN 22 and which is worth +17% placeable cores at a tier
+boundary. Open: **1 BLOCKING · 5 MAJOR · 3 MINOR · 9 DISCLOSURES · 5 WATCH**, plus D1-D72.
+
+
 ## [2026-08-04f] ★★★★★ RUN 20 (OPS), passes 9-18 and CLOSE — **I SENT AN AUDITOR AT MY OWN FIXES AND IT FOUND FOUR STRUCTURAL DEFECTS PLUS A FALSE CLAIM I WAS PRINTING ON THE LIVE BOARD EVERY CYCLE** · the OOM trajectory closed by measuring the right population at last · the throughput ceiling and the ETA settled per job · **and the board went green for the first time in the session**
 
 **PAST.** Continues `[2026-08-04e]` (RUN 20 passes 2-8), which closed the six vacuity guards and

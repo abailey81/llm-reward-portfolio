@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-04"
-  head: "4ca28e91"
+  head: "cefc5b89"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 21 pass 1: 47/47 preflight tests, 31/31 cycle tests, 7 layers RC=0"
+  suite_status: "RUN 21 close: 7 layers RC=0, preflight OK, 47/47 preflight tests, 31/31 cycle tests, 4 auditors"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

@@ -1463,10 +1463,25 @@ def main() -> int:
             "still pending. The driver will not notice until h_rt expires (up to 15 h). Run "
             "`python docs/ops/vanished_array_watch.py` for the line and block.\n"
             + "\n".join(ln for ln in _va_out.splitlines() if "VANISHED" in ln or "!!!" in ln))
+    elif _va_rc == 2:
+        # ⚠ rc=2 IS A REAL, INFORMATIVE STATE, NOT A FAILURE -- and this branch called it one within
+        # an hour of the state being created (2026-08-04, RUN 21). `vanished_array_watch` now exits 2
+        # when it RAN FINE but could not resolve some blocks to a job id, which is the fix that
+        # stopped it printing "no vanished arrays detected" over twelve unexamined blocks. Routing it
+        # through the generic branch produced "did not complete (98 = the cached verdict was
+        # unreadable)" -- a FALSE REASON on the live board, from my own change. The state is worth
+        # reporting; the reason has to be the true one.
+        attention.append(
+            "vanished_array_watch rc=2%s -- it RAN and could not resolve every block to a job id, so "
+            "those blocks were NOT tested for the 15 h purge blind spot. This is the detector being "
+            "honest about a gap rather than failing: run `python docs/ops/vanished_array_watch.py` "
+            "and read the UNRESOLVED rows, which name the line, the block and its pending units."
+            % _va_src)
     elif _va_rc is not None and _va_rc not in (0, 1):
         attention.append(f"vanished_array_watch rc={_va_rc}{_va_src} -- the blind-spot detector did "
-                         "not complete (98 = the cached verdict was unreadable); the 15 h purge "
-                         "blind spot is UNWATCHED until a pass succeeds")
+                         "not complete (98 = the cached verdict was unreadable, 99 = the probe could "
+                         "not be launched); the 15 h purge blind spot is UNWATCHED until a pass "
+                         "returns 0")
 
     # ⚠⚠ ONE FULL-ARCHIVE SCAN PER SWEEP (P303, and it is a risk P301 CREATED).
     # The deep science audit (1800 s) and the provenance seal (1200 s) are both full-archive scans,
