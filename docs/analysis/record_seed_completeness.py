@@ -289,10 +289,34 @@ def report(root: str, verbose: bool = False) -> int:
         print("  %-30s banked rung %4d  (arms: %s)%s"
               % (line, lo, " ".join("%s=%d" % (a[0][:12], a[1]) for a in arms) if verbose
                  else "%d arms" % len(arms), note))
-    common = min(min(a[1] for a in arms) for arms in by_line.values())
+    # ⚠ P287, 2026-08-04. THE POPULATION IS THE 11 FULL-LOOP MODELS, AND R101 SAYS SO IN WORDS.
+    # This minimum used to run over EVERY `test*` line, which folded in `test_h3_singleshot`.
+    # Verbatim from the R101 amendment row: "the confirmatory Opus 4.8 + all 10 legs climb ONE
+    # COMMON assurance-tier ladder ... the FINAL result is whatever COMMON rung ALL 11 have
+    # COMPLETED by the stop". h3 is the H3 SINGLE-SHOT CONTROL condition (R30, report-only, outside
+    # the frozen m=6), not one of the eleven models, so it is not in the population the reported
+    # result is defined over.
+    # This was escalated as A6, a "pre-registration question for Tamer and Dr Okhrati". IT IS NOT
+    # ONE: reading the registered text answers it, and the correct action is to make the INSTRUMENT
+    # match the FREEZE rather than to amend anything. `record_science_audit`'s S10 already excludes
+    # h3 on the same reading, so this also ends a disagreement between two instruments about the
+    # definition of the headline number.
+    # DIRECTION AND EXPOSURE, both stated: including h3 could only push the minimum DOWN, and h3
+    # currently banks 568 -- the ceiling -- so it has never been the minimum and this changes no
+    # reported value today. It is fixed now precisely BECAUSE it is non-binding: a definitional
+    # correction made while nothing is at stake cannot be a forking path.
+    _MODEL_LINES = {ln: arms for ln, arms in by_line.items() if ln != "test_h3_singleshot"}
+    _excluded = sorted(set(by_line) - set(_MODEL_LINES))
+    common = min(min(a[1] for a in arms) for arms in _MODEL_LINES.values()) if _MODEL_LINES else 0
     print()
-    print("  ==> COMMON RUNG (the MINIMUM over every line -- under R101 this IS the result) = %d"
-          % common)
+    print("  ==> COMMON RUNG (the MINIMUM over the 11 FULL-LOOP MODELS -- under R101 this IS the "
+          "result) = %d" % common)
+    if _excluded:
+        print("      population = %d model line(s); EXCLUDED by R101: %s"
+              % (len(_MODEL_LINES), ", ".join(_excluded)))
+        print("      (R101: 'the confirmatory Opus 4.8 + all 10 legs climb ONE COMMON assurance-tier")
+        print("       ladder ... whatever COMMON rung ALL 11 have COMPLETED'. h3 is the H3")
+        print("       SINGLE-SHOT CONTROL, not a model leg. record_science_audit's S10 agrees.)")
     print("      it is an UPPER BOUND. FOUR channels remove a low-banking unit from the minimum,")
     print("      and every one pushes the printed number UP (auditor, 2026-08-04):")
     print("        1. an arm still in C1 has no frozen winner, so it is in neither population")
