@@ -95,6 +95,40 @@ actually bitten this campaign:
 7. **Transport failures eating cycles** — each failing pull pays its own latency and walks the
    death clock (TEST 12.0 h, SEARCH 3.0 h, both LOWER bounds).
 
+### ★★★ 2026-08-04 10:40 UTC — TAMER ASKED DIRECTLY, SO THE CORES/ETA QUESTION WAS RE-MEASURED
+
+**The re-measurement was warranted:** the fleet had changed materially since the fourteen
+measurements (slots 1,600 -> 1,900, concentration 98% -> 51%, queue 314 -> 150). **Every constraint
+re-tested unchanged:** 357 jobs against a 1,000 cap, `qquota` EMPTY, **zero** `Eqw`/`hqw`, and
+`qalter -w p` verifies queued jobs as schedulable. Still functional fair-share by user.
+
+**BUT THE IMPORTANT ANSWER IS NOT ABOUT FAIR-SHARE. IT IS THAT CORES CANNOT MOVE THIS RESULT.**
+
+**Q1 — where does the fleet's output actually go?** Measured over 12 h: **2,098 of 2,122 records
+(98.9%) landed in cells ALREADY AT OR ABOVE rung 30. Only 24 records (1.1%) reduced the rung-30
+backlog.** Under R101 the reported result is the COMMON rung, so doubling the cores doubles the
+98.9% and raises the reported result by **nothing**.
+
+**Q2 — the floor with INFINITE cores.** `bayes_opt` owes **3 of 30** candidates and `tpe` **3 of
+30**, and the DFO chain is strictly sequential by construction (each proposal is a function of the
+fitnesses already observed). At 4.5 h per 8-thread step that is **13.4 h** that no hardware
+compresses. Core then still needs its C2 `h2_pair`, the C3 gate and the C4 test leg, and a TEST
+training is 1-thread, so its wall is the full **8.5 h**. **⇒ FLOOR TO A NON-ZERO COMMON RUNG WITH
+INFINITE CORES: >= 21.9 h.**
+
+**Q3 — the one real inefficiency, measured and NOT actionable.** `leg8` (sonnet) holds **202 of 214
+running jobs = 94%** of our fair-share allocation, and sonnet **already banks 30** and is climbing
+above the common rung. The five lines that CAP the result hold **22 queued jobs and ZERO running**
+(glm 8, kimi 5, nemotron 4, core-C1 4, deepseek 1). Three of them -- glm, kimi, nemotron -- are
+**QUEUE-blocked, not gate-blocked**: their `h2_pair_test` work is submitted and pending. So more
+allocation WOULD help those three. **It would still not move the common rung, because core floors it
+at 21.9 h.** Every mechanism is closed anyway: raising priority is operator-only, lowering ours is a
+standing prohibition and one-way, and killing reserved queued jobs forfeits the reservation.
+
+**⇒ THE ETA IS NOT CORE-BOUND. It is bound by a SERIAL DEPENDENCY CHAIN.** The only lever that
+exists is the human one -- asking UCL RC for a larger allocation -- and even that cannot take the
+common rung below ~22 h. **Do not spend campaign time on cores; spend it on the write-up.**
+
 ### ⛔ WHAT IS CLOSED, AND MUST NOT BE RE-LITIGATED EVERY THIRTY MINUTES
 
 The cores question is **closed by fourteen independent measurements** (no quota, no job cap, no PE
