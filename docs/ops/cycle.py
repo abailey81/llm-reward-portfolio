@@ -431,7 +431,24 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str],
     # fire. RE-TRIAGE TRIGGER: if `sci=BLIND` appears on two consecutive cycles while the machine is
     # otherwise idle, the cache is no longer optional.
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=2) as _ex:
+    # ⚠⚠ P270 -- max_workers WAS 2, AND THESE TWO TOOLS ARE O(ARCHIVE) IN **MEMORY**.
+    # Measured 2026-08-04 at 12,514 records: science_watch 1,603 MB + results_audit
+    # 1,475 MB, running CONCURRENTLY, on a 15.6 GB box that also hosts 30 driver and
+    # supervisor processes. RAM read 96.7%% used, 0.5 GB free, and `ram:CRITICAL` has
+    # fired 19 times -- never below ~5k records, 5 times on 08-03, 14 times in the first
+    # 11 hours of 08-04. The alarm rate tracks archive growth, so this is measured, not
+    # extrapolated from one point.
+    # PROJECTION at 0.357 MB/record for the three heavy tools: 8.4 GB at rung 100,
+    # 10.5 GB at 189, and **14.0 GB at rung 403 -- the REGISTERED PRIMARY TARGET -- on a
+    # 15.6 GB machine.** The box is exhausted at ~37,500 records; the ladder tops out at
+    # 42,128.
+    # This is WORSE than the same growth in TIME (C7-loop/P264): a timeout degrades to
+    # `sci=BLIND`, but an OOM kills a process, and the drivers share this box.
+    # Serialising halves the pair's peak (3,078 -> 1,603 MB) and roughly doubles the
+    # record count the box survives, taking it past the whole ladder. The cost is a
+    # longer sweep, and that is the right trade: a slower cadence is a degradation, an
+    # OOM that kills a driver is a data-losing incident.
+    with ThreadPoolExecutor(max_workers=1) as _ex:
         _sw = _ex.submit(_run, [sys.executable, "docs/ops/science_watch.py"], 600)
         _ra = _ex.submit(_run, [sys.executable, "docs/ops/results_audit.py"], 600)
         sw_rc, sw_out = _sw.result()
