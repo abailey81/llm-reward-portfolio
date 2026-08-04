@@ -42,6 +42,34 @@ CYCLE_STALE_S = 150.0         # the mandate's "~2 minutes" — a FLOOR, never th
 CYCLE_SLEEP_S = 30.0          # cycle_loop.sh INTERVAL default; the sleep between sweeps
 CYCLE_BUDGET_CAP_S = 900.0    # however slow sweeps get, a silent loop is reported within 15 min
 
+#: The subject prefix and the SOLE path `docs/ops/publish_status.sh:527` gives its auto-commits
+#: (`git commit -q --only docs/RUN4_STATUS.md -m "status: ..."`).
+#: ⚠ THE SUBJECT ALONE IS NOT PROOF OF CONTENT, AND THIS REPOSITORY HOLDS THE COUNTEREXAMPLE.
+#: Commit d7b85965, subject "status: T+147h38m - 10/12 lines up, ...", carries 366 insertions and 46
+#: deletions across SIX files: CHANGELOG.md, docs/RUN4_STATUS.md, docs/ops/run_record_layers.sh,
+#: docs/ops/session_preflight.py, docs/ops/stage_eta.py and docs/ops/watch/FLAWLESS_LEDGER.md.
+#: (An earlier version of this comment listed five, omitting docs/RUN4_STATUS.md and so attributing
+#: all 366 insertions to the other five. Corrected on an auditor's count, verified with
+#: `git show --stat d7b85965`.) It was a bare `git commit` sweeping a dirty index, which is exactly
+#: why `--only` was added the same day (P251). A subject-only test would have graded that commit as
+#: safe to leave unpushed. So check_git_backup requires BOTH: the prefix AND a file set of exactly
+#: this one path.
+_PUBLISHER_COMMIT_PREFIX = "status:"
+_PUBLISHER_COMMIT_PATH = "docs/RUN4_STATUS.md"
+#: How many publisher commits may sit unpushed before the row stops calling it a race.
+#: ⚠ MEASURE IT WITH THIS EXACT COMMAND, because an earlier version of this comment quoted
+#: "median 77 s, mean 76 s, max 113 s" from a window over ALL branch commits rather than publisher
+#: commits, and no publisher window reproduces it -- an auditor caught that `mean < median` is
+#: impossible for this right-skewed distribution:
+#:     git log --format=%ct --grep '^status:' -n 101
+#: Over the newest 100 publisher gaps (2026-08-04): median 78 s, mean 83.7 s, min 68 s, max 185 s.
+#: Five unpushed is therefore about SIX AND A HALF MINUTES of a stuck publisher -- not the "~10 min"
+#: an even earlier version claimed. Crossing it IS the dead-publisher detector, and is why grading
+#: the race as OK is not a weakening. `check_status_page` (NOT "check_publish_loop", which does not
+#: exist anywhere in this repository) quotes "~67 s" from publish_loop.sh's configured sleep; the
+#: measured spacing is longer because the sweep itself takes time.
+_PUBLISHER_RACE_MAX = 5
+
 OK, ATTN, FAIL = "OK", "ATTENTION", "FAIL"
 _rows: list[tuple[str, str, str]] = []
 
@@ -445,7 +473,21 @@ def check_status_page() -> None:
     by the gate; a page that is STALE was caught by nothing. The gate made the second failure mode
     more likely while removing the first, so the freshness check is the other half of that fix.
 
-    The publisher runs at ~67 s, so 15 min is ~13 missed cycles -- unambiguous, not a flicker.
+    The publisher's configured sleep is ~67 s, but the MEASURED spacing between its commits is
+    longer because the sweep itself takes time: median 78 s, mean 83.7 s over the newest 100
+    (`git log --format=%ct --grep '^status:' -n 101`, 2026-08-04). So 15 min is ~11 missed cycles,
+    not ~13 -- still unambiguous, and stated from the measurement rather than the config.
+
+    ⚠⚠ AND THE ROW'S REAL BLIND SPOT, REGISTERED RATHER THAN FIXED (auditor, 2026-08-04, P302).
+    THIS CHECK GRADES THE PUBLISHER BY THE **LOCAL** PAGE'S MTIME, WHICH IS A NAME-SHAPED PROXY FOR
+    A THING IT NEVER MEASURES: whether anything reached GitHub. `publish_status.sh:259` writes the
+    page unconditionally, and `:501` restores it with `git checkout --` when the ASCII gate rejects
+    it, which REFRESHES the mtime; `:527` documents that `--only` returns rc=128 while a merge is in
+    progress. In either state the local page keeps looking fresh, nothing accumulates unpushed, so
+    `check_git_backup` ALSO reads OK -- **both rows green while the page a human reads on their
+    phone is frozen.** Fixing it means checking the remote (a push timestamp or `git log
+    origin/<branch> -1`), which costs a network call this row deliberately avoids. Registered as a
+    known limitation of THIS row so nobody reads it as proof of publication.
     """
     page = REPO / "docs" / "RUN4_STATUS.md"
     if not page.exists():
@@ -493,9 +535,11 @@ def check_git_backup() -> None:
     ignore ATTENTIONs**, which is the cost that matters -- the same reasoning as the always-on-alarm
     pathology that let `guards=2` hide P202 for 31 h.
 
-    This is NOT a weakened check. The dangerous state -- a commit that exists on NO remote at all --
-    still raises ATTENTION. What no longer raises one is a commit that IS backed up but has not yet
-    reached the working branch, which is a sequencing fact, not a risk.
+    ⚠ THAT PARAGRAPH USED TO END *"the dangerous state -- a commit that exists on NO remote at all
+    -- still raises ATTENTION"*, and P299 below made it FALSE without editing it: up to
+    `_PUBLISHER_RACE_MAX` publisher status commits on no remote now read OK. The current, true
+    statement of the boundary is in the P299 block at the end of this docstring. A stale sentence
+    left standing beside its own replacement is how a reader is told the wrong rule.
 
     ⚠⚠⚠ AND THE FIRST VERSION OF THAT FIX FAILED **OPEN** -- the worst defect class in this
     repository, introduced by me while removing a false positive (P257, found by an auditor).
@@ -519,8 +563,48 @@ def check_git_backup() -> None:
     SCOPE, narrowed to what is actually measured: this covers COMMITTED work only. Uncommitted
     edits in the working tree are outside it, and `drift_arm2` covers only
     `src|scripts|config|prompts`, so `docs/**` and `paper/**` edits are covered by no row.
+
+    ⚠⚠ P299 (RUN 21, 2026-08-04) -- THE ROW STILL FIRED CATASTROPHICALLY ON THE PUBLISHER RACE,
+    AND IT MEASURED THE WRONG QUANTITY TO DO IT. Two defects, one line apart:
+
+      1. `holding` empty meant "no remote ref contains HEAD", which is the NORMAL state for the
+         ~2 minutes between the status publisher's auto-commit and its push. The row then printed
+         *"N commit(s) on NO REMOTE AT ALL -- this work exists only on this machine"*, which reads
+         as "nothing has ever been backed up" when the true state was one machine-generated status
+         commit in flight and the entire branch safe on `origin`. Observed live at 16:05Z with
+         `rev-list --count HEAD --not --remotes` returning 1, then 0 two minutes later.
+      2. the COUNT came from `origin/myriad-cluster-and-tier-system..HEAD`, a hardcoded branch, so
+         on any other branch the number was meaningless while the verdict still spoke with
+         authority.
+
+    Both are fixed by measuring the dangerous quantity DIRECTLY: `git rev-list --count HEAD --not
+    --remotes` is exactly "commits reachable from HEAD that no remote ref contains", branch-agnostic
+    and free of the `..` two-dot ambiguity.
+
+    ⚠ AND THE GRADING IS NOT A WEAKENING, WHICH IS THE ONLY THING THAT MATTERS HERE. Unpushed work
+    that is not a publisher status commit still raises ATTENTION on the FIRST commit. A publisher
+    that STOPS pushing is still caught, and caught with a true message, because its status commits
+    then accumulate at a measured ~77 s each and cross `_PUBLISHER_RACE_MAX` within ~6 minutes. What
+    no longer fires is the one state that was benign, self-clearing and mis-described.
+
+    ⚠⚠ P299-b (same day, an auditor sent at my own fix): THE FIRST VERSION GRADED ON THE COMMIT
+    SUBJECT, WHICH IS NOT PROOF OF CONTENT, and this repository holds the counterexample -- see
+    `_PUBLISHER_COMMIT_PREFIX`. It also crashed the whole preflight with an `IndexError` when
+    `n_local > _PUBLISHER_RACE_MAX` and every subject was empty, because empty subjects were
+    filtered out of the list it then indexed, and those same empty subjects graded as publisher
+    commits. Both are closed by parsing `%H %s` TOGETHER WITH `--name-only` in one call, requiring
+    the parse to account for exactly `n_local` commits, and requiring a publisher commit to touch
+    exactly one path. Anything unaccounted for is UNKNOWN and routes to ATTENTION.
+
+    THE BOUNDARY, stated once and truly: this row reads OK only when (a) nothing is unpushed, or
+    (b) everything unpushed is a machine-generated status commit touching only
+    `_PUBLISHER_COMMIT_PATH`, and there are at most `_PUBLISHER_RACE_MAX` of them.
     """
-    rc_log, out = sh(["git", "log", "--oneline", "origin/myriad-cluster-and-tier-system..HEAD"])
+    rc_cnt, cnt_out = sh(["git", "rev-list", "--count", "HEAD", "--not", "--remotes"])
+    # %H and %s and the file list in ONE call, chunked on \x01 so a subject containing any
+    # ordinary character cannot be mistaken for a record separator.
+    rc_sub, sub_out = sh(["git", "log", "--format=%x01%H%x1f%s", "--name-only",
+                          "HEAD", "--not", "--remotes"])
     rc_refs, refs = sh(["git", "for-each-ref", "--contains", "HEAD", "--format=%(refname)",
                         "refs/remotes/"])
 
@@ -532,26 +616,61 @@ def check_git_backup() -> None:
 
     holding = [t.strip()[len("refs/remotes/"):] for t in refs.splitlines() if _is_ref(t)]
 
-    if rc_refs != 0 or rc_log != 0:
+    # P257 again: sh() merges stderr, so a warning line can masquerade as data. A count is only a
+    # count if the whole output is one line of digits. Anything else is UNKNOWN, never a backup.
+    cnt_lines = [x.strip() for x in cnt_out.splitlines() if x.strip()]
+    n_local = int(cnt_lines[0]) if (len(cnt_lines) == 1 and cnt_lines[0].isdigit()) else None
+
+    if rc_cnt != 0 or rc_sub != 0 or rc_refs != 0 or n_local is None:
         # UNKNOWN is not a backup. Reserve a value for "I could not tell" (P230/P232).
         add("unpushed", ATTN,
-            f"could NOT determine backup state (git rc log={rc_log} refs={rc_refs}) -- "
-            f"treat as UNBACKED until re-checked, never as safe")
-    elif not holding:
-        n_working = len([x for x in out.splitlines() if x.strip()])
+            f"could NOT determine backup state (git rc count={rc_cnt} subj={rc_sub} "
+            f"refs={rc_refs}, count parsed as {n_local!r}) -- treat as UNBACKED until re-checked, "
+            f"never as safe")
+        return
+
+    where = ", ".join(holding[:3]) if holding else "no ref contains HEAD yet"
+    if n_local == 0:
+        add("unpushed", OK,
+            f"0 commit(s) exist only on this machine; HEAD is on {len(holding)} remote ref(s) "
+            f"({where}) -- committed work only, and local tracking refs may be stale, which makes "
+            f"this OPTIMISTIC not pessimistic")
+        return
+
+    # One record per commit: (sha, subject, set-of-paths). A merge commit lists no paths under
+    # --name-only, so its empty path set makes it substantive, which is the safe direction.
+    commits: list[tuple[str, str, frozenset[str]]] = []
+    for chunk in sub_out.split("\x01")[1:]:
+        head, _, rest = chunk.partition("\n")
+        sha, _, subject = head.partition("\x1f")
+        paths = frozenset(ln.strip() for ln in rest.splitlines() if ln.strip())
+        commits.append((sha.strip(), subject.strip(), paths))
+
+    # THE PARSE MUST ACCOUNT FOR EVERY COMMIT THE COUNT FOUND. If it does not -- a git warning
+    # merged into the listing, an empty commit message, a format git chose not to honour -- then
+    # something is unpushed that this row cannot describe, and undescribable is UNKNOWN, not safe.
+    if len(commits) != n_local:
         add("unpushed", ATTN,
-            f"{n_working} commit(s) on NO REMOTE AT ALL -- this work exists only on this machine")
-    else:
-        n_working = len([x for x in out.splitlines() if x.strip()])
-        where = ", ".join(holding[:3])
-        if n_working:
-            add("unpushed", OK,
-                f"{n_working} commit(s) not yet on the working branch, but COMMITTED work is on "
-                f"{where} -- the publisher pushes within ~2 min (uncommitted edits are NOT covered)")
-        else:
-            add("unpushed", OK,
-                f"0 unpushed; HEAD is on {len(holding)} remote ref(s) -- committed work only, and "
-                f"local tracking refs may be stale, which makes this OPTIMISTIC not pessimistic")
+            f"{n_local} commit(s) exist only on this machine but the listing parsed "
+            f"{len(commits)} of them -- UNKNOWN, treated as UNBACKED until re-checked")
+        return
+
+    substantive = [c for c in commits
+                   if not (c[1].startswith(_PUBLISHER_COMMIT_PREFIX)
+                           and c[2] == frozenset({_PUBLISHER_COMMIT_PATH}))]
+    if not substantive and n_local <= _PUBLISHER_RACE_MAX:
+        add("unpushed", OK,
+            f"{n_local} auto-generated '{_PUBLISHER_COMMIT_PREFIX}' commit(s), each touching only "
+            f"{_PUBLISHER_COMMIT_PATH}, awaiting the publisher's next push (measured ~77 s); every "
+            f"commit carrying real work is already on a remote. If this count CLIMBS past "
+            f"{_PUBLISHER_RACE_MAX} the publisher has stopped and this row turns ATTENTION -- that "
+            f"is the detector, not the count itself")
+        return
+
+    lead = (substantive[0] if substantive else commits[0])[1] or "<empty commit message>"
+    add("unpushed", ATTN,
+        f"{n_local} commit(s) exist on NO REMOTE AT ALL ({len(substantive)} carrying real work, "
+        f"newest: {lead[:60]!r}) -- push before this machine is the only copy")
 
 
 def check_full() -> None:

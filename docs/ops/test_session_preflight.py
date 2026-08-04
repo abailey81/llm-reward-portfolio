@@ -218,30 +218,132 @@ def test_git_backup_never_fails_open() -> None:
 
     Each case below reads OK against that rewrite and ATTENTION now. The control must stay OK, or
     the fix has simply broken the row instead of correcting it.
+
+    ⚠ UPDATED 2026-08-04 (P299/P299-b). The row now asks git THREE questions rather than two --
+    `rev-list --count`, a `%H %s` + `--name-only` listing, and `for-each-ref` -- so the old
+    two-branch stub fed the *count* query the *log* query's answer, and the CONTROL case went RED
+    while four others passed only because "abc commit" fails `.isdigit()`. Modelling the real
+    interface is not a weakening: every original intent below is kept as a named case, and six new
+    ones were added for the grading P299-b introduced. The decisive addition is `d7b85965 class`:
+    a commit whose SUBJECT says "status:" while its CONTENT is 366 insertions of real work.
     """
+    def listing(*commits: tuple[str, list[str]]) -> str:
+        """Render git's `--format=%x01%H%x1f%s --name-only` output for the given commits."""
+        out: list[str] = []
+        for i, (subject, paths) in enumerate(commits):
+            out.append("\x01" + ("%040d" % i) + "\x1f" + subject)
+            out.append("")
+            out.extend(paths)
+        return "\n".join(out) + "\n"
+
+    # The path is a FACT of docs/ops/publish_status.sh:527 (`--only docs/RUN4_STATUS.md`), so the
+    # test states it literally and checks the module's constant against it, rather than reading the
+    # constant and then testing it against itself. getattr keeps this runnable as a mutation control
+    # against a module that predates the constant.
+    check("publisher path constant matches publish_status.sh --only",
+          getattr(sp, "_PUBLISHER_COMMIT_PATH", None), "docs/RUN4_STATUS.md")
+    RUN4 = ["docs/RUN4_STATUS.md"]
+    WORK = listing(("docs: RUN 21 close", ["CHANGELOG.md"]))
+    # subject says publisher, content says otherwise -- the real commit d7b85965
+    LIAR = listing(("status: T+147h38m - 10/12 lines up",
+                    ["CHANGELOG.md", "docs/RUN4_STATUS.md", "docs/ops/stage_eta.py"]))
+
+    # ⚠⚠ THE ISOLATION RULE, AND FOUR CASES BELOW HAD TO BE REBUILT ON IT (auditor, 2026-08-04).
+    # A case must be able to move ONLY through the mechanism it is named for. Four of these used
+    # `WORK` as the listing, so `n_local=1` with a substantive commit reached ATTENTION through the
+    # substantive-work path and the case passed no matter what the rc guards did -- FIVE separate
+    # mutations of the P257 machinery (deleting `_is_ref`'s body, dropping each of the three `rc !=
+    # 0` terms) passed the whole suite undetected. They now use `(0, "0\n")` with an EMPTY listing,
+    # the only fixture in which the UNKNOWN guard is the sole thing that can raise ATTENTION.
+    #
+    # ⚠ AND ONE HONEST CONSEQUENCE OF P299 THAT MUST BE STATED RATHER THAN TESTED AROUND: `_is_ref`
+    # NO LONGER AFFECTS ANY VERDICT. The row's verdict now comes from `rev-list --count HEAD --not
+    # --remotes`, and `holding` only supplies the "where" TEXT. That is safe, and the safety runs
+    # through the count rather than the filter: a BROKEN remote ref is skipped by `--not --remotes`,
+    # which EXCLUDES fewer commits and pushes n_local UP, never down. And `origin/HEAD` is a symref
+    # to a real branch, so a HEAD contained in it genuinely IS on a remote -- the old row called
+    # that "not a backup location" as presentation, not as risk. So the two ref cases assert on the
+    # DETAIL STRING, which is the only place that filter still lives; asserting a verdict there
+    # would be asserting something the code no longer decides.
+    #
+    # `want` is either a status, or (status, substring-that-must-appear-in-the-detail).
+    #        label,                                   count,                   listing, refs, want
     states = [
-        ("broken ref warning on stderr", 0, "abc commit\n", 0,
-         "warning: ignoring broken ref refs/remotes/origin/broken\n", sp.ATTN),
-        ("sh() raised -> (99, 'TimeoutExpired: ...')", 0, "abc commit\n", 99,
-         "TimeoutExpired: git timed out\n", sp.ATTN),
-        ("working-branch remote ref vanished", 128,
-         "fatal: ambiguous argument 'origin/x..HEAD'\n", 0, "", sp.ATTN),
-        ("genuinely local-only: git OK, no refs", 0, "abc commit\n", 0, "", sp.ATTN),
-        ("CONTROL: genuinely on a remote", 0, "", 0,
-         "refs/remotes/origin/backup-2026-08-04\n", sp.OK),
-        ("origin/HEAD alone is NOT a backup location", 0, "abc commit\n", 0,
-         "refs/remotes/origin/HEAD\n", sp.ATTN),
+        ("broken ref warning is not a ref (detail)", (0, "0\n"), "",
+         (0, "refs/remotes/origin/real\nwarning: ignoring broken ref refs/remotes/origin/broken\n"),
+         (sp.OK, "origin/real")),
+        ("broken ref warning must not reach the detail", (0, "0\n"), "",
+         (0, "refs/remotes/origin/real\nwarning: ignoring broken ref refs/remotes/origin/broken\n"),
+         (sp.OK, "1 remote ref")),
+        ("sh() raised -> (99, 'TimeoutExpired: ...')", (0, "0\n"), "",
+         (99, "TimeoutExpired: git timed out\n"), sp.ATTN),
+        ("the count query itself failed", (128, "fatal: bad revision\n"), "", (0, ""), sp.ATTN),
+        # ⚠ The case above does NOT isolate `rc_cnt`: "fatal: ..." also fails the digit parse, so it
+        # still reaches ATTENTION through `n_local is None`. This one isolates it -- git returns
+        # non-zero while its output happens to parse as a count. A non-zero rc is UNKNOWN, never a
+        # backup, however plausible the bytes beside it look (P230/P232).
+        ("the count query failed but its output PARSES", (128, "0\n"), "", (0, ""), sp.ATTN),
+        ("the listing query itself failed", (0, "0\n"), "", (0, ""), sp.ATTN),
+        ("genuinely local-only: git OK, no refs", (0, "1\n"), WORK, (0, ""), sp.ATTN),
+        ("CONTROL: genuinely on a remote", (0, "0\n"), "",
+         (0, "refs/remotes/origin/backup-2026-08-04\n"), sp.OK),
+        ("origin/HEAD is filtered out of the detail", (0, "0\n"), "",
+         (0, "refs/remotes/origin/HEAD\n"), (sp.OK, "0 remote ref")),
+        # --- P299-b additions ---------------------------------------------------------------
+        ("publisher race: 1 status commit, only RUN4_STATUS", (0, "1\n"),
+         listing(("status: T+163h - 10/12 lines up", RUN4)), (0, ""), sp.OK),
+        ("d7b85965 class: 'status:' subject, SIX files of real work", (0, "1\n"), LIAR,
+         (0, ""), sp.ATTN),
+        ("publisher STUCK: 6 status commits past the race max", (0, "6\n"),
+         listing(*[("status: x", RUN4)] * 6), (0, ""), sp.ATTN),
+        ("count is not a bare number (warning merged in)", (0, "warning: gc\n1\n"), WORK,
+         (0, ""), sp.ATTN),
+        # The case above is passed by a LENIENT parse too (it recovers n_local=1 and still reaches
+        # ATTENTION for a different reason), so it does not isolate the parse. This one does: a
+        # lenient parse reads the "0" and prints OK -- "nothing unpushed" -- on output it could not
+        # actually understand. Strict means UNKNOWN, and UNKNOWN is never a backup.
+        ("count is a warning PLUS a zero -- lenient parse would read OK", (0, "warning: gc\n0\n"),
+         WORK, (0, ""), sp.ATTN),
+        ("listing accounts for fewer commits than the count", (0, "3\n"),
+         listing(("status: x", RUN4)), (0, ""), sp.ATTN),
+        # `lead` used to index a list the empty subjects had been filtered OUT of, which raised
+        # IndexError and aborted the WHOLE preflight. It now indexes `commits`, which cannot be
+        # short, and falls back to a readable placeholder -- asserted on the detail so the
+        # placeholder cannot be quietly dropped again.
+        ("empty commit messages ABOVE the race max must not crash", (0, "7\n"),
+         listing(*[("", RUN4)] * 7), (0, ""), (sp.ATTN, "<empty commit message>")),
+        ("empty commit message is NOT a publisher commit", (0, "3\n"),
+         listing(*[("", RUN4)] * 3), (0, ""), sp.ATTN),
+        ("a merge commit lists no files -> substantive", (0, "1\n"),
+         listing(("status: merge", [])), (0, ""), sp.ATTN),
     ]
-    for label, rc_log, out_log, rc_refs, out_refs, want in states:
+    for label, count, log_out, refs, want in states:
         sp._rows.clear()
         real = sp.sh
-        sp.sh = lambda a, timeout=120, _l=(rc_log, out_log), _r=(rc_refs, out_refs): (
-            _r if "for-each-ref" in a else _l)
+        # a listing fixture is either the text (rc 0) or an explicit (rc, text) pair
+        listing_pair = log_out if isinstance(log_out, tuple) else (0, log_out)
+        if label.startswith("the listing query itself failed"):
+            listing_pair = (128, "fatal: bad revision\n")
+
+        def stub(a, timeout=120, _c=count, _l=listing_pair, _r=refs):
+            joined = " ".join(a)
+            if "for-each-ref" in joined:
+                return _r
+            if "rev-list" in joined:
+                return _c
+            return _l
+
+        sp.sh = stub
         try:
             sp.check_git_backup()
+            row = sp._rows[-1] if sp._rows else ("", "<no row emitted>", "")
+            got = row[1] if not isinstance(want, tuple) else (
+                row[1], want[1] if want[1] in row[2] else "MISSING: %r not in %r" % (want[1], row[2]))
+        except Exception as exc:            # noqa: BLE001 - a crash IS the finding
+            got = "raised %s: %s" % (type(exc).__name__, exc)
         finally:
             sp.sh = real
-        check("git_backup never fails open: %s" % label, sp._rows[-1][1], want)
+        check("git_backup never fails open: %s" % label, got, want)
 
 
 def main() -> int:

@@ -30,6 +30,9 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
+import time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cycle  # noqa: E402
@@ -143,6 +146,85 @@ breach_no_witness = empty_archive.copy()
 breach_no_witness["ra_hash_mismatch"] = 2
 check("H4 breach outranks a missing witness", cycle._sci_token(breach_no_witness),
       "!ra_hash_mismatch")
+
+
+# ---------------------------------------------------------------------------------------------
+# `_cached_probe` -- THE CADENCE HELPER (P298 / P298-b / P301, 2026-08-04)
+#
+# WHY THIS EXISTS. The same defect was introduced THREE TIMES IN ONE DAY at this one idiom, and the
+# block had ZERO tests while the sibling row in session_preflight.py had fifteen. The rule the
+# helper enforces, and the only sentence worth memorising: **A CADENCE GATE MAY THROTTLE THE WORK;
+# IT MAY NEVER THROTTLE THE VERDICT.** Between two runs of an expensive probe the last verdict is
+# still the best evidence available, and dropping it makes the board read OK during an unresolved
+# RED. Case P3 is the one that matters: it FAILS against every version of this code before P301.
+_tmp = Path(tempfile.mkdtemp())
+_real_run = cycle._run
+
+
+def _stub_run(rc, out):
+    calls = []
+
+    def _r(cmd, timeout=120):
+        calls.append(cmd)
+        return rc, out
+    cycle._run = _r
+    return calls
+
+
+try:
+    s = _tmp / "p1"
+    calls = _stub_run(0, "clean\n")
+    rc, out, cached, age = cycle._cached_probe(s, 1800.0, ["x"], timeout=10)
+    check("P1 no stamp + may_run -> RUNS and stamps the rc",
+          (rc, cached, age, len(calls), s.read_text().splitlines()[0]), (0, False, 0.0, 1, "0"))
+
+    calls = _stub_run(0, "must not be called\n")
+    rc, out, cached, age = cycle._cached_probe(s, 1800.0, ["x"], timeout=10)
+    check("P2 fresh stamp -> does NOT re-run, carries the verdict", (rc, cached, len(calls)),
+          (0, True, 0))
+
+    s2 = _tmp / "p3"
+    s2.write_text("1\n- S1 a record is unsound\n", encoding="utf-8")
+    calls = _stub_run(0, "")
+    rc, out, cached, age = cycle._cached_probe(s2, 1800.0, ["x"], timeout=10)
+    check("P3 a CACHED FAILURE is carried, not dropped (the P298-b/P301 defect)",
+          (rc, cached, len(calls), out.strip()), (1, True, 0, "- S1 a record is unsound"))
+
+    for _label, _text in (("legacy float", "1785861193.74"), ("empty", ""),
+                          ("double minus", "--5\n"), ("superscript", "²\n"),
+                          ("garbage", "nope\n")):
+        s3 = _tmp / ("p4_" + _label.replace(" ", "_"))
+        s3.write_text(_text, encoding="utf-8")
+        rc, _o, _c, _a = cycle._cached_probe(s3, 1800.0, ["x"], timeout=10)
+        # "--5" and "²" both survive `lstrip("-").isdigit()` and then raise in int(); an earlier
+        # version parsed exactly that way and would have killed the whole monitoring sweep.
+        check("P4 unparseable stamp (%s) -> 98, never clean, never a crash" % _label, rc, 98)
+
+    s4 = _tmp / "p5"
+    calls = _stub_run(0, "")
+    rc, _o, _c, age = cycle._cached_probe(s4, 0.0, ["x"], timeout=10, may_run=False)
+    check("P5 may_run=False + no stamp -> None (not yet), and no alarm value",
+          (rc, age, len(calls)), (None, None, 0))
+
+    s4.write_text("1\ndetail\n", encoding="utf-8")
+    calls = _stub_run(0, "")
+    rc, _o, cached, _a = cycle._cached_probe(s4, 0.0, ["x"], timeout=10, may_run=False)
+    check("P6 may_run=False + stamp -> carries the verdict without running",
+          (rc, cached, len(calls)), (1, True, 0))
+
+    s5 = _tmp / "p7"
+    s5.write_text("1\nold\n", encoding="utf-8")
+    os.utime(s5, (time.time() - 4000, time.time() - 4000))
+    calls = _stub_run(0, "fresh\n")
+    rc, _o, cached, _a = cycle._cached_probe(s5, 1800.0, ["x"], timeout=10)
+    check("P7 stale stamp -> re-runs and overwrites", (rc, cached, len(calls)), (0, False, 1))
+
+    s6 = _tmp / "nodir" / "deep" / "p8"
+    calls = _stub_run(1, "boom\n")
+    rc, _o, cached, _a = cycle._cached_probe(s6, 1800.0, ["x"], timeout=10)
+    check("P8 an unwritable stamp path still reports the fresh rc", (rc, cached), (1, False))
+finally:
+    cycle._run = _real_run
 
 
 print(f"_HARD_ZERO carries {N} invariants")

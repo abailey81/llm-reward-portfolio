@@ -2227,3 +2227,150 @@ collection `continue` drops no candidate (each was counted and ledgered earlier 
 generation); the driver's two ledger paths write the durable JSONL row **before** mutating memory;
 and `cpg = candidates // gens` is exact at the registered 30/6.
 
+
+---
+
+## D49-D60 — `scripts/analyze_campaign.py`, THE FULL OUTPUT-KEY AUDIT (2026-08-04, RUN 21)
+
+**WHY THIS ENTRY EXISTS.** `analyze_campaign.py` produces THE RESULT the dissertation reports, runs
+exactly ONCE at teardown, and is DRIFT-FENCED for the campaign's duration. A defect in it surfaces
+when it is too late to fix. Two read-only auditors were sent at it: one at record attribution and the
+H2 pairing, one at the output-key register. Both reported first-hand with file:line and measured
+numbers, and every load-bearing claim below was re-verified before it was written down.
+
+**THE UNFENCED HALF IS BUILT: `docs/analysis/loader_collision_watch.py`** makes D49 visible on every
+pass, in 4 seconds, from directory names alone, with an AST-proven blindness guarantee.
+
+### D49 (CRITICAL, mechanism CONFIRMED, consequence clause REFUTED) — the loader pools every leg line into the core arms
+
+`load_campaign_records` (`:1152-1184`) walks to `_MAX_ARCHIVE_DEPTH = 3` and skips exactly two
+things: dot-prefixed directories and `*_h3_singleshot`. **`test_leg_*` is not skipped**, so every
+replication leg's records enter the same flat list under the SAME arm labels, and the de-duplication
+key `(directory, run_id)` keeps both copies by design (the A79 fix). `_seed_scores` (`:1394-1425`)
+then groups on `r["arm"]` and `r["seed"]` alone. **No record carries a line, model or provider
+field** — the auditor dumped the schema on four records to check — so the line is recoverable only
+from the path, which the grouping key discards.
+
+**MEASURED, twice, independently.** The auditor executed the real walk with a stubbed record loader:
+`distributional` **2,145 of 2,145** H2 test records are from LEG lines, `scalar` **2,137 of 2,137**,
+**core contributes ZERO** to both. `placebo` and `scalar_cvar5` are 30 of ~2,270 core. Our own
+detector, from directory names: **2,840 (arm, seed) cells are held by more than one line, 568 on
+each of the five arms**, with `distributional` seed 0 held by seven lines.
+
+⚠ **THE REGISTER'S CONSEQUENCE CLAUSE IS WRONG AND MUST BE RE-WORDED RATHER THAN CLOSED.** It says a
+confirmatory H2 verdict "could be computed on other models' data while looking complete and
+balanced". **It cannot, today: `_seed_scores` RAISES `ValueError` on conflicting duplicates and
+`analyze()` guards only `AssertionError` (`:5052-5058`), so the whole analysis ABORTS.** Confirmed by
+executing the real function on two real records: *"CONFLICTING duplicate test records for
+arm='distributional' seed=0: scores 1.0424... and 1.3021..."*. Cross-line disagreement is universal,
+not incidental — 30/30 of the first 30 `distributional` seeds conflict across 7 lines with 7 distinct
+reward hashes, and even `placebo` conflicts because the placebo reward is per-line authored.
+
+### D50 (MAJOR) — therefore `analyze_campaign.py` currently produces NOTHING on this archive
+
+The `ValueError` propagates out of `analyze()` into `main()`. `scripts/bank_gate.py:107,129` runs it
+as a fail-fast step, so **the whole bank gate stops there.** This is the single most important thing
+to know before teardown, and it is knowable now rather than then.
+
+### D51 (MAJOR) — THE TRAP: the guard's own remediation text points the operator at the wrong fix
+
+`:1419-1424` says *"Deduplicate the run archive (or fix the writer) before analysing; identical
+duplicates are fine."* The true cause is cross-line pooling, not a duplicate writer. **An operator
+who follows that advice and deletes the "duplicate" leg copies converts the LOUD failure into
+exactly the SILENT one the register feared**, with whichever line survived becoming the core arm.
+The message names `arm` and `seed` but not the DIRECTORY, which is the only diagnostic that points
+at the real cause. **DO NOT DEDUPLICATE THE ARCHIVE.** The real repair is the one
+`docs/analysis/a79_fix_proof.py:60-84` already prototypes: extend the `:1179` skip to `_leg_` line
+directories, exactly as `_h3_singleshot` is skipped. It did not ship.
+
+### D52-D54 (MAJOR) — the paths that pool SILENTLY, with no guard at all
+
+* **D52** `benchmark_floor` (`:5443-5448`) and `h1_beat_human` (`:5847`) take
+  `np.mean(np.stack(vecs))` over every arm-matching TEST vector with **no duplicate guard**, then
+  truncate to `t_min` without warning. Same for `_arm_median_tail_seed_test_returns` (`:2757-2782`)
+  and `_arm_pooled_val_returns` (`:2727`) feeding the ES backtest.
+* **D53** PBO and `winner_dsr` (`:318-319`, `:648-651`, `:704-708`) pool cross-line SEARCH
+  candidates with no guard. `_is_search_candidate` filters record KIND, never LINE. `n_trials`, the
+  DSR multiplicity denominator, becomes the pooled count, and the `max(val_fitness)` winner scan
+  (`:689-691`) **can name another model's candidate as the core arm's winner**, which then feeds H1.
+* **D54** `_arm_seed_test_sharpes` (`:5748-5765`) appends one Sharpe PER RECORD while its docstring
+  claims one per seed, and its caller (`:5428-5435`) catches `Exception` into a status dict, so
+  nothing would surface. Latent only because D50 aborts the run first.
+
+### D55 (MAJOR) — two registered keys are compile-time constants, and the completeness gate counts them as present
+
+`named_vs_blinded_structural` (`:5276`) and `legible_format_responsiveness` (`:5301`) are assigned
+literal `{"status": "no_data", "executed": False}` and are overwritten only if `named_blinded_root` /
+`legible_root` is supplied. **No production caller passes either** — `main()` (`:7029-7034`) and
+`bank_gate.py:106-109` pass only `variance_run_roots` and `single_shot_root`; the only callers that
+supply them are in `tests/test_subexperiment.py`. Because they are always PRESENT,
+`missing_output_keys` counts them toward "39/39 present": presence certified, content structurally
+fixed.
+
+### D56 (MAJOR) — `mechanism_multiplicity`'s correction can never run
+
+All four p-bearing rows read `named_vs_blinded_structural`'s sub-keys (`:3468-3475`). Given D55 they
+are all `None`, so `n_p == 0` deterministically, `bonferroni_alpha = alpha` (`:3480`), and every
+`survives_bonferroni` / `reject_bh` is `None`. **The instrument renders a clean table whose entire
+inferential content is unreachable.** Either wire the NAMED pass or report `status="not_computable"`
+so it cannot be read as a completed sensitivity.
+
+### D57 (MAJOR) — five keys have no renderer and no consumer, including the RATIFIED PRIMARY DECISION RULE
+
+`write_report` (`:6847-6929`) renders 32 keys. It renders **nothing** for `archive_integrity`,
+`cross_model`, `validity_tier`, `responsiveness_by_arm`, `distance_moderator`. They land only in
+`campaign_overfitting.json`, and **nothing in the repository reads that file.** So `validity_tier` —
+labelled in the source as *"THE RATIFIED PRIMARY DECISION RULE (R108)"* (`:5574`) — has no route into
+any human-readable artefact, `cross_model` (the registered R86/R101 across-models claim) likewise,
+and an `archive_integrity` **MISMATCH** only `print`s to stdout (`:5033`).
+
+### D58 (MAJOR) — the compute number the write-up must report is computed by an UNREGISTERED instrument
+
+`out["compute_accounting"]` is candidates and tokens only (`:1000-1099`); grep confirms **zero hits**
+for `wall_clock`, `cpu_hours` or `core_hours` in it. The figure that reaches the PDF comes from
+`docs/analysis/compute_accounting.py`, which is outside the enumerated scope — precisely the
+"quantity that reaches the PDF and is not in that enumeration" `CLAUDE.md` forbids. Binds with E-wc.
+
+### D59 (MAJOR) — clean-looking values on empty or partial input
+
+`validity_tier` returns a complete verdict block with `any_rejected: False` and all six nodes
+`untestable` on an EMPTY archive — the distinction is in the artefact, but the top-level boolean is
+**identical to a genuine non-rejection**, which is this campaign's bankable headline.
+`compute_accounting` returns `status: "ok"` with all zeros when its provenance files are absent.
+`divergence` returns `status: "ok", n_diverged_runs: 0` when the log holds events but none of
+divergence kind.
+
+### D60 (MINOR, five items) — definitional divergences and stale strings
+
+`cross_model` is pinned to `T0_FLOOR_SEEDS = list(range(30))` (`leg_aggregate.py:39`) while S15
+reports the realized rung as 0 · `cross_hypothesis_multiplicity` takes `max(pvalue_one_sided)` while
+`validity_tier` N2 reads `pvalue_non_inferiority`, the A16-corrected rule, so the Bonferroni
+sensitivity reports H2 under the superseded definition · `:3377` emits
+`"note": "max one-sided p over {H4a, H4b}"` while the code maxes over four legs (the stale COMMENT
+was fixed 2026-08-01, the stale OUTPUT STRING was not) · `n_blocks` is a config echo that
+`bank_gate.py:106` can never vary · `delisting_band` uses the `inference.yaml` span rather than the
+archive's executed `test_window`.
+
+### AND THE COUNT IN `CLAUDE.md` WAS WRONG — FIXED, because it is not fenced
+
+The scope clause said **35** `out[...]` keys. An AST walk returns **39**, and the file's own
+`REGISTERED_OUTPUT_KEYS` holds 39, pinned by `tests/test_analyze_key_registry.py`. The comment beside
+that frozenset had already recorded that *"35 is a remembered number and matches neither route nor
+their union"* — **the artefact knew and the brief did not.** Corrected to 39 with a note tethering
+future readers to the code constant. Two gaps travel with it: **`docs/WHY_REGISTER.md`, named in that
+clause as "the apparatus", DOES NOT EXIST** and no generator for it exists, so the pre-submission
+gate the clause relies on is unbuilt; and D58 above.
+
+### WHAT WAS CHECKED AND FOUND SOUND — a register that lists only problems cannot be audited
+
+33 of the 39 keys were read and found sound in their own definition (the D49 pooled population is a
+loader-level defect and is not re-charged against each of them): `archive_integrity` (fail-loud on
+MISMATCH; only its rendering is at fault, D57) · `pbo` · `pbo_dsr` · `winner_dsr` · `h2` · `h4` ·
+`h3` · `h2_tost` · `h2_tost_dsr` · `comparative_es_backtest` · `bayesian_null_report` ·
+`model_confidence_set` · `h2_structure` · `dsr_effective_n` · `evt_consistency` · `reward_taxonomy` ·
+`responsiveness` · `responsiveness_by_arm` · `distance_moderator` · `mediation` · `information_gap` ·
+`validation_headroom` · `h1_beat_human` · `benchmark_floor` · `h2_rf_robustness` · `attribution` ·
+`regime_stratified` · `variance` · `cross_hypothesis_multiplicity` · `validity_tier` · `cross_model` ·
+`n_records` · `divergence`. Not sound per the entries above: `n_blocks` · `compute_accounting` ·
+`delisting_band` · `named_vs_blinded_structural` · `legible_format_responsiveness` ·
+`mechanism_multiplicity`.

@@ -201,6 +201,61 @@ def _run(cmd: list[str], timeout: int = 120) -> tuple[int, str]:
     return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
 
 
+def _cached_probe(stamp: Path, min_secs: float, argv: list[str], *, timeout: int,
+                  may_run: bool = True) -> tuple[int | None, str, bool, float | None]:
+    """Run an expensive probe at most once per `min_secs` AND CARRY ITS VERDICT ACROSS THE SKIP.
+
+    ⚠ THIS EXISTS BECAUSE THE SAME DEFECT HAS NOW BEEN INTRODUCED TWICE IN ONE DAY (P298, P298-b,
+    P301), each time by hand-rolling the idiom at a new call site. A cadence gate may throttle the
+    WORK; it may never throttle the VERDICT. Between two runs of a probe the last verdict is still
+    the best evidence available, and dropping it makes the board read OK during an unresolved RED.
+
+    Returns `(rc, output, cached, age_s)`.
+
+      * `rc is None`  -- NO VERDICT HAS EVER BEEN PRODUCED (no stamp, and this cycle may not run).
+        This is the only value that must reach no alarm branch: it means "not yet", not "failed".
+      * `rc == 98`    -- a stamp EXISTS but its verdict is unreadable, torn, empty or in a legacy
+        format. We HAD a verdict and lost it, which is a finding, so it routes to the not-clean
+        branch exactly as `sandbox_gap` does.
+      * any other int -- the probe's own return code, fresh (`cached is False`) or carried forward.
+
+    `may_run=False` forces the cached path even when the cadence is due, for probes that need a
+    resource this cycle does not have (a login-node `qstat`, say). The stamp holds `f"{rc}\\n{out}"`,
+    the format `sandbox_gap` and `integrity_gate` already use, so the skip path rebuilds BOTH the
+    verdict and the detail lines the alert quotes.
+
+    It never raises: a probe that kills the monitoring sweep is worse than a probe that reports a
+    failure, and `cycle_loop.sh` consumes this module through a command substitution.
+    """
+    try:
+        age: float | None = time.time() - stamp.stat().st_mtime
+    except OSError:
+        age = None               # never run, or unreadable -> DUE; never skip on ignorance
+    due = age is None or age >= min_secs
+    if due and may_run:
+        rc, out = _run(argv, timeout=timeout)
+        try:
+            stamp.parent.mkdir(parents=True, exist_ok=True)
+            stamp.write_text(f"{rc}\n{out}", encoding="utf-8")
+        except OSError:          # observability must never break the run
+            pass
+        return rc, out, False, 0.0
+    if age is None:
+        return None, "", True, None
+    try:
+        cached = stamp.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return 98, "", True, age
+    first = cached[0].strip() if cached else ""
+    try:
+        # int(), not `.isdigit()`: "--5" survives `lstrip("-").isdigit()` and then raises, and so
+        # does the superscript "²". A verdict parser must not be able to kill the sweep.
+        rc = int(first)
+    except ValueError:
+        rc = 98
+    return rc, "\n".join(cached[1:]), True, age
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16] if path.exists() else ""
 
@@ -1273,9 +1328,17 @@ def main() -> int:
     science = _results_layer(prev, alerts, attention, info)
 
     cores = jobs = ""
-    _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
-    _record_seal_rc = -1     # -1 => same; 0 = sealed clean, 1 = a record disagrees with its files
-    _record_science_rc = -1  # -1 => not run this cycle; 0 = S1-S9 clean, 1 = a science issue
+    # ⚠ P301: -1 IS GONE FROM ALL THREE. It meant "the layer did not run", and `_cached_probe` can
+    # also return a genuine -1 from a signal death or a Windows 0xFFFFFFFF exit, which is the exact
+    # P230/P232 collision the comment above it used to invoke. `None` (JSON null) now means "no
+    # verdict has ever been produced"; every other value is a real verdict, fresh or carried
+    # forward: 0 clean, 1 the check's own failure, 98 the cached verdict was unreadable, 99 the
+    # probe could not be launched. Each rc travels with the AGE of the attempt it came from,
+    # because a statistic with no time attached cannot be acted on (P292).
+    _vanished_rc: int | None = None
+    _record_seal_rc: int | None = None
+    _record_science_rc: int | None = None
+    _vanished_age_s = _record_seal_age_s = _record_science_age_s = None
     ssh_due, ssh_age = _ssh_due(REPO)
     if ssh_due and not args.ssh:
         info.append(f"ssh-gated layer triggered by ELAPSED TIME ({ssh_age:.0f}s >= "
@@ -1306,20 +1369,9 @@ def main() -> int:
         # node is shared, and 20 minutes against a 15-hour blind spot is already a ~45x improvement.
         # It is a COMPOSER -- it shells out to the instrument rather than re-deriving its logic, so
         # the two can never come to disagree about the same fact.
-        _va_rc, _va_out = _run([sys.executable, "docs/ops/vanished_array_watch.py"], timeout=300)
-        # Recorded in STATE.json so a later session can see the layer RAN. A check that is silent
-        # when clean and leaves no trace is indistinguishable from a check that was never wired in --
-        # which is the "a green board is not evidence" rule applied to my own addition.
-        _vanished_rc = _va_rc
-        if _va_rc == 1 and "VANISHED" in _va_out:
-            alerts.append(
-                "VANISHED ARRAY(S) -- a submitted array has left the queue while its block is still "
-                "pending. The driver will not notice until h_rt expires (up to 15 h). Run "
-                "`python docs/ops/vanished_array_watch.py` for the line and block.\n"
-                + "\n".join(ln for ln in _va_out.splitlines() if "VANISHED" in ln or "!!!" in ln))
-        elif _va_rc not in (0, 1):
-            attention.append(f"vanished_array_watch rc={_va_rc} -- the blind-spot detector could not "
-                             "run; the 15 h purge blind spot is UNWATCHED this cycle")
+        # ⚠ P301: THE RUN MOVED OUT OF THIS GATE ALONG WITH THE VERDICT. See the block after the
+        # ssh section -- `vanished_array_watch` still needs a login node, so it keeps `may_run`
+        # bound to this gate, but its VERDICT is now carried on every cycle like its two siblings.
 
         # ── PER-RECORD PROVENANCE SEAL (RUN 13, 2026-08-02) ────────────────────────────────────
         # Tamer: "constantly check each record, make sure every record individually is very strictly
@@ -1329,21 +1381,8 @@ def main() -> int:
         # verifies the env digest only on the CANONICAL read path and `record_validator` reads raw
         # JSON. INCREMENTAL: it seals only records newer than the last CLEAN pass, so the cost stays
         # flat as the archive grows toward ~42,000 records while every NEW record is sealed within
-        # one ssh cadence (~20 min). A check too expensive to run is a check that does not run.
-        _seal_rc, _seal_out = _run(
-            [sys.executable, "docs/analysis/record_provenance_seal.py", "--since-state"], timeout=900)
-        _record_seal_rc = _seal_rc
-        if _seal_rc == 1:
-            alerts.append(
-                "RECORD PROVENANCE SEAL FAILED -- a record disagrees with the env.json or reward.py "
-                "beside it, or names a commit this repository does not contain. That is an archive "
-                "integrity failure, not a monitoring nit. Run "
-                "`python docs/analysis/record_provenance_seal.py` for the full report.\n"
-                + "\n".join(ln for ln in _seal_out.splitlines() if "P1-" in ln or "P2-" in ln
-                            or "P3-" in ln or "P4-" in ln or "FAILURES" in ln))
-        elif _seal_rc != 0:
-            attention.append(f"record_provenance_seal rc={_seal_rc} -- the per-record seal could not "
-                             "run this cycle; new records are UNSEALED until it does")
+        # one cadence (~20 min). A check too expensive to run is a check that does not run.
+        # ⚠ P301: this is a LOCAL scan and never needed the ssh gate either -- see below.
 
         # ── DEEP SCIENCE AUDIT S1-S9 (RUN 14, 2026-08-02) ──────────────────────────────────────
         # Tamer: "ensure the records are logical, meaningful, no science issue."
@@ -1365,35 +1404,115 @@ def main() -> int:
         # SCIENCE_AUDIT_MIN_INTERVAL and the cycle log keeps its cadence.
         # Cadence gate, in the same stamp-mtime idiom this file already uses at the gap/integrity
         # probes above. A MISSING or unreadable stamp means DUE, so the audit fails toward running.
-        _sci_rc, _sci_out = -1, ""
-        _sci_stamp = WATCH / ".science_audit_stamp"
-        try:
-            _sci_due = (not _sci_stamp.is_file()
-                        or (time.time() - _sci_stamp.stat().st_mtime) >= SCIENCE_AUDIT_MIN_SECS)
-        except OSError:
-            _sci_due = True
-        if _sci_due:
-            _sci_rc, _sci_out = _run(
-                [sys.executable, "docs/analysis/record_science_audit.py"], timeout=900)
-            try:
-                _sci_stamp.parent.mkdir(parents=True, exist_ok=True)
-                _sci_stamp.write_text(str(time.time()), encoding="utf-8")
-            except OSError:      # observability must never break the run
-                pass
-        _record_science_rc = _sci_rc
-        if _sci_rc == 1:
-            alerts.append(
-                "DEEP SCIENCE AUDIT FAILED -- a record is not scientifically sound: a wrong test "
-                "length, an off-budget training, a non-finite or degenerate series, an invalid "
-                "allocation, a sealed-test reward at or above the registered R115 eligibility "
-                "floor, or a DETERMINISM BREACH between two records sharing an (arm, seed, reward "
-                "hash). Run `python docs/analysis/record_science_audit.py` for the detail.\n"
-                + "\n".join(ln for ln in _sci_out.splitlines()
-                            if ln.strip().startswith("- S") or "SCIENCE ISSUE" in ln))
-        elif _sci_rc != 0:
-            attention.append(f"record_science_audit rc={_sci_rc} -- the science audit could not run "
-                             "this cycle; new records are UNAUDITED for science until it does")
+        #
+        # ⚠ P298 (RUN 21, 2026-08-04) -- "NOT DUE" IS NOT "COULD NOT RUN", AND -1 MEANT BOTH.
+        # `_sci_rc` was seeded to -1 and overwritten ONLY when the cadence gate opened, so on every
+        # ssh pass the 30-min rate limiter CORRECTLY skipped, the branch below printed
+        # "the science audit could not run this cycle; new records are UNAUDITED for science" onto
+        # the live board and flipped the whole cycle verdict from OK to ATTN. The ssh layer runs on
+        # the SSH_MAX_GAP_S (1200 s) ELAPSED trigger and the audit every SCIENCE_AUDIT_MIN_SECS
+        # (1800 s), so ceil(1800/1200) = 2: the audit ran on every OTHER ssh pass and the bogus ATTN
+        # fired on the one in between -- ONE SSH PASS IN TWO, not one in three as this comment first
+        # said. The live record settles it: the ATTN blocks in ALERTS.txt at 13:51:17Z, 14:32:56Z
+        # and 15:16:24Z are 41.6 and 43.5 min apart, i.e. two ssh periods. The audit itself returned
+        # rc=0 clean when run by hand at 16:07Z, so nothing was ever wrong with the science.
+        # This is the P230/P232 rule again: a verdict channel must not share a value with a failure
+        # channel. "Not attempted" reaches NO error branch.
+        #
+        # ⚠⚠ AND THE FIRST VERSION OF THAT FIX FAILED **OPEN**, WHICH IS WORSE THAN THE DEFECT IT
+        # REPLACED (found by an auditor sent at my own same-day work, 2026-08-04 16:30Z). It dropped
+        # the verdict instead of carrying it: the stamp is written after EVERY attempt regardless of
+        # rc, so once a real audit returned 1 or 99 the next ~1800 s of ssh passes were "not due",
+        # raised nothing, and the board read **OK during a live unresolved science breach** -- with
+        # an info line positively asserting that the previous pass "still stands". Pre-fix those
+        # cycles at least stayed ATTN, for the wrong reason. Roughly nine cycles in ten would have
+        # read OK between the RED and its re-fire.
+        #
+        # THE CORRECT IDIOM WAS ALREADY IN THIS FILE, 550 LINES ABOVE, AND THE FIRST FIX ADOPTED
+        # ONLY HALF OF IT. `sandbox_gap` (see ~:770) and `integrity_gate` cache the RC INTO the
+        # stamp and RE-EVALUATE it on the skip path, with unreadable -> 98 -> the not-clean branch.
+        # A cadence gate may throttle the WORK; it may never throttle the VERDICT.
+    # ⚠⚠ P301 (RUN 21, same day, SECOND auditor): P298-b FIXED THE INNER GATE AND LEFT THE OUTER
+    # ONE, SO THE VERDICT WAS STILL BEING DROPPED -- FOR LONGER. This block used to sit INSIDE
+    # `if args.ssh or ssh_due:` (note the dedent), so the cached re-read only happened on ssh
+    # cycles. MEASURED over 2026-08-04 10:00-16:59Z: 77 cycles, 17 carrying `cores=`, i.e. the
+    # science verdict was evaluated on 22% of cycles, with a longest run of SEVEN consecutive
+    # unevaluated cycles and a maximum ssh gap of 3,222 s. A live science RED would have left
+    # CYCLE_LOG.md -- the file a session is told to read FIRST -- reading OK for up to 54 minutes,
+    # which is WORSE than the 30-minute window P298-b was written to close.
+    # The two probes this idiom was copied from are evaluated EVERY cycle, which is why theirs
+    # works. The audit is a LOCAL archive scan and needs no login node, so nothing about it ever
+    # belonged behind the ssh gate; its own SCIENCE_AUDIT_MIN_SECS limiter is the cadence control.
+    # ⚠ AND THE SAME AUDITOR NAMED THE OTHER TWO MEMBERS OF THE CLASS, WHICH HAD NO CACHE AT ALL:
+    # `vanished_array_watch` and `record_provenance_seal` were seeded -1 and evaluated only on ssh
+    # cycles, so their verdicts were dropped on the other 78% too. A class fix is only as complete
+    # as the population you drew it over (P296), so all three go through one helper here.
+    # `vanished_array_watch` genuinely needs a login node, so only its RUN stays gated; the seal is
+    # a local scan and keeps the same ~20 min cadence through its own limiter instead.
+    _va_may_run = bool(args.ssh or ssh_due)
+    _va_rc, _va_out, _va_cached, _va_age = _cached_probe(
+        WATCH / ".vanished_array_verdict", 0.0,
+        [sys.executable, "docs/ops/vanished_array_watch.py"], timeout=300, may_run=_va_may_run)
+    _vanished_rc = _va_rc
+    _vanished_age_s = None if _va_age is None else round(_va_age, 1)
+    _va_src = (f" (CACHED verdict, checked {_va_age / 60.0:.1f} min ago)"
+               if _va_cached and _va_age is not None else "")
+    if _va_rc == 1 and "VANISHED" in _va_out:
+        alerts.append(
+            f"VANISHED ARRAY(S){_va_src} -- a submitted array has left the queue while its block is "
+            "still pending. The driver will not notice until h_rt expires (up to 15 h). Run "
+            "`python docs/ops/vanished_array_watch.py` for the line and block.\n"
+            + "\n".join(ln for ln in _va_out.splitlines() if "VANISHED" in ln or "!!!" in ln))
+    elif _va_rc is not None and _va_rc not in (0, 1):
+        attention.append(f"vanished_array_watch rc={_va_rc}{_va_src} -- the blind-spot detector did "
+                         "not complete (98 = the cached verdict was unreadable); the 15 h purge "
+                         "blind spot is UNWATCHED until a pass succeeds")
 
+    _seal_rc, _seal_out, _seal_cached, _seal_age = _cached_probe(
+        WATCH / ".record_seal_verdict", SSH_MAX_GAP_S,
+        [sys.executable, "docs/analysis/record_provenance_seal.py", "--since-state"], timeout=900)
+    _record_seal_rc = _seal_rc
+    _record_seal_age_s = None if _seal_age is None else round(_seal_age, 1)
+    _seal_src = (f" (CACHED verdict, sealed {_seal_age / 60.0:.1f} min ago)"
+                 if _seal_cached and _seal_age is not None else "")
+    if _seal_rc == 1:
+        alerts.append(
+            f"RECORD PROVENANCE SEAL FAILED{_seal_src} -- a record disagrees with the env.json or "
+            "reward.py beside it, or names a commit this repository does not contain. That is an "
+            "archive integrity failure, not a monitoring nit. Run "
+            "`python docs/analysis/record_provenance_seal.py` for the full report.\n"
+            + "\n".join(ln for ln in _seal_out.splitlines() if "P1-" in ln or "P2-" in ln
+                        or "P3-" in ln or "P4-" in ln or "FAILURES" in ln))
+    elif _seal_rc is not None and _seal_rc != 0:
+        attention.append(f"record_provenance_seal rc={_seal_rc}{_seal_src} -- the per-record seal "
+                         "did not complete (98 = the cached verdict was unreadable); new records "
+                         "are UNSEALED until a pass returns 0")
+
+    _sci_rc, _sci_out, _sci_cached, _sci_age = _cached_probe(
+        WATCH / ".science_audit_stamp", SCIENCE_AUDIT_MIN_SECS,
+        [sys.executable, "docs/analysis/record_science_audit.py"], timeout=900)
+    _record_science_rc = _sci_rc
+    _record_science_age_s = None if _sci_age is None else round(_sci_age, 1)
+    _sci_when = "unknown" if _sci_age is None else f"{_sci_age / 60.0:.1f} min"
+    _sci_src = f" (CACHED verdict, audited {_sci_when} ago)" if _sci_cached else ""
+    if _sci_cached and _sci_rc == 0:
+        info.append(
+            f"deep science audit S1-S9 not due -- the CACHED verdict from {_sci_when} ago is "
+            f"CLEAN and is carried forward, against a {SCIENCE_AUDIT_MIN_SECS / 60.0:.0f} min "
+            "cadence. The rate limiter throttles the WORK, never the VERDICT (P298/P301)")
+    if _sci_rc == 1:
+        alerts.append(
+            f"DEEP SCIENCE AUDIT FAILED{_sci_src} -- a record is not scientifically sound: a wrong test "
+            "length, an off-budget training, a non-finite or degenerate series, an invalid "
+            "allocation, a sealed-test reward at or above the registered R115 eligibility "
+            "floor, or a DETERMINISM BREACH between two records sharing an (arm, seed, reward "
+            "hash). Run `python docs/analysis/record_science_audit.py` for the detail.\n"
+            + "\n".join(ln for ln in _sci_out.splitlines()
+                        if ln.strip().startswith("- S") or "SCIENCE ISSUE" in ln))
+    elif _sci_rc is not None and _sci_rc != 0:
+        attention.append(f"record_science_audit rc={_sci_rc}{_sci_src} -- the deep science audit "
+                         "did not complete (98 = the cached verdict was unreadable); new records "
+                         "are UNAUDITED for science until a pass returns 0")
 
     # C8-loop / P267: stamp AFTER the work, so a crash mid-block retries on the next
     # cycle instead of silently marking the cadence satisfied.
@@ -1405,6 +1524,16 @@ def main() -> int:
             pass
 
     state = {
+        # ⚠ THE NAME IS A MILD LIE AND THE GAP IS NOW LARGE ENOUGH TO MISLEAD (P300, 2026-08-04).
+        # `stamp` is taken at the TOP of main(); the file is written at the BOTTOM, one whole sweep
+        # later, and the sweep is linear in archive size -- 374.8 s at 13,428 records and rising.
+        # The line appended to CYCLE_LOG.md re-stamps the clock, so it carries the cycle's END while
+        # this field carries its START, and the two legitimately differ by minutes. A session
+        # comparing them side by side reads that as a stalled loop; a reader computing staleness
+        # from this field overstates it by a full sweep. VERIFIED 2026-08-04: cycle start 16:33:43Z
+        # + sweep 374.8 s = the 16:39:58Z log line, exactly. Repo-wide grep: NO consumer reads this
+        # field, so the key is left alone rather than renamed -- the defect is the label, and the
+        # label is now stated truthfully here.
         "written_utc": stamp,
         "note": args.note,
         "records": records,
@@ -1430,10 +1559,16 @@ def main() -> int:
         "stop_file_present": stop_file.exists(),
         "cores": cores,
         "jobs": jobs,
-        # -1 = the ssh cadence did not run this cycle; 0 = ran, clean; 1 = ran, vanished array found.
+        # P301: null = no verdict has ever been produced. 0 = clean, 1 = the check's own failure,
+        # 98 = the cached verdict was unreadable, 99 = the probe could not be launched. On a
+        # rate-limited cycle these are the CACHED verdicts, so each carries the AGE in seconds of
+        # the attempt it came from -- read the pair, never the rc alone.
         "vanished_array_rc": _vanished_rc,
+        "vanished_array_age_s": _vanished_age_s,
         "record_seal_rc": _record_seal_rc,
+        "record_seal_age_s": _record_seal_age_s,
         "record_science_rc": _record_science_rc,
+        "record_science_age_s": _record_science_age_s,
         "alerts": alerts,
         "attention": attention,
     }

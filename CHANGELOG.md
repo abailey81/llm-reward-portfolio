@@ -3,6 +3,195 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04g] ★★★★★ RUN 21 (OPS), pass 1 — **THE LIVE BOARD HAD BEEN PRINTING "THE SCIENCE AUDIT COULD NOT RUN" ON EVERY OTHER SSH CYCLE WHILE THE AUDIT WAS RETURNING CLEAN** · the backup row cried "NO REMOTE AT ALL" on a 77-second publisher race · **and my own first fix for the first defect turned a false alarm into a fail-open, which an auditor found within the hour**
+
+### WHAT THE STATE WAS
+
+RUN 20 closed at T+163h with ~13,400 records, the common rung honestly 0, and 27 of the previous 30
+cycle lines reading ATTN. The RUN 21 brief's single most important instruction was **send an auditor
+at your own fixes before you bank them**, because six of RUN 20's most serious findings were about
+RUN 20's own same-day work. This session did that twice, and both times it was the right call.
+
+### WHAT WAS DONE, AND WHAT IT FOUND
+
+**The board first, every tool read on its own verdict rather than a pipe's exit code.**
+`session_preflight --full` · the seven record layers (**L1-L7 all RC=0** over 13,424 records) ·
+`record_science_audit` S1-S9 **rc=0** run by hand · `science_plausibility` B1-B9 **PLAUSIBLE** with
+zero violations of finiteness, sign, simplex, window, turnover or degeneracy ·
+`instrument_agreement` A1-A3 **every expected relationship HOLDS** · `line_balance` **CLEAN** ·
+`arm_jobs` · `record_seed_completeness` · `stage_eta` · a full `qstat -u ucestes -xml` census ·
+`loginnode_guard` **comfortable** · freeze **MATCHES** · drift **0** · reproducibility **8/0/0**.
+The ladder is unchanged and honest: **common rung 0**, capped by core, deepseek, glm and nemotron,
+none of which has begun its `h2_pair` — the arm every line tests LAST. gpt-5.6-luna's repair round
+is landing: its holes have gone from `192,193` across five arms to a single hole on two of them.
+
+**P298 — A FALSE REASON, PRINTED ON THE LIVE BOARD, SEVEN TIMES.** `cycle.py` seeded the deep
+science audit's return code to `-1` and overwrote it only when the 1800 s cadence gate opened. On
+every ssh pass where the rate limiter **correctly skipped** the audit, the error branch printed *"the
+science audit could not run this cycle; new records are UNAUDITED for science"* and flipped the
+cycle verdict from OK to ATTN. Seven instances are in `ALERTS.txt`, the last at 15:16:24Z, and the
+audit itself returns **rc=0 clean**. The frequency is arithmetic: the ssh layer fires on the 1200 s
+elapsed trigger against an 1800 s audit cadence, so the audit ran on every OTHER ssh pass and the
+bogus line fired on the one in between — **one pass in two**, which the 41.6 and 43.5 minute gaps
+between the ALERTS blocks confirm. This is P230/P232 again: a verdict channel must not share a value
+with a failure channel.
+
+**P298-b — AND MY FIX FOR IT FAILED OPEN, WHICH IS WORSE THAN THE DEFECT IT REPLACED.** An auditor
+sent at my own work within the hour found it. The cadence stamp is written after **every** attempt
+regardless of return code, so once a real audit returned 1 or 99 the next ~1800 s of ssh passes were
+"not due", raised **nothing**, and the board would have read **OK during a live unresolved science
+breach** — beneath an info line asserting that the previous pass "still stands". Pre-fix those cycles
+at least stayed ATTN, for the wrong reason. ⭐ **The correct idiom was already in the same file 550
+lines above, and my comment claimed to be using it:** `sandbox_gap` and `integrity_gate` cache the rc
+**into** the stamp and **re-evaluate it on the skip path**. I had adopted only the timing half.
+**A cadence gate may throttle the WORK; it may never throttle the VERDICT.** Falsified across nine
+states by exec'ing the real sliced source of both files; the decisive case is *not due, last audit
+returned 1*, where the first fix shows zero alerts and the correction raises the ALERT with the
+cached verdict's age attached. The legacy float stamp was a live transition hazard and was migrated
+by hand to the new format with `os.utime` preserving the cadence, on a **measured** verdict rather
+than an assumed one.
+
+**P299 — THE BACKUP ROW CRIED CATASTROPHE ON A 77-SECOND RACE, AND MEASURED THE WRONG QUANTITY TO DO
+IT.** `check_git_backup` printed *"N commit(s) on NO REMOTE AT ALL — this work exists only on this
+machine"* whenever no remote ref contained HEAD, which is the ordinary state between the status
+publisher's auto-commit and its push, and it counted against a **hardcoded branch name**. Replaced
+with `git rev-list --count HEAD --not --remotes`.
+
+**P299-b — AND THAT FIX GRADED ON THE COMMIT SUBJECT, WHICH THIS REPOSITORY ALREADY HELD THE
+COUNTEREXAMPLE TO.** Commit **d7b85965** has the subject `status: T+147h38m - 10/12 lines up` and
+carries **366 insertions across six files** including `CHANGELOG.md` — it was a bare `git commit`
+sweeping a dirty index, which is exactly why `--only docs/RUN4_STATUS.md` was added to
+`publish_status.sh` the same day (P251). A subject-only test would have graded that commit safe to
+leave unpushed. It also crashed the whole preflight with an `IndexError`, and graded empty commit
+messages as publisher commits. All closed by reading `%H %s` together with `--name-only` in one
+call, requiring the parse to account for **exactly** the counted commits, and requiring a publisher
+commit to touch exactly one path. The stated publisher cadence was wrong too — measured **median
+77 s** over the last 60 publisher commits, against a comment claiming "~2 min" and a threshold
+justified as "~10 minutes" — and this same file states the true figure 140 lines away.
+
+**⭐ AND THE COMMITTED MUTATION-CONTROL SUITE WAS BROKEN BY MY FIRST FIX AND I DID NOT RUN IT.**
+`docs/ops/test_session_preflight.py` stubs git on a two-command model; the new row asks three
+questions, so its **CONTROL case went RED** and four others passed only because `"abc commit"` fails
+`.isdigit()`. I had used a private stub in the scratchpad instead of the suite the repository already
+maintains for exactly this row. The suite now models the real interface, keeps every original case
+as a named intent and adds eight more: **44 passed, 0 failed**. ⭐⭐ **Its discriminating power is
+proven by true mutation control — mutating the FIXED code, because the old code answers different
+questions and can pass or fail for unrelated reasons.** Four mutants, four caught, but only after
+adding an isolating case: my first count-parse case passed against the lenient mutant too, for an
+unrelated reason, and was therefore testing nothing. **A test that passes against the mutant is not
+a test.**
+
+**P301 — AND A SECOND AUDITOR FOUND THE SAME DEFECT A THIRD TIME, ONE GATE HIGHER UP.** P298-b
+fixed the inner cadence gate and left the outer one: the corrected block still sat inside
+`if args.ssh or ssh_due:`, so the cached re-read only ran on ssh cycles. **Measured over
+10:00-16:59Z: 77 cycles, 17 carrying `cores=` — the science verdict was evaluated on 22% of cycles,
+with a longest run of seven consecutive unevaluated cycles and a maximum ssh gap of 3,222 s.** A
+live science RED would have left `CYCLE_LOG.md` reading OK for up to **54 minutes**, worse than the
+30-minute window P298-b was written to close. ⭐ **And the class was larger than the fix:**
+`vanished_array_watch` and `record_provenance_seal` had no cache at all and were dropping their
+verdicts on the other 78% too. P296's lesson again — a class fix is only as complete as the
+population you drew it over — so all three now go through one `_cached_probe` helper, with `None`
+meaning "no verdict has ever been produced" and `98` meaning "a verdict existed and its cache is
+unreadable". The science audit and the seal are local scans that never needed the ssh gate at all.
+`-1` is gone from all three STATE fields, because it collided with a genuine `-1` from a signal
+death or a Windows `0xFFFFFFFF` exit — the exact P230/P232 collision the surrounding comment
+invoked. **The verdict parser could also have killed the sweep:** `lstrip("-").isdigit()` accepts
+`"--5"` and the superscript `"²"`, both of which then raise in `int()`, and unlike its siblings this
+block had no `try/except`. **The block that failed open twice in one day had ZERO tests** while its
+sibling row had fifteen; eleven cases added, 31/31 for the file.
+
+**P299-c — AND THE SAME AUDITOR SHOWED MY REBUILT TEST SUITE STILL COULD NOT SEE THE P257
+MACHINERY.** Five mutations — deleting `_is_ref`'s body, dropping its `/HEAD` clause, and dropping
+each of the three `rc != 0` terms from the UNKNOWN guard — **passed the whole suite undetected**,
+because four cases used a fixture with one substantive commit and so reached ATTENTION through the
+substantive-work path whatever those guards did. **They passed for a reason unrelated to their own
+names.** Rebuilt on an isolation rule, and one honest consequence had to be stated rather than
+tested around: after P299 `_is_ref` no longer affects any verdict, only the "where" text, and the
+safety now runs through the count (a broken remote ref is skipped by `--not --remotes`, which
+pushes the count UP, never down). Final: **47 passed, 0 failed, ten mutants and ten caught.**
+
+**P302 — REGISTERED, NOT FIXED.** `check_status_page` grades publication by the **local** page's
+mtime, which is a name-shaped proxy for something it never measures. `publish_status.sh` writes the
+page unconditionally and restores it with `git checkout --` when the ASCII gate rejects it, which
+refreshes the mtime, and `--only` returns rc=128 during a merge. In either state nothing
+accumulates unpushed, so `check_git_backup` also reads OK — **both rows green while the page Tamer
+reads on his phone is frozen.** Fixing it needs a network call this row deliberately avoids, so the
+limitation is now stated in the row's own docstring rather than left implied.
+
+### ⛔⛔ THE BIGGEST FINDING OF THE SESSION, AND IT IS NOT A MONITORING DEFECT
+
+**`scripts/analyze_campaign.py` CANNOT PRODUCE A REPORT ON THIS ARCHIVE TODAY.** Two read-only
+auditors went at the file the RUN 21 brief names as the highest-value unaudited target. Its loader
+(`:1152-1184`) walks to depth 3 and skips exactly two things, dot-directories and `*_h3_singleshot`
+— **`test_leg_*` is not skipped** — so every replication leg's records enter one flat list under the
+SAME arm labels, and `_seed_scores` (`:1394-1425`) groups on `r["arm"]` and `r["seed"]` with no line
+term. No record carries a line, model or provider field at all; the line lives only in the path, and
+the grouping key discards it.
+
+**Measured twice, independently. 2,145 of 2,145 `distributional` H2 test records and 2,137 of 2,137
+`scalar` records come from LEG lines. Core contributes ZERO to both.** Our own detector, from
+directory names: **2,840 (arm, seed) cells are held by more than one line, 568 on each of the five
+arms**, `distributional` seed 0 by seven lines.
+
+★ **AND THE OPEN REGISTER'S CONSEQUENCE CLAUSE IS REFUTED, WHICH MATTERS AS MUCH AS THE
+CONFIRMATION.** It said a confirmatory H2 verdict *"could be computed on other models' data while
+looking complete and balanced"*. It cannot: `_seed_scores` raises `ValueError` on conflicting
+duplicates and `analyze()` guards only `AssertionError`, so **the run aborts loudly** and
+`bank_gate.py` stops with it. Confirmed by executing the real function on two real records. The
+disagreement is universal, not incidental — 30 of the first 30 `distributional` seeds conflict
+across seven lines with seven distinct reward hashes, and even `placebo` conflicts, because the
+placebo reward is authored per line.
+
+⚠⚠ **THE TRAP, AND IT IS THE OPERATIONAL RISK: the guard's own message says "Deduplicate the run
+archive (or fix the writer) before analysing".** The cause is cross-line pooling, not a duplicate
+writer, and **an operator who follows that advice and deletes the "duplicate" leg copies converts
+the LOUD failure into exactly the SILENT one.** The message names the arm and the seed but not the
+DIRECTORY, the one diagnostic that would point at the real cause. **DO NOT DEDUPLICATE THE ARCHIVE.**
+`benchmark_floor`, `h1_beat_human`, PBO and `winner_dsr` have no guard at all and would pool
+silently; the `max(val_fitness)` winner scan can name another model's candidate as the core arm's
+winner, which then feeds H1.
+
+⭐ **THE UNFENCED HALF IS BUILT AND LIVE: `docs/analysis/loader_collision_watch.py`** — 4 seconds,
+directory names only, no record opened, with the blindness guarantee **proven over its own AST**
+rather than promised. ⚠ Its first version was wrong in two ways I had to fix before trusting it: a
+substring scan raised a false blindness breach on the explanatory text the file PRINTS, and the walk
+included `test_h3_singleshot` as a colliding line when the real loader excludes it — **my detector
+was wrong, not the loader.** A surprising positive is a claim about your own script first.
+
+Eleven further findings are registered as **D49–D60** in `docs/DEFERRED_FIXES_RUN4.md`, including
+two registered keys that are compile-time constants the completeness gate counts as present, a
+mechanism-multiplicity correction whose inferential content is structurally unreachable, and **five
+keys with no renderer and no consumer — among them `validity_tier`, labelled in the source as the
+ratified primary decision rule, which today has no route into any human-readable artefact.**
+
+**✔ AND `CLAUDE.md` WAS WRONG ABOUT ITS OWN SCOPE CLAUSE.** It said the analysis has **35**
+`out[...]` keys. An AST walk returns **39**, the file's own `REGISTERED_OUTPUT_KEYS` holds 39, and
+`tests/test_analyze_key_registry.py` already asserts 39 — the comment beside that frozenset even
+records that *"35 is a remembered number"*. **The artefact knew and the brief did not.** Corrected,
+with a note tethering future readers to the code constant. Two gaps travel with it:
+**`docs/WHY_REGISTER.md`, named in that clause as "the apparatus", does not exist** and no generator
+for it exists, so the pre-submission gate the clause relies on is unbuilt; and the wall-clock figure
+the write-up must report is computed by an instrument outside the enumeration.
+
+### SPEED, AND THE ONE NUMBER NOT TO QUOTE THE EASY WAY
+
+No regression, and the highest 12 h rate yet recorded: **183.2 rec/h** (was 180.3), 24 h 165.6,
+1,848 slots, **231 running against 3 queued** with zero `Eqw` and zero `hqw`. The queue is now
+effectively empty, which is the §6.2 finding reaching its endpoint: the scheduler takes everything
+we submit on arrival, so **there is no fair-share wait left to recover** and no lever adds throughput
+to the critical path. ⚠ **`stage_eta` dates rung 30 at 08-05 01:10; the honest date is ~08-05 11:00.**
+Its clamp models the C1 chain only, not the serial C2 `h2_pair` TEST that must follow it, and a
+sealed TEST training is 9.39 h. Dating the four capping lines from their `qstat` start times gives
+glm ~22:00Z, kimi ~22:45Z, nemotron ~07:40Z, deepseek ~08:00Z and **core not before ~11:00Z**.
+Registered as ETA-1.
+
+### WHAT HAPPENS NEXT
+
+The 30-minute loop is armed at `7,37 * * * *`. Pass 2 continues the §11.3 deep dive, headed by
+`scripts/analyze_campaign.py` — the instrument that produces THE RESULT, runs once at teardown, and
+carries a known open `LOADER-POOLING` defect. Core's C1 chain and the four capping lines' `h2_pair`
+are the only things that move the ETA, and neither can be accelerated; the work is protecting them.
+
 ## [2026-08-04f] ★★★★★ RUN 20 (OPS), passes 9-18 and CLOSE — **I SENT AN AUDITOR AT MY OWN FIXES AND IT FOUND FOUR STRUCTURAL DEFECTS PLUS A FALSE CLAIM I WAS PRINTING ON THE LIVE BOARD EVERY CYCLE** · the OOM trajectory closed by measuring the right population at last · the throughput ceiling and the ETA settled per job · **and the board went green for the first time in the session**
 
 **PAST.** Continues `[2026-08-04e]` (RUN 20 passes 2-8), which closed the six vacuity guards and
@@ -885,6 +1074,223 @@ search results, and both would have shipped into the guide as fact.**
 7. **The page-structure regex matched table-of-contents entries as headings**, producing a 36-page
    Chapter 1 and a fictitious 49-page unit. Fixed by using the PDF's own outline. **Authoritative
    structure beats inferred structure.**
+
+### ★★★★★ SEVENTH PART — §32 MINING OUR OWN CORPUS, AND A DIRECT RE-READ OF BOTH SUPERVISORS
+
+**Every sweep this session ADDED to the corpus. None asked what the corpus already holds and the
+dissertation does not use.** §32 does, and re-reads the feedback from
+`docs/FEEDBACK_ASSESSMENT_2026-07-30.md` directly rather than through `CLAUDE.md`'s digest.
+
+⚠ **ERROR 12, THE INSTRUMENT WRONG TWICE IN ONE MEASUREMENT.** Mapping 243 PDFs onto `refs.bib` **by
+arXiv id alone reported 86 held-but-uncited** — an over-count, because `wallace2019numbers` is cited while
+its bib entry carries no arXiv id. Corrected to match on id **or title text: 23.** Hand-checking ten of
+those then found **three more false positives** (Benjamini-Hochberg, Ng-Russell, Black-Litterman are all
+cited). **The honest figure is ~20 and no entry may be acted on without a hand check. Quote the method,
+never the count.**
+
+**★ THREE THINGS WE OWN AND DO NOT USE, and two are load-bearing:**
+
+**① FÖLLMER-SCHIED, CONVEX RISK MEASURES (2002)** — held, uncited, and the theory chapter says *"convex
+risk"* **zero** times (the four `refs.bib` matches are Coache-Jaimungal's *Dynamic* Convex Risk Measures,
+a different paper). Appendix C builds everything on the **coherent** class and Kusuoka spanning; **convex
+risk measures are the strictly broader class** and Föllmer-Schied is their canonical reference. **A
+probabilist will ask why the broader class is never named**, and the honest answer is a scope statement we
+should be making rather than a question we should receive.
+
+**② ⭐⭐ KYLE (1985) AND TÓTH (2011) — our cost model contradicts them in silence.**
+`CH4_methods.md:129` charges **linear** costs at 10 bps swept over {0,5,10,25,50}. **The square-root law
+says impact is CONCAVE in volume, not linear.** *"Market impact"*, *"price impact"*, *"square-root law"*
+and *"slippage"* together return **ONE hit in the entire paper**, and **both canonical papers are already
+on our disk, uncited.** Our sweep varies the **coefficient** and never the **functional form**, so it
+tests linear scaling only. **An undisclosed limitation with its own citations in our corpus.**
+
+**③ AHMADI-JAVID EVaR (2012)** — held, uncited; worth one line defending the choice of the six fed
+statistics. ⛔ Rejected from the same list as noise: Houthooft, Schmidt-Lipson, and bin D's fourteen
+agentic-trading papers (already distinguished as a class in CH2's footnote).
+
+**★★ THE SUPERVISOR RE-READ PRODUCED ONE INDEPENDENT CORROBORATION AND ONE SKIPPED OBLIGATION:**
+
+**A11 says of the faultless-data pass: *"this phrase IS the 80→90 band boundary on a quarter of the
+mark."*** **§28.1a reached the identical conclusion by reading the two band descriptors clause by clause
+from the criteria PDF.** Two independent derivations agreeing makes it **the safest structural claim in
+the plan**, and it is why the data-presentation sweep now outranks the register pass.
+
+⚠⚠ **A REGISTERED FREEZE-DAY OBLIGATION WAS SILENTLY SKIPPED.**
+`freeze_day_checklist_additions.public_deposit` registers a **public OSF/Zenodo DOI deposit of the prereg
+bundle at the v2 freeze**. The v2.1 freeze executed and **no DOI exists.** C2 *"faultless execution"*, and
+it is the cheapest checkable answer to Criterion 3's publishability yardstick. **Owner: Tamer.**
+
+⚠ **AND A CORRECTION I OWE TAMER ON R96.** I offered him *"axis A alone at about $12, or both axes at
+about $35."* The feedback assessment records that **the all-or-nothing clause may commit BOTH axes
+(~$23–37), so axis A alone may not be selectable**, and says to resolve it in writing before any spend.
+**The choice I presented may not exist.**
+
+**A5, not yet landed and strictly stronger than what we do now:** lead the originality claim with the
+**pre-registration-absence limb** rather than the empty-cell limb — a claim about a *practice*, verifiable
+in an afternoon and **undefeatable by naming an adjacent paper**, where the empty cell is disputable by
+construction. **And A9 independently reached §30's wider-context finding, so three sources now say it.**
+
+**★ THE SCHEDULE ANSWER, from §10 of the assessment: ~5,900 words of prose need NO results** — intro,
+literature, data, methodology. **The majority of the writing does not wait for 27 August.**
+
+### ★★★★★ SIXTH PART — §31 THE MECHANISM REASONED AT THE TRANSFORMER LEVEL
+
+**Tamer: *"I want interesting stuff from LLM and dive deep and reason like transformers, attention
+mechanisms"*, then *"we are skipping so much stuff … we barely even scratch LLMs"*, then *"don't just add
+noise."*** §31 is that, written into the guide rather than delivered in chat.
+
+⚠ **MY SCOPE RULE WAS WRONG AND HE WAS RIGHT.** I had written *"teach exactly the path the claim runs
+through, nothing more"*, over-applying C6's do-not-re-teach-standard-objects. **C6's own example is
+explaining what a policy is where the agent is BACKGROUND. Here the model is the MANIPULATED SYSTEM**, and
+Criterion 1 is literally named *breadth and understanding of background knowledge*. **Corrected rule: teach
+every part of the apparatus that DETERMINES WHETHER THE MANIPULATION CAN HAVE AN EFFECT.** Under it,
+**eighteen elements** are load-bearing, each tabulated with what it determines, and all of it is
+word-excluded.
+
+**★ THE CORE DISSOCIATION.** Steps (a) label-value binding and (b) cross-block retrieval are
+**induction-head-shaped** — Olsson's QK-circuit finds the prefix match, the OV-circuit **copies** what
+followed — and transformers are excellent at them. Step (c), the **signed numeric comparison**, is
+categorically different: **retrieval is a soft lookup by attention; comparison is COMPUTATION** over a
+representation with no compositional magnitude, executed as a digit-local learned procedure in MLP
+sublayers. **⇒ The model can RETRIEVE the numbers and cannot COMPUTE with them.**
+
+**⇒ THE SIGNATURE, and it reframes an existing arm:** code that NAMES tail quantities far above the scalar
+arm while the STRUCTURAL distance stays near zero. **`placebo_shuffled` is therefore not a format control.
+It is a mechanistic dissociation between attention-based retrieval and MLP-based computation**, because it
+holds tokens, length and field count fixed and destroys only the pairing. Shuffled ≈ unshuffled means
+copying; shuffled ≪ unshuffled means computing. **The arm exists, the derangement is archive-verified
+(monotone in 102/102 treatment blocks, 0/24 shuffled). Only the reading changes.**
+
+**★ THE THEORETICAL PUNCHLINE.** Blackwell quantifies over rules measurable w.r.t. the SIGNAL's σ-algebra.
+**The model is conditioned on ρ(signal) = tokenizer ∘ renderer — a SECOND garbling the theorem does not
+model.** R114 measured a live instance: at `.3f`, **90.1 % of the paired differences rendered as the same
+string**. **When ρ is coarser than the distinction Π destroys, the two experiments are observationally
+identical and the dominance envelope is exactly ZERO, for every loss and prior.**
+
+**★ ATTENTION DILUTION, a route by which MORE information yields LESS effect.** Softmax weights are
+normalised; six numbers instead of one means roughly sixfold less mass per number. **Already testable with
+a registered arm: `placebo` is matched in length and field count, so placebo vs scalar isolates the
+length-and-count component.** ⚠ Labelled a HYPOTHESIS: normalisation is architectural, *"use scales with
+per-number mass"* is an assumption, and multi-head specialisation weakens strict conservation.
+
+⚠⚠ **§31.13 FOUND A REGISTERED DISCLOSURE MISSING FROM THE PAPER.**
+`config/preregistration.yaml:452` registers *"the Qwen pair is SERVED **fp8** … the authoring artifact is
+the fp8-served variant of the hash-pinned **bf16** weights … **one methods sentence; never claim the bf16
+weights authored**."* **Checked against `CH4_methods.md`: the sentence is NOT THERE.** Three consequences,
+the third serious: a registered obligation unfulfilled (**C2 "faultless"**); PRIORITY 5, since the register
+says pin + provider + quantisation *together* define the executed author, so publishing the pin alone
+**overstates** reproducibility; and **a latent factual overstatement — the document implies the pinned bf16
+weights authored the code, and they did not.** R85's sharper case: **a pin that is verifiable but is not
+the artefact that ran.** ⚠ And it is a **scope condition on the headline**, since R87 predicts the numeric
+representation is the bottleneck while we serve two models at 8-bit precision. **Disclosed as a scope
+condition and candidate confound, NEVER as a mechanism** — whether fp8 degrades comparison of
+text-token floats is not established.
+
+**§31.14 RECORDS SIX REJECTIONS** so the scope rule is visibly a filter: layer normalisation, KV caching,
+the encoder-decoder half of `Attention Is All You Need` (**we are decoder-only; the translation history is
+not our apparatus**), scaling laws as a separate topic, context window as a separate topic, and
+multimodality / MoE internals / pretraining-data curation. **Test: can it break the manipulation, or is a
+registered obligation about it unfulfilled? All six fail both.**
+
+**Corpus 240 → 243** (Olsson 2209.11895 + two induction-head papers; the corpus held **zero** circuits or
+interpretability literature before today). **None read in full; no `refs.bib` entries permitted yet.**
+
+### ★★★★★ FIFTH PART — §30 THE FOCUS AUDIT, AND IT FOUND A RATIFIED DECISION NEVER DELIVERED
+
+**Tamer: *"we don't have any LLM focus at all … identify absolutely all areas where we lack focus … this
+dissertation I am planning to publish, so it has to be niche."*** Focus is measurable, so it was measured.
+
+**DOMAIN-TERM DENSITY per 1,000 counted body words, over all 13,697:** **RL 14.7 · Finance 9.1 · Stats 6.9
+· LLM/NLP 3.1** (raw: 201 · 124 · 94 · **43**). Bibliography: **only 20 of 277 titled entries are purely
+LLM — 7.2 %.**
+
+⇒ **THE STRUCTURAL FINDING, which is sharper than "thin". Every domain has a HOME CHAPTER where it spikes:
+RL peaks 28.4 in the literature review, Finance 12.3 in the methodology, Statistics 10.4 in the results.
+LLM is FLAT at 2.6–3.4 in every chapter and never rises anywhere.** A topic mentioned uniformly and
+concentrated nowhere is a topic that is never TREATED. And of twenty figures, the model appears only as an
+*outcome* — **no exhibit depicts the model, the prompt, the fed block or the generation stack. The designer
+is measured and never shown.**
+
+⚠⚠⚠ **THE DEEPEST FINDING: `PREREGISTRATION.md` §2a, RATIFIED 2026-07-01, says *"the dissertation is led
+by the MECHANISM, with the H2 performance result as its rigorous backdrop."* The mechanism IS the LLM
+science (SQ1/SQ2/SQ3). The measured document is an RL/finance performance study with the LLM at 3.1 per
+thousand words.** This is not a style gap. **It is a Criterion 2 defect: the ratified design record and the
+executed artefact disagree**, and it explains eleven of the seventeen deficits as one cause.
+
+**SIX MORE DEFICITS ON NON-DOMAIN AXES, measured:** ⚠⚠ **claim-shaped headings: CH4 0/12 and CH7 0/6, both
+ZERO**, against CH2's 75 % — so Stefan's headings-only test cannot pass in the two chapters carrying the
+core, and registry row 47 is unfulfilled. ⚠⚠ **seven distinct phrasings of the research question** in 17
+body interrogatives, against a guide that requires the research be *"centred around a specific question"*.
+**Eight names for the manipulated object and seven for the designer** (C1's live instance, now counted).
+**The null pre-disclosed 13 times before Results, nine of them inside Methodology.** **`A1`–`A5`, the
+registered five rival accounts, have ZERO occurrences in body prose** despite Okhrati's D1 requiring every
+headline number to name which one it supports. And **CH7 Conclusions is 389 words against CH4's 4,946.**
+
+**THE FIX IS CONCENTRATION, NOT VOLUME.** §30.4 gives the LLM four homes inside the mandated structure,
+checked first against the guide: chapter names are fixed but **subsection headings are free**, and the
+finance anchor is satisfied by the domain rather than by vocabulary density. **§30.5 states the publication
+niche**, which already exists in CH2 §2.3 and is not foregrounded: *the informational content of feedback
+to a model that authors executable objectives, tested in the one arena that supplies a normative standard
+for what good risk evidence is.* Finance-anchored and LLM-focused at once.
+
+⚠ **ERROR 11.** A combined regex counting the deficits returned **15** where the direct count gives
+**11 + 6 = 17**. The alternation mis-parsed. **Caught by counting the two parts separately before
+reporting. Tenth instrument error of the session, and the artefact was right again.**
+
+### ★★★★★ FOURTH PART — §29 THE TOPIC REGISTER, WIRED INTO THE GUIDE
+
+**Tamer's correction, and he was right: *"this prompt asks to identify and assess and WIRE absolutely all
+relevant topics"*, then *"but don't wire noise please."*** I had been identifying and assessing **in chat**,
+where it evaporates every turn, and never wiring the result into the guide. **§29 is that fixed.**
+
+**A third sweep pass** targeted the theory layer for `§C.7` condition 2, the one the theory chapter calls
+**the pivotal unknown** and explains in a single sentence while condition 3 carries a full obstruction
+theorem. **Corpus 235 → 240; 29 new papers across three passes on 2026-08-04.**
+
+**~40 candidates enumerated across eight layers, run through ONE filter:** *does this close a gap currently
+costing a BAND, or move a dimension from meets-the-descriptor to exceeds-it?* **ELEVEN survive. NINE are
+rejected by name, and the rejections are what make it a register rather than a wish list.**
+
+**The deepest wire is RATIONAL INATTENTION (Sims 2003)** — a formal model of an agent with finite
+processing capacity, constrained by Shannon mutual information, that **optimally does not use freely
+available information.** It composes with Blackwell rather than competing: **Blackwell orders signals for
+an unconstrained Bayesian; rational inattention prices the constraint**, so the envelope-realisation gap
+gets a formalism instead of a shrug. Economics-native, which is Okhrati's home ground. Also wired:
+**psychophysics** (R96 axis A **is** a 2AFC/JND/psychometric-function experiment and we cite no
+psychophysics), **Duhem-Quine** (our "a null locates which link broke" is literally the answer to holist
+underdetermination), the apparatus path, the generation stack, prompt sensitivity, format compliance,
+eval methodology, measured reward hacking, quantisation/permanence, and Lost-in-the-Middle **gated on
+measuring the real prompt length**.
+
+**Rejected as noise, with reasons recorded:** Bayesian persuasion (**Blackwell already does the formal
+work and the persuasion motive does not apply** — misaligned sender preferences, which we do not have),
+value of information, Weber-Fechner, IRT (conditional on R96 axis B activating), prompt caching (**moves
+no band**), meta-analysis I² (post-hoc instrument, scope), test-time compute, program synthesis, and
+hallucination/emergence (**neither is a phenomenon this study measures**).
+
+⚠ **THE COST THAT IS NOT ZERO: not one of the 29 new papers has been read in full.** No `refs.bib` entry
+may be created until it is. §29 is a plan, not a licence.
+
+⚠ **AND A PREMATURE ARTEFACT WAS REMOVED.** I wrote `docs/WRITEUP_SESSION_PROMPT_2026-08-04c.md` as a
+successor brief. **Tamer: *"There is no successor yet."*** He is right, and beyond being premature it
+**forked the state across a third file** when `HANDOFF` + the cursor + this CHANGELOG already own it,
+violating the authority map's one-owner-per-truth rule. Deleted.
+
+### ★ ONE MORE SELF-CAUGHT IMPRECISION
+
+**`docs/WRITEUP_SESSION_PROMPT_2026-08-04c.md` written**, superseding `...04b`, which this session made
+stale in **eleven** places: the limit 10,000 → **11,000**, the count 13,561 → **16,509**, the corpus
+211 → **235**, the master plan 2,763 → **3,134** lines with §28, the `HANDOFF` §3 registry line ten rows
+behind, the reading gate asking for "six" exclusion categories when the guide lists **eight**, and §27.1's
+arithmetic, §27.5's write order and the Criterion 4 priority all superseded. Its §11 audit was run against
+itself: **7 of 7 checkable items pass.**
+
+⚠ **ERROR 10, caught by re-counting my own correction.** I wrote into `HANDOFF.md` §3 that the registry
+runs *"rows 1–55, counting the extra row 54b"*. **That reads as though 54b sits inside the 55.** It does
+not: there are **55 numeric rows PLUS 54b = 56 markers**, and the `^[0-9]+\.` pattern I used returns 55
+precisely because it cannot match `54b.` **This is the same undercount shape the line has now committed
+three times** — first at "rows 1–36", then "rows 1–45", now an ambiguous 55. Corrected in place, with the
+counting pattern stated so the next reader does not repeat it.
 
 **FUTURE.** Nothing in §7 moved, because none of it is this session's to close. `paper/**` stays on Tamer's
 hold, so the four open-weight understatements and the ten registry rows above stay open. The
