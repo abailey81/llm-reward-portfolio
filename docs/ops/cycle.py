@@ -1468,9 +1468,26 @@ def main() -> int:
                          "not complete (98 = the cached verdict was unreadable); the 15 h purge "
                          "blind spot is UNWATCHED until a pass succeeds")
 
+    # ⚠⚠ ONE FULL-ARCHIVE SCAN PER SWEEP (P303, and it is a risk P301 CREATED).
+    # The deep science audit (1800 s) and the provenance seal (1200 s) are both full-archive scans,
+    # and their cadences coincide every 3600 s. The first cycle in which both came due measured
+    # **783.5 s**, against a staleness cap of 900 s that `session_preflight.check_cycle_log` treats
+    # as "the monitoring loop is DEAD" -- a margin of 117 s, and the sweep grows linearly with the
+    # archive toward the ~42,000-record end state. A FALSE "the loop is dead" would be a defect I
+    # introduced by moving the audit out of the ssh gate, so the budget is enforced rather than
+    # hoped for: at most ONE heavy scan runs per sweep. The seal is tried first because it comes
+    # first in this file, NOT because it is the more important check -- and neither is starved,
+    # because a probe that runs resets its own age and is therefore not due on the next sweep.
+    # This throttles the WORK only. Both verdicts are still CARRIED on every cycle by
+    # `_cached_probe`, which is the whole point of P301, and a deferred probe simply runs on the
+    # next sweep (~4-11 min later) with its cadence measured from its own last ATTEMPT.
+    _heavy_budget = 1
     _seal_rc, _seal_out, _seal_cached, _seal_age = _cached_probe(
         WATCH / ".record_seal_verdict", SSH_MAX_GAP_S,
-        [sys.executable, "docs/analysis/record_provenance_seal.py", "--since-state"], timeout=900)
+        [sys.executable, "docs/analysis/record_provenance_seal.py", "--since-state"], timeout=900,
+        may_run=_heavy_budget > 0)
+    if not _seal_cached:
+        _heavy_budget -= 1
     _record_seal_rc = _seal_rc
     _record_seal_age_s = None if _seal_age is None else round(_seal_age, 1)
     _seal_src = (f" (CACHED verdict, sealed {_seal_age / 60.0:.1f} min ago)"
@@ -1490,7 +1507,8 @@ def main() -> int:
 
     _sci_rc, _sci_out, _sci_cached, _sci_age = _cached_probe(
         WATCH / ".science_audit_stamp", SCIENCE_AUDIT_MIN_SECS,
-        [sys.executable, "docs/analysis/record_science_audit.py"], timeout=900)
+        [sys.executable, "docs/analysis/record_science_audit.py"], timeout=900,
+        may_run=_heavy_budget > 0)          # P303: one full-archive scan per sweep
     _record_science_rc = _sci_rc
     _record_science_age_s = None if _sci_age is None else round(_sci_age, 1)
     _sci_when = "unknown" if _sci_age is None else f"{_sci_age / 60.0:.1f} min"
