@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 23:40 UTC -- T+194h31m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 23:41 UTC -- T+194h32m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+194h31m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+194h32m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18358** |
+| stalest driver log | **3 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18360** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 4.6 h ago; none live, newest failure 4.6 h ago** |
@@ -35,11 +35,11 @@ showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)
 
 ```
 generated 2026-08-05 23:41 UTC | elapsed 8.11 d | 21.0 d to the Aug-27 stop
-test tier: 16,815 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+test tier: 16,817 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     212 records     212.0 rec/h
-    last  3 h     485 records     161.7 rec/h
+    last  1 h     214 records     214.0 rec/h
+    last  3 h     486 records     162.0 rec/h
     last 12 h    1836 records     153.0 rec/h
     last 24 h    3505 records     146.0 rec/h
     12 h rate is 79% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         121       7  2026-08-06 00:28  2026-08-06 03:23  yes
-      100       2,845      82  2026-08-06 18:16  2026-08-09 15:00  yes
-      189       6,450     212  2026-08-07 17:50  2026-08-14 05:38  yes
-      279      10,500     212  2026-08-08 20:18  2026-08-19 09:56  yes
-      340      13,245     212  2026-08-09 14:15  2026-08-22 22:10  yes
-      403      16,080     212  2026-08-10 08:47  2026-08-26 13:11  yes
-      568      23,513     212  2026-08-12 09:21  2026-09-05 01:18  risk
+       30         121       7  2026-08-06 00:29  2026-08-06 03:23  yes
+      100       2,843      84  2026-08-06 18:16  2026-08-09 14:30  yes
+      189       6,448     214  2026-08-07 17:50  2026-08-14 04:34  yes
+      279      10,498     214  2026-08-08 20:18  2026-08-19 08:14  yes
+      340      13,243     214  2026-08-09 14:15  2026-08-22 20:03  yes
+      403      16,078     214  2026-08-10 08:46  2026-08-26 10:37  yes
+      568      23,511     214  2026-08-12 09:21  2026-09-04 21:35  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -162,7 +162,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | nemotron_3_super | **29** | 30 | 5 |  |
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
-| kimi_k3 | **40** | 48 | 5 |  |
+| kimi_k3 | **40** | 49 | 5 |  |
 | qwen3_6_27b | **166** | 186 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
