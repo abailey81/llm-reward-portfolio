@@ -253,6 +253,26 @@ def unit_cases(mutate: str = "") -> list[tuple[str, bool, str]]:
         ok = bool(shards_before) and bool(shards_after) and _ids(merged) == _ids(gone)
         results.append(("K the current signature's own shards survive the stale-sweep and are read",
                         ok, f"shards {len(shards_before)} -> {len(shards_after)}, ids={_ids(merged)}"))
+
+        # L — SHARDS ARE BOUNDED. One shard per PROCESS and one process per cycle means the live
+        # cache grew to EIGHT shards per tool within an hour while the line-ratio threshold sat days
+        # away. Correctness was never at risk, but ~288 files per tool per day, each re-opened on
+        # every read, is a leak. Compaction must fire on shard COUNT too. This fabricates 40 shards
+        # from the real ones and asserts they are folded away — it is FALSE of the line-ratio-only
+        # version this replaced.
+        live = list(cache_dir.glob(".record_shrink_cache.*.shard*.jsonl"))
+        if live:
+            body = live[0].read_text(encoding="utf-8")
+            stem = live[0].name.split(".shard")[0]
+            for i in range(40):
+                (cache_dir / f"{stem}.shard90{i:03d}.jsonl").write_text(body, encoding="utf-8")
+        n_before = len(list(cache_dir.glob(".record_shrink_cache.*.shard*.jsonl")))
+        bounded, _ = load()
+        n_after = len(list(cache_dir.glob(".record_shrink_cache.*.shard*.jsonl")))
+        base_now = [p for p in cache_dir.glob(".record_shrink_cache.*.jsonl") if ".shard" not in p.name]
+        ok = n_before > 32 and n_after == 0 and bool(base_now) and _ids(bounded) == _ids(merged)
+        results.append(("L shard count is BOUNDED: >32 shards triggers a compaction", ok,
+                        f"shards {n_before} -> {n_after}, base files={len(base_now)}, ids={_ids(bounded)}"))
     finally:
         rsc._read_cache = _orig_read_cache  # type: ignore[assignment]
         shutil.rmtree(tmp, ignore_errors=True)

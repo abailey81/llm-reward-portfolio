@@ -376,12 +376,27 @@ def load_shrunken_records(
         # a handful of new records (~23 KB each) instead of the whole 0.44 GB file.
         _append_cache(cache_file, {p: v for p, v in fresh.items() if p not in cached
                                    or cached[p][:2] != v[:2]})
-        # COMPACT only when the file has grown materially past the live set — superseded lines from
-        # re-pulled records, and entries for records that no longer exist. The threshold is a ratio
-        # rather than a count so it scales with the archive instead of firing constantly late in the
-        # ladder. `_lines_read` counts what was actually on disk, so this cannot be fooled by a cache
-        # that merged many duplicate lines down to few entries.
-        if _lines_read > max(2048, int(1.25 * len(fresh))):
+        # COMPACT on whichever of three bounds trips first. The line ratio catches dead weight from
+        # re-pulled or deleted records; it scales with the archive rather than firing constantly late
+        # in the ladder, and `_lines_read` counts what was on DISK so a cache that merged duplicates
+        # away cannot hide behind its entry count.
+        #
+        # ⚠⚠ THE OTHER TWO BOUNDS EXIST BECAUSE THE LINE RATIO ALONE LEAKS FILES, WHICH WAS OBSERVED
+        # LIVE RATHER THAN REASONED. A shard is per PROCESS and every cycle is a new process, so the
+        # live cache reached **eight shards per tool within an hour** while the line count sat at
+        # ~18,000 against a 22,430 threshold that would not trip for days — roughly 288 files per
+        # tool per day, each one re-opened on every read. Correctness was never at risk (last-wins
+        # merge) but a cache that quietly accretes files is a cache that will one day be the reason
+        # something is slow, and finding that later is strictly worse than bounding it now.
+        shard_paths = _shards(cache_file)
+        try:
+            shard_bytes = sum(p.stat().st_size for p in shard_paths)
+        except OSError:
+            shard_bytes = 0
+        base_bytes = cache_file.stat().st_size if cache_file.is_file() else 0
+        if (_lines_read > max(2048, int(1.25 * len(fresh)))
+                or len(shard_paths) > 32
+                or (base_bytes and shard_bytes > 0.05 * base_bytes)):
             _compact_cache(cache_file, fresh)
 
     return records, errors
