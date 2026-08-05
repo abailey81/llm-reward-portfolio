@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 23:02 UTC -- T+193h53m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 23:03 UTC -- T+193h54m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+193h53m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+193h54m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18198** |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18204** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 4.0 h ago; none live, newest failure 4.0 h ago** |
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **776** (97 running, 679 queued) |
-| **cores computing** | **776** |
+| cluster jobs | **775** (96 running, 679 queued) |
+| **cores computing** | **768** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -35,33 +35,33 @@ showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)
 
 ```
 generated 2026-08-05 23:03 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
-test tier: 16,655 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+test tier: 16,661 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     152 records     152.0 rec/h
-    last  3 h     411 records     137.0 rec/h
-    last 12 h    1749 records     145.8 rec/h
-    last 24 h    3455 records     144.0 rec/h
-    12 h rate is 87% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
+    last  1 h     155 records     155.0 rec/h
+    last  3 h     416 records     138.7 rec/h
+    last 12 h    1753 records     146.1 rec/h
+    last 24 h    3459 records     144.1 rec/h
+    12 h rate is 86% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
-    !! 87% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
+    !! 86% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
     the whole fleet (146 rec/h); latest excludes cells already within
-    8 of the ceiling (19 rec/h). Window 12 h.
+    8 of the ceiling (20 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         123      14  2026-08-05 23:53  2026-08-06 05:24  yes
-      100       2,921      16  2026-08-06 19:05  2026-08-12 06:08  yes
-      189       6,610     141  2026-08-07 20:24  2026-08-20 04:57  yes
-      279      10,660     141  2026-08-09 00:11  2026-08-28 22:25  risk
-      340      13,405     141  2026-08-09 19:01  2026-09-03 20:24  risk
-      403      16,240     141  2026-08-10 14:28  2026-09-09 23:03  risk
-      568      23,673     152  2026-08-12 17:28  2026-09-25 23:31  risk
+       30         123      12  2026-08-05 23:54  2026-08-06 05:15  yes
+      100       2,920      15  2026-08-06 19:03  2026-08-12 02:17  yes
+      189       6,604     145  2026-08-07 20:16  2026-08-19 20:02  yes
+      279      10,654     145  2026-08-08 23:59  2026-08-28 08:14  risk
+      340      13,399     145  2026-08-09 18:47  2026-09-03 02:38  risk
+      403      16,234     145  2026-08-10 14:11  2026-09-09 01:35  risk
+      568      23,667     155  2026-08-12 17:04  2026-09-24 16:21  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -70,14 +70,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 82% of the rung-568 backlog (19,488 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @776 cores      @830 cores   binding
+     rung      @768 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
-      189           7.0 d           6.5 d   throughput
-      279           9.9 d           9.3 d   throughput
-      340          11.9 d          11.1 d   throughput
-      403          14.0 d          13.0 d   throughput
-      568          19.3 d          18.1 d   throughput
+      189           7.1 d           6.5 d   throughput
+      279          10.0 d           9.3 d   throughput
+      340          12.0 d          11.1 d   throughput
+      403          14.1 d          13.0 d   throughput
+      568          19.5 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -162,8 +162,8 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | nemotron_3_super | **28** | 30 | 5 |  |
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
-| kimi_k3 | **30** | 31 | 5 |  |
-| qwen3_6_27b | **151** | 171 | 5 |  |
+| kimi_k3 | **30** | 32 | 5 |  |
+| qwen3_6_27b | **152** | 173 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 5 min ago)
+## Monitoring -- the cycle (last monitoring cycle 6 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
