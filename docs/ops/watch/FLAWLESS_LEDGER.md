@@ -544,6 +544,92 @@ About **81% of the last 12 h of production landed above the common rung.** That 
 answered with its number, and it is NOT actionable from here: steering which line SGE runs would
 need a `qdel` or a held-back submission, and both are standing prohibitions.
 
+### ⭐⭐ 2026-08-05 22:10 UTC (RUN 23 pass 5) — **NINE ARCHIVE WALKERS, AT LEAST FIVE DIFFERENT
+### EXCLUSION RULES. PROVEN-BENIGN TODAY BY MEASUREMENT — AND IT KILLS MY OWN PASS-4 PLAN.**
+
+**I set out to extend the record cache to the three layers pass 4 registered as "unambiguously
+shrink-safe" and READ THEM FIRST. None of the three is a drop-in, and the blocker is not the shrink
+at all — it is the WALK. Every layer carries its own exclusion rule and they do not agree:**
+
+| walker | rule |
+|---|---|
+| `record_shrink_cache` (+ `science_watch`, `results_audit`) | `.pull_tmp*` **or** `_quarantined*`, per segment, relative to root |
+| `record_validator:231` | `.pull_tmp` on the **FIRST segment only**, plus `"_env" in parts`. **No `_quarantined`.** |
+| `record_provenance_seal:134` | `".pull_tmp" in s or "_quarantined" in s` — **substring over the whole path** |
+| `record_science_audit:344` · `fed_text_identification:109` · `fed_value_coherence:137` · `reward_code_audit:133` | any **dot-prefixed** segment **+ `_is_d18_nested`**. **No `_quarantined`.** |
+| `record_window_identity:74` | `".pull_tmp" in dirpath` substring over `os.walk`. **No `_quarantined`, no D18.** |
+
+**MEASURED WHETHER ANY OF IT BITES TODAY, rather than asserting either way:**
+```
+_quarantined*  : 0 directories, 0 records   -> the four layers omitting the rule are LATENTLY
+                                               inconsistent, not wrong. Nothing to exclude.
+.pull_tmp*     : 2 directories, 3 records   -> ALL THREE sit at the FIRST segment, so
+                                               record_validator's narrower rule excludes them
+                                               IDENTICALLY to the any-segment rule. Verified per record.
+_env           : 69 directories, 0 records  -> record_validator's unique rule excludes nothing today.
+D18-nested     : 2 records  (glm_5_2/placebo_shuffled/...-g3-c4/...-g3-c4/ and
+                             haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3/)
+```
+⇒ **THE ONLY LIVE DIFFERENCE IS TWO D18-NESTED DUPLICATES**, admitted by `science_watch`,
+`results_audit` and the cache, excluded by four layers. **Both admitting tools already KNOW and SAY
+so** — `science_watch` prints the term explicitly in its reconciliation line
+(*"+ N deeper-nested duplicate(s)"*) and `results_audit`'s duplicate check carries the D18 note. So
+this is documented behaviour, not a silent divergence. **TERMINAL STATE: PROVEN-BENIGN, with the
+measurement; REGISTERED as latent, because the moment a `_quarantined*` tree appears the four layers
+that lack the rule will certify an earlier run's records as part of this campaign.**
+
+⚠ **AND IT CORRECTS MY OWN PASS-4 REGISTRATION.** That row said four layers were "unambiguously
+shrink-safe" and implied a drop-in. **Shrink-safety was the wrong question.** The real prerequisite is
+that `load_shrunken_records` grow an optional per-caller `exclude` predicate (and preserve each
+caller's ordering — two layers use `sorted(root.rglob(...))`, not raw walk order), so every layer
+keeps its OWN rule instead of silently inheriting mine. **That is a real API change on the path that
+certifies an irreplaceable archive, and it needs its own byte-identity proof per layer.**
+⛔ **DELIBERATELY NOT SHIPPED AT THE END OF THIS PASS.** Rushing a third same-day change into a
+certification path without its proof is the exact pattern this ledger keeps paying for, and I have
+already caught myself doing a version of it twice today.
+
+### ⛔⛔ 2026-08-05 22:05 UTC (RUN 23 pass 5) — **I RETRACT THE "CORE STARTS IN ~19 h" FIGURE. THE
+### RATE IT RESTED ON WAS ONE 38-MINUTE WINDOW AND IT DID NOT HOLD. THE HONEST ANSWER IS 2-4 DAYS.**
+
+**MEASURED, three points now instead of two:**
+```
+jobs ahead of core bayes_opt   276 (20:53Z)  ->  267 (21:32Z)  ->  268 (22:04Z)
+jobs ahead of core tpe         445           ->  445           ->  443
+kimi pending                   276           ->  268           ->  268   (FLAT for 31 min)
+our running slots              976           ->  984           ->  928
+core state                     8 qw          ->  8 qw          ->  8 qw
+```
+**Over the full 71-minute baseline the queue ahead of core fell by 8 jobs = 6.8 jobs/h. Over the most
+recent 31 minutes it did not fall at all.** My pass-4 figure of 14.2 jobs/h was fitted to a single
+38-minute window and is withdrawn; **6.8 jobs/h is the number with a baseline behind it, and it
+roughly doubles every date I have given.**
+
+⚠ **AND THE MECHANISM I HAD NOT SEEN: KIMI'S DRIVER IS ACTIVELY REPLENISHING.** Newest submission
+per line, host-local **+0100** (so 22:01:26 local = **21:01:26 UTC**):
+```
+leg10 kimi   08/05 22:01:26  <-- SUBMITTING RIGHT NOW; pending flat at 268 while jobs START
+leg3  qwen   08/05 15:47:38     leg5 haiku 08/05 14:51:33     leg7 nemotron 08/05 14:15:50
+leg1  deepseek 08/05 11:49:52   leg2 glm   08/04 23:29:59     c1 core 08/05 00:01:26
+```
+Kimi's pending set is a ROLLING WINDOW, not a draining stack. ⚠ **It is NOT unbounded, and that is
+the reassuring half: `occupancy_watch` puts kimi's total owed at 2,690 units against 268 queued + 72
+running jobs, i.e. it is holding essentially its whole remaining tier.** So it drains — at 6.8 jobs/h
+that is **~39 h for core's `bayes_opt`** and, adding glm's 157 and qwen3.6's 13 which both outrank
+core's `tpe`, **~65 h for `tpe`.** Core's C1 stage therefore completes around **2026-08-08 late**, and
+its `h2_pair` pays a further drain after that.
+
+⇒ **HONEST RANGE FOR THE COMMON RUNG TO LEAVE 0: about 10-12 August.** Two routes agree — the
+observed 6.8 jobs/h, and kimi+glm's ~5,380 owed units against the fleet's realised throughput.
+
+⚠⚠ **AND THE PATTERN IN MY OWN ESTIMATES IS ITSELF THE FINDING, SO IT IS WRITTEN DOWN RATHER THAN
+QUIETLY UPDATED. Across three passes I have said 07 Aug, then 08-10 Aug, then 10-12 Aug — LATER EVERY
+TIME, and every revision came from discovering one more queue term I had not counted** (first the
+second stage transition, then the per-tier priority split, now the replenishment). **The lesson is
+not that the campaign is slipping; it is that a queue-position estimate built from one short window
+is worth very little, and I should have given the mechanism and a range from the start instead of a
+point estimate.** Future passes: report the OBSERVED ahead-count trend over the longest available
+baseline, never a rate fitted to the last half hour.
+
 ### ⭐ 2026-08-05 21:35 UTC (RUN 23 pass 4) — **THE QUEUE PREDICTION IS CONFIRMED BY A SECOND,
 ### INDEPENDENT ROUTE, AND IT CORRECTS A DATE I WROTE ONE PASS AGO**
 
