@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 23:46 UTC -- T+194h37m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 23:47 UTC -- T+194h38m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+194h37m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+194h38m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18377** |
@@ -38,10 +38,10 @@ generated 2026-08-05 23:47 UTC | elapsed 8.11 d | 21.0 d to the Aug-27 stop
 test tier: 16,834 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     225 records     225.0 rec/h
-    last  3 h     496 records     165.3 rec/h
-    last 12 h    1837 records     153.1 rec/h
-    last 24 h    3509 records     146.2 rec/h
+    last  1 h     224 records     224.0 rec/h
+    last  3 h     493 records     164.3 rec/h
+    last 12 h    1836 records     153.0 rec/h
+    last 24 h    3508 records     146.2 rec/h
     12 h rate is 78% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 78% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         121       7  2026-08-06 00:34  2026-08-06 03:19  yes
-      100       2,832      95  2026-08-06 18:17  2026-08-09 10:40  yes
-      189       6,431     225  2026-08-07 17:47  2026-08-13 20:00  yes
-      279      10,481     225  2026-08-08 20:15  2026-08-18 18:32  yes
-      340      13,226     225  2026-08-09 14:10  2026-08-22 02:53  yes
-      403      16,061     225  2026-08-10 08:42  2026-08-25 13:51  yes
-      568      23,494     225  2026-08-12 09:15  2026-09-03 15:24  risk
+       30         121       7  2026-08-06 00:35  2026-08-06 03:20  yes
+      100       2,832      95  2026-08-06 18:18  2026-08-09 10:40  yes
+      189       6,431     224  2026-08-07 17:49  2026-08-13 20:01  yes
+      279      10,481     224  2026-08-08 20:17  2026-08-18 18:33  yes
+      340      13,226     224  2026-08-09 14:14  2026-08-22 02:53  yes
+      403      16,061     224  2026-08-10 08:46  2026-08-25 13:52  yes
+      568      23,494     224  2026-08-12 09:21  2026-09-03 15:25  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-05T23:29:31Z  OK  records=18270 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=385.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T23:34:21Z  OK  records=18324 (+54)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  cores=712  sweep=260.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T23:40:57Z  OK  records=18357 (+33)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.4m  drift=0  sci=OK  r115=22B  sweep=365.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T23:41:55Z  OK  records=18360 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=27.4s  auto-cycle
 2026-08-05T23:42:52Z  OK  records=18366 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.2m  drift=0  sci=OK  r115=22B  sweep=26.9s  auto-cycle
 2026-08-05T23:43:50Z  OK  records=18368 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=28.3s  auto-cycle
+2026-08-05T23:47:22Z  OK  records=18377 (+9)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=182.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
