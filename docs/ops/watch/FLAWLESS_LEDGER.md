@@ -488,6 +488,7 @@ to 8 in-flight trainings per job.
 | 2026-08-04 23:54 **RUN 22 pass 5** | 187.6 | 176.5 | **1,376** | 975 jobs total | **58%** (sonnet-5) | ZERO (chain closed) | GATED | GATED | GATED (barrier) |
 | 2026-08-05 07:30 **RUN 23 pass 1** | 138.1 (1h 207) | 168.9 | **1,608** | 926 jobs total | **43%** (haiku-4.5) | ZERO (chain closed) | GATED | GATED | GATED (barrier) |
 | 2026-08-05 20:15 **RUN 23 pass 2** | **153.5** | 149.8 | **920** | 115/**708 (5,664 slots)** | **81%** (haiku-4.5) | ZERO (chain closed) | ⭐ **08-05 21:26** | ⭐ **08-10 07:34** | ⭐⭐ **08-12 08:58** |
+| 2026-08-05 21:30 **RUN 23 pass 3** | 143.8 | 143.0 | **976** | 123/**687 (5,496 slots)** | ⚠ **92%** (haiku-4.5) | ZERO (chain closed) | ⛔ 08-05 22:35 / 23:15 **— SEE BELOW, THIS DATE IS NOT REACHABLE** | 08-10 15:55 / 08-13 10:26 | 08-12 19:52 / 08-16 20:33 |
 
 **PASS 5 SPEED VERDICT — SLOTS AT A SESSION HIGH AND CONCENTRATION STILL FALLING.** Slots **1,376**
 (1,184 -> 1,296 -> 1,312 -> 1,376 across the four passes), **16.7% of the cluster's 8,218 running
@@ -541,6 +542,120 @@ constraints are **core at 0** (its `h2_pair` has not started) and **glm / kimi /
 About **81% of the last 12 h of production landed above the common rung.** That is §11.2 question 3
 answered with its number, and it is NOT actionable from here: steering which line SGE runs would
 need a `qdel` or a held-back submission, and both are standing prohibitions.
+
+### RUN 23 PASS 3 — BOARD, 2026-08-05 21:30 UTC. EVERY TOOL'S OWN VERDICT, READ NOT INFERRED.
+
+`remote_inbox --status` nothing pending, loop RUNNING · `loginnode_guard` OK comfortable ·
+`line_balance` **CLEAN** · `arm_jobs` flags core `distributional`/`scalar` with no covering job (the
+by-design h2_pair case, discriminated from the driver log below) · `occupancy_watch` **every line's
+fleet proportionate**, 976 running / 5,496 queued slots · `record_seed_completeness` rc=1 EXPECTED
+(holes + C6 arms, both normal mid-campaign) · `science_plausibility` **PLAUSIBLE** ·
+`loader_collision_watch` unchanged, D49-D51 registered · `instrument_agreement --deep` **7 of 8, A7
+INFO** (the teardown precondition, not yet met, which is normal) · `run4_watch` rc=2 = the two
+ACKNOWLEDGED criticals only, both triggers re-read and NEGATIVE this pass (see below) ·
+**seven record layers ALL RC=0 on 17,988 records** (L1 217 s · L2 257 s · L3 236 s · L4 15 s ·
+L5 192 s · L6 219 s · L7 206 s) · `crash_watchdog` **CLEAN** · `ssh myriad` OK ·
+**seed check 0 — ZERO sealed-test seeds permanently lost.** Drift 0.
+
+**THE TWO ACKNOWLEDGED CRITICALS, RE-READ AGAINST THEIR OWN TRIGGERS RATHER THAN RE-LITIGATED:**
+* **`guard:truncation` — PROVEN-BENIGN.** `truncated=8` of 2,956, unchanged since this session's
+  dated re-triage. Three models, ZERO on any `distributional` arm, ZERO on `c1`. Both live triggers
+  (a `length` row on `distributional` or on `c1`; a FOURTH model) NEGATIVE.
+* **`guard:transport` — PROVEN-BENIGN, all four trigger conditions NEGATIVE.** (1) no NEW
+  ERROR/CRITICAL: the count is **465, identical to the 07:40Z reading 13.7 h earlier**; (2) timeout
+  events 173 → 180 in 13.7 h = **0.5/h against a trigger of 60 in any rolling hour**; (3) no streak
+  of 5+ — `transport_health` reads **HEALTHY, every streak recovered far below the bound**, and the
+  `240/240` figures are the historical high-water marks of the 2026-08-03 01:29 outage, not a live
+  state; (4) `crash_watchdog` CLEAN. **The guard reports a CUMULATIVE LIFETIME total, which is why it
+  cannot return to green — that is the known shape, not a new event.**
+
+### ⛔⛔⛔ 2026-08-05 20:55 UTC (RUN 23 pass 3) — **THE COMMON RUNG IS CAPPED BY CORE, CORE HAS RUN
+### NOTHING FOR 21.6 HOURS, AND THE CAUSE IS OUR OWN QUEUE ORDER. ESCALATED TO TAMER.**
+
+**This is the most consequential thing measured this session, and no instrument on the board reports
+it, because every one of them is per-LINE and this is a cross-line ORDERING fact.**
+
+**THE STATE.** Banked rungs (S15, 20:55Z): **core 0** · nemotron 0 (8 contiguous seeds, 48 in flight,
+about to pass 30) · deepseek 30 · glm 30 · kimi 30 · **qwen3.6-27b 100** · **haiku 189** · h3,
+gemini, gpt-5.6-luna, qwen3.5-9b, sonnet-5 all 568. **THE COMMON RUNG IS 0 AND CORE ALONE WILL CAP IT
+ONCE NEMOTRON PASSES 30.**
+
+**THE MEASUREMENT.** Core holds **8 jobs and every one is `qw`**:
+```
+91237-91240  c1_bayes_opt_test  prio 2.00293-2.00295  submitted 2026-08-04 23:19:34   -> 21.6 h queued
+91449-91452  c1_tpe_test        prio 2.00204-2.00206  submitted 2026-08-05 00:01:12   -> 20.9 h queued
+```
+Its driver is ALIVE and polling (`driver_core.log` 21:51:15 host-local **= 20:51:15 UTC**, two minutes
+old) and correctly reports `0/30 done, 30 pending, round 1` — it has submitted and is waiting, which
+is exactly what `driver.py:550-553` prescribes while jobs are alive.
+
+**THREE THINGS RULED OUT BY MEASUREMENT, NOT BY ASSUMPTION:**
+1. **NOT unschedulable.** `qalter -w p 91449` → *"verification: found possible assignment with 8
+   slots"*.
+2. **NOT a different resource request.** `qstat -j` on core 91449 and on a RUNNING kimi job 90887
+   returns **byte-identical requests**: `snx=1,tmpfs=1G,memory=2G,batch=true,h_rt=54000,
+   hostname=!node-d00a-230&!node-d00b-024`, PE `smp-[D]* range: 8`, array `1-1:1`. No GPU, no
+   special queue, nothing scarce.
+3. **NOT `Eqw`/`hqw`/`qquota`.** All zero and empty.
+
+**THE CAUSE, AND IT IS OUR OWN PENDING SET.** Dispatch order inside our fair share is by priority, and
+priority tracks SUBMISSION TIME:
+```
+leg10 kimi      n=276   prio 2.00296 .. 2.00953    <-- EVERY ONE ABOVE CORE'S BEST
+c1    core      n=8     prio 2.00205 .. 2.00295
+leg2  glm       n=157   prio 2.00206 .. 2.00293
+leg3  qwen3.6   n=80    prio 2.00184 .. 2.00237
+leg1  deepseek  n=165   prio 2.00146 .. 2.00183
+```
+**276 of our pending jobs outrank core; 411 sit below it.** We run 123 jobs / 976 slots, `h_rt` is
+54,000 s and the measured sealed-test mean is 9.39 h, so dispatch turnover is roughly **13 jobs/h**
+⇒ **core's first job starts in about 21 hours**, on today's fleet.
+
+⚠⚠ **AND THE STRUCTURAL PART IS WORSE THAN THE ONE-OFF WAIT. CORE PAYS A FULL QUEUE DRAIN AT EVERY
+STAGE TRANSITION.** Priority tracks submission time, and core is SERIAL BY DESIGN: its C2 `h2_pair`
+cannot be submitted until these DFO test legs finish, so it will enter the queue at a NEW, LATE
+timestamp and rank BELOW everything then pending — exactly as it does now. The leg lines submitted
+their whole tiers once and never re-queue. **That is why core has been the binding constraint for the
+entire campaign, and it is a mechanism, not bad luck.**
+
+**WHY IT MATTERS MORE THAN THE CORE COUNT.** Under R101 the reported result is the **MINIMUM** over
+all eleven. **No amount of progress on any other line can raise it while core is 0.** Kimi's work is
+not worthless — kimi is itself at rung 30, and a common rung above 30 needs it — but the ordering
+that maximises the REPORTED result is laggard-first, and submission-time ordering is the exact
+opposite. Moving core from 0 to 30 turns "no complete study at any rung" into "a complete 30-seed
+study across all eleven models"; moving kimi from 30 to 60 changes the reported result by nothing.
+
+⭐⭐ **AND IT FALSIFIES A NUMBER THIS LEDGER PRINTED TWICE TODAY. `stage_eta` dates rung 30 to
+2026-08-05 22:35 / 23:15 — TONIGHT. IT CANNOT HAPPEN.** Of the 162 records the tool counts as
+remaining for rung 30, **120 are core's** (4 registered arms × 30 seeds, all holding ZERO), and core
+cannot start a job for another 15-21 h. The tool is not lying: it prints *"BOTH columns divide total
+remaining by a FLEET-WIDE rate … NEITHER IS AN UPPER BOUND … the true bound is the slowest owing
+cell"*, and this pass identifies that cell and prices it. **The honest rung-30 date is set by core's
+queue position, not by the fleet rate: core starts in ~15-21 h, its two DFO test tiers then run
+~9.4-15 h, so rung 30 is reachable no earlier than about 2026-08-07, and only if nemotron also
+clears 30 (it is at 8 with 48 units in flight, so it will).** ⇒ **STANDING INSTRUCTION FOR EVERY
+FUTURE PASS: never quote a `stage_eta` rung date without checking whether the BINDING cell has a
+running job.**
+
+⇒ **ESCALATED, WITH EVERYTHING AROUND IT MEASURED. THE ONLY LEVER IS TAMER'S OWN STANDING RULE.**
+* Raising core's priority is **impossible**: SGE lets a non-operator only DECREASE priority; elevation
+  is operator-only, and an RC request is Tamer's standing "no".
+* Lowering the priority of kimi's 276 pending jobs (`qalter -p <negative>`) would let core's **8**
+  jobs dispatch roughly a day sooner. The harness permits it. **Tamer's standing rule of 2026-07-24
+  prohibits it: *"NEVER lower the SGE/queue priority of any of our jobs, EVER."*** That rule is his,
+  it was set to protect our fair-share standing, and only he can relax it.
+* ⚠ **STATE THE RISK HONESTLY IF HE ASKS: it may be ONE-WAY.** A non-operator can only decrease, so
+  restoring the original priority is likely to be refused, and the effect on the existing scheduler
+  RESERVATION is unverified. It should be proven on a disposable job before being applied to 276 live
+  ones. **Do not test it on campaign jobs.**
+* `qdel` is prohibited and would forfeit queue position and the reservation, which is worse.
+
+**⚠ AND IT QUALIFIES THE ETA THIS LEDGER PRINTED AN HOUR AGO.** `stage_eta` dated rung 30 to
+2026-08-05 21:26 and rung 568 to 08-12. Those divide remaining work by a FLEET-WIDE rate and the tool
+says so itself — *"NEITHER IS AN UPPER BOUND … the true bound is the slowest owing cell"* and
+*"81% of the rung-568 backlog sits on cells that produced NOTHING in the 12 h window."* **This
+measurement is that caveat, quantified: the slowest owing cell is core, and it is 276 jobs deep in
+our own queue.** Quote the rung dates only with this beside them.
 
 ### ⭐⭐⭐ 2026-08-05 (RUN 23) — SWEEP-1 IS FIXED. THE CAP HAD ALREADY BEEN BREACHED, AND MY FIRST
 ### VERSION OF THE FIX DID MEASURABLE HARM BEFORE THE SECOND ONE UNDID IT.
