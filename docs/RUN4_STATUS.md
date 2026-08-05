@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 22:32 UTC -- T+193h23m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 22:33 UTC -- T+193h24m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+193h23m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+193h24m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18116** |
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 22:32 UTC | elapsed 8.06 d | 21.1 d to the Aug-27 stop
-test tier: 16,573 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 22:33 UTC | elapsed 8.06 d | 21.1 d to the Aug-27 stop
+test tier: 16,576 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     160 records     160.0 rec/h
-    last  3 h     379 records     126.3 rec/h
-    last 12 h    1722 records     143.5 rec/h
-    last 24 h    3488 records     145.3 rec/h
+    last  1 h     163 records     163.0 rec/h
+    last  3 h     382 records     127.3 rec/h
+    last 12 h    1724 records     143.7 rec/h
+    last 24 h    3490 records     145.4 rec/h
     12 h rate is 91% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 91% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         128      32  2026-08-05 23:26  2026-08-06 08:12  yes
-      100       2,928      32  2026-08-06 18:57  2026-08-15 03:31  yes
-      189       6,692     128  2026-08-07 21:11  2026-08-26 23:36  yes
-      279      10,742     128  2026-08-09 01:24  2026-09-08 17:15  risk
-      340      13,487     128  2026-08-09 20:32  2026-09-17 08:26  risk
-      403      16,322     128  2026-08-10 16:17  2026-09-26 06:23  risk
-      568      23,755     160  2026-08-12 20:05  2026-10-19 15:22  risk
+       30         128      32  2026-08-05 23:27  2026-08-06 08:05  yes
+      100       2,928      32  2026-08-06 18:56  2026-08-15 00:47  yes
+      189       6,689     131  2026-08-07 21:07  2026-08-26 17:07  yes
+      279      10,739     131  2026-08-09 01:18  2026-09-08 06:58  risk
+      340      13,484     131  2026-08-09 20:24  2026-09-16 19:34  risk
+      403      16,319     131  2026-08-10 16:08  2026-09-25 14:52  risk
+      568      23,752     163  2026-08-12 19:53  2026-10-18 16:53  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -163,7 +163,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | kimi_k3 | **30** | 30 | 5 |  |
-| qwen3_6_27b | **138** | 157 | 5 |  |
+| qwen3_6_27b | **140** | 157 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-05T22:21:22Z  OK  records=18089 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.8m  drift=0  sci=OK  r115=22B  sweep=26.4s  auto-cycle
 2026-08-05T22:22:18Z  OK  records=18092 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=26.4s  auto-cycle
 2026-08-05T22:23:14Z  OK  records=18093 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=25.3s  auto-cycle
 2026-08-05T22:24:11Z  OK  records=18093 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.5m  drift=0  sci=OK  r115=22B  sweep=27.2s  auto-cycle
 2026-08-05T22:25:08Z  OK  records=18096 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=26.5s  auto-cycle
 2026-08-05T22:32:18Z  OK  records=18109 (+13)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.9m  drift=0  sci=OK  r115=22B  sweep=400.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-05T22:33:13Z  OK  records=18116 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.2m  drift=0  sci=OK  r115=22B  sweep=25.4s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
