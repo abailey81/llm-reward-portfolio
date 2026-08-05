@@ -266,6 +266,41 @@ reward_scale:WARN
 # two files -- residual 0 in both directions over 289 rows. They are the same population.
 # ⚠ RE-TRIAGE AGAIN IF a `length` row ever appears on a `distributional` arm or on `c1`, or if a
 # FOURTH model truncates. THE CAP STILL STAYS AT 16,384 (registered R106).
+#
+# ── RE-RUN 2026-08-05T07:40Z, RUN 23 pass 1. AN EIGHTH TRUNCATION EXISTS; BOTH LIVE TRIGGERS ARE
+#    CLEAN; AND THE RATE FIGURES ABOVE ARE NOW STALE, SO THEY ARE RE-DATED HERE RATHER THAN LEFT. ──
+# Checked because `run4_watch` reports `truncated=8` while the entry above was evaluated at 7, and a
+# trigger nobody re-runs is decoration. Measured over all 2,956 rows of
+# `outputs/campaign_cluster_run4/spend_ledger_*.jsonl`, 0 unparseable:
+#   nvidia/nemotron-3-super-120b-a12b   6 of 294 own calls = 2.041 %   (was 5 of 289 = 1.730 %)
+#   qwen/qwen3.6-27b                    1 of 265 own calls = 0.377 %
+#   moonshotai/kimi-k3-20260715         1 of 283 own calls = 0.353 %
+#   claude-opus-5 (CONFIRMATORY)        0 of 325 own calls = 0.000 %   (325 unchanged: C1 has closed,
+#                                                                       so the confirmatory line is
+#                                                                       no longer authoring at all)
+#   run-wide                            8 of 2,956         = 0.271 %
+# THE NEW ROW: 2026-08-03T17:29:56Z, nemotron, tokens_out=16384 exactly, `spend_ledger_leg7.jsonl`.
+# It post-dates RUN 17's 13:13:18Z measurement, which is why that entry could not have seen it.
+# ✔ BOTH LIVE TRIGGERS ARE CLEAN, ARM-ATTRIBUTED BY RUN 17'S PROVEN METHOD (the ledger carries no arm
+#   field, so the join runs through `<line>/<arm>/llm_calls.jsonl`, the only file holding both):
+#     search_leg_nemotron_3_super  placebo 3 | placebo_shuffled 1 | scalar_cvar5 2
+#     search_leg_kimi_k3           placebo_shuffled 1
+#     search_leg_qwen3_6_27b       scalar_cvar5 1
+#   → ZERO on any `distributional` arm, ZERO on `c1`, THREE models not four. H2's contrast and the
+#   numeracy-bottleneck headline remain untouched. The population identity RUN 17's auditor proved
+#   still holds at the new volume: llm_calls rows = 2,956 = ledger rows, exactly.
+# ✔ THE UPPER BOUND ON CAP-INDUCED CANDIDATE LOSS IS UNCHANGED AT 2, AND THAT WAS CHECKED RATHER THAN
+#   ASSUMED. The eighth truncation lands on `scalar_cvar5`, an arm already inside the bound, and
+#   nemotron's `no top-level 'reward' binding` rows still number exactly two (placebo 1,
+#   scalar_cvar5 1; placebo_shuffled has a truncation but ZERO such rejects). So the pre-committed
+#   write-up correction stands as written: AT MOST 2 of nemotron's 34 lost registered candidates are
+#   cap-induced. State the bound, never a point estimate.
+# ⚠ WHAT DID CHANGE, AND IT ONLY STRENGTHENS THE OBLIGATION ALREADY OWED: nemotron has crossed 2 % of
+#   its own calls. That is not one of the two live triggers, so it does not re-open the alarm, but it
+#   makes the analysis-time exclusion (report nemotron's authoring reliability with `length` calls
+#   excluded, and STATE the exclusion) more load-bearing than when it was written at 1.73 %.
+# TRIGGERS UNCHANGED: a `length` row on a `distributional` arm or on `c1`, or a FOURTH model.
+# THE CAP STILL STAYS AT 16,384 (registered R106).
 guard:truncation
 
 # capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a

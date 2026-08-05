@@ -33,6 +33,9 @@ import statistics
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from record_shrink_cache import load_shrunken_records  # noqa: E402
+
 SEARCH_ARMS = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
 
 
@@ -75,23 +78,30 @@ def _shrink(obj):
 
 
 def _records(root: Path) -> list[tuple[str, str, dict]]:
-    """(stage, unit, record) for every archived record, with long arrays reduced to their lengths."""
+    """(stage, unit, record) for every archived record, with long arrays reduced to their lengths.
+
+    ⚠ SWEEP-1, 2026-08-05. THE WALK AND THE PARSE MOVED INTO `record_shrink_cache`, AND NOTHING ELSE
+    CHANGED. That module memoises `_shrink(json.load(path))` on `(path, mtime_ns, size)`, so a record
+    that has not changed since the last sweep is not re-parsed. The archive is append-only and this
+    tool discards >94 % of every byte it parses (23.0 KB shrunken against a 416.7 KB raw record,
+    measured on a 120-record sample), so the re-parse was pure waste — and it had grown until a
+    2026-08-05 07:39:24Z sweep read **903.5 s**, putting consecutive `CYCLE_LOG.md` lines 933 s apart
+    and inside the window where `session_preflight` declares a LIVE loop DEAD.
+
+    ⚠ THE SET AND THE ORDER ARE UNCHANGED, AND THAT WAS MEASURED RATHER THAN ASSUMED. The cache walks
+    with `Path.rglob`; this function walked with `glob.glob(**, recursive=True)`. Both return the
+    same 15,902 paths in the SAME ORDER (checked 2026-08-05), which matters because several printed
+    lines are encounter-ordered example slices, and the cache's own byte-identity proof compares the
+    new code against itself and so could never have caught an ordering change.
+
+    Unreadable records are still SKIPPED here exactly as before: the cache returns them separately
+    and this tool ignores that list, which is the behaviour the original `except: continue` had.
+    """
     out = []
-    for p in glob.glob(str(root / "**" / "record.json"), recursive=True):
-        parts = p.replace("\\", "/").split("/")
-        # Anything walking the archive must exclude BOTH the in-flight staging and the
-        # deliberately-set-aside past -- the convention `scripts/sentinel.py:1348` established
-        # after three separate instruments tripped on it. A pull STAGES into `.pull_tmp.<pid>/`,
-        # so that tree holds byte-identical copies of records that already exist canonically
-        # (observed here 2026-07-31 on `.pull_tmp.28884`, D18); `_quarantined*` holds records
-        # set aside from an EARLIER run, whose mtimes survive the move.
-        if any(seg.startswith((".pull_tmp", "_quarantined")) for seg in parts[:-1]):
-            continue
-        try:
-            r = json.load(open(p, encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        out.append((parts[-4] if len(parts) >= 4 else "?", parts[-3], _shrink(r)))
+    records, _unreadable = load_shrunken_records(root, _shrink)
+    for p, r in records:
+        parts = p.split("/")
+        out.append((parts[-4] if len(parts) >= 4 else "?", parts[-3], r))
     return out
 
 

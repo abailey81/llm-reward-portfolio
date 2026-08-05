@@ -3,6 +3,176 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-05a] ★★★★★ RUN 23 (OPS), passes 1–2 — **THE 900 s SWEEP CAP HAD ALREADY BEEN BREACHED ON A HEALTHY LOOP, SO SWEEP-1 WAS BUILT AND THEN FOUND THREE DEFECTS OF ITS OWN BEFORE IT WAS BANKED** · Tamer asked why the records and the cores had "downgraded" and the records had not moved down at all · **and R101's "lockstep" sentence is not true of the execution, which is now a registered disclosure**
+
+### WHERE THIS SESSION STARTED AND WHERE IT ENDED
+
+**PAST.** RUN 22 closed at 2026-08-05 07:25 UTC with 15,657 records, 1,608 slots, the C1 barrier
+just closed, and SWEEP-1 registered as *"the highest open ops item after D49"* with a forecast
+deadline of *"~30,000 records / about 8 August"*.
+
+**NOW (2026-08-05 20:42 UTC, T+191h34m).** **17,935 records**, 920 running slots, five lines
+COMPLETE, `haiku-4.5` at 530-535 of 568, and every ladder rung newly DATED rather than `GATED`:
+rung 30 at 08-05 21:26, rung 403 at 08-10 07:34, **rung 568 at 08-12 08:58** — fifteen days inside
+the 27 August exogenous stop. Spend unchanged at $45.5019. Drift 0, freeze MATCHES, repro 8/0/0,
+seven record layers RC=0, `line_balance` CLEAN, `instrument_agreement` 7 of 8 with A7 INFO,
+`science_plausibility` PLAUSIBLE, ZERO permanently-lost sealed-test seeds.
+
+**NEXT.** Verify the fair-share handover prediction (leg1/leg2 should start as kimi and haiku
+drain); confirm the sweep and `budget_watch` settle now that this session's scans have stopped; then
+the §11.1 deep dives, which remain entirely unstarted.
+
+### 1. ⭐⭐⭐ SWEEP-1 — THE DEADLINE WAS NOT THREE DAYS AWAY, IT WAS ALREADY PAST
+
+`cycle.py:478-487` had pre-committed the trigger for building the incremental cache: *"TRIGGER: a
+`cycle_log` FAIL on a loop that is demonstrably alive."* **Measured 2026-08-05T07:39:24Z: sweep
+903.5 s, and 933 s between consecutive `CYCLE_LOG.md` lines, against a 900 s staleness cap.** A
+perfectly healthy loop was inside the window where `session_preflight` reports a run-killer. Over all
+4,747 logged sweeps the 14,000-15,000 record band already ran p95 654.7 s, so this was the trend
+arriving, not a spike. ⛔ Raising the cap was never an option: the cap is what makes a genuinely dead
+loop visible.
+
+**BUILT: `docs/ops/record_shrink_cache.py`**, memoising `_shrink(json.load(path))` on
+`(path, mtime_ns, size)`, wired into `science_watch._records` and `results_audit`'s load loop. Both
+tools discard over 94 % of every byte they parse — **23.0 KB shrunken against a 416.7 KB raw record,
+measured on a 120-record sample** — so the re-parse was pure waste. A cache hit returns exactly the
+object a full parse produces, so every aggregate downstream is bit-identical. **This is memoisation,
+not sampling: nothing is skipped and no threshold moved.**
+
+**MEASURED RESULT: `science_watch` now runs the FULL 17,935-record archive in 14 SECONDS with empty
+stderr**, against a 129 s uncontended baseline and 340 s+ under the contention that produced the
+903.5 s sweep.
+
+### 2. ⚠⚠ AND THE FALSIFIER FOUND FOUR DEFECTS IN MY OWN FIX — THREE OF THEM AFTER IT WAS ALREADY LIVE
+
+Written before the wiring, exactly as RUN 22's lesson demands. It did not rubber-stamp the change; it
+**failed it**, four separate times:
+
+1. **THE FIRST VERSION REWROTE THE WHOLE 439 MB CACHE EVERY CYCLE.** Both tools run every sweep, so
+   that is ~0.9 GB of disk writes every five minutes on the box hosting every driver and supervisor.
+   `budget_watch` had timed out **3 times in 5,195 cycles** before the change and **6 times in the
+   four hours after it** — the W6 trigger firing on my own edit. **Trading 340 s of CPU for 0.9 GB of
+   writes is not an optimisation, it is moving the cost.** Now APPEND-ONLY with ratio-based
+   compaction: a steady sweep writes a **792 KB shard** instead of the file.
+2. **A SINGLE APPEND TARGET IS NOT CONCURRENCY-SAFE.** `cycle.py` runs these tools every sweep while
+   a session may run them by hand, and two processes appending ~23 KB lines to one file interleave
+   mid-line. The live proof's warm run reported **710 unparseable cache line(s)**. It was FAIL-SAFE —
+   torn lines are ignored and those records re-parsed, which unit case F asserts — but a cache that
+   shreds itself whenever two instances overlap does not work. **FIXED: one append shard per PROCESS,
+   merged on read, folded into the base on compaction. No lock, no retry.**
+3. **THE STALE-SWEEP WOULD HAVE EATEN THE CURRENT SIGNATURE'S OWN SHARDS**, which match the same
+   glob. A cache erasing its own pending appends while looking tidy. **FIXED with a prefix test, and
+   unit case K now asserts it.**
+4. **THE PROOF ITSELF CLEARED THE LIVE CACHE AND DIED ON A `PermissionError`** when the running cycle
+   held a part open mid-`unlink`. A verification step that degrades the thing it verifies is not a
+   verification step. **FIXED: `RECORD_SHRINK_CACHE_DIR` gives the proof a private cache directory.**
+
+**Two more, found earlier in the same build.** The cache **owner must be (module, FUNCTION NAME), not
+the module** — with the module alone, two reducers in one file share a namespace and the second one's
+sweep deletes the first one's cache; the two production tools live in different files and would never
+have shown it, and the falsifier, which defines two reducers side by side, went red immediately. And
+**the cache files were not gitignored** — never committed, because the auto-committer stages BY NAME
+(`git log --all -- .record_shrink_cache*` is empty and `.git` is 148 MB), but one `git add -A` would
+have put ~0.9 GB of derived data into history permanently.
+
+**⚠ THE MUTATION CONTROL LIED THREE TIMES BEFORE IT WORKED, AND EACH LIE IS A DIFFERENT FAILURE MODE.**
+Replacing `os.stat` wholesale broke `Path.resolve()` inside the cache's own guard, so the run died on
+a TypeError with NO red case. Patching only around the target case made the mutant MISS every entry
+instead of serving a stale one, so it proved the OPPOSITE of its label. Freezing stat for the whole
+sequence turned the target red but took five other cases with it, and a mutant with cross-talk cannot
+tell you which assertion has the power. The shipped mutant rewrites the cached key and nothing else,
+and **the control is an EXACT EXPECTED SET rather than a count**, so it fails if the blast radius
+grows OR shrinks.
+
+**VERIFICATION.** unit falsifier **11/11** · mutation control **PASS on the exact expected set** ·
+ruff clean on all four files · walk order proven identical (`glob.glob(**, recursive=True)` and
+`Path.rglob` return the same **15,902** paths in the SAME ORDER, which matters because several
+printed lines are encounter-ordered example slices) · **sci=OK on all 157 live cycles since the edit
+went in** · ⭐⭐ **STATIC BYTE-IDENTITY PROOF: PASS** on a frozen 400-record copy of `test_leg_sonnet_5`
+(a COMPLETE line, so nothing can write to it mid-run) — both tools byte-identical to `git show HEAD:`
+of their pre-change selves, cold AND warm, `science_watch` 886 B at 7.7 s → 0.3 s, `results_audit`
+1,181 B at 1.7 s → 0.3 s.
+
+⚠ **WHY A FROZEN ROOT WAS NECESSARY, STATED RATHER THAN GLOSSED.** The full-archive comparison is
+structurally INCONCLUSIVE and calling it a pass would be the "0 means no defects" mistake: the
+archive gains a record every ~24 s while each tool takes 130-200 s, so baseline and cached never see
+the same record set. The first live run differed on exactly **three lines, all record COUNTS**
+(17,893 → 17,898 → 17,906), every other line identical. Honest corroboration, not a proof. ⚠ The
+comparison is deliberately against the ORIGINAL code rather than the new code with caching disabled:
+only the former can catch a walk-ORDER change.
+
+⚠ **AND ONE HONEST COST THAT WAS MINE.** The `20:35:14Z` cycle read **sweep=1307.1 s**, the worst of
+the campaign — because I had deleted both live caches minutes earlier to force the new owner
+identity, so that cycle ran fully cold on 17,836 records *while my static proof and a full-archive
+proof ran beside it.* RUN 22's lesson 4 exactly. The full-archive mode was STOPPED once the static
+proof had settled the question, and the next hand-run read 14 s. **`integrity_gate` is NOT converted**
+— cadence-gated and timed at 51 s, so it is not what breached the cap. Stated, not quietly dropped.
+
+### 3. ⭐ TAMER ASKED WHY THE RECORDS AND THE CORES HAD "DOWNGRADED". THE RECORDS HAD NOT.
+
+**Records: 15,750 at 07:39Z → 17,780 at 20:03Z. Monotone, +2,030 in 12.4 h.** What fell is the SHORT
+window and only the short window: 1 h reads 85-105 rec/h against 207 in the morning, while **12 h
+reads 153.5 against 138.1 (UP)** and 24 h reads 149.8 against 168.9. The arrival quantum is a 15 h
+pack-8 job, so windows under 12 h are a stall indicator and do not price the ETA.
+
+**Cores: 1,608 → 920, and it is a HANDOVER plus FAIR SHARE.** (a) `haiku-4.5` climbed **30 → 530-535
+of 568** overnight and its queue is down to ONE job; it had been holding ~1,200 slots and producing
+43-81 % of all records, and a line that finishes stops consuming. (b) Cluster running slots
+**8,446 → 8,321, only −1.5 %, so the cluster did not shrink** — our share fell **19.0 % → 11.1 %**:
+`ucbtjji 1,208 (was 1,408) · ucestes 920 (was 1,232) · ucecgwh 855 (NEW in the top three) · uctpec1
+768 (was 1,020)`, then a long tail at 524, 464, 348, 270, 234, 208, 197, 184. Every large user is
+down and mid-size users arrived.
+
+**NOTHING OF OURS IS STUCK, AND THE TWO IDLE LINES WERE PROBED RATHER THAN ASSUMED BENIGN.** `Eqw` 0,
+`hqw` 0, `qquota` EMPTY, 708 jobs queued (~5,664 slots), 823 jobs against the 1,000 cap so the cap is
+not binding today. **`qalter -w p` on glm job 91245 and deepseek job 94017 both return "found
+possible assignment with 8 slots"** — schedulable, waiting on fair share. Our 920 slots sit on kimi
+344, qwen3.6-27b 304, haiku 208, nemotron 64, while glm (157 jobs) and deepseek (165 jobs) hold zero
+running. **PREDICTION TO CHECK NEXT PASS: leg1 and leg2 start as kimi and haiku drain. If they do
+not, that is a finding.**
+
+### 4. ⚠ NEW DISCLOSURE D-j — R101 SAYS "LOCKSTEP" AND THE EXECUTION IS NOT
+
+R101 registers *"ONE COMMON assurance-tier ladder … IN LOCKSTEP — every model banks the SAME rung at
+each checkpoint; no model is privileged with more seeds."* Measured 2026-08-05 20:15Z: **haiku 530-535
+against glm / kimi / deepseek at 30 and the core line's `h2_pair` at 0** — a 535-to-0 spread. ⭐ The
+registered CONCLUSION is unaffected, and that is the first thing to say: R101 defines the result as
+*"whatever COMMON rung all 11 have COMPLETED by the stop"*, a MINIMUM, and every primary statistic is
+computed there, so the surplus depth is simply unused by the primary analysis. **What is not true is
+the execution sentence.** The asymmetry is a fair-share artefact, not a design privilege — our pending
+jobs span priority 2.00144-2.00155, a plain submit-order sequence with no per-line difference, each
+driver submits its whole tier, and SGE chooses which tier runs. **The honest write-up sentence: the
+ladder is BANKED in lockstep; it is not EXECUTED in lockstep, because the scheduler orders the work
+and we may not steer it** (`qdel` and held-back submissions are both standing prohibitions). R101
+itself predicted the shape: *"30 GUARANTEED early; fair-share expectation ~100-189; all-11-to-403
+unlikely."* Registered as **D-j** in `FLAWLESS_LEDGER.md`.
+
+### 5. `guard:truncation` RE-TRIAGED AGAINST ITS OWN TRIGGER, WHICH IS WHAT A TRIGGER IS FOR
+
+`run4_watch` reported `truncated=8` against the 7 the acknowledged entry was evaluated at, so the
+trigger was re-run rather than assumed unchanged. Measured over all 2,956 ledger rows, 0 unparseable:
+**nemotron 6 of 294 own calls = 2.041 %** (was 5 of 289 = 1.730 %), qwen3.6-27b 1 of 265, kimi-k3 1
+of 283, **claude-opus-5 0 of 325** (unchanged — C1 has closed, so the confirmatory line is no longer
+authoring at all), run-wide 8 of 2,956 = 0.271 %. The new row is 2026-08-03T17:29:56Z on nemotron,
+which post-dates RUN 17's 13:13:18Z measurement. ✔ **BOTH LIVE TRIGGERS CLEAN**, arm-attributed by
+RUN 17's proven join through `<line>/<arm>/llm_calls.jsonl` (the ledger carries no arm field):
+nemotron placebo 3 | placebo_shuffled 1 | scalar_cvar5 2 · kimi placebo_shuffled 1 · qwen3.6-27b
+scalar_cvar5 1 — **zero on any `distributional` arm, zero on `c1`, three models not four.** The
+population identity holds at the new volume: llm_calls rows = 2,956 = ledger rows exactly. ✔ **The
+upper bound on cap-induced candidate loss is UNCHANGED at 2**, checked rather than assumed: the new
+truncation lands on an arm already inside the bound and nemotron still has exactly two
+`no top-level 'reward' binding` rows. ⚠ Crossing 2 % is not one of the two live triggers, so it does
+not re-open the alarm, but it makes the already-owed write-up exclusion more load-bearing.
+
+### 6. FILES
+
+**NEW:** `docs/ops/record_shrink_cache.py` · `docs/ops/falsify_record_shrink_cache.py`.
+**EDITED:** `docs/ops/science_watch.py` (walk + parse moved into the cache) ·
+`docs/ops/results_audit.py` (same; the UNREADABLE hard-failure path preserved exactly) ·
+`docs/ops/acknowledged_alarms.txt` (dated truncation re-triage) · `.gitignore` (the cache) ·
+`docs/ops/watch/FLAWLESS_LEDGER.md` (two SPEED LOG rows, the cores/records answer, the SWEEP-1
+resolution, disclosure D-j). **No `src|scripts|config|prompts` file was touched; drift stayed 0.**
+
 ## [2026-08-04i] ★★★★★ RUN 22 (OPS), passes 2–5 and CLOSE — **THE C1 BARRIER CLOSED, THE REMOTE-CONTROL CHANNEL TURNED OUT TO HAVE BEEN A ONE-WAY PIPE FOR THE WHOLE CAMPAIGN, AND THREE AUDITORS SENT AT MY OWN SAME-DAY FIXES FOUND TWO FAIL-OPENS I HAD INSTALLED WHILE CLOSING SOMEONE ELSE'S**
 
 ### WHERE THIS SESSION ENDED, AND THE ONE FACT THAT MATTERS MOST

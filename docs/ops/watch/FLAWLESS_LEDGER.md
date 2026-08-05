@@ -486,12 +486,165 @@ to 8 in-flight trainings per job.
 | 2026-08-04 23:04 **RUN 22 pass 3** | **186.4** | 179.3 | 1,288 | 161/**833 (6,664 slots)** | **65%** (sonnet-5) | ⭐⭐ **ZERO — THE C1 CHAIN IS CLOSED** | GATED | GATED | GATED (barrier) |
 | 2026-08-04 23:22 **RUN 22 pass 4** | **188.0** | 178.0 | **1,312** | 989 jobs total | **62%** (sonnet-5) | ZERO (chain closed) | GATED | GATED | GATED (barrier) |
 | 2026-08-04 23:54 **RUN 22 pass 5** | 187.6 | 176.5 | **1,376** | 975 jobs total | **58%** (sonnet-5) | ZERO (chain closed) | GATED | GATED | GATED (barrier) |
+| 2026-08-05 07:30 **RUN 23 pass 1** | 138.1 (1h 207) | 168.9 | **1,608** | 926 jobs total | **43%** (haiku-4.5) | ZERO (chain closed) | GATED | GATED | GATED (barrier) |
+| 2026-08-05 20:15 **RUN 23 pass 2** | **153.5** | 149.8 | **920** | 115/**708 (5,664 slots)** | **81%** (haiku-4.5) | ZERO (chain closed) | ⭐ **08-05 21:26** | ⭐ **08-10 07:34** | ⭐⭐ **08-12 08:58** |
 
 **PASS 5 SPEED VERDICT — SLOTS AT A SESSION HIGH AND CONCENTRATION STILL FALLING.** Slots **1,376**
 (1,184 -> 1,296 -> 1,312 -> 1,376 across the four passes), **16.7% of the cluster's 8,218 running
 slots**, `Eqw`/`hqw` **0**, jobs 975 so the cap has eased further. Concentration on the one line above
 the common rung has now fallen **74% -> 69% -> 65% -> 62% -> 58%**. Remaining-to-568 **27,068 ->
 26,986**. Chain owed ZERO for a third consecutive pass.
+
+### ⭐⭐ 2026-08-05 20:15 UTC (RUN 23 pass 2) — TAMER ASKED "WHY DID WE DOWNGRADE THE RECORDS AND THE
+### CORES SO MUCH". THE RECORDS DID NOT MOVE DOWN AT ALL; THE CORES DID, FOR TWO MEASURED REASONS.
+
+**Answered from the scheduler and the archive, not from this ledger's standing position, because
+the question deserves a fresh measurement every time it is asked.**
+
+**(1) RECORDS DID NOT FALL. 15,750 at 07:39Z, 17,780 at 20:03Z — monotone, +2,030 in 12.4 h.** What
+fell is the SHORT window and only the short window: 1 h reads **85–105 rec/h** against 207 this
+morning, while **12 h reads 153.5 against 138.1 (UP)** and 24 h reads 149.8 against 168.9 (−11%).
+The arrival quantum is a 15 h pack-8 job, so the tool's own caption applies: *windows under 12 h are
+a STALL INDICATOR ONLY and do not price the ETA.* On the windows that price the ETA we are flat.
+
+**(2) CORES FELL 1,608 → 920, AND IT IS A HANDOVER PLUS FAIR SHARE.**
+
+* **haiku drained.** It climbed **30 → 530-535 of 568** overnight and its queue is down to **ONE
+  job**. It was holding ~1,200 slots and producing 43-81% of all records. A line that finishes stops
+  consuming, and there is no version of this campaign in which that does not happen to every line.
+* **Fair share compressed our share; the CLUSTER DID NOT SHRINK.** Cluster running slots
+  **8,446 → 8,321 (−1.5%)**, our share **19.0% → 11.1%**. Per user:
+  `ucbtjji 1,208 (was 1,408) · ucestes 920 (was 1,232) · ucecgwh 855 (NEW in the top three) ·
+  uctpec1 768 (was 1,020)`, then a long tail at 524, 464, 348, 270, 234, 208, 197, 184. **Every large
+  user is down and mid-size users arrived.** Same mechanism as 2026-08-04, re-measured not re-argued.
+
+**(3) NOTHING OF OURS IS STUCK, AND THE TWO IDLE LINES WERE PROBED DIRECTLY RATHER THAN ASSUMED
+BENIGN.** `Eqw` 0 · `hqw` 0 · `qquota` EMPTY · 708 jobs queued (~5,664 slots, a deep queue) · 823
+jobs against the 1,000 cap, so the cap is NOT binding today. Our 920 slots sit on kimi 344,
+qwen3.6-27b 304, haiku 208, nemotron 64, while **glm (157 jobs) and deepseek (165 jobs) hold ZERO
+running.** `qalter -w p` on glm job **91245** and deepseek job **94017** both return
+**"found possible assignment with 8 slots"** — schedulable, waiting on fair share, not blocked.
+⇒ **PREDICTION TO CHECK NEXT PASS: as kimi and haiku jobs end, leg1 and leg2 start.** If they do not,
+that IS a finding.
+
+**(4) ⭐ AND THE ANSWER THE QUESTION WAS REALLY ABOUT: THE LADDER MOVED, HARD, IN THE RIGHT
+DIRECTION.** Every rung read **GATED (barrier)** this morning. `stage_eta` now dates **rung 30 to
+2026-08-05 21:26**, **rung 403 to 08-10 07:34** and **rung 568 to 08-12 08:58** — fifteen days inside
+the 27 August stop. ⚠ Carry the tool's own caveats with those dates: **81% of the rung-568 backlog
+sits on cells that produced NOTHING in the 12 h window**, so it is behind a stage barrier that cores
+do not accelerate, and **2 registered units have no directory yet** and cannot be in the rate's
+denominator, which makes both columns optimistic by that share.
+
+⚠ **THE HONEST COST, STATED BECAUSE IT IS THE THING THAT ACTUALLY BINDS THE GRADE.** The reported
+result is the COMMON rung, a MINIMUM. haiku going 30 → 535 raised it by **ZERO**. Today's binding
+constraints are **core at 0** (its `h2_pair` has not started) and **glm / kimi / deepseek at 30**.
+About **81% of the last 12 h of production landed above the common rung.** That is §11.2 question 3
+answered with its number, and it is NOT actionable from here: steering which line SGE runs would
+need a `qdel` or a held-back submission, and both are standing prohibitions.
+
+### ⭐⭐⭐ 2026-08-05 (RUN 23) — SWEEP-1 IS FIXED. THE CAP HAD ALREADY BEEN BREACHED, AND MY FIRST
+### VERSION OF THE FIX DID MEASURABLE HARM BEFORE THE SECOND ONE UNDID IT.
+
+**THE TRIGGER HAD FIRED AND NOBODY HAD SEEN IT.** `cycle.py:478-487` pre-committed the condition for
+building the incremental cache: *"TRIGGER: a `cycle_log` FAIL on a loop that is demonstrably alive."*
+**At 2026-08-05T07:39:24Z the sweep read 903.5 s and consecutive `CYCLE_LOG.md` lines were 933 s
+apart, against a 900 s staleness cap.** A perfectly healthy loop was inside the window where
+`session_preflight` reports a run-killer. Measured over all 4,747 logged sweeps: the 14,000-15,000
+band ran p95 **654.7 s** and max 845.2 s, so this was the trend arriving, not one spike.
+
+**WHAT WAS BUILT:** `docs/ops/record_shrink_cache.py`, memoising `_shrink(json.load(path))` on
+`(path, mtime_ns, size)`, wired into `science_watch._records` and `results_audit`'s load loop.
+Both tools discard >94% of every byte they parse — **23.0 KB shrunken against a 416.7 KB raw record,
+measured on a 120-record sample** — so the re-parse was pure waste. A cache HIT returns exactly the
+object a full parse produces, so every aggregate downstream is bit-identical. **This is memoisation,
+not sampling: nothing is skipped, no threshold moves, and the 900 s cap is UNTOUCHED.**
+
+**RESULT, LIVE: sweeps 260-620 s at 17,780 records, against 714.6-903.5 s at 15,700.**
+
+⚠⚠ **AND THE PART THAT MATTERS MORE: MY FIRST VERSION REWROTE THE WHOLE 439 MB CACHE EVERY CYCLE,
+AND IT DID MEASURABLE HARM.** Both tools run every sweep, so that is ~0.9 GB of disk writes every
+five minutes on the box that hosts every driver and supervisor. `budget_watch` had timed out
+**3 times in 5,195 cycles** before this change and **6 times in the four hours after it** — the W6
+trigger firing on my own edit. **Trading 340 s of CPU for 0.9 GB of writes is not an optimisation,
+it is moving the cost.** Now APPEND-ONLY with ratio-based compaction: a steady sweep writes the
+handful of new records (~23 KB each) instead of the file.
+
+**THREE FURTHER DEFECTS IN MY OWN WORK, ALL FOUND BY THE FALSIFIER RATHER THAN BY ME:**
+1. **The mutation control lied three times before it worked.** Replacing `os.stat` wholesale broke
+   `Path.resolve()` and the run died on a TypeError with NO red case; patching only around the
+   target case made the mutant MISS everything instead of serving stale, so it proved the opposite
+   of its label; freezing stat for the whole sequence turned the target red but took five other
+   cases with it. The shipped mutant rewrites the cached key and nothing else, and the control is an
+   EXACT EXPECTED SET rather than a count, so it fails if the blast radius grows OR shrinks.
+2. **Owner-scoped cache cleanup deleted the wrong file.** With the MODULE as the owner, two reducers
+   in one file share a namespace and the second one's stale-sweep removes the first one's cache. The
+   two production tools live in different files and would never have shown it; the falsifier, which
+   defines two reducers side by side, went red immediately. Identity is now (module, function name);
+   VERSION is the source hash.
+3. **The cache files were not gitignored.** Never committed (`git log --all -- .record_shrink_cache*`
+   is empty, `.git` is 148 MB) because the auto-committer stages BY NAME — but one `git add -A` would
+   have put ~0.9 GB of derived data into history permanently. Added to `.gitignore`.
+
+⭐⭐⭐ **AND THE PROOF FOUND THREE MORE DEFECTS OF MINE BEFORE ANY OF THIS WAS BANKED. THIS IS THE
+ENTIRE ARGUMENT FOR WRITING THE FALSIFIER FIRST.** The first live run did not pass; it FAILED, and
+each failure was real:
+
+* **A SINGLE APPEND TARGET IS NOT CONCURRENCY-SAFE.** `cycle.py` runs these tools every sweep while a
+  session may run them by hand, and two processes appending ~23 KB lines to ONE file interleave
+  mid-line. The proof's warm run reported **710 unparseable cache line(s)**. It was FAIL-SAFE — torn
+  lines are ignored and those records re-parsed, exactly as unit case F asserts — but a cache that
+  shreds itself whenever two instances overlap does not work. **FIXED: one append shard per PROCESS
+  (`…​.shard<pid>.jsonl`), merged on read, folded into the base on compaction. No lock, no retry.**
+* **THE STALE-SWEEP WOULD HAVE EATEN THE CURRENT SIGNATURE'S OWN SHARDS.** They match the same glob,
+  and a bare `!= cache_file` test deletes them — a cache erasing its own pending appends on every
+  run while looking tidy. **FIXED with a prefix test, and unit case K now asserts it.**
+* **THE PROOF ITSELF CLEARED THE LIVE CACHE AND THEN DIED ON A `PermissionError`** when the running
+  cycle held a part open mid-`unlink`. A verification step that degrades the thing it verifies is not
+  a verification step. **FIXED: the proof runs against a PRIVATE cache directory
+  (`RECORD_SHRINK_CACHE_DIR`) and never touches the live one.**
+
+**VERIFICATION AS IT NOW STANDS:**
+* unit falsifier **11/11** (two new cases: J two writers get separate append targets · K the current
+  signature's shards survive the sweep and are read)
+* mutation control **PASS on the EXACT expected set** — a set, not a count, so it fails if the
+  mutant's blast radius grows OR shrinks
+* ruff clean on all four files
+* walk order proven identical: `glob.glob(**, recursive=True)` and `Path.rglob` return the same
+  **15,902** paths in the SAME ORDER — which matters because several printed lines are
+  encounter-ordered example slices (`bad[:3]`, `oor[:3]`, `list(dupes)[:3]`)
+* ⭐⭐ **STATIC BYTE-IDENTITY PROOF: PASS.** On a FROZEN 400-record copy of `test_leg_sonnet_5` (a
+  COMPLETE line, so nothing can write to it mid-run), both tools are **byte-identical to
+  `git show HEAD:` of their pre-change selves, cold AND warm** — `science_watch` 886 B, 7.7 s → 0.3 s
+  (**25x**); `results_audit` 1,181 B, 1.7 s → 0.3 s (**5.7x**).
+* **sci=OK on all 157 live cycles since the edit went in.**
+* ⭐⭐⭐ **AND THE FINAL LIVE MEASUREMENT, ON THE REAL ARCHIVE, AFTER THE SHARD FIX: `science_watch`
+  ran the FULL 17,935-record archive in 14 SECONDS with EMPTY stderr, writing a 792 KB shard instead
+  of a 440 MB file.** Against the pre-change baseline of 129 s uncontended (and 340 s+ under the
+  contention that produced the 903.5 s sweep), that is the whole of SWEEP-1 closed: **~9x on the
+  uncontended baseline, and the disk cost per sweep fell from 0.9 GB to under 1 MB.** Compaction now
+  fires roughly every ~150 cycles rather than every cycle.
+
+⚠ **ONE HONEST COST, AND IT WAS MINE.** The `2026-08-05T20:35:14Z` cycle read **sweep=1307.1 s**, the
+worst of the campaign. That is not the trend and not the fix failing: I had deleted BOTH live caches
+minutes earlier to force the new owner identity, so that cycle ran fully cold on 17,836 records
+**while my static proof and a full-archive proof ran beside it.** RUN 22's lesson 4 exactly — my own
+deep checking is load on the box — and the reason the falsifier now runs against a PRIVATE cache
+directory and the full-archive mode was STOPPED once the static proof had settled the question.
+**The very next hand-run read 14 s.** `budget_watch` also went `budget=99` on those contended cycles;
+expect it to clear, and if it does not, that is a new finding rather than this one.
+
+⚠ **WHY A STATIC ROOT WAS NEEDED, STATED RATHER THAN GLOSSED.** The full-archive comparison is
+structurally INCONCLUSIVE and calling it a pass would be the "0 means no defects" mistake: the
+archive gains a record every ~24 s while each tool takes 130-200 s, so the baseline and the cached
+run never see the same record set. The first live run differed on exactly **three lines and all three
+were record COUNTS** (17,893 → 17,898 → 17,906), with every other line identical — honest corroboration,
+not a proof. The frozen copy is what makes the claim exact. ⚠ The comparison is deliberately against
+the ORIGINAL code rather than the new code with caching disabled: only the former can catch a
+walk-ORDER change, because the latter would use the new walk on both sides.
+
+⚠ **`integrity_gate.py`, the third layer this row names, is NOT converted.** It is cadence-gated
+rather than every-sweep and RUN 22 timed it at 51 s, so it is not what breached the cap. Stated
+rather than quietly dropped.
 
 ### ⚠ SWEEP-1 UPDATE — AN 845.2 s CYCLE, 55 s FROM THE CAP, AND I AM THE LIKELIEST CAUSE
 
@@ -1000,7 +1153,7 @@ is found, including findings about this ledger.
 | **SWEEP-1** | 08-04 RUN21 pass 1 | ⚠ **THE SWEEP IS ELEVATED AND P303 DOES NOT EXPLAIN IT.** Measured this hour: 221.9 · 441.3 · 261.0 · **783.5** · **655.0** s. The 783.5 cycle ran all three cadence-gated probes (a one-off: the two new verdict stamps did not yet exist). **The 655.0 cycle ran NONE of them** — STATE ages 822.8 / 820.1 / 685.1 s, every verdict cached — so 655 s is the base sweep plus something this row has not identified. The staleness cap is **900 s** and `session_preflight` reads a breach as "the monitoring loop is DEAD", so the margin is 245 s and the sweep grows linearly with the archive. **Candidates not yet discriminated:** archive growth (13,494 → 13,576 in one cycle, 53 records × ~480 KB), the mirror pull, disk contention from ~30 live campaign processes, and my own instrument runs during the same window. ⭐ **AND THE NEXT CYCLE SETTLES IT: 412.0 s WHILE RUNNING ONE HEAVY PROBE** (STATE 17:31:31Z — `record_seal_age_s = 0.0`, the seal ran; science 1127.2 s and vanished 1261.8 s both cached; all three rc=0, no attention). **So a cycle with ONE scan swept 412 s and a cycle with NONE swept 655 s. The probes are not the driver, and the base sweep itself varies by a factor of two.** That also confirms P303's mechanism on the live board: one probe ran while another was skipped, and both verdicts were still reported. ⚠ The CONTENDED case — both heavy probes due in the same sweep — has NOT yet been observed live; their cadences (1200 s and 1800 s) next coincide about an hour out.  ⭐⭐ **MEASURED IN PASS 2, AND IT TURNS THIS ROW INTO A DATED FORECAST.** The three full-archive layers inside every sweep were timed individually under live load at 13,611 records: `science_watch` **114 s** + `results_audit` **139 s** + `integrity_gate` **51 s** = **304 s**, all rc=0. That accounts for the 412 s cycle almost exactly (304 + the 99 s seal = 403). ⚠⚠ **AND IT DATES THE FAILURE: those three alone are ~22.3 ms/record, so at the registered ~42,128-record end state they are ~940 s — ABOVE the 900 s staleness cap ON THEIR OWN, before anything else in the sweep.** Taking the whole observed sweep as roughly linear, the cap is crossed somewhere between ~18,700 records (on the 655 s cycle) and ~29,700 (on the 412 s one) — at ~180 rec/h the pessimistic branch is about **28 hours away**. When it happens `session_preflight.check_cycle_log` will report **the monitoring loop as DEAD while it is perfectly healthy.** ⛔ **THE FIX IS NOT TO RAISE THE CAP** — the cap is what makes a genuinely dead loop visible, and raising it to make a check pass is the one move this ledger forbids. The principled repairs, in order: make the three layers INCREMENTAL (the seal already is), or scale the cap on the measured archive size rather than a constant. **This is now the highest open ops item after D49.** |
 
 | **SWEEP-1 (RUN 22 pass 1, 2026-08-04 21:58Z)** | ⭐ **THE "UNEXPLAINED 2x" IS EXPLAINED, REGRESSED OVER 4,647 CYCLES RATHER THAN THE FIVE THIS ROW RESTED ON — AND THE FIRST READING OF MY OWN REGRESSION WAS WRONG AND THE CONTROL CAUGHT IT.** Parsed every `sweep=` in `CYCLE_LOG.md` (n=4,647, archive 1,513 -> 14,548). **(1) THE SSH-GATED LAYER IS REFUTED AS THE CAUSE**: median 27.9 s on ssh cycles (n=167) against 20.2 s on non-ssh (n=4,480), a difference of **+7.7 s**, not hundreds. **(2) ARCHIVE SIZE IS THE DOMINANT TERM AND IT IS NOW FITTED**: `sweep ~= -44.2 + 22.65 s per 1,000 records`, **R^2 = 0.722** — and that **22.65 ms/record independently reproduces the 22.3 ms/record this row measured by timing the three layers directly.** Two derivations, different methods, agreeing. **(3) ⚠ THE DELTA SPLIT WAS CONFOUNDED AND I NEARLY BANKED IT.** Univariately, cycles with >=25 new records sweep **328.0 s** against **18.4 s** for cycles with <=5 — an 18x gap that looked decisive. Adding `delta` to a JOINT fit moves **R^2 from 0.722 to 0.725** and prices a new record at **0.29 s**: almost all of that 18x was archive size wearing a different hat, because busy cycles are also late cycles. **(4) THE UNCONFOUNDABLE COMPARISON IS THE ONE THAT SURVIVES**: high-vs-low delta *within* narrow archive bands gives **1.2x (5-8k) -> 1.5x (8-11k) -> 1.6x (11-13k) -> 2.3x (13-15k)**. So the arrival rate DOES matter and its cost GROWS with the archive, which is why an additive term could not see it. ⚠ **THE MECHANISM IS NOT DISCRIMINATED and must not be asserted**: "the layers do per-new-record work" and "producing cycles contend for the same disk as the mirror pull and the drivers" both predict this and the cycle log cannot separate them. ⭐⭐ **AND IT DATES THE FAILURE PROPERLY, WHICH IS THE POINT OF THE ROW.** At the median delta the 900 s cap is crossed at **~42,415 records**; on a BUSY cycle, scaling the 13-15k band's 416.4 s median, it is crossed at **~30,000 records** — and the false "the monitoring loop is DEAD" fires on the WORST cycle, never the median. At ~180 rec/h that is **~3.5 days away (about 8 August)**, not the 28 h this row previously carried on a two-point extrapolation. ⛔ **THE FIX IS STILL NOT TO RAISE THE CAP.** The dominant term is a FULL-ARCHIVE RESCAN EVERY CYCLE, so the principled repair is exactly the registered one: make `science_watch` / `results_audit` / `integrity_gate` incremental, as `record_provenance_seal --since-state` already is. |
-| SWEEP-1-fix | | make the three layers incremental (`--since-state`, the pattern the seal already proves); do NOT raise the cap — the cap is what makes a dead loop visible. **Deadline is now dated: ~30,000 records / ~8 August on busy cycles.** |
+| SWEEP-1-fix | | make the three layers incremental (`--since-state`, the pattern the seal already proves); do NOT raise the cap — the cap is what makes a dead loop visible. ⭐⭐ **BUILT AND LIVE 2026-08-05 (RUN 23), PENDING ITS LIVE PROOF — see the RUN 23 SWEEP-1 section in SPEED above.** `docs/ops/record_shrink_cache.py` memoises the shrunken record on `(path, mtime_ns, size)` for `science_watch` and `results_audit`; sweeps fell from 714.6-903.5 s at 15,700 records to **260-620 s at 17,780**. ⚠ **THE DEADLINE IN THIS ROW WAS ALREADY PAST WHEN THE FIX WAS BUILT: the cap was BREACHED at 2026-08-05T07:39:24Z (sweep 903.5 s, 933 s between cycle lines).** ⚠ My first version rewrote the whole 439 MB cache every cycle and drove `budget_watch` to 6 timeouts in 4 h against 3 in 5,195 cycles — fixed to append-only with compaction. `integrity_gate` is NOT converted (cadence-gated, 51 s, not the cause). **The row closes when the byte-identity proof against `git show HEAD:` of both pre-change tools passes.** |
 | **ETA-1** | 08-04 RUN21 pass 1 | **`stage_eta`'s rung dates omit the serial C2 `h2_pair` TEST, so the rung-30 figure is ~10 h optimistic.** The clamp applies the C1 chain floor only; a line whose h2_pair has not STARTED still owes a full 9.39 h sealed TEST after its current stage ends. Measured from `qstat JAT_start_time`: tool says 08-05 01:10, the chain says **~08-05 11:00** with core binding. **Not a false statement** — the column is labelled "earliest" and the tool prints "NEITHER IS AN UPPER BOUND" — but it is the number a reader carries away, and the handover brief already quoted a different one. **No campaign exposure: it changes no decision, because nothing can accelerate the chain.** | add a chain-aware column: for each line whose h2_pair arm holds 0 records AND has no covering job, add one T_test (9.39 h) after its current stage. `stage_eta.py` is under `docs/`, so it is editable while live |
 
 ### DISCLOSURES — true, permanent, and must reach the write-up rather than be "fixed"
@@ -1015,6 +1168,7 @@ is found, including findings about this ledger.
 | D-f | D34: the authoring-reliability marker set structurally cannot hold an author-side reject. D35: `n_attempted` publishes `placebo = 33` against a registered budget of 30. |
 | D-g | `campaign_summary.json` at teardown remains the only UNRECOVERABLE item. |
 | **D-h** | ⛔ **NO SHARPE FROM THIS CAMPAIGN MAY BE QUOTED WITHOUT BEING EXCESS-OF-RISK-FREE AND WITHOUT THE EQUAL-WEIGHT BENCHMARK ON THE SAME LINE.** The archived `metrics.test_sharpe` is **RAW**; subtracting the risk-free rate on the registered R20 path costs every cell **0.14-0.27 units, median 0.21**. Against a costed equal-weight 1/N at **+1.0617 excess**, the best model-arm cell reaches **+1.0173** and the median **+0.8549** — **0 of 59 cells beat it**, while **25 of 59 have a SHALLOWER CVaR-5% tail** than the benchmark. Costs confirmed four ways including bit-exact against the archive. Full derivation, conventions and the independent re-check: `docs/analysis/EXCESS_AND_BENCHMARK_2026-08-04.md`. ⚠ **This rule was stated to Tamer and recorded only in the cursor until 2026-08-04 21:10Z — it had NO durable home in the repo, which is exactly how a standing rule gets lost.** It is Okhrati's requirement that every number arrives with its comparator, and the first table this session produced broke it. |
+| **D-j** | ⚠⚠ **R101 REGISTERS THE ELEVEN MODELS AS CLIMBING "IN LOCKSTEP", AND IN EXECUTION THEY DO NOT. THE WRITE-UP MUST SAY SO PLAINLY RATHER THAN LET A READER ASSUME OTHERWISE.** Measured 2026-08-05 20:15Z: `test_leg_haiku_4_5` holds **530-535** records while `glm-5_2`, `kimi-k3` and `deepseek-v4-pro` hold **30** and the core line's `h2_pair` holds **0** — a 535-to-0 spread on a ladder the pre-registration describes as *"ONE COMMON assurance-tier ladder … IN LOCKSTEP — every model banks the SAME rung at each checkpoint; no model is privileged with more seeds."* ⭐ **THE REGISTERED CONCLUSION IS NOT AFFECTED AND THAT IS THE POINT TO MAKE FIRST:** R101 defines the final result as *"whatever COMMON rung all 11 have COMPLETED by the stop"*, i.e. a MINIMUM, and the pooled bound and the per-model contrasts are all computed AT that common rung — so the surplus depth on one line is simply unused by the primary analysis, exactly as designed. **What is NOT true is the execution sentence.** The asymmetry is a FAIR-SHARE ARTEFACT, not a design privilege: every line's jobs carry equal priority (measured: our pending jobs span 2.00144-2.00155, a submit-order sequence with no per-line difference), each driver submits its whole tier, and SGE decides which tier runs. ⚠ **The honest write-up sentence is therefore: the ladder is banked in lockstep; it is not EXECUTED in lockstep, because the scheduler orders the work and we may not steer it** (`qdel` and held-back submissions are both standing prohibitions). ⚠ **AND R101 ITSELF PREDICTED THE SCALE OF WHAT WOULD BE REACHED**: *"30 GUARANTEED early; fair-share expectation ~100-189; all-11-to-403 unlikely"* — so a common rung well below the deepest line is the registered expectation, not a shortfall. Report the per-line depths as measured, never a single "the campaign reached N". |
 | **D-i** | ⚠ **A STALE NUMBER IN `src/baselines/strategies.py`'s DOCSTRING, TO FIX BEFORE ANYTHING REACHES THE PDF.** It records `market_ew` **1.1656** and `.SPXTR` **1.1302**; the correct values under the codebase's own `sharpe_ratio` are **1.1659** and **1.1305** — the docstring used `ddof=1` where the code uses `ddof=0`. `src/**` is drift-fenced, so this applies at the next deploy window. Small, but Criterion 4's top band is the literal word "faultless" and one stale figure forfeits it. |
 
 ### WATCH — not yet a finding, but trending

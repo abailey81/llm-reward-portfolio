@@ -140,3 +140,12 @@ docs/ops/telegram_bridge.py
 docs/ops/telegram_watch.py
 docs/ops/TELEGRAM*.md
 docs/ops/watch/.remote_inbox_state.json
+
+# SWEEP-1's incremental record cache (docs/ops/record_shrink_cache.py). It is a DERIVED artefact
+# rebuilt from the archive in one slow sweep, so losing it costs nothing -- and it is ~0.44 GB per
+# tool today, heading for ~0.92 GB at the 42,128-record end state. This repository's auto-committer
+# stages BY NAME and has never picked it up (verified: `git log --all -- .record_shrink_cache*` is
+# empty and .git is 148 MB), but one `git add -A` would put a gigabyte of derived data into history
+# permanently, and `git add -A` is already a standing prohibition precisely because someone will
+# eventually type it.
+docs/ops/watch/.record_shrink_cache.*

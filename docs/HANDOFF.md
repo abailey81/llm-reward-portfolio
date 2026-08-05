@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-05"
-  head: "263a8ff9"
+  head: "a8858a6e"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 22 CLOSE: 7 layers RC=0, board OK, C1 chain closed, 5 lines COMPLETE"
+  suite_status: "RUN 23 ops: SWEEP-1 incremental record cache built + falsified (11/11, mutants PASS, static byte-identity PASS); science_watch 14s on 17,935 records"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

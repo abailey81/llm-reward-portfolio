@@ -28,13 +28,15 @@ printed as NOTE and never change the exit code.
 """
 from __future__ import annotations
 
-import glob
 import hashlib
-import json
 import os
 import re
 import sys
 from collections import Counter, defaultdict
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from record_shrink_cache import load_shrunken_records  # noqa: E402
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "outputs/campaign_cluster_run4"
 LLM_ARMS = ("distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shuffled")
@@ -81,23 +83,24 @@ def _shrink(obj):
     return obj
 
 
+# ⚠ SWEEP-1, 2026-08-05. THE WALK AND THE PARSE MOVED INTO `record_shrink_cache`; the exclusion
+# rule, the record set, the walk ORDER and every downstream computation are unchanged. See the note
+# in `science_watch._records` for the measurement that forced it (a 903.5 s sweep, 933 s between
+# consecutive cycle lines, against a 900 s false-DEAD threshold) and for the walk-order check.
+# THE UNREADABLE PATH IS PRESERVED EXACTLY: those records still become UNREADABLE hard failures here,
+# which is the behaviour this file had and `science_watch`'s silent skip did not.
 records = []
-for path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
-    # Exclude the in-flight staging tree AND the set-aside past, per the convention
-    # `scripts/sentinel.py:1348` established after three instruments tripped on it: a pull
-    # stages into `.pull_tmp.<pid>/` (byte-identical duplicates of canonical records -- D18,
-    # observed 2026-07-31), and `_quarantined*` holds an earlier run's records.
-    if any(seg.startswith((".pull_tmp", "_quarantined")) for seg in
-           os.path.relpath(path, ROOT).replace("\\", "/").split("/")[:-1]):
-        continue
-    try:
-        rec = json.load(open(path, encoding="utf-8"))
-    except Exception as exc:                                   # noqa: BLE001
-        hard_failures.append("UNREADABLE %s (%s)" % (path, exc))
-        continue
-    rec["_path"] = path.replace("\\", "/")
+_loaded, _unreadable = load_shrunken_records(ROOT, _shrink)
+for path, exc in _unreadable:
+    hard_failures.append("UNREADABLE %s (%s)" % (path, exc))
+for path, rec in _loaded:
+    # A COPY, so the object the cache holds is never annotated with this tool's private keys. The
+    # cache is written before it returns, so mutating in place would be harmless today -- but that
+    # is an ordering invariant in another file, and a shallow copy costs nothing to not depend on it.
+    rec = dict(rec)
+    rec["_path"] = path
     rec["_root"] = os.path.relpath(path, ROOT).replace("\\", "/").split("/")[0]
-    records.append(_shrink(rec))
+    records.append(rec)
 
 print("results_audit: %d records under %s" % (len(records), ROOT))
 
