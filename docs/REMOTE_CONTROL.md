@@ -289,6 +289,58 @@ tonight is your own D13/D20 work — no other lane has touched the fence, and th
 
 ## ▶ LOG
 
+### 2026-08-05T07:28:15Z — OPS SESSION
+
+**SESSION HANDOVER — RUN 22 closes, RUN 23 picks up from `docs/RUN23_SESSION_PROMPT.md`.**
+
+**THIS CHANNEL NOW WORKS AND IS BEING WATCHED.** `docs/ops/remote_inbox.py` polls every 60 seconds
+and runs DETACHED (pid 23768), so it survives any session ending. Edit the fenced block under
+INSTRUCTIONS above, on branch `myriad-cluster-and-tier-system` or `backup-2026-07-28`, and commit.
+Detection is under a minute; the acting session replies here, newest entry first. Worst case from
+typing to reply is about 30 minutes, and I would rather you know that than assume it is instant.
+
+**THE CAMPAIGN, as of 2026-08-05 07:30 UTC (T+178 h, 21.7 days to the 27 August stop):**
+
+* **THE C1 BARRIER IS CLOSED.** At 23:00:55Z yesterday the last DFO candidate finished. `stage_eta`
+  now reads `critical-chain floor: 0.00 d still to run`. Every ETA published for the past week was
+  clamped to that floor. The core line now owes only its two DFO test legs, then its `h2_pair`, the
+  C3 gate and C4.
+* **FIVE LINES ARE COMPLETE AT RUNG 568** — gemini-2.5-flash, gpt-5.6-luna, h3, and overnight both
+  **qwen3.5-9b and sonnet-5**. glm, haiku, kimi and qwen3.6-27b sit at 30 and are climbing.
+  **The common rung is still 0**, held by core, deepseek and nemotron, all on the `h2_pair` every
+  line tests last.
+* **Records 15,657. Spend $45.5019, unchanged. Drift 0. Board OK. All seven record layers RC=0.**
+* **Slots 1,608 — a session high, and 19.0% of every running slot on Myriad.** We are the
+  second-largest consumer on the machine. Zero jobs in an error state.
+
+**ON YOUR CORES INSTRUCTION, AND THE ANSWER CHANGED.** The previous session's plan to narrow the job
+pack from 8 to 4 for more cores is REFUTED, three separate ways, and I did not roll it:
+
+1. Myriad caps us at **1,000 jobs per user**. We were at **994**. At pack 4 the same work needs about
+   **1,988 jobs** — double a hard cap. It was already biting: one line had six submissions rejected
+   outright minutes after entering its sweep.
+2. That cap also means pack 8 permits ~**8,000 cores** and pack 4 only **4,000**. Narrowing would
+   have HALVED our ceiling.
+3. Measured over 42 minutes: we present work **29 times faster than the scheduler gives it to us**,
+   with 1,552 cores sitting free that we are simply not allocated. **That is fair share, not
+   packing** — recovering more cores we cannot take buys nothing.
+
+**And "we fell very badly" has a clean answer: we did not fall through anything we did wrong.** Our
+share dropped because other large users arrived and fair share redistributed. We are still #2 on the
+cluster with a deep queue ready to absorb anything that frees.
+
+**WHAT I FIXED THIS SESSION:** twelve defects across the monitoring fleet, including three where an
+instrument was reporting an all-clear it had not earned — one had been printing an empty diagnostic
+for the entire campaign, one was wrong about how much work four of nine lines owed, and one asserted
+a hardcoded claim that the PopArt confound does not touch H2 when the measured gap on the sealed tier
+is 34 percentage points. That last one is now a write-up obligation rather than a reassurance.
+
+**AND I SENT AUDITORS AT MY OWN FIXES, WHICH FOUND TWO FAULTS I HAD INTRODUCED** while closing
+others. Both are repaired, both now have tests that fail against the broken version. It is recorded
+in full in the changelog because the pattern matters more than the individual bugs.
+
+**Nothing needs a decision from you.** If you want anything changed, type it above.
+
 ### 2026-08-04T23:53:35Z — OPS SESSION
 
 **FIXED: you were typing here and nothing was reading it. Here is why, and it is now repaired.**
