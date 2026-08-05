@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+193h56m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18212** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 23:05 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
-test tier: 16,669 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 23:06 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
+test tier: 16,670 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     156 records     156.0 rec/h
-    last  3 h     422 records     140.7 rec/h
-    last 12 h    1759 records     146.6 rec/h
+    last  1 h     155 records     155.0 rec/h
+    last  3 h     423 records     141.0 rec/h
+    last 12 h    1758 records     146.5 rec/h
     last 24 h    3461 records     144.2 rec/h
     12 h rate is 86% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -48,20 +48,20 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (147 rec/h); latest excludes cells already within
-    8 of the ceiling (20 rec/h). Window 12 h.
+    the whole fleet (146 rec/h); latest excludes cells already within
+    8 of the ceiling (21 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         122      13  2026-08-05 23:55  2026-08-06 05:02  yes
-      100       2,918      17  2026-08-06 18:59  2026-08-11 21:26  yes
-      189       6,596     147  2026-08-07 20:05  2026-08-19 08:50  yes
-      279      10,646     147  2026-08-08 23:43  2026-08-27 14:24  risk
-      340      13,391     147  2026-08-09 18:26  2026-09-02 04:18  risk
-      403      16,226     147  2026-08-10 13:47  2026-09-07 22:36  risk
-      568      23,659     156  2026-08-12 16:29  2026-09-23 01:11  risk
+       30         122      12  2026-08-05 23:56  2026-08-06 05:01  yes
+      100       2,918      16  2026-08-06 19:01  2026-08-11 20:52  yes
+      189       6,595     146  2026-08-07 20:07  2026-08-19 07:30  yes
+      279      10,645     146  2026-08-08 23:45  2026-08-27 12:16  risk
+      340      13,390     146  2026-08-09 18:30  2026-09-02 01:37  risk
+      403      16,225     146  2026-08-10 13:51  2026-09-07 19:21  risk
+      568      23,658     155  2026-08-12 16:35  2026-09-22 20:28  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-05T22:43:44Z  ATTN  records=18144 (+11)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  cores=824  sweep=316.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T22:53:20Z  ATTN  records=18151 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.8m  drift=0  sci=OK  r115=22B  sweep=545.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T22:56:29Z  ATTN  records=18175 (+24)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.4m  drift=0  sci=OK  r115=22B  sweep=159.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T22:57:25Z  ATTN  records=18175 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.3m  drift=0  sci=OK  r115=22B  sweep=25.4s  auto-cycle
 2026-08-05T23:04:08Z  OK  records=18204 (+29)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  cores=768  sweep=373.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T23:05:05Z  OK  records=18211 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.5m  drift=0  sci=OK  r115=22B  sweep=26.8s  auto-cycle
+2026-08-05T23:06:04Z  OK  records=18212 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=28.5s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
