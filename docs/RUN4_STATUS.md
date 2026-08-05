@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+194h42m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18398** |
+| stalest driver log | **3 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18400** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 4.8 h ago; none live, newest failure 4.8 h ago** |
@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 23:51 UTC | elapsed 8.11 d | 21.0 d to the Aug-27 stop
-test tier: 16,857 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 23:52 UTC | elapsed 8.11 d | 21.0 d to the Aug-27 stop
+test tier: 16,858 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     232 records     232.0 rec/h
-    last  3 h     504 records     168.0 rec/h
-    last 12 h    1849 records     154.1 rec/h
+    last  1 h     233 records     233.0 rec/h
+    last  3 h     503 records     167.7 rec/h
+    last 12 h    1848 records     154.0 rec/h
     last 24 h    3517 records     146.5 rec/h
     12 h rate is 77% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         121       7  2026-08-06 00:38  2026-08-06 03:12  yes
-      100       2,819     108  2026-08-06 18:09  2026-08-09 05:59  yes
-      189       6,408     232  2026-08-07 17:27  2026-08-13 09:27  yes
-      279      10,458     232  2026-08-08 19:44  2026-08-18 01:41  yes
-      340      13,203     232  2026-08-09 13:33  2026-08-21 05:45  yes
-      403      16,038     232  2026-08-10 07:56  2026-08-24 12:20  yes
-      568      23,471     232  2026-08-12 08:11  2026-09-02 02:19  risk
+       30         121       7  2026-08-06 00:39  2026-08-06 03:13  yes
+      100       2,819     108  2026-08-06 18:10  2026-08-09 05:49  yes
+      189       6,407     233  2026-08-07 17:28  2026-08-13 09:01  yes
+      279      10,457     233  2026-08-08 19:46  2026-08-18 01:00  yes
+      340      13,202     233  2026-08-09 13:35  2026-08-21 04:54  yes
+      403      16,037     233  2026-08-10 08:00  2026-08-24 11:17  yes
+      568      23,470     233  2026-08-12 08:16  2026-09-02 00:48  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -163,7 +163,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | kimi_k3 | **46** | 54 | 5 |  |
-| qwen3_6_27b | **171** | 187 | 5 |  |
+| qwen3_6_27b | **171** | 188 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
