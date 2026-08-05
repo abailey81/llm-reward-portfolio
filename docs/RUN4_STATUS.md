@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+194h13m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18270** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **770** (91 running, 679 queued) |
-| **cores computing** | **728** |
+| cluster jobs | **769** (90 running, 679 queued) |
+| **cores computing** | **720** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 23:22 UTC | elapsed 8.09 d | 21.0 d to the Aug-27 stop
-test tier: 16,727 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 23:23 UTC | elapsed 8.09 d | 21.0 d to the Aug-27 stop
+test tier: 16,731 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     177 records     177.0 rec/h
-    last  3 h     432 records     144.0 rec/h
-    last 12 h    1787 records     148.9 rec/h
-    last 24 h    3463 records     144.3 rec/h
+    last  1 h     181 records     181.0 rec/h
+    last  3 h     435 records     145.0 rec/h
+    last 12 h    1789 records     149.1 rec/h
+    last 24 h    3466 records     144.4 rec/h
     12 h rate is 83% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 83% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -49,19 +49,19 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
     the whole fleet (149 rec/h); latest excludes cells already within
-    8 of the ceiling (25 rec/h). Window 12 h.
+    8 of the ceiling (26 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         122       7  2026-08-06 00:11  2026-08-06 04:12  yes
-      100       2,903      26  2026-08-06 18:52  2026-08-10 18:20  yes
-      189       6,538     175  2026-08-07 19:16  2026-08-16 18:18  yes
-      279      10,588     175  2026-08-08 22:28  2026-08-23 10:42  yes
-      340      13,333     175  2026-08-09 16:54  2026-08-27 23:25  risk
-      403      16,168     175  2026-08-10 11:57  2026-09-01 15:41  risk
-      568      23,601     177  2026-08-12 13:51  2026-09-13 22:04  risk
+       30         122       7  2026-08-06 00:12  2026-08-06 04:09  yes
+      100       2,900      29  2026-08-06 18:50  2026-08-10 16:44  yes
+      189       6,534     179  2026-08-07 19:12  2026-08-16 14:47  yes
+      279      10,584     179  2026-08-08 22:22  2026-08-23 05:05  yes
+      340      13,329     179  2026-08-09 16:47  2026-08-27 16:23  risk
+      403      16,164     179  2026-08-10 11:48  2026-09-01 07:12  risk
+      568      23,597     181  2026-08-12 13:40  2026-09-13 09:44  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -70,14 +70,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 76% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @728 cores      @830 cores   binding
+     rung      @720 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
-      189           7.4 d           6.5 d   throughput
-      279          10.6 d           9.3 d   throughput
-      340          12.7 d          11.1 d   throughput
-      403          14.9 d          13.0 d   throughput
-      568          20.6 d          18.1 d   throughput
+      189           7.5 d           6.5 d   throughput
+      279          10.7 d           9.3 d   throughput
+      340          12.8 d          11.1 d   throughput
+      403          15.0 d          13.0 d   throughput
+      568          20.8 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
