@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 23:00 UTC -- T+193h51m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 23:01 UTC -- T+193h52m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,13 +10,13 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+193h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+193h52m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18189** |
+| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18193** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 3.9 h ago; none live, newest failure 3.9 h ago** |
+| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 4.0 h ago; none live, newest failure 4.0 h ago** |
 | transport timeouts (cumulative, ever) | 186 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -35,13 +35,13 @@ showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)
 
 ```
 generated 2026-08-05 23:01 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
-test tier: 16,650 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+test tier: 16,652 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     151 records     151.0 rec/h
-    last  3 h     409 records     136.3 rec/h
-    last 12 h    1751 records     145.9 rec/h
-    last 24 h    3458 records     144.1 rec/h
+    last  1 h     153 records     153.0 rec/h
+    last  3 h     410 records     136.7 rec/h
+    last 12 h    1752 records     146.0 rec/h
+    last 24 h    3457 records     144.0 rec/h
     12 h rate is 87% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 87% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         124      14  2026-08-05 23:52  2026-08-06 05:34  yes
-      100       2,922      16  2026-08-06 19:02  2026-08-12 09:29  yes
-      189       6,615     140  2026-08-07 20:21  2026-08-20 12:42  yes
-      279      10,665     140  2026-08-09 00:06  2026-08-29 10:48  risk
-      340      13,410     140  2026-08-09 18:55  2026-09-04 11:55  risk
-      403      16,245     140  2026-08-10 14:21  2026-09-10 17:47  risk
-      568      23,678     151  2026-08-12 17:17  2026-09-27 02:43  risk
+       30         123      15  2026-08-05 23:52  2026-08-06 05:28  yes
+      100       2,921      17  2026-08-06 19:02  2026-08-12 08:05  yes
+      189       6,613     142  2026-08-07 20:19  2026-08-20 09:33  yes
+      279      10,663     142  2026-08-09 00:04  2026-08-29 05:47  risk
+      340      13,408     142  2026-08-09 18:52  2026-09-04 05:38  risk
+      403      16,243     142  2026-08-10 14:17  2026-09-10 10:11  risk
+      568      23,676     153  2026-08-12 17:11  2026-09-26 15:41  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -159,11 +159,11 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
 | test | **0** | 30 | 9 | 4 arm(s) still at zero |
-| nemotron_3_super | **27** | 30 | 5 |  |
+| nemotron_3_super | **28** | 30 | 5 |  |
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | kimi_k3 | **30** | 31 | 5 |  |
-| qwen3_6_27b | **150** | 168 | 5 |  |
+| qwen3_6_27b | **151** | 170 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
