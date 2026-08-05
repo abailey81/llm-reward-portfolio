@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 10:02 UTC -- T+180h53m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 10:03 UTC -- T+180h54m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+180h53m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+180h54m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **3 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **16286** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 10:02 UTC | elapsed 7.54 d | 21.6 d to the Aug-27 stop
-test tier: 14,743 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 10:04 UTC | elapsed 7.54 d | 21.6 d to the Aug-27 stop
+test tier: 14,750 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     125 records     125.0 rec/h
-    last  3 h     644 records     214.7 rec/h
-    last 12 h    1715 records     142.9 rec/h
-    last 24 h    3932 records     163.8 rec/h
+    last  1 h     130 records     130.0 rec/h
+    last  3 h     648 records     216.0 rec/h
+    last 12 h    1721 records     143.4 rec/h
+    last 24 h    3936 records     164.0 rec/h
     12 h rate is 47% from ONE line (test_leg_haiku_4_5); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 32% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_qwen3_5_9b, test_leg_sonnet_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         218      22  2026-08-05 11:34  2026-08-05 12:17  yes
-      100       3,018      37  2026-08-06 07:09  2026-08-06 17:14  yes
-      189       6,908     117  2026-08-07 10:22  2026-08-08 09:26  yes
-      279      11,135     125  2026-08-08 15:57  2026-08-10 05:08  yes
-      340      14,185     125  2026-08-09 13:17  2026-08-11 12:39  yes
-      403      17,335     125  2026-08-10 11:20  2026-08-12 21:13  yes
-      568      25,585     125  2026-08-12 21:03  2026-08-16 10:29  yes
+       30         216      24  2026-08-05 11:34  2026-08-05 12:17  yes
+      100       3,016      38  2026-08-06 07:05  2026-08-06 17:03  yes
+      189       6,905     118  2026-08-07 10:12  2026-08-08 09:00  yes
+      279      11,128     130  2026-08-08 15:39  2026-08-10 04:23  yes
+      340      14,178     130  2026-08-09 12:55  2026-08-11 11:44  yes
+      403      17,328     130  2026-08-10 10:53  2026-08-12 20:05  yes
+      568      25,578     130  2026-08-12 20:25  2026-08-16 08:51  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
