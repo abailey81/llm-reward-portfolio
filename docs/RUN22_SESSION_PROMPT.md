@@ -50,7 +50,8 @@ correct."*
 
 > ★ **2026-08-04, on speed:** *"make sure we also get the maximum cores possible, we fell very
 > badly"* and *"minimise the ETA to an absolute minimum, and use the absolute maximum Myriad can
-> offer."* — **§6 is the measured answer, and it now names a REAL lever.**
+> offer."* — **§6 is the measured answer. ⚠ The "pack 4" lever RUN 21 proposed there is
+> REFUTED — read §6 before acting on any cores idea.**
 
 ### §0.2 ★★★★★ THE CORES + ETA DIRECTIVE — A STANDING PRIORITY, NOT A BACKGROUND NOTE
 
@@ -59,12 +60,15 @@ correct."*
 > absolute maximum Myriad can offer"* · *"make sure in the prompt you also tell to maximise the cores
 > and minimise the ETA."*
 
-**THIS IS AN ACTIVE DUTY EVERY PASS, NOT A THING TO QUOTE A CLOSED ANSWER AT.** RUN 20 closed the
-cores question on fourteen measurements; RUN 21 re-opened it, because the closure had been reasoned
-on a state that no longer held — **our queue was empty then and is not now** — and the re-measurement
-found a real lever worth **+17%** that fourteen previous measurements had missed. **Do the same.
-Re-measure rather than re-argue. A closed question is closed only for the conditions it was closed
-under, and this campaign's conditions change hourly.**
+**THIS IS AN ACTIVE DUTY EVERY PASS, NOT A THING TO QUOTE A CLOSED ANSWER AT — AND THE HISTORY OF
+THIS EXACT QUESTION IS THE REASON, BECAUSE IT CUTS BOTH WAYS.** RUN 20 closed the cores question on
+fourteen measurements. **RUN 21 (me) re-opened it and got it WRONG**: I proposed pack 4 on a
+placeability number, wrote a starred procedure for it, and **RUN 22 refuted it at the scheduler** —
+`max_u_jobs = 1000` makes pack 4 *halve* our ceiling rather than raise it. **Re-measuring is still
+the duty; being right is a separate obligation.** So: **re-measure rather than re-argue, and then
+ask what the measurement actually answers.** Mine answered "what could the cluster ACCEPT" when the
+question was "what will fair share GIVE us". A closed question is closed only for the conditions it
+was closed under — and a re-opened one is not thereby correct.
 
 ### ⚠⚠ BUT BE PRECISE ABOUT WHAT "MINIMISE THE ETA" MEANS HERE, OR YOU WILL SPEND THE SESSION ON THE WRONG THING
 
@@ -248,7 +252,8 @@ The real repair is prototyped at `docs/analysis/a79_fix_proof.py:60-84` — skip
 
 ---
 
-# §6 ★★★ THE ETA AND THE CORES — RE-MEASURED 2026-08-04 21:04Z. THIS SUPERSEDES "CORES ARE CLOSED".
+# §6 ★★★ THE ETA AND THE CORES — RE-MEASURED TWICE. **THE CORES QUESTION IS CLOSED AGAIN, AND THE
+# PACK-4 LEVER RUN 21 PROPOSED IS REFUTED.** Read this whole section before touching anything.
 
 **The old position was right when our queue was EMPTY. It is not the right test now.** Measured with
 `docs/ops/placeable_capacity.py`, fed `qhost -F slots,memory,tmpfs` and `qstat -f`:
@@ -263,65 +268,45 @@ The real repair is prototyped at `docs/analysis/a79_fix_proof.py:60-84` — skip
 Per pool at pack 8: `d00a` **1,432** · `e00a` 328 · `d00b` 224 · `t00a` 104 · rest 168.
 **Our `smp-D` pool (10,476 configured slots) holds 1,688 of the 2,256 placeable cores.**
 
-### ⭐ THE ONE GENUINE, SCIENCE-SAFE LEVER — **AND TAMER HAS DEFERRED IT TO THIS SESSION**
-**PACK WIDTH: +17% at pack 4, +27% at pack 1.** The mechanism is visible as **441 STRANDED free
-slots on `d00a` alone** — free cores on hosts holding fewer than one full 8-pack.
+### ⛔⛔ THE PACK-4 PROCEDURE THAT STOOD HERE IS **REFUTED**. DO NOT EXECUTE IT.
 
-✔ **IT DOES NOT TOUCH DETERMINISM.** Every training is **1-thread** whatever the pack width; a pack
-is a PACKAGING of independent 1-thread trainings onto one host under `allocation_rule $pe_slots`.
-Reduction order, seeding and CRN pairing are per `(arm, seed)` and untouched. **This is NOT the
-AMD/Intel question and NOT the thread-count question — both remain closed.**
+**RUN 21 (me) wrote a starred, step-by-step procedure here and called it "the proof it is safe".
+RUN 22 refuted it at the scheduler on two independent measurements, and leaving it standing would
+have been the most dangerous single line in this brief** — a session following it would have run a
+rolling supervisor restart across live driver lines into a configuration that **HALVES our core
+ceiling**.
 
-⛔ **WHAT IT COSTS:** a rolling supervisor restart across live driver lines (a stale `.driver.lock`
-has cost this campaign **4.5 h**); and job count — a 2,690-unit tier is ~336 jobs at pack 8 and
-**2,690 at pack 1**, against a registered 1,000-job working cap. **pack 4 (~672 jobs) is the
-defensible middle**, and it also SHORTENS the tail that caused the RUN 21 trough.
+**THE REFUTATION, and it is arithmetic, not opinion:**
+1. **`max_u_jobs = 1000` is a HARD per-user cap** (`qconf -sconf global`, confirmed by `-ssconf`).
+   We run **563+ live jobs at pack 8**, so pack 4 is **~1,126 jobs — over the cap** — and the drivers
+   submit WHOLE TIERS rather than a metered buffer, so they cannot ride under it.
+2. **`src/cluster/lanes.py:290` had already recorded the consequence**: pack 8 permits **~8,000
+   cores** under that cap; **pack 4 halves it to ~4,000.** The lever runs BACKWARDS.
 
-### ⭐⭐ THE PACK-4 PROCEDURE — TAMER DEFERRED THIS TO YOU. HERE IS EXACTLY HOW, AND THE PROOF IT IS SAFE.
+⚠⚠ **AND THE EPISTEMIC ERROR IS THE PART TO CARRY FORWARD, BECAUSE IT WILL RECUR.**
+My whole case rested on `placeable_capacity.py`. **That tool measures what the CLUSTER CAN ACCEPT and
+is silent on what FAIR SHARE WILL GIVE US.** Those are different quantities, and I used one to argue
+about the other. RUN 22 measured the difference directly: **1,552 placeable cores in `smp-D`, 5,384
+slots of our own work already QUEUED, zero `Eqw`, no quota — and running flat near 1,200 across three
+scheduling intervals.** We could not take what was already free. **A placeability number is an upper
+bound on acceptance, never a forecast of allocation.**
 
-**THE LIVE COMMAND LINE, read from a running driver on 2026-08-04 (verify it again before acting —
-never trust this transcription):**
-```
-.venv/Scripts/python.exe scripts/run_campaign_cluster.py --tiered --pass-mode B --llm-from campaign
-  --pipeline-rungs --batch-tag c1 --device cpu --pool d --pack 8 --cores-per-training 1
-  --search-pack 1 --search-threads 8 --chunk-tasks 1
-  --exclude-hosts node-d00a-230,node-d00b-024 --gold-dir /acfs/users/ucestes/gold
-  --remote-root ~/Scratch/llmrp4 --poll-secs 180 --search-poll-secs 45
-  --output-dir outputs\campaign_cluster_run4 --resume
-```
-⭐ **`--cores-per-training 1` IS THE PROOF.** Each training is explicitly ONE core. `--pack 8` only
-decides how many of those independent 1-core trainings are bundled into one job under
-`allocation_rule $pe_slots`. **Changing 8 → 4 changes NO arithmetic in any training**, so reduction
-order, seeding and CRN pairing are untouched. `--search-pack 1` shows the search tier ALREADY runs at
-pack 1, so this is not even a new configuration for the campaign. **Only `--pack` changes. Nothing
-else on that line may be touched.**
+⇒ **THE CORES QUESTION IS CLOSED AGAIN, ON BETTER EVIDENCE THAN BEFORE — and "closed" here means
+`max_u_jobs`, fair share and the frozen determinism envelope jointly bind it, NOT that it should
+never be re-examined.** §0.2 still stands: re-measure rather than re-argue. But **do not re-propose
+pack width**, and if you think you have a cores lever, first answer the question I failed to:
+**does this raise what the scheduler will GIVE us, or only what it could ACCEPT?**
 
-**THE PROCEDURE, per line, and the gates are not optional:**
-1. **GATE — a TIER BOUNDARY, never mid-tier.** Read that line's driver log: act only just after a
-   `[<batch>] submitted … as N array(s)` for a NEW tier, or when its current batch reads `M/M done`.
-   Restarting mid-tier forces a re-derive of hundreds of specs and risks the very tail you are fixing.
-2. **Stop the supervisor for that line, then the driver.** Explicit PIDs only (`Stop-Process -Id`).
-   **Never a broad kill.**
-3. **Confirm no stale `.driver.lock`** remains for that line under
-   `outputs/campaign_cluster_run4/batches/`. **This is the step that has already cost 4.5 h.**
-4. **Relaunch with `--pack 4` and every other argument BYTE-IDENTICAL.** `--resume` re-derives pending
-   work from the archive, which is what makes a rolling restart survivable.
-5. **VERIFY BEFORE MOVING TO THE NEXT LINE:** the driver log shows a fresh poll within 2 min ·
-   `line_balance` still CLEAN · `occupancy_watch` ratio for that line does not collapse ·
-   `records=` still climbing · `drift=0` · seven layers still RC=0 on the next pass.
-6. **ROLL ONE LINE AT A TIME.** If any verification fails, STOP and relaunch that line at `--pack 8`
-   before touching another. **Never restart more than one line before its verification passes.**
-7. **RE-MEASURE the gain** with `placeable_capacity.py --pack 4` and record the SPEED LOG delta.
-   If placeable cores do not rise, the lever is not what we think and you revert.
+✔ **NO RC ALLOCATION REQUEST IS NEEDED, and RUN 22 corrected its own first reading of this too.**
+It initially read `stage_eta`'s "Aug-27? risk" as urgent; at **1,184 cores rung 568 lands
+2026-08-13, fourteen days early.** The alarming branch priced 49 rec/h, which implies 461 producing
+cores — a measurement taken while every owing line sat in a tier tail. **The ETA is not in danger.**
 
-⛔ **DO NOT** change `--cores-per-training`, `--search-pack`, `--search-threads`, `--pool`,
-`--exclude-hosts` or the step budget. Those ARE the determinism envelope and the frozen design.
-⛔ **DO NOT** do this during the **12 Aug maintenance window** or within a transport outage.
-
-⛔ **CLOSED, and do not re-open:** `e00a`/`t00a` are outside `smp-D` — a different node family breaks
-CRN homogeneity and `t00a` is AMD, excluded by name in the determinism envelope · 15 blocked `d00a`
-hosts are UCL RC's · self-elevating fair share is operator-only · lowering our priority is prohibited
-· 400k steps and thread count are FROZEN.
+### ⭐ WHAT THE BINDING CONSTRAINT ACTUALLY IS — THE TAIL, AND IT IS DRIFT-FENCED
+`qwen3_6-27b` holds **1,927 units behind eight straggler jobs**. `src/cluster/driver.py:550-553`
+requeues a tier's remaining specs only when NO job of that tier is alive, so a handful of stragglers
+gate hundreds of units. **That is where the throughput actually goes, it is a `src/cluster/` change,
+and it therefore applies at a deploy window — not now.**
 
 ### THE SAWTOOTH — understand it before you alarm on a falling core count
 `src/cluster/driver.py:550-553` requeues a tier's remaining specs **only when NO job of that tier is
