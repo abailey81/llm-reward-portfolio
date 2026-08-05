@@ -490,6 +490,27 @@ to 8 in-flight trainings per job.
 | 2026-08-05 20:15 **RUN 23 pass 2** | **153.5** | 149.8 | **920** | 115/**708 (5,664 slots)** | **81%** (haiku-4.5) | ZERO (chain closed) | ⭐ **08-05 21:26** | ⭐ **08-10 07:34** | ⭐⭐ **08-12 08:58** |
 | 2026-08-05 21:30 **RUN 23 pass 3** | 143.8 | 143.0 | **976** | 123/**687 (5,496 slots)** | ⚠ **92%** (haiku-4.5) | ZERO (chain closed) | ⛔ 08-05 22:35 / 23:15 **— SEE BELOW, THIS DATE IS NOT REACHABLE** | 08-10 15:55 / 08-13 10:26 | 08-12 19:52 / 08-16 20:33 |
 | 2026-08-05 21:35 **RUN 23 pass 4** | (12 h window unchanged) | — | **984** | 802 jobs, Eqw/hqw **0** | 92% (haiku, **7 records from 568**) | ZERO (chain closed) | ⛔ **08-08 → 08-10, NOT the tool's date** — see the queue-order row | — | — |
+| 2026-08-05 22:10 **RUN 23 pass 5** | 146.5 | 145.1 | **928** | 116/**679**, Eqw/hqw **0**, 795 jobs vs cap 1000 | ⚠⚠ **91%** (haiku, and **91% of the window is from cells within 8 of 568 — that rate STOPS**) | ZERO (chain closed) | ⛔ **10-12 Aug** (retracted twice; see the queue row) | — | — |
+
+**⚠ PASS-5 SPEED VERDICT, AND IT CONTAINS A FALSIFIABLE PREDICTION FOR THE NEXT PASS.** The headline
+`146.5 rec/h` is **not sustainable and the tool says so**: *"91% of the 12 h window came from cell(s)
+now within 8 records of rung 568."* Haiku is finishing within hours. ⚠ **But the naive inference —
+that the fleet is about to fall to ~13 rec/h — is almost certainly WRONG, and stating it would be
+the same over-reading I have already had to retract once today.** Kimi ramped from 344 to **576
+running slots in the last two hours**, and a pack-8 job runs 9-15 h, so **kimi's output has not landed
+in the 12 h window yet.** ⇒ **PREDICTION TO CHECK NEXT PASS: haiku's contribution goes to zero and
+kimi's arrives in a burst, so the 12 h rate dips and then recovers. If it dips and STAYS down while
+kimi holds 576 slots, that is a real finding and not a handover artefact.**
+
+**THE FOUR QUESTIONS.** (1) **Holding every core we could?** `occupancy_watch`: every line
+proportionate; 928 running against **679 queued jobs (~5,400 slots)** — a deep queue with a flat
+total is fair share, stated with the number, and §6 is not re-opened. (2) **Anything newly
+schedulable?** `Eqw` 0 · `hqw` 0 · `qquota` empty · **795 jobs against `max_u_jobs` 1000, so 205 of
+headroom and the cap is NOT binding** — read in the same breath, as the contract requires.
+(3) **Any core on work that cannot raise the rung?** Yes, and it is the whole story: **91% of
+production is haiku, which banks 189 against a common rung of 0.** (4) **Ladder depth by 27 Aug, and
+did it move?** It moved, LATER — see the retraction above. Not unmoved, so not an open finding on
+that criterion.
 
 **PASS 5 SPEED VERDICT — SLOTS AT A SESSION HIGH AND CONCENTRATION STILL FALLING.** Slots **1,376**
 (1,184 -> 1,296 -> 1,312 -> 1,376 across the four passes), **16.7% of the cluster's 8,218 running
