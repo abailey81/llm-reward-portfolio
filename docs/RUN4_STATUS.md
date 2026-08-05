@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+193h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18189** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 23:00 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
-test tier: 16,646 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-05 23:01 UTC | elapsed 8.08 d | 21.0 d to the Aug-27 stop
+test tier: 16,650 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h     151 records     151.0 rec/h
     last  3 h     409 records     136.3 rec/h
-    last 12 h    1748 records     145.7 rec/h
-    last 24 h    3461 records     144.2 rec/h
+    last 12 h    1751 records     145.9 rec/h
+    last 24 h    3458 records     144.1 rec/h
     12 h rate is 87% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 87% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -55,13 +55,13 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         124      15  2026-08-05 23:51  2026-08-06 05:40  yes
-      100       2,922      17  2026-08-06 19:03  2026-08-12 12:14  yes
-      189       6,619     140  2026-08-07 20:26  2026-08-20 19:11  yes
-      279      10,669     140  2026-08-09 00:14  2026-08-29 21:07  risk
-      340      13,414     140  2026-08-09 19:05  2026-09-05 00:50  risk
-      403      16,249     140  2026-08-10 14:33  2026-09-11 09:23  risk
-      568      23,682     151  2026-08-12 17:35  2026-09-28 01:22  risk
+       30         124      14  2026-08-05 23:52  2026-08-06 05:34  yes
+      100       2,922      16  2026-08-06 19:02  2026-08-12 09:29  yes
+      189       6,615     140  2026-08-07 20:21  2026-08-20 12:42  yes
+      279      10,665     140  2026-08-09 00:06  2026-08-29 10:48  risk
+      340      13,410     140  2026-08-09 18:55  2026-09-04 11:55  risk
+      403      16,245     140  2026-08-10 14:21  2026-09-10 17:47  risk
+      568      23,678     151  2026-08-12 17:17  2026-09-27 02:43  risk
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -163,7 +163,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | kimi_k3 | **30** | 31 | 5 |  |
-| qwen3_6_27b | **149** | 168 | 5 |  |
+| qwen3_6_27b | **150** | 168 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
