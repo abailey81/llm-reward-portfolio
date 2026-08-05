@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-08-04"
-  head: "fa54a65f"
+  regenerated_utc: "2026-08-05"
+  head: "263a8ff9"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 22 pass 1: 7 layers RC=0, selftest 10/10, board OK"
+  suite_status: "RUN 22 CLOSE: 7 layers RC=0, board OK, C1 chain closed, 5 lines COMPLETE"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

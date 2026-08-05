@@ -3,6 +3,216 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-04i] ★★★★★ RUN 22 (OPS), passes 2–5 and CLOSE — **THE C1 BARRIER CLOSED, THE REMOTE-CONTROL CHANNEL TURNED OUT TO HAVE BEEN A ONE-WAY PIPE FOR THE WHOLE CAMPAIGN, AND THREE AUDITORS SENT AT MY OWN SAME-DAY FIXES FOUND TWO FAIL-OPENS I HAD INSTALLED WHILE CLOSING SOMEONE ELSE'S**
+
+### WHERE THIS SESSION ENDED, AND THE ONE FACT THAT MATTERS MOST
+
+**THE SERIAL C1 DFO CHAIN IS CLOSED.** At **2026-08-04 23:00:55Z** (log-local 00:00:55 +0100)
+`c1_tpe_c29` reported `batch complete: {'ok': True, 'completed': 1, 'total': 1, 'exhausted': []}`,
+and `c1_tpe_test` was submitted 31 seconds later. `stage_eta` now prints
+**`critical-chain floor: 4.64 d total, 0.00 d still to run (every DFO arm has spent its full
+candidate budget)`**. Every ETA this campaign has published since 2026-08-04 00:10 was clamped to
+that floor. It is gone. What stands between core and a non-zero common rung is now its two DFO test
+legs, its C2 `h2_pair`, the C3 gate and C4 — a sealed TEST at 9.39 h mean, not a 30-link chain.
+
+**AND THE LADDER MOVED HARD OVERNIGHT: `qwen3.5-9b` and `sonnet-5` BOTH REACHED 568 COMPLETE**, so
+**five of twelve lines are now COMPLETE** (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5).
+Common rung still 0, capped by core, deepseek and nemotron on their `h2_pair`.
+
+### 1. THE CORES/ETA DIRECTIVE — THE PREVIOUS SESSION'S STARRED RECOMMENDATION IS REFUTED
+
+RUN 22's own brief handed this session an executable procedure to roll the fleet from `--pack 8` to
+`--pack 4` for "+17% placeable cores", described as *"the one genuine, science-safe lever"* and
+*"deferred to this session"* by Tamer. **It was not rolled, and three independent measurements say
+that was right.**
+
+**(a) THE JOB CAP IS HARD AND WE WERE AGAINST IT.** `qconf -sconf global` → `max_u_jobs 1000` and
+`qconf -ssconf` → `maxujobs 1000`, with our live count at **994**. `994 x 8 = 7,952` slots, exactly
+matching `1,296 running + 6,656 queued`. At pack 4 the same work needs **~1,988 jobs, double a hard
+cap**, and drivers submit whole tiers rather than a metered buffer. **It was already firing:**
+`glm_5_2` entered C4 at 22:24:35Z and had **six `qsub` submissions rejected with exit status 25**
+minutes later — benign and bounded (fatal only after 240 consecutive failures at 180 s = 12 h, with
+the counter resetting on the first success while ~17 job-slots free per hour), but proof the cap binds.
+
+**(b) IT INVERTS THE RECOMMENDATION.** `src/cluster/lanes.py:290` already states that
+`maxujobs = 1000` at 8 cores/job structurally permits **~8,000 cores**; at pack 4 that ceiling
+**halves to 4,000**, which is less than the work we were holding at that moment.
+
+**(c) WE CANNOT TAKE THE CORES WE ALREADY HAVE.** A 15-sample, 42-minute series spanning **4.2
+scheduling intervals**: running slots `1,144 → 1,232` with **sd 28.3 and a full range of 8.0% of the
+mean**, while queued slots went `2,800 → 5,384`. **We present work at +3,691 slots/h and are given it
+at +126 slots/h — 29:1 — and our held total does not move.** Meanwhile 1,552 placeable cores sat FREE
+in `smp-D`, `Eqw` 0, `qquota` empty. ⇒ **`placeable_capacity` measures what the CLUSTER CAN ACCEPT
+and is silent on what FAIR SHARE WILL GIVE US.** RUN 21 read the first as the second; that is the
+entire error, and pack 4 would have recovered stranded cores we are equally not given.
+
+**(d) AND "WE FELL VERY BADLY" IS ANSWERED WITH A MECHANISM.** Our share read 2,018 slots at 12:00Z
+and 1,232 at 22:00Z. Measured per user: cluster-wide 8,238 running slots, `ucbtjji` 1,408,
+**`ucestes` 1,232**, `uctpec1` 1,020. **We did not fall through any misconfiguration — other large
+users arrived and fair share redistributed.** We were, and at handover still are, the
+**second-largest consumer on Myriad**: 1,608 of 8,446 running slots = **19.0%**.
+
+⚠ **AND I HAD TO CORRECT MYSELF INSIDE THE HOUR.** I first read `stage_eta`'s `Aug-27? risk` as
+making an RC allocation request urgent. The arithmetic refutes it: at 1,184 cores rung 568 lands
+**2026-08-13, fourteen days early**, and the only branch that misses prices 49 rec/h, which implies
+461 producing cores — a MEASUREMENT of a window when every owing line sat in a tier tail, not a
+forecast. **Overstating a risk is as inaccurate as understating one.** No RC request escalated.
+
+### 2. P312 — THE REMOTE-CONTROL CHANNEL HAS BEEN A ONE-WAY PIPE FOR THE WHOLE CAMPAIGN
+
+Tamer: *"my issue was that I was typing it there, and you were not responding."* **He was right.**
+The entire inbound path was `publish_status.sh:34`, and run by hand on this tree it returns
+`error: cannot pull with rebase: You have unstaged changes.` **`git pull --rebase` refuses on a dirty
+working tree and this tree is ALWAYS dirty — 102 modified paths at diagnosis, because the watch logs
+churn every cycle.** Both fallbacks fail identically, `2>/dev/null` hid the error and `|| true`
+swallowed the exit code. **`git push` does not care about a dirty tree, so the OUTBOUND half worked
+perfectly throughout.** ⇒ He could always read the status page and could never reach the session.
+`cycle.py:740`'s CHANGED detector was never at fault — the file it watches never changed.
+**Corroborated independently: in the whole campaign that file has never carried one acknowledgement
+from an ops session.**
+
+⚠ **A HYPOTHESIS TESTED AND DISCARDED FIRST**, because it was the obvious one: that his edits went to
+`main`, GitHub's default branch. `main` is stale since **2026-07-06 and does not contain the file at
+all**. That is why the fix reads EVERY candidate branch rather than one.
+
+**THE FIX — `docs/ops/remote_inbox.py`, polling every 60 s.** It reads the instruction with
+**`git show origin/<branch>:docs/REMOTE_CONTROL.md`** (read-only, immune to tree dirtiness, and
+incapable of disturbing a live campaign the way a rebase is); it **deliberately does NOT use
+`git checkout`**, which is the obvious fix and would have **destroyed 227 uncommitted lines** of
+cross-lane messages in that file, rewriting **only** the instruction fence; it checks all candidate
+branches; it **fails LOUD**, printing *"COULD NOT READ … this is not the same as 'no new
+instruction'"*; and **`--ack` writes a timestamped reply into the LOG and pushes it to both
+branches**, so a response appears where he typed.
+
+⭐ **PROVEN BY A REAL ROUND TRIP: the acknowledgement is readable on
+`origin/myriad-cluster-and-tier-system` at 2026-08-04T23:53:35Z.** Offline selftest 8/8, including a
+case asserting the 227 unrelated lines SURVIVE and one requiring a fence-less document to be REFUSED
+rather than guessed at.
+
+⭐ **AND IT IS NOW DETACHED SO IT OUTLIVES THE SESSION** (`docs/ops/remote_inbox_launch.ps1`, pid
+23768 at handover). It was first started as a background job of the interactive session, whose parent
+was that session — **a control channel that only works while someone is already watching is not a
+control channel.**
+
+### 3. THE FIXES, AND THE AUDITORS THAT FOUND WHAT I MISSED
+
+**P305 + P305-b** `vanished_array_watch` now resolves blocks by job NAME from `qstat -xml`, because a
+restarted driver **ADOPTS** its jobs and never re-logs a submission — the log route is blind after
+every restart by construction. An auditor then found the fail-open underneath: `qacct unreachable`
+and `unparsed ts` fell through to `exit 0` under *"no vanished arrays detected"*, with a live
+instance at **17.5 h** (investigated to ground: benign, the arrays had COMPLETED). Also: a failed
+`qstat` read as "nothing alive"; my own new test hook bypassed the offline guard and could fire a
+real `qacct` ssh. **10/10 selftest, 4 mutants each caught by its own case, 3 error paths proven by
+execution.**
+
+**P306 + P306-b** `occupancy_watch`'s `owed` was wrong on **four of nine lines**, by three orders of
+magnitude on two. Completed batches owed work forever (`sonnet-5` read 63 against 10 truly pending,
+53 units from five finished tiers), and a **literal space** in the `PROGRESS` pattern hid **3,385 of
+24,549 records — 13.8%**: `glm_5_2` read `owed=1` against **2,691**, `kimi_k3` `2` against **2,692**.
+**A line owing 2,691 and reported as owing 1 can never be flagged under-covered** — which is why
+kimi printed a ratio of **247.273**. It had escalated `sonnet-5` to its own flagship ACTIONABLE
+state on a healthy line. **The module had no test at all; now 3/3 with four mutants including an
+over-correction control.**
+
+**P307** `analysis_obligations.py` printed, as a hardcoded string inside a tool holding the whole
+archive, *"Across the five LLM arms it is symmetric at ~3pp spread, so H2 is unaffected."* Measured
+**three independent ways that all agree**: SEARCH spread 6.8 pp, **TEST spread 67.2 pp**, and on the
+sealed tier `distributional` **39.8%** engaged against `scalar` **74.2%** — **34.4 pp apart on the two
+arms of the headline contrast**. Its sibling `retriage_alarms.py` had been computing it all along and
+printing `*** ASYMMETRIC ***`. **Two instruments in one repository contradicted each other and the one
+that ASSERTED was the one that reassured.** Now computed, with the interpretation stated: a
+**MEDIATOR** on the fed → code → policy chain (SQ2), not a threat to identification.
+
+**P308** `campaign_watch` computed a guard failure and left `rc` out of the alert expression; the
+guards path was cwd-relative, making a genuine CRITICAL and a missing file indistinguishable; and
+`sups >= 0` suppressed the alarm on the probe's own "could not measure" value.
+
+**P309/-b/-c** `run4_watch`'s D9 diagnostic **had matched nothing for the entire campaign** — 0 hits
+against 173 real occurrences, because the log wraps. It now prints
+`child_already_exited={'False': 164, 'True': 9}`, **and that answer is itself a finding: 164 of 173
+say the remote command genuinely hung, so the ssh timeouts are cluster-side, not a local
+pipe-handle race.** Then my own fix's defects: the record-start premise `^\d{4}-...` **swallowed 554
+records, all carrying a level token** (PowerShell decorates a re-launched driver's first stderr write
+as `python.exe : <date> ERROR …`), costing **INFO −542** and proven on a synthetic log to hide an
+ERROR from a driver dying at start-up; **my comment beside it claiming "level counting is
+unaffected" was empirically false**; `timeout_events` was over-widened from 113 to **351** before
+being corrected to the true **173**; and narrowing it had made the guard blind to the **pull path**,
+which is the path that mattered in RUN 1.
+
+**P310/-b** `rejects_guard` could fire on only **4 of 10 legs**; the backstop then covered only the
+un-keyed ones, leaving `qwen3_5_9b` — **112 of the campaign's 193 reject markers** — with the
+unreachable test `0.83 + 0.35 = 1.18`. An auditor proved it printed `[rejects] ok` at **100% reject
+over 40 attempts**. ⛔ **The fix was NOT to invent the six missing expectations**: the absence is now
+stated in every affected row, with a universal 95% backstop for the defect case only.
+
+**P311/-b** `compute_ledger --report` printed **67,166 CPU-hours with no age**, from a snapshot
+**87.7 h old**, on a number Okhrati explicitly docks when wrong. Now dated with a STALE banner
+telling the reader to re-snapshot and **not to extrapolate**. `_EXPECTED_PACK = 8` was the wrong
+constant for a window that ran `--pack 4` for ~2.5 of its 3.4 days, and `mean_slots_per_task` is
+cpu-BUSY cores so the requested width is a ceiling; only the meaningful floor is kept.
+
+**CRN-1** H2 pairing and CRN audited end to end (§11.1 item 2, previously unstarted).
+`analyze_campaign._paired` forms the headline contrast on the **seed number alone** — zero references
+to `env_fp`, `device`, `threads` or `train_steps` in the whole file — but the **exposure is ZERO,
+measured**: 2,416 `(line, seed)` cells hold both H2 arms and **all 2,416 are identical on window +
+device**, all 2,416 vector lengths 1571. Registered to be closed in the same edit as D49.
+
+**W6** `budget_watch` timed out (`budget=99`, third occurrence in 5,195 cycles). Timed directly at
+**70 s against a 180 s cap** — a 2.6x margin on a probe that grows with the spend ledgers. The board
+correctly reported the number as BLIND rather than healthy, and recovered the next cycle.
+
+### 4. THE MISTAKES I MADE, RECORDED IN FULL BECAUSE THEY ARE THE TRANSFERABLE PART
+
+1. **Six times a surprising result was a defect in my own measuring script**, not in the world: a
+   probe reading `sigma_max` from the wrong nesting and returning zero records; a CRN comparison that
+   flagged **2,412 of 2,416 pairs** because the fingerprint's `label` embeds the arm name **by
+   design**; a mutation runner whose regex `(\w+):` could not match its own label `T4 CONTROL:`; two
+   test fixtures using a single line, so the FLEET mean decided the outcome and neither case could
+   move through the mechanism it was named for; and a PowerShell launcher whose `-Stop` aborted
+   before its own restart because killing a parent cascades to its child.
+2. **I re-derived a false-alarm class this repository had already paid for.** After correcting the
+   CRN probe, exactly one cell differed and I chased it as a real anomaly. **It is P137**, recorded
+   twice on 2026-08-01 (`results_cycle.py:341`: *"`env_json_sha256` deliberately VARIES per
+   record"*). **Search the record before believing your own script.**
+3. **I dated a campaign milestone to the wrong day.** Driver logs carry host-LOCAL time (+0100), which
+   `vanished_array_watch.parse_ts` states explicitly. Corrected, with the rule now in the ledger.
+4. **I broke the same file twice with a heredoc**, embedding a newline inside an f-string literal.
+5. **I shipped a `.ps1` with 3 non-ASCII bytes**, against this repo's ASCII-only rule, and caught it
+   only by counting them.
+6. **`subprocess.run(text=True)` decodes with the SYSTEM codepage (cp1251 here)**, and the file is
+   UTF-8, so `git show` died with `UnicodeDecodeError` **inside subprocess's own reader thread** and
+   the tool reported "no fence in that copy" for a file whose fence was intact. **The standing cp1251
+   rule in this repo is written about `print()`; it applies just as hard to DECODING SUBPROCESS
+   OUTPUT, and that half had never been written down.**
+7. ⚠ **MY OWN DEEP CHECKING IS LOAD ON THE BOX.** An **845.2 s sweep** — 55 s from the cap that
+   declares the monitoring loop DEAD — and the `budget=99` timeout both fell in the window when this
+   session ran whole-archive scans and a mutation suite concurrently on a 16-core laptop already
+   carrying **40 python processes**, 9 drivers, 9 supervisors and the cycle loop. **Neither was
+   archive growth**, and conflating them would have wrongly re-dated the SWEEP-1 deadline.
+   **Serialise heavy scans against the cycle.**
+8. **Every fix that shipped with a falsifying test survived its audit. Every fix that shipped
+   without one was found defective within the hour.**
+
+### 5. TELEGRAM — RAISED, SCOPED, THEN STOPPED AT TAMER'S INSTRUCTION
+
+Tamer asked for two-way chat over Telegram. I built `docs/ops/telegram_bridge.py` (Bot API, stdlib
+only, chat-id authorised, credentials outside the repo, 6/6 offline selftest) routing inbound
+messages into `REMOTE_CONTROL.md` so the bot could never become an execution path. He then asked to
+use a second USER account instead; I stated the factual position — that requires MTProto and a
+session file that IS the account, breaches Telegram's ToS for user accounts, and adds a dependency —
+and he redirected to fixing `REMOTE_CONTROL.md` instead, which is what §2 above delivers. **All work
+stopped. Per his explicit instruction every Telegram artefact is gitignored** (`telegram*`,
+`*telegram*`, `*.session`, the bridge script itself), verified with `git check-ignore`, and
+`git status` shows nothing Telegram-shaped.
+
+### 6. WHAT HAPPENS NEXT
+
+`docs/RUN23_SESSION_PROMPT.md` is the successor brief and supersedes RUN 22's, **reversing its §6**.
+Still open and unstarted: the **`src/inference/**` coverage gap** (the largest untouched surface in
+the project), the **SWEEP-1 incremental fix** (dated ~8 August), `analyze_campaign`'s remaining
+registered keys, and the deeper passes on `stage_eta`/`transport_health`/`publish_status.sh`.
+The 30-minute loop is session-scoped and must be re-armed at `7,37 * * * *`.
+
 ## [2026-08-04h] ★★★★★ RUN 22 (OPS), pass 1 — **THE PACK-4 LEVER THE HANDOVER BRIEF HANDED ME AS AN EXECUTABLE PROCEDURE IS REFUTED AT THE SCHEDULER, AND ROLLING IT WOULD HAVE DRIVEN A LIVE CAMPAIGN INTO A HARD JOB CAP** · the vanished-array watcher had a second, better witness sitting unused in the `qstat` it already ran · **and my fix for that removed the noise that had been masking a FAIL-OPEN, which an auditor found within the hour — the fourth time in this project**
 
 ### WHERE THIS SESSION STARTED
