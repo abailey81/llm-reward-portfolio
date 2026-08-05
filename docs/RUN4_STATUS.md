@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-05 09:14 UTC -- T+180h05m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-05 09:16 UTC -- T+180h07m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+180h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+180h07m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **16191** |
+| stalest driver log | **1 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **16198** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on core, 2.0 h ago; none live, newest failure 2.0 h ago** |
@@ -24,7 +24,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **868** (183 running, 685 queued) |
+| cluster jobs | **868** (183 running, 684 queued) |
 | **cores computing** | **1464** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
@@ -34,34 +34,34 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 09:15 UTC | elapsed 7.50 d | 21.6 d to the Aug-27 stop
+generated 2026-08-05 09:17 UTC | elapsed 7.51 d | 21.6 d to the Aug-27 stop
 test tier: 14,655 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     240 records     240.0 rec/h
-    last  3 h     727 records     242.3 rec/h
-    last 12 h    1716 records     143.0 rec/h
-    last 24 h    4079 records     170.0 rec/h
+    last  1 h     231 records     231.0 rec/h
+    last  3 h     724 records     241.3 rec/h
+    last 12 h    1709 records     142.4 rec/h
+    last 24 h    4069 records     169.5 rec/h
     12 h rate is 47% from ONE line (test_leg_haiku_4_5); 9 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 34% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_qwen3_5_9b, test_leg_sonnet_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (143 rec/h); latest excludes cells already within
+    the whole fleet (142 rec/h); latest excludes cells already within
     8 of the ceiling (94 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30         238       2  2026-08-05 10:55  2026-08-05 11:46  yes
-      100       3,044     140  2026-08-06 06:32  2026-08-06 17:36  yes
-      189       6,991     198  2026-08-07 10:08  2026-08-08 11:33  yes
-      279      11,223     240  2026-08-08 15:44  2026-08-10 08:32  yes
-      340      14,273     240  2026-08-09 13:03  2026-08-11 16:57  yes
-      403      17,423     240  2026-08-10 11:05  2026-08-13 02:26  yes
-      568      25,673     240  2026-08-12 20:47  2026-08-16 18:07  yes
+       30         238       2  2026-08-05 10:57  2026-08-05 11:49  yes
+      100       3,044     134  2026-08-06 06:39  2026-08-06 17:50  yes
+      189       6,991     192  2026-08-07 10:22  2026-08-08 12:03  yes
+      279      11,223     231  2026-08-08 16:05  2026-08-10 09:18  yes
+      340      14,273     231  2026-08-09 13:30  2026-08-11 17:56  yes
+      403      17,423     231  2026-08-10 11:37  2026-08-13 03:37  yes
+      568      25,673     231  2026-08-12 21:33  2026-08-16 19:51  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -159,11 +159,11 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
 | test | **0** | 30 | 9 | 4 arm(s) still at zero |
-| deepseek_v4_pro | **0** | 30 | 5 | 2 arm(s) still at zero |
+| deepseek_v4_pro | **0** | 30 | 5 | 1 arm(s) still at zero |
 | nemotron_3_super | **0** | 30 | 5 | 2 arm(s) still at zero |
 | glm_5_2 | **30** | 30 | 5 |  |
 | kimi_k3 | **30** | 30 | 5 |  |
-| qwen3_6_27b | **94** | 119 | 5 |  |
+| qwen3_6_27b | **94** | 121 | 5 |  |
 | haiku_4_5 | **241** | 246 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 6 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-05T08:55:23Z  OK  records=16134 (+13)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.2m  drift=0  sci=OK  r115=22B  sweep=93.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T08:57:39Z  OK  records=16141 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=106.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T09:03:23Z  OK  records=16160 (+19)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  cores=1512  sweep=313.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T09:05:37Z  OK  records=16164 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=103.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T09:07:58Z  OK  records=16171 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=111.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-05T09:10:00Z  OK  records=16177 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=91.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-05T09:16:35Z  OK  records=16191 (+14)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.9m  drift=0  sci=OK  r115=22B  sweep=364.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
