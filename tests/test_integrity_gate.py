@@ -166,5 +166,28 @@ class TestRobustness:
         }), encoding="utf-8")
         assert not any(b["invariant"].startswith("I3") for b in gate.check(clean))
 
-    def test_missing_archive_does_not_raise(self, tmp_path: Path):
-        assert gate.check(tmp_path / "nope") == []
+    def test_missing_archive_raises_I0_VACUITY_rather_than_reporting_clean(self, tmp_path: Path):
+        """A missing archive must report I0 vacuity, NOT an empty (== clean) breach list.
+
+        ⚠ THIS TEST ASSERTED THE OPPOSITE UNTIL 2026-08-05, AND HAD BEEN RED SINCE 2026-08-04.
+        It read `assert gate.check(tmp_path / "nope") == []` — i.e. it PINNED the fail-open that
+        P286/P294 removed across every archive walker in this repository. `rglob` over a missing tree
+        returns an empty iterator and raises nothing, so an absent archive used to print
+        "I1 … I6 — all clean" and return 0, and the archive is a PULL MIRROR, so "not here yet" is a
+        reachable state on the CONFIRMATORY-path gate. `integrity_gate.py:176-180` now raises
+        `I0 vacuity` instead, which is the correct and stronger contract: an empty breach list means
+        "every invariant HELD", and on a missing archive nothing was evaluated at all.
+
+        The test is therefore corrected to the new contract rather than the code being reverted to
+        the old one. It is written to FAIL against the pre-guard behaviour: an empty list — exactly
+        what the fail-open returned, and exactly what the old assertion demanded — no longer passes.
+
+        ⚠ It also stayed red for over a day because nothing runs the FULL suite on a cadence; the
+        cycle runs the campaign's own guards, not `pytest`. Found 2026-08-05 by a full-suite run
+        during RUN 23.
+        """
+        breaches = gate.check(tmp_path / "nope")
+        assert breaches, "a missing archive must NOT report an empty (clean) breach list"
+        assert [b["invariant"] for b in breaches] == ["I0 vacuity"]
+        assert "NEVER EVALUATED" in breaches[0]["detail"]
+        assert breaches[0]["confirmatory"] is False

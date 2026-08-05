@@ -615,18 +615,60 @@ pooled statistic; **`leg_aggregate` is the very module `instrument_agreement`'s 
 TEARDOWN PRECONDITION**; `bayes_null` is R67 and `model_confidence_set` is R69; `multiple_testing`
 carries the BH-FDR family R101 registers as the secondary analysis.
 
-⚠ **NOT YET A FINDING ABOUT THOSE MODULES, AND I WILL NOT CALL IT ONE UNTIL THE SECOND ROUTE AGREES.**
-That run exercised only NINE inference-focused test files. `mediation`, `responsiveness` and
-`cross_model` may well be covered by mechanism or analyze-level suites I did not include, in which
-case the low numbers are an artefact of my selection — **exactly the error this row itself
-represents, and the repository's standing rule is that a surprising result is a claim about my own
-script first.** A FULL-SUITE `pytest tests/ --cov=src.inference` is running; the numbers above are
-provisional until it lands. ⚠ My first attempt at it returned **RC=4, a usage error** (`--timeout` is
-not installed here), which is itself the rule working: the "result" was my own broken invocation.
+⛔⛔ **AND THE SECOND ROUTE KILLED MY OWN LIST. I PUBLISHED THAT TABLE AS PROVISIONAL AND IT WAS
+WRONG — EVERY ONE OF THOSE NUMBERS WAS AN ARTEFACT OF MY TEST-FILE SELECTION.** The full-suite run
+(`pytest tests/ --cov=src.inference -p no:randomly`) returns:
+```
+exposure   0% -> 100%      leg_aggregate 35% -> 100%     model_confidence_set 14% -> 100%
+mediation 27% ->  95%      responsiveness 24% ->  96%    regime_analysis       0% ->  96%
+cross_model 10% -> 90%     bayes_null    14% ->  92%     multiple_testing     63% ->  97%
+attribution 77% -> 91%
+TOTAL src/inference = 94.25%   (2,469 statements, 109 missed; 838 branches, 69 partial)
+```
+**The suite even enforces a floor and reports it: *"Required test coverage of 88.0% reached. Total
+coverage: 94.25%."*** ⇒ **§11.1 ITEM 1 IS NOT STALE IN ITS DETAILS — ITS PREMISE IS FALSE. There is
+no "largest untouched surface" here; `src/inference/**` is at 94 % and above the repository's own
+gate.** The ONLY honest residue is **`ood_stress.py` at 85 %**, whose misses are one contiguous block
+(461-511) plus a few branches.
 
-⇒ **ACTION: the §11.1 row is REWRITTEN, not worked as given.** Re-point it at the measured floor once
-the full-suite number confirms it, and record that the original wording sent four consecutive
-sessions to the wrong place.
+⭐ **THE PROCESS POINT IS THE ONE TO KEEP.** I flagged that list as provisional *precisely because*
+nine test files is not the suite, ran the second route, and the second route refuted me. Had I banked
+it, this ledger would now carry a fabricated nine-module defect list with real-sounding numbers
+against modules that carry the registered result. **A surprising result is a claim about your own
+script first — and the first attempt at the confirming run returned RC=4 on my own bad flag
+(`--timeout` is not installed here), which is the same rule catching the same class twice in five
+minutes.**
+
+⇒ **ACTION: the §11.1 row is REWRITTEN, not worked as given.** It should read: *`src/inference/**` is
+at 94 % line+branch and passes the repo's 88 % gate; the only soft spot is `ood_stress` at 85 %.*
+And it should record that the original wording sent four consecutive handovers at the seven
+best-covered modules in the package.
+
+### ⭐⭐ AND THE FULL-SUITE RUN FOUND A RED TEST THAT HAD BEEN COMMITTED FOR OVER A DAY — **FIXED**
+
+`FULL_PYTEST_RC=1`, one failure:
+**`tests/test_integrity_gate.py::TestRobustness::test_missing_archive_does_not_raise`.**
+
+It asserted `gate.check(missing_path) == []` — **it PINNED the fail-open that P286/P294 removed from
+every archive walker in this repository on 2026-08-04.** `integrity_gate.py:176-180` now returns
+`I0 vacuity — "ZERO records found under the archive root: I1-I6 were NEVER EVALUATED. This is NOT a
+clean result."` The code got safer and the test was left asserting the old, weaker contract, so it
+has been RED since the guard landed. **Nothing runs the full suite on a cadence — the cycle runs the
+campaign's guards, not `pytest` — which is why a red test sat in the repo for a day against this
+repository's own "never commit failing tests" rule.**
+
+**FIXED, and in the correct direction: the TEST was corrected to the stronger contract, the code was
+not reverted to the weaker one.** It now asserts the breach list is non-empty, that it is exactly
+`["I0 vacuity"]`, that the detail carries `NEVER EVALUATED`, and that `confirmatory is False`.
+**FALSIFIED, not merely passed:** the new body was run against a stub whose `check()` returns `[]` —
+exactly the pre-guard behaviour and exactly what the old assertion demanded — and it FAILS there
+while passing against the real gate. `tests/test_integrity_gate.py` is 15/15, and `tests/**` is not
+drift-fenced, so this was in scope.
+
+⚠ **REGISTERED CONSEQUENCE: the full suite is not run on any cadence.** That is how this survived a
+day. It is not something to bolt onto the 30-minute loop — `pytest tests/` is minutes of CPU on a box
+already carrying the campaign — but it belongs in the session-start preflight or at teardown, and it
+must run before anything is banked from the analysis path.
 
 ### ⭐ NEXT REGISTERED PIECE OF WORK, SCOPED BY MEASUREMENT: EXTEND THE CACHE TO THE SEVEN RECORD LAYERS
 
