@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 03:00 UTC | elapsed 8.24 d | 20.9 d to the Aug-27 stop
+generated 2026-08-06 03:01 UTC | elapsed 8.24 d | 20.9 d to the Aug-27 stop
 test tier: 17,078 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      28 records      28.0 rec/h
     last  3 h     186 records      62.0 rec/h
-    last 12 h    1632 records     136.0 rec/h
+    last 12 h    1631 records     135.9 rec/h
     last 24 h    3481 records     145.0 rec/h
     12 h rate is 60% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T02:48:11Z  OK  records=18620 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.7m  drift=0  sci=OK  r115=22B  sweep=27.2s  auto-cycle
 2026-08-06T02:49:08Z  OK  records=18620 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  sweep=27.6s  auto-cycle
 2026-08-06T02:51:31Z  OK  records=18620 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.0m  drift=0  sci=OK  r115=22B  sweep=112.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T02:52:28Z  OK  records=18620 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=26.7s  auto-cycle
 2026-08-06T02:58:45Z  OK  records=18621 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=346.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T02:59:44Z  OK  records=18621 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=29.5s  auto-cycle
+2026-08-06T03:00:41Z  OK  records=18621 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=26.3s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
