@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+197h11m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18608** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.2 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 02:20 UTC | elapsed 8.22 d | 20.9 d to the Aug-27 stop
-test tier: 17,065 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 02:21 UTC | elapsed 8.22 d | 20.9 d to the Aug-27 stop
+test tier: 17,067 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      57 records      57.0 rec/h
-    last  3 h     344 records     114.7 rec/h
-    last 12 h    1787 records     148.9 rec/h
-    last 24 h    3475 records     144.8 rec/h
+    last  1 h      59 records      59.0 rec/h
+    last  3 h     345 records     115.0 rec/h
+    last 12 h    1786 records     148.8 rec/h
+    last 24 h    3477 records     144.9 rec/h
     12 h rate is 64% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 64% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -49,19 +49,19 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
     the whole fleet (149 rec/h); latest excludes cells already within
-    8 of the ceiling (53 rec/h). Window 12 h.
+    8 of the ceiling (54 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,638      57  GATED             GATED             barrier>=30
-      189       6,202      57  GATED             GATED             barrier>=30
-      279      10,250      57  GATED             GATED             barrier>=30
-      340      12,995      57  GATED             GATED             barrier>=30
-      403      15,830      57  GATED             GATED             barrier>=30
-      568      23,263      57  GATED             GATED             barrier>=30
+      100       2,636      59  GATED             GATED             barrier>=30
+      189       6,200      59  GATED             GATED             barrier>=30
+      279      10,248      59  GATED             GATED             barrier>=30
+      340      12,993      59  GATED             GATED             barrier>=30
+      403      15,828      59  GATED             GATED             barrier>=30
+      568      23,261      59  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
