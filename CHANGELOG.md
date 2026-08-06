@@ -424,6 +424,93 @@ preview.
    in-flight work, the ladder advances in lumpier chunks, and a job started near the 2026-08-27
    exogenous stop wastes more. **Canary 16 first, measure, then decide** — do not jump to 32.
 
+---
+
+### PASS 4 — ⭐⭐⭐⭐⭐ **THE HEADLINE: WE WERE NEVER LOSING CORES. WE WERE FAILING TO KEEP THEM.**
+
+**26. THE EQUILIBRIUM MODEL, AND IT EXPLAINS THE WHOLE CAMPAIGN'S CORE HISTORY IN ONE LINE.**
+Tamer, escalating: *"I dont give 10 fucks how you will do it, but you must push the cores back to
+2k+."* The answer turned out not to be any of the levers this project has been pulling for a week:
+
+```
+equilibrium running jobs  =  (jobs won per night)  x  (duration / 24 h)
+```
+
+In the measured 03:00-08:00Z window the cluster empties and we take **~40 jobs/h**, about **200 a
+night**. So:
+
+| h_rt | equilibrium | matches |
+|---|---|---|
+| **15 h** (what we ran until 2026-08-06 16:3xZ) | 200 x 15/24 = **125 jobs ~ 1,000 cores** | **exactly the band this campaign has oscillated in all week** |
+| **45 h** (six lines, from 16:3xZ) | 200 x 45/24 = **375 jobs ~ 3,000 cores** | the target, with headroom |
+
+⇒ **Every night's winnings were expiring within fifteen hours, so every day restarted from zero.**
+That is why holding, releasing, reordering, repacking, ticket-concentration and pool-probing all
+failed to move the number: **none of them touch the term that was actually broken.** The 2,328-core
+peak and the 544-core trough are the same system sampled at different points of a nightly sawtooth.
+
+**27. ⭐⭐⭐ THE DURATION LEVER IS SHIPPED AND LIVE ON SIX LINES.** `996f3cbc` separates `pack`
+(concurrency, = the core request) from `specs_per_task` (batch size). 24 specs at pack 8 = **3
+waves**, ~27.4 h of work, `--h-rt 45:0:0` preserving today's exact **61%** utilisation margin and
+staying under `ucbtjji`'s demonstrated 48 h.
+
+**WHY 24 AND NOT THE 16 I FIRST PROPOSED**, from the steady state `running = rate x duration` and
+our demonstrated sustained **10.9 jobs/h** (99 jobs / 9.12 h): 250 running jobs (= 2,000 cores) needs
+**27.4/h at 8 specs**, **13.7/h at 16** — above anything we have ever held — and **9.1/h at 24**,
+which is *below* it. 32 would need `h_rt` 60 h, which nobody here has tested.
+
+**⭐ AND IT INDEPENDENTLY RETIRES THE C4 JOB-CAP BREACH (R25-2/D25).** The remaining 22,590 records
+are **2,824 jobs at 8 specs against a 1,000 cap — the campaign's remaining work has NEVER been able
+to fit.** At 24 specs it is **941. It fits.** `c1`'s C4 drops from 1,347 jobs to 449.
+
+**ROLLED AND VERIFIED:** nemotron(32256) deepseek(36208) glm(41752) qwen3.6(25728) haiku(17596)
+kimi(24804), each read back off its LIVE `CommandLine` via `Win32_Process`, each driver error-free
+over its last 300 log lines. **`core` DELIBERATELY UNTOUCHED** — it carries the entire reported
+result and its C2 round was imminent. ⚠ **PROOF IT IS LIVE, not asserted:** `qwen3.6` submitted 31
+new jobs carrying **`h_rt=162000` (45 h)** against the old `54000`, within minutes of restart.
+`RUNNING_SHA` re-based to `996f3cbc`; drift back to **0**.
+
+**28. ⭐⭐ AND A COMPLETELY INDEPENDENT MEASUREMENT VALIDATED IT — AFTER I WENT LOOKING FOR THE
+REASON IT MIGHT BE WRONG.** The dangerous possibility was backfill: a long job cannot fit the window
+before a reservation, and I had just tripled our walltime. Measured on 25 jobs dispatched cluster-wide
+in the preceding 2 h: `h_rt=86400 (24 h) x12 · 604800 (SEVEN DAYS) x6 · 172800 (48 h) x5 · 64800
+(18 h) x2`. **Every single winner was LONGER than our 15 h; ours were the shortest in the set.**
+45 h moves us toward the winning shape, not away from it. **Backfill refuted.**
+
+**29. ⚠⚠ TWO OF MY OWN CLAIMS RETRACTED, BOTH LOAD-BEARING, BOTH CAUGHT BY RE-MEASURING.**
+(a) *"We are at our fair-share CEILING"* — **WRONG.** Our TOTAL allocation is ~13.2 M, which is the
+cluster **MEDIAN**; `ucaqcsu` holds LESS total and ranks 4x higher purely by spreading it over 174
+jobs instead of 897. We are not penalised, we **dilute**.
+(b) *"Our jobs OUT-RANK the winners"* — **WRONG, and it was a population error.** I compared our
+PENDING priors against RUNNING jobs' priors, and a running job's `prior` is recomputed while it runs.
+Pending against pending: our best **2.011** against the cluster's pending **p95 of 2.108**. We are
+mid-queue. ⇒ **Both errors pointed at queue manipulation as the lever. It never was.**
+
+**30. HOLD-VS-RELEASE IS SETTLED, AND THE APPARENT CONTRADICTION DISSOLVES.** Concentration raises
+per-job RANK; depth raises the NUMBER OF CHANCES; **which one wins depends entirely on whether the
+cluster is full.** Full cluster -> we win ~0/h and depth buys nothing. Empty window -> we win ~40/h
+and a held queue is pure loss. ⇒ **Release everything before the window; let duration make what we
+win there persist to the next one.** All 386 user holds released (`hold_ids.sh --release-all`);
+**user-held 0**, c1 untouched.
+
+**31. ⚠ WHAT I BROKE AND FIXED ALONG THE WAY, RECORDED IN FULL.** (a) My `--auto` controller tested
+`qstat -s h`, which includes the JSV SYSTEM hold, so already-released jobs read as held and it
+**re-issued a throttled release twice** — the one thing record §7 explicitly forbids. Fixed to `-s hu`
+across five tests. (b) I tried to patch it through a Python heredoc carrying backslashes, which broke
+on a syntax error **while the unfixed loop was still running** — §12 says heredocs with backslashes
+break and to use the edit tools. Stopped the loop first, then edited. (c) A hold id list written on
+Windows carried **CRLF**, so every id failed to match and the release preview read `WOULD RELEASE: 0`
+— a **silent no-op at the critical moment**, caught only by previewing the selection. (d) The
+governor ranked the brand-new 45 h jobs for HOLDING (correct for ordering, exactly wrong for cores);
+excluded them by hand.
+
+**32. THE FLOOR, AT HANDOVER.** `c1` round 1 is **effectively COMPLETE** — the archive holds
+`bayes_opt 30/30` and `tpe 31/30`, while the driver's counter still reads 28/30 because it lags its
+next pull. **One job remains running: `91237`, started 04:58:48Z, elapsed 10.9 h against a 9.12 h
+median, `h_rt=54000` so it is WALL-KILLED at 19:58:48Z.** ⇒ **Round 2 (`c1_h2_pair_test`,
+distributional + scalar interleaved, `campaign.py:1908`) should submit within minutes.** That array,
+and its queue wait, is the entire remaining distance to rung 30.
+
 **WHAT IS NEXT.** Re-measure the ticket experiment past a scheduler recompute. Re-run the governor on
 the 2-hourly cadence so the LADDER LOCK's release rule fires as blocks complete — *that cadence is the
 system*. Be present for `c1`'s C4 moment at ~00:0xZ on 7 August, when it tries 1,347 jobs into ~100
