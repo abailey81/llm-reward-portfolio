@@ -35,6 +35,47 @@ C1=/tmp/floor_hold_c1.txt
 #      regardless of c1, because a floor that is not dispatching is not worth an idle fleet.
 # It deliberately does NOT release merely because round 2 was SUBMITTED: submitted-and-queued is
 # exactly the state the concentration exists to get through.
+# --auto: HOLD ONLY WHILE THE HOLD IS ACTUALLY BUYING SOMETHING.
+#
+# ⚠ THE ORIGINAL DESIGN WAS "hold until the floor is served", AND THAT WAS WRONG. The ticket
+# concentration only matters once c1's h2_pair array is PENDING and competing with our own sweep
+# jobs. Before that moment it buys nothing and costs everything, because eligible=0 means finishing
+# jobs cannot be replaced. Measured live 2026-08-06: round 1's last job (91237) passed 9.98 h
+# against a 9.12 h median, and the tail of that distribution runs to the 15 h wall -- so "until the
+# floor is served" could have meant FIVE MORE HOURS of an idle queue for no benefit at all.
+#
+# SGE recomputes tickets on a 10-minute interval, so applying the hold AFTER round 2 appears costs
+# about ten minutes of concentration latency and saves hours of held capacity. That trade is not
+# close.
+#
+# The state machine, in one line: hold iff h2_pair is PENDING and not yet running.
+if [ "$MODE" = "--auto" ]; then
+    pend=$(qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -v hqw | grep -c h2_pair)
+    run=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | grep -c h2_pair)
+    runtot=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l)
+    eligtot=$(qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -vc hqw)
+    heldtot=$(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | wc -l)
+    # an empty qstat is not a measurement of zero (learned live 14:07Z)
+    if [ "$runtot" -eq 0 ] && [ "$eligtot" -eq 0 ] && [ "$heldtot" -eq 0 ]; then
+        echo "UNREAD: qstat returned no job in any state. No action."; exit 0
+    fi
+    echo "h2_pair pending=$pend running=$run | cores=$(( runtot * 8 )) eligible=$eligtot held=$heldtot"
+    if [ "$pend" -gt 0 ] && [ "$run" -eq 0 ]; then
+        if [ "$eligtot" -eq 0 ]; then echo "already concentrated."; exit 0; fi
+        echo "*** HOLDING: h2_pair is PENDING -- concentrate our ticket share onto it."
+        MODE="--apply"
+    else
+        # covers BOTH "not submitted yet" and "already running": in neither case does the hold buy
+        # anything, and in both cases an idle queue is pure loss.
+        floorheld=$(comm -12 <(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | awk '{print $1}' | sort -u) \
+                             <(tr -d '\r' < "$HOME/floor_ids.txt" 2>/dev/null | sort -u) | wc -l)
+        if [ "$floorheld" -eq 0 ]; then echo "nothing of the floor hold is held. No action."; exit 0; fi
+        if [ "$run" -gt 0 ]; then echo "*** RELEASING: h2_pair is RUNNING -- the hold has served."
+        else echo "*** RELEASING: h2_pair is not even submitted -- the hold buys nothing yet."; fi
+        MODE="--release"
+    fi
+fi
+
 if [ "$MODE" = "--release-when-ready" ]; then
     c1run=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | grep -c h2_pair)
     runtot=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l)
