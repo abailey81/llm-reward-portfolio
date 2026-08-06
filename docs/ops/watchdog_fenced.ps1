@@ -39,7 +39,16 @@ param(
     # The substrate fence. node-d00a-230 has no apptainer (a job vacuum); node-d00b-024 is the only
     # Xeon Gold 6140 host observed across all four runs and is what broke test-leg substrate
     # homogeneity (record s.28).
-    [string]$ExcludeHosts = "node-d00a-230,node-d00b-024"
+    # node-b00a-008 added 2026-08-06 (RUN 24, D30). It reports the SAME cpu model and the SAME
+    # microcode as the rest of pool b but a DIFFERENT cpuinfo flags sha (639b672208417b8c against
+    # 9ede37ab7eb264ea on -011/-013/-014/-015, all probed first-hand). The C3 gate keys on the model
+    # NAME and so would NOT see the difference, and the determinism envelope covers anything that can
+    # change floating-point reduction order, so "most likely harmless" is not the standard here.
+    # EXCLUDED until its flag set is diffed: unknown means excluded. Cost: 1 host of 16.
+    # Harmless for pool-d lines (b00a is unreachable at allow=d) and correct for any allow=db line.
+    # !! INERT for the RUNNING watchdog - PowerShell parses the whole script once at launch, so this
+    # default applies only to a watchdog started after this edit.
+    [string]$ExcludeHosts = "node-d00a-230,node-d00b-024,node-b00a-008"
 )
 
 $ErrorActionPreference = "Continue"
