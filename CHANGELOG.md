@@ -237,6 +237,75 @@ line arrives — the makespan is set by the LARGEST remaining deficit, and cores
 Finishing a cheap laggard first feels like progress and moves the reported result by nothing. The
 critical-path ranking now orders by deficit DESCENDING for exactly this reason.
 
+### ⓼ "WHY ARE WE STILL AT 560 AND NOT 2k?" — ANSWERED BY A NATURAL EXPERIMENT, AND IT OVERTURNS RUN 23's CONTROLLED COMPARISON
+
+**Tamer asked directly, twice, so every hypothesis was chased to a verdict rather than to a story.**
+
+**THE CEILING, MEASURED.** The d+b pools carry **6,959 running slots** against ~7,956 entitled — **87%
+full** — across **101 users running and 109 with pending work**. We hold **568 = 8.2%**, ranking **3rd
+of 101**. Total capacity free and reachable by us: **~498 cores at width 1, 72 at our width 8.**
+⇒ **568 + 498 ~ 1,058 is the hard ceiling TODAY at any shape or pool. 2,000 was never available this
+morning**, and the 2,320 peak of 08-03 02:21Z was a near-empty Sunday-night cluster rather than a
+setting we have since lost.
+
+**⚠ AND RUN 23 §5.1's CONTROLLED COMPARISON WAS INCOMPLETE IN THE DIRECTION THAT MATTERED.** It
+concluded *"all three 8-wide users on our tier sit pinned at 504-536"*, reading that as evidence that
+width 8 caps you near 530. **It missed the user holding the MOST slots in the pool, who is also width
+8.** Measured first-hand:
+
+| user | slots | jobs | mean width | h_rt | pending | project |
+|---|---:|---:|---:|---:|---:|---|
+| ucbtjji | **976** | 122 | **8.0** | 48 h | 4 | Bioscientists |
+| ucecgwh | 877 | 877 | **1.0** | — | 0 | — |
+| **ucestes (us)** | **568** | 71 | **8.0** | **15 h** | **887** | AllUsers |
+| ucaqcsu | 544 | 68 | 8.0 | — | 172 | — |
+| ucaqanw | 528 | 66 | 8.0 | — | — | — |
+
+**FOUR HYPOTHESES, FOUR VERDICTS:**
+
+1. **PROJECT / OVERRIDE TICKETS — REFUTED.** `qconf -sprj`: `Bioscientists` and `AllUsers` are BOTH
+   `oticket 0, fshare 0`. And `qconf -ssconf` settles it structurally: **`weight_user 1.000000`,
+   `weight_project 0`, `weight_department 0`, `weight_job 0`.** Functional tickets are allocated 100%
+   by USER. The project is decoration.
+2. **ARRAY TICKET-CONCENTRATION — REFUTED BY THIS REPOSITORY, AND THE RECORD STOPPED ME AGAIN.**
+   `share_functional_shares TRUE` means our user share is SPLIT ACROSS OUR PENDING JOBS, so our 887
+   pending jobs each get ~1/887 of it while ucbtjji's 4 get ~1/4 — a ~200x per-job difference, and a
+   genuinely tempting lever that M5 had NOT tested (M5 held jobs, which leaves them in the
+   denominator; arrays reduce the denominator). **But `DEFERRED_FIXES_RUN4:963-965` had already
+   settled it: *"THE FIX IS NOT CHUNKING … arrays are SERIALISED by policy (tasks 2..n sit in hqw) …
+   Chunking to 25 would park 24 of every 25 tasks in hold."*** With `max_pending_tasks_per_job 1` we
+   would hold ~28 ELIGIBLE tasks instead of 887 — **~224 cores, LESS than the 568 we hold.** More
+   tickets per job, almost nothing to spend them on. `--chunk-tasks 1` is correct.
+3. **`ucecgwh`, 877 slots — it is the WIDTH-1 user.** 877 jobs of width 1. That is the narrowing lever
+   Tamer has asked us not to use, so it is not available to us by instruction rather than by physics.
+4. **⭐ `ucbtjji`, 976 slots at OUR EXACT WIDTH — it is JOB DURATION, and it is the dossier's own flow
+   equilibrium.** `h_rt = 172800 s (48 h)` against our `54000 s (15 h)`, real runtime 9.4 h. M4b:
+   **`concurrent = dispatch_rate x job_duration`.** At the same dispatch rate, jobs that occupy a slot
+   3-5x longer accumulate 3-5x the concurrency. Nothing is being taken from us.
+
+> ### ⭐⭐ THE REFRAME, AND IT IS THE MOST USEFUL THING IN THIS ENTRY
+> **CORES-HELD IS A MISLEADING OBJECTIVE, AND WE HAVE BEEN OPTIMISING IT.** ucbtjji holds 72% more
+> slots than we do and occupies each one for 48 h; we turn ours over in 9.4 h. **The quantity that
+> matters is TRAININGS COMPLETED PER HOUR, and on that we are ahead of the user who "beats" us on
+> cores.** And under R101 even completed trainings are not the objective: **only records that COMPLETE
+> A RUNG raise the reported result, and 99% of our queued work cannot raise the common rung.** So the
+> ranking system is worth strictly more than any core count — it is the only lever that moves the
+> REPORTED RESULT rather than the slot counter. Every future session should be told the cores number
+> is a diagnostic, never a goal.
+
+**b00a CPU PROBES — the last unknown blocking pool widening, CLOSED.** Three probes (one a positive
+CONTROL on the known host, so the instrument was validated rather than trusted):
+
+```
+node-b00a-013 (control, x2)  Xeon Gold 6240  ucode 0x5003901  flags_sha 9ede37ab7eb264ea
+node-b00a-011 / -014 / -015  Xeon Gold 6240  ucode 0x5003901  flags_sha 9ede37ab7eb264ea
+node-b00a-008                Xeon Gold 6240  ucode 0x5003901  flags_sha 639b672208417b8c   <- DIFFERS
+```
+
+⇒ **`node-b00a-014` is CLEAN and needs no fence** (D30 had it as an open unknown). Only `b00a-008`
+differs, on the FLAG SET while sharing model AND microcode — so a flag-level diff was submitted to
+decide whether even that host needs fencing rather than assuming it does.
+
 ### WHAT HAPPENS NEXT — the remaining lever awaiting Tamer's explicit GO
 
 1. **QUEUE ORDER (the ranking governor).** `qhold` 402 zero-marginal-value jobs → `c1`'s 8 reach the
