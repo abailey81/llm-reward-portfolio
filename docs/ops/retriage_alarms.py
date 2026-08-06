@@ -25,6 +25,53 @@ def line_of(norm):
     return "?"
 
 
+def engagement_by_arm(records, arms=LLM_ARMS, floor=1.0):
+    """{arm: {rate, cells, records, degenerate}} -- PopArt engagement at the CELL, not the record.
+
+    ⚠⚠ THIS REPLACED A RECORD-LEVEL COUNT THAT RAISED A FALSE ALARM ON THE HEADLINE HYPOTHESIS'S
+    OWN PROTECTION, 2026-08-06 (RUN 28).
+
+    `sigma_max = max(popart_min_scale, rms(value targets))`, and the value-target scale is set by the
+    REWARD PROGRAM's magnitude. Each `(line, arm)` cell holds ONE frozen winning program retrained
+    across up to 568 seeds, so engagement is a property of the CELL and every seed inherits it.
+    Measured live: **50 of 54 cells are perfectly degenerate, median cell size 334 seeds.**
+
+    Counting records therefore inflates n by roughly the seed count. It reported a 46.9 pp arm
+    spread and printed "*** ASYMMETRIC -- RE-TRIAGE ***" against a registered 5.3 pp baseline, which
+    reads as the H2 reward-scale protection having collapsed. At the correct unit the spread is
+    35.1 pp over ~11 cells per arm against an SE-of-difference of 21.2 pp (ratio 1.66), with all
+    five 95% CIs overlapping -- NOT ESTABLISHED. And on the SEARCH-stage population the 2026-07-30
+    baseline actually measured, the arms are still symmetric at 7.0 pp against the recorded 5.3 pp.
+
+    ⚠ NOT AN ALL-CLEAR. "Not established" is not "zero": with ~11 cells per arm this comparison is
+    badly underpowered, and the cell count only grows as lines complete their ladders. Re-measure.
+
+    A MIXED cell contributes its FRACTION rather than a hard vote -- 4 of the 54 live cells are
+    genuinely mixed (haiku/placebo at 278 of 566 is the largest), and collapsing those to 0/1 would
+    discard real information. Records with a null `sigma_max` are EXCLUDED, never counted as pinned:
+    a missing field is unknown, not evidence.
+    """
+    cells = defaultdict(list)
+    for r in records:
+        if r.get("arm") in arms and isinstance(r.get("sigma_max"), (int, float)):
+            cells[(r.get("line"), r["arm"])].append(float(r["sigma_max"]) > floor)
+    out = {}
+    for arm in arms:
+        mine = {k: v for k, v in cells.items() if k[1] == arm}
+        if not mine:
+            continue                       # ZERO IS NOT CLEAN (P213): absent, never 0.0%
+        fracs = [sum(v) / len(v) for v in mine.values()]
+        out[arm] = {
+            "rate": 100.0 * sum(fracs) / len(fracs),
+            "cells": len(mine),
+            "records": sum(len(v) for v in mine.values()),
+            "degenerate": sum(1 for v in mine.values() if len(set(v)) == 1),
+        }
+    return out
+
+
+# ---- END OF PURE HELPERS (everything below scans the archive and prints) ----------------------
+
 records = []
 for rec_path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
     norm = rec_path.replace("\\", "/")
@@ -108,22 +155,33 @@ print("=" * 86)
 print("B. reward_scale:WARN -- the surviving protection is that PopArt engagement is ARM-SYMMETRIC")
 print("   across the five LLM arms (s.44.4). If it stopped being uniform, H2 could be confounded.")
 print("=" * 86)
-eng = defaultdict(lambda: [0, 0])
-for r in records:
-    if r["arm"] in LLM_ARMS and isinstance(r["sigma_max"], (int, float)):
-        eng[r["arm"]][1] += 1
-        if r["sigma_max"] > 1.0:
-            eng[r["arm"]][0] += 1
+print("   !! MEASURED AT THE CELL, NOT THE RECORD. A (line, arm) cell is ONE frozen program retrained")
+print("     across up to 568 seeds, and 50 of 54 live cells are perfectly degenerate, so counting")
+print("     records inflates n by ~the seed count. The record-level count is shown for context only.")
+eng = engagement_by_arm(records)
 rates = {}
 for arm in LLM_ARMS:
-    on, tot = eng[arm]
-    if tot:
-        rates[arm] = 100.0 * on / tot
-        print(f"   {arm:18s} engaged {on:4d} / {tot:4d} = {rates[arm]:5.1f}%")
+    e = eng.get(arm)
+    if not e:
+        continue
+    rates[arm] = e["rate"]
+    print(f"   {arm:18s} {e['rate']:5.1f}%   cells={e['cells']:3d}"
+          f"  (degenerate {e['degenerate']}/{e['cells']})   records={e['records']:5d} [descriptive]")
 if rates:
     spread = max(rates.values()) - min(rates.values())
+    ncell = min(eng[a]["cells"] for a in rates)
+    pbar = sum(rates.values()) / len(rates) / 100.0
+    se_diff = (100.0 * (pbar * (1 - pbar) / max(1, ncell)) ** 0.5) * (2 ** 0.5)
+    ratio = spread / se_diff if se_diff else float("inf")
+    verdict = ("ARM-SYMMETRIC, H2 protected" if spread <= 15 else
+               "NOT ESTABLISHED at this cell count -- WATCH, re-measure as cells accrue"
+               if ratio < 2.0 else "*** ASYMMETRIC -- RE-TRIAGE ***")
     print(f"   spread across the five LLM arms = {spread:.1f} pp"
-          f"   ({'ARM-SYMMETRIC, H2 protected' if spread <= 15 else '*** ASYMMETRIC -- RE-TRIAGE ***'})")
+          f"   (SE of a difference at {ncell} cells/arm = {se_diff:.1f} pp; ratio {ratio:.2f})")
+    print(f"   => {verdict}")
+    print("   !! 'not established' is NOT 'zero': ~11 cells per arm is badly underpowered. The")
+    print("     analysis-time obligation stands -- report this beside the H1 family comparison,")
+    print("     at the CELL level with its uncertainty, never at the record level.")
 
 # =====================================================================================
 print()

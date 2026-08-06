@@ -165,6 +165,39 @@ gate_failure_drift:WARN
 # ratio-form vs difference-form. The floor is not a bug - it guards against sigma->0
 # amplification - but the CLAIM was wrong, and an analysis-time obligation now stands:
 # report the PopArt engagement rate beside the H1 family comparison.
+#
+# ---- RE-TRIAGED 2026-08-06 21:45 UTC (RUN 28). THE TRIGGER FIRED, AND IT WAS THE ESTIMATOR. ----
+# `retriage_alarms.py` reported the five LLM arms at 44.3 / 76.7 / 29.7 / 34.9 / 48.0 % -- a 46.9 pp
+# spread against the 5.3 pp recorded above -- and printed "*** ASYMMETRIC -- RE-TRIAGE ***", i.e. on
+# its face the ONE property protecting H2 from a reward-scale confound had collapsed. It had not.
+# Established THREE independent ways before anything was concluded:
+#   A. MECHANISM. sigma_max = max(popart_min_scale, rms(value targets)), and the value-target scale
+#      is set by the REWARD PROGRAM's magnitude. A (line, arm) TEST cell is ONE frozen winning
+#      program retrained across up to 568 seeds, so every seed inherits the same answer. Measured:
+#      50 of 54 test cells are PERFECTLY degenerate, median cell size 334 seeds. Counting RECORDS
+#      therefore inflates n by roughly the seed count.
+#   B. CORRECT UNIT. One value per cell: 58.2 / 66.3 / 48.6 / 55.9 / 62.1 %, spread 17.8 pp at
+#      21-23 cells per arm against an SE-of-difference of 15.2 pp (ratio 1.17). NOT ESTABLISHED.
+#   C. LIKE-FOR-LIKE. On the SEARCH-stage population this ack originally measured (175 distinct
+#      candidate programs, genuinely distinct draws), the arms remain symmetric at 7.0 pp against
+#      the 5.3 pp recorded above.
+#   And the degeneracy pattern is itself a consistency check: SEARCH cells (many programs, one seed
+#   each) are NOT degenerate, TEST cells are -- exactly what mechanism A predicts.
+# ⇒ THE ARM-SYMMETRIC PROTECTION FOR H2 SURVIVES, and this is the FOURTH instance of this project's
+#   recurring error class (R25-2, R25-3, R26-13): a comparison is evidence only if both sides are
+#   the SAME POPULATION AT THE SAME POINT OF THEIR LIFECYCLE.
+# FIXED: `retriage_alarms.engagement_by_arm()` now measures at the CELL, reports the record count as
+#   explicitly [descriptive], and prints the SE of a difference beside the spread so the verdict can
+#   never again rest on an inflated denominator. Pinned by tests/test_popart_engagement_unit.py
+#   (6 tests, proven to fail pre-fix, 4 mutations each caught by the right assertion).
+# ⚠ THIS IS NOT AN ALL-CLEAR, AND THE ACK STANDS RATHER THAN CLOSING. "Not established" is not
+#   "zero": at ~22 cells per arm the comparison is underpowered, and scalar (66.3%) against
+#   scalar_cvar5 (48.6%) is a 17.8 pp gap we cannot rule out.
+# ⚠ RE-TRIAGE AGAIN IF the CELL-level spread exceeds 2.0x its SE of a difference (the tool now
+#   prints that ratio every run), or if the degenerate fraction of TEST cells falls materially,
+#   which would break mechanism A and mean engagement had become seed-dependent.
+# ⚠ AND THE ANALYSIS-TIME OBLIGATION IS NOW SHARPER, not discharged: report the PopArt engagement
+#   rate beside the H1 family comparison AT THE CELL LEVEL WITH ITS UNCERTAINTY, never per record.
 reward_scale:WARN
 
 # --- REPO GUARD verdicts (campaign_guards.py), prefix "guard:" ---
