@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 05:27 UTC | elapsed 8.35 d | 20.8 d to the Aug-27 stop
+generated 2026-08-06 05:28 UTC | elapsed 8.35 d | 20.8 d to the Aug-27 stop
 test tier: 17,196 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      85 records      85.0 rec/h
     last  3 h     126 records      42.0 rec/h
-    last 12 h    1305 records     108.8 rec/h
-    last 24 h    3501 records     145.9 rec/h
+    last 12 h    1304 records     108.7 rec/h
+    last 24 h    3496 records     145.7 rec/h
     12 h rate is 41% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 41% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -230,7 +230,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 4 min ago)
+## Monitoring -- the cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -247,12 +247,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T04:55:48Z  OK  records=18678 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.3m  drift=0  sci=OK  r115=22B  sweep=31.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T05:07:04Z  OK  records=18683 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.3m  drift=0  sci=OK  r115=22B  sweep=645.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T05:19:42Z  OK  records=18711 (+28)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.0m  drift=0  sci=OK  r115=22B  cores=568  sweep=727.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T05:20:43Z  OK  records=18717 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  sweep=31.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T05:21:42Z  OK  records=18720 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.5m  drift=0  sci=OK  r115=22B  sweep=28.4s  auto-cycle
 2026-08-06T05:22:42Z  OK  records=18725 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=30.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T05:28:05Z  OK  records=18739 (+14)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=292.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
