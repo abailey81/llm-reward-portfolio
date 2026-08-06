@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 06:46 UTC | elapsed 8.40 d | 20.7 d to the Aug-27 stop
+generated 2026-08-06 06:47 UTC | elapsed 8.40 d | 20.7 d to the Aug-27 stop
 test tier: 17,359 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      98 records      98.0 rec/h
     last  3 h     279 records      93.0 rec/h
-    last 12 h    1230 records     102.5 rec/h
-    last 24 h    3329 records     138.7 rec/h
+    last 12 h    1229 records     102.4 rec/h
+    last 24 h    3324 records     138.5 rec/h
     12 h rate is 47% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 24% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
