@@ -66,6 +66,80 @@ A check that never stops needs to know where the floor is, or it will chase hone
 
 ---
 
+## ★★★★★ THE PLACEMENT POLICY — **RANK EVERY JOB, NEVER PLACE BLINDLY** (Tamer, 2026-08-06; STANDING)
+
+> **Tamer, verbatim:** *"have a very smart ranking system that places jobs, don't place the jobs
+> blindly"* · *"getting first 30 seeds for everything must be an absolute highest priority"* ·
+> *"our main priority is to bank all the results for absolutely all arms at 30 seeds first, the
+> ladder is optional comparing to that."*
+
+**THE INSTRUMENT IS `docs/ops/job_rank_governor.py`. RUN IT EVERY PASS.** It is STEP 2 of the
+30-minute loop and it is the arbiter of what should be running.
+
+### WHY A RANKING IS NEEDED AT ALL — the default order is an accident
+
+Our pending jobs dispatch in an order set almost entirely by **accrued waiting time**, which is a
+function of **submission order**, which is a function of which driver happened to reach its next
+batch boundary first. **That has no relationship to what the dissertation needs next.** Measured
+2026-08-06: `c1_tpe` sat at rank 408-411 of 892 behind ~60 h of drain, while `c1` was the only line
+whose work could raise the reported result at all.
+
+### THE VALUE MODEL — exact, because R101 makes it exact
+
+The reported result is the **COMMON RUNG**: the MINIMUM banked rung over every registered
+`(line, arm)`. So a job's value is not "does it produce a record" — every job does. It is
+**by how much does completing it raise that MINIMUM.** Four tiers, and the governor computes all of
+them from the archive rather than from assumption:
+
+| tier | meaning | 2026-08-06 |
+|---|---|---|
+| **V0 FLOOR-CRITICAL** | the arm banks BELOW the floor rung; these arms PIN the common rung | `c1`'s 4 arms, 8 jobs |
+| **V1 CHEAP REPAIR** | a hole below the frontier, `holes <= REPAIR_MAX_HOLES` | haiku: 8 trainings for **+379 rungs** |
+| **V2 LINE MINIMUM** | gates its own line's next rung | 882 jobs |
+| **V3 LADDER EXTENSION** | zero marginal value to the floor | — |
+
+### ⭐ THE TWO RULES THAT ARE COUNTER-INTUITIVE AND WERE BOTH LEARNED THE HARD WAY
+
+1. **GIVE CORES TO THE *LARGEST* REMAINING DEFICIT, NOT THE SMALLEST.** The result is a MINIMUM over
+   lines, so it rises only when the **LAST** line arrives: the makespan is set by the biggest
+   deficit. Finishing a cheap laggard first feels like progress and moves the reported result by
+   **nothing**. My first model had this exactly backwards.
+2. **A HOLD ONLY HELPS WHILE IT IS ACTIVE, SO THE RELEASE PREDICATE *IS* THE LEVER.** Release when
+   **EVERY** promoted job has dispatched, never when the first one has. Measured 2026-08-06: an
+   any-quantifier release fired at poll 1, and the remaining 7 of 8 `c1` jobs sank straight back from
+   ranks 1-8 to 226-402. Once priorities recompute, released jobs return level with the promoted ones.
+
+### MEASURING IT — two traps that both read in the reassuring direction
+
+* **`qstat -s p` means PENDING, which INCLUDES `hqw`.** Ranking over it counts the jobs you just
+  held and reports that the hold barely worked. **The eligible population is state `qw` ONLY.**
+* **`prior 0.00000` right after `qrls` is RECOMPUTE LAG, not a reset.** Measured across two full
+  10-minute scheduler intervals: it returns to its prior value, and `submission_time` survives
+  `qhold` untouched. **`qhold`/`qrls` is fully reversible.** Do not report a lost queue position.
+
+### THE SAFETY ENVELOPE — non-negotiable, and it is what separates this from the REFUTED M5 lever
+
+`MYRIAD_EXPERT_DOSSIER §0-PRE M5` refuted "hold jobs to concentrate tickets": it decayed our running
+count **44 -> 9**. This policy makes **no claim about our standing against other users** (that is
+fair-share and not ours to move) — only that a held job is not eligible, so among OUR OWN jobs the
+next free slot goes to the highest-priority job left eligible. The invariants:
+
+1. **`qhold`/`qrls` ONLY.** Never `qdel`, never `qalter -p`.
+2. **Never touch a RUNNING job**, and never hold a promoted job.
+3. **`min_eligible = max(4 x running_jobs, 200)`**, enforced by truncating the plan. At 71 running
+   that is 284, and the live plan left **488 eligible = 6.9x running** — the same backfill flow that
+   sustains the fleet (dossier M4).
+4. **A 90-MINUTE HARD BOUND, with TWO independent release mechanisms** (a watcher plus a one-shot
+   cron), because a hold that outlives its purpose is the one outcome that must not happen.
+5. **Every hold is journalled** (`docs/ops/watch/JOB_RANK_HOLDS.json`, and `~/hold_ids.txt` on
+   Myriad) so a full release survives the session dying. `--release-from` regenerates it.
+
+⚠ **THE FLOOR TAKES TWO ROUNDS, SO THIS WILL BE NEEDED AGAIN.** `campaign.py:1904-1910` builds the
+H2 pair as ONE interleaved CRN array, so `distributional`+`scalar` submit only after
+`bayes_opt`+`tpe` complete. **When round 2 appears, re-run the governor and re-apply** — Tamer's
+2026-08-06 authorisation is for the floor, and the 90-minute bound plus the depth guard are its
+envelope.
+
 ## ★★★ THE SPEED COMPONENT — MEASURED EVERY PASS, AND ACTIVELY MAXIMISED
 
 **Tamer, standing priority (2026-07-24, re-stated 2026-08-04):** *"don't forget to add the speed

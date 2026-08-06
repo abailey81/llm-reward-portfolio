@@ -123,6 +123,10 @@ PROMOTE_MAX_TIER = 0
 # never "this line is still climbing". 24 = three pack-8 jobs' worth of trainings.
 REPAIR_MAX_HOLES = 24
 
+# Days from 2026-08-06 to the 2026-08-27 exogenous stop (R101). Recompute, never carry forward.
+import datetime as _dt
+DAYS_TO_STOP = max(0.0, (_dt.date(2026, 8, 27) - _dt.date(2026, 8, 6)).days)
+
 TIER_NAME = {0: "V0 FLOOR-CRITICAL", 1: "V1 HOLE-REPAIR",
              2: "V2 LINE-MINIMUM", 3: "V3 LADDER-EXTENSION"}
 
@@ -173,6 +177,38 @@ def parse_jobs_xml(text: str) -> tuple[list[dict], str]:
 # ---------------------------------------------------------------------------------------------
 # the value model  (pure — this is what the selftest pins)
 # ---------------------------------------------------------------------------------------------
+def common_rung(scan: dict, rungs: list) -> tuple[int, int]:
+    """(current COMMON rung, the NEXT registered rung above it).
+
+    The common rung is the MINIMUM banked rung over every registered `(line, arm)` — under R101 it
+    IS the reported result, so it is the only quantity a job can be valuable *relative to*.
+    Computed, never assumed: it was 0 on 2026-08-06 because `c1` holds four arms at 0 while eleven
+    lines bank >= 30.
+    """
+    if not scan:
+        return 0, min(rungs)
+    cur = min(S15.banked_rung(d["seeds"], rungs) for d in scan.values())
+    nxt = next((r for r in sorted(rungs) if r > cur), max(rungs))
+    return cur, nxt
+
+
+def line_deficits(scan: dict, target: int) -> dict:
+    """{line: trainings still needed for EVERY arm on that line to bank `target`}.
+
+    ⭐ THIS IS THE QUANTITY THE RANKING TURNS ON, AND IT CORRECTED MY FIRST MODEL.
+    Because the reported result is a MINIMUM over lines, it rises only when the LAST line arrives —
+    so the makespan is set by the line with the LARGEST remaining deficit, and cores are worth most
+    on THAT line, not on the cheapest one. Finishing a cheap laggard first feels like progress and
+    moves the reported result by nothing. Measured 2026-08-06 at target 100: nemotron and glm and
+    deepseek owe 350 each, kimi 278, and every other line owes 0 — while kimi held 6.5x more queued
+    work than it needed and qwen3.6 held 640 trainings against a deficit of ZERO.
+    """
+    per: dict[str, int] = {}
+    for (line, arm), d in scan.items():
+        per[line] = per.get(line, 0) + sum(1 for s in range(target) if s not in d["seeds"])
+    return per
+
+
 def arm_tiers(scan: dict, rungs: list) -> dict:
     """{(line, arm): (tier, banked, banked_if_repaired)} for every registered (line, arm).
 
@@ -281,6 +317,98 @@ def _chunks(seq, n=40):
         yield seq[i:i + n]
 
 
+def deep_report(scan: dict, rungs: list, queued_by_tag: dict, tag_to_line: dict,
+                cores: int, days_left: float, hours_per_training: float = 9.4) -> dict:
+    """THE DEEP ANALYSIS: what each rung costs, what each line owes, and what is being WASTED.
+
+    Answers the question that decides every ranking decision and that no other instrument computes:
+    **under R101 the reported result is the COMMON rung, so a record that never completes a rung is
+    worth zero — which of our queued trainings are producing those?**
+    """
+    cur, nxt = common_rung(scan, rungs)
+    line2tag = {v: k for k, v in tag_to_line.items()}
+    print("=== DEEP JOB ANALYSIS — value measured against the REPORTED result (R101 common rung) ===")
+    print("COMMON RUNG = %d   NEXT COMMON RUNG = %d   ladder = %s" % (cur, nxt, rungs))
+
+    print("\n--- WHAT EACH COMMON RUNG COSTS (trainings still owed, over EVERY registered arm) ---")
+    costs = {}
+    for r in sorted(rungs):
+        if r <= cur:
+            continue
+        costs[r] = sum(sum(1 for s in range(r) if s not in d["seeds"]) for d in scan.values())
+        print("  common rung %3d  needs %6d more trainings" % (r, costs[r]))
+
+    rate = cores / hours_per_training                      # trainings per hour
+    cap = rate * 24.0 * days_left
+    print("\n--- CAPACITY AGAINST THE EXOGENOUS STOP ---")
+    print("  %d cores / %.1f h per training = %.1f trainings/h = %.0f/day" % (
+        cores, hours_per_training, rate, rate * 24))
+    print("  %.1f days left => capacity ~%.0f trainings" % (days_left, cap))
+    reach = [r for r, c in costs.items() if c <= cap]
+    print("  => HIGHEST common rung the remaining capacity can pay for: %s" % (
+        max(reach) if reach else "NONE above %d" % cur))
+    print("     (a ceiling, not a forecast: it assumes every training goes to a BINDING line)")
+
+    print("\n--- PER LINE: what it owes for the next common rung, against what it has QUEUED ---")
+    print("  %-26s %-6s %7s %10s %9s %8s  %s" % (
+        "line", "tag", "banked", "owes->%d" % nxt, "QUEUED", "ratio", "verdict"))
+    defs_ = line_deficits(scan, nxt)
+    per_line_banked: dict[str, int] = {}
+    for (line, arm), d in scan.items():
+        b = S15.banked_rung(d["seeds"], rungs)
+        per_line_banked[line] = min(per_line_banked.get(line, 10 ** 9), b)
+    waste = 0
+    rows = []
+    for line in sorted(defs_):
+        tag = line2tag.get(line, "?")
+        owed = defs_[line]
+        qd = queued_by_tag.get(tag, 0) * 8
+        if owed == 0:
+            verdict = "ZERO marginal value (already at/above the next common rung)"
+            waste += qd
+            ratio = "inf" if qd else "-"
+        elif qd > owed:
+            verdict = "OVER-PROVISIONED by %d trainings" % (qd - owed)
+            waste += qd - owed
+            ratio = "%.1fx" % (qd / owed)
+        elif qd == 0:
+            verdict = "UNDER-PROVISIONED: owes %d and has NOTHING queued" % owed
+            ratio = "0.0x"
+        else:
+            verdict = "under-provisioned (%.0f%% covered)" % (100.0 * qd / owed)
+            ratio = "%.1fx" % (qd / owed)
+        rows.append((owed, line, tag, per_line_banked[line], qd, ratio, verdict))
+    for owed, line, tag, b, qd, ratio, verdict in sorted(rows, key=lambda r: -r[0]):
+        print("  %-26s %-6s %7d %10d %9d %8s  %s" % (line, tag, b, owed, qd, ratio, verdict))
+
+    tot_owed = sum(defs_.values())
+    tot_q = sum(queued_by_tag.values()) * 8
+    print("\n  trainings needed for common rung %d : %d" % (nxt, tot_owed))
+    print("  trainings currently QUEUED          : %d" % tot_q)
+    print("  ⇒ QUEUED WORK THAT CANNOT RAISE THE REPORTED RESULT AT THIS RUNG: %d trainings"
+          % waste)
+    print("    (%.0f%% of everything queued. It is not WRONG work -- it is the ladder, and R101"
+          % (100.0 * waste / max(1, tot_q)))
+    print("     licenses it -- but under Tamer's floor-first priority it is strictly OPTIONAL,")
+    print("     and it is what the ranking below deprioritises.)")
+
+    print("\n--- ⭐ THE CRITICAL PATH, and it is the opposite of what it looks like ---")
+    crit = sorted(((o, l) for l, o in defs_.items() if o > 0), reverse=True)
+    if not crit:
+        print("  every line is at or above the next common rung -- nothing is binding.")
+    else:
+        print("  The reported result is a MINIMUM, so it rises only when the LAST line arrives.")
+        print("  The makespan is therefore set by the LARGEST deficit, and cores are worth most")
+        print("  there -- finishing a cheap laggard first feels like progress and moves the")
+        print("  reported result by NOTHING.  Ranked by what actually gates the result:")
+        for i, (o, l) in enumerate(crit, 1):
+            eta = o * hours_per_training / max(1.0, rate)
+            print("    %d. %-26s owes %5d trainings  (%.1f h if it had the WHOLE fleet)"
+                  % (i, l, o, eta))
+    return {"common": cur, "next": nxt, "costs": costs, "deficits": defs_,
+            "waste": waste, "queued": tot_q, "capacity": cap}
+
+
 def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) -> int:
     try:
         rungs = S15.registered_rungs()
@@ -305,6 +433,14 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
     rosters = {line: AJ.registered_arms(ROOT, line) for line in {ln for ln, _ in scan}}
     tiers = arm_tiers(scan, rungs)
     floor = min(rungs)
+
+    qbt: dict[str, int] = {}
+    for j in jobs:
+        if j["state"].strip() in ("qw", "hqw"):
+            qbt[j["name"].split("_", 1)[0]] = qbt.get(j["name"].split("_", 1)[0], 0) + 1
+    live_cores = 8 * sum(1 for j in jobs if j["state"].strip() == "r")
+    deep_report(scan, rungs, qbt, tag_to_line, live_cores or 8, days_left=DAYS_TO_STOP)
+    print()
 
     print("=== JOB RANK GOVERNOR — floor-first value ranking of OUR pending queue ===")
     print("registered ladder: %s   FLOOR RUNG = %d" % (rungs, floor))

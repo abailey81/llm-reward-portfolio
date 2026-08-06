@@ -164,7 +164,80 @@ cases, and — the part that matters — **four independent falsifications, each
 suite**: break the tier model (5 assertions fail), ignore the depth guard (4 fail), remove the sweep
 clause (2 fail), remove the hole-cost bound (2 fail). A test that cannot fail verifies nothing.
 
-### WHAT HAPPENS NEXT — two levers, both awaiting Tamer's explicit GO
+### ⓺ TAMER AUTHORISED THE REORDER AND IT WAS EXECUTED. IT WORKED IN UNDER TWO MINUTES, THEN MY RELEASE CONDITION THREW AWAY 7 OF THE 8 JOBS
+
+**THE EXECUTION.** `qhold` on 396 zero-marginal-value jobs: `885 qw -> 489 qw + 396 hqw`, all 8 `c1`
+jobs untouched, running jobs never touched. **Measured effect on the eligible set — and this is the
+whole mechanism, verified rather than argued:**
+
+```
+BEFORE   c1_bayes_opt ranks 234-237 of 891 pending ; c1_tpe ranks 408-411
+AFTER    c1 holds ranks 1-8 of 489 ELIGIBLE (qw) jobs ; 396 held, ZERO of them c1
+```
+
+⚠ **AND THE FIRST RANK MEASUREMENT I TOOK WAS WRONG, IN THE REASSURING DIRECTION.**
+`qstat -u ucestes -s p` includes **`hqw`**, so ranking over `-s p` still counted the 396 held jobs
+and reported `c1` at rank 227 — i.e. it said the hold had barely worked. The correct population is
+state `qw` ONLY, joined from plain `qstat`'s state column. **`-s p` means PENDING, not ELIGIBLE.**
+
+**`c1_bayes_opt_test_p01` (91237) was RUNNING within ~2 minutes** — the first floor-critical training
+of the campaign, against a queue position worth ~60 h.
+
+⛔ **THEN MY OWN RELEASE CONDITION COST 7 OF THE 8 JOBS. THE SECOND DEFECT OF THIS KIND TODAY.** The
+watcher released on *"a c1 job is RUNNING"* when the goal is *"every c1 job has dispatched"*. It fired
+at poll 1, released all 396, and the remaining 7 `c1` jobs sank straight back to ranks 226-402 of 883.
+**A hold only helps while it is ACTIVE**, so the release predicate IS the lever's value, and I wrote
+it as an any-quantifier where the objective is a for-all. Corrected to *"ZERO `c1` jobs remain in
+`qw`, or 90 minutes"*, and re-applied under the same authorisation.
+
+⭐ **THE REVERSIBILITY QUESTION WAS SETTLED BY MEASUREMENT, AND IT NEARLY BECAME A FALSE ALARM.**
+Immediately after `qrls`, all 396 released jobs read **`prior 0.00000`** while every un-held line read
+normally — which looks exactly like *"`qrls` destroyed 396 jobs' accrued waiting time"*, a serious
+irreversible cost. **I refused to bank it and armed a watcher across two full 10-minute scheduler
+intervals instead.** Verdict at the very next poll: **`zero_prior=0`, `leg10_max` restored to
+2.01766.** So the zero was **priority-recompute lag, not a reset** — consistent with `submission_time`
+surviving `qhold` (independently confirmed on the `qalter` probe) and with SGE deriving waiting time
+from it. **`qhold`/`qrls` is genuinely, fully reversible; no queue position was lost.** ⇒ And the same
+measurement explains why the effect is transient: once priorities recompute, the released jobs return
+level with `c1`, which is exactly why the hold must persist until the floor work has dispatched.
+
+**GUARANTEED RELEASE, TWO INDEPENDENT MECHANISMS** (a hold that outlives its purpose is the one
+outcome that must not happen): the corrected watcher, plus an independent one-shot cron at the
+90-minute bound that releases unconditionally if any `hqw` remains. Ids journalled to
+`docs/ops/watch/JOB_RANK_HOLDS.json` and to `~/hold_ids.txt` on Myriad, with `--release-from`.
+
+### ⓻ THE DEEP ALL-JOBS ANALYSIS TAMER ASKED FOR, AND IT CORRECTED MY OWN RANKING MODEL
+
+Added `deep_report` / `common_rung` / `line_deficits` to the governor. It computes, from the archive
+and the live queue rather than from assumption:
+
+```
+COMMON RUNG = 0        cost to lift it:  30 -> 120 trainings      189 ->  6,745
+                                        100 -> 2,848              568 -> 23,179
+CAPACITY to the 08-27 stop at 576 cores: ~30,883 trainings  => rung 568 is PAYABLE
+   (a ceiling, not a forecast: it assumes every training goes to a BINDING line)
+```
+
+| line | banked | owes -> 100 | QUEUED | ratio |
+|---|---:|---:|---:|---:|
+| **c1** | **0** | 1,520 | 56 | **0.0x** |
+| kimi | 30 | 278 | 1,808 | **6.5x** |
+| nemotron | 30 | 350 | 1,984 | **5.7x** |
+| deepseek | 30 | 350 | 1,320 | 3.8x |
+| glm | 30 | 350 | 1,256 | 3.6x |
+| **qwen3.6** | 100 | **0** | 640 | **inf** |
+
+**7,064 trainings are queued against 120 needed for the next common rung: 99% of queued work cannot
+raise the reported result at this rung.** It is not WRONG work — R101 licenses the ladder — but under
+the floor-first priority it is strictly optional, and it is what the ranking deprioritises.
+
+⭐ **AND IT REVERSED A MODELLING ERROR I HAD MADE.** I had assumed the cheapest laggard should be
+finished first. **Wrong: the reported result is a MINIMUM over lines, so it rises only when the LAST
+line arrives — the makespan is set by the LARGEST remaining deficit, and cores are worth most there.**
+Finishing a cheap laggard first feels like progress and moves the reported result by nothing. The
+critical-path ranking now orders by deficit DESCENDING for exactly this reason.
+
+### WHAT HAPPENS NEXT — the remaining lever awaiting Tamer's explicit GO
 
 1. **QUEUE ORDER (the ranking governor).** `qhold` 402 zero-marginal-value jobs → `c1`'s 8 reach the
    front of our eligible set within 1-2 scheduler cycles → `qrls` immediately on dispatch, hard
