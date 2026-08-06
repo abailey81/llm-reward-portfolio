@@ -137,17 +137,32 @@ def archive_depths() -> dict:
     return out
 
 
-def cluster_jobs(host: str = "myriad") -> dict:
-    """{batch_tag: (running_jobs, queued_jobs)} from ONE cheap qstat. {} if unreachable."""
-    try:
-        p = subprocess.run(["ssh", "-o", "BatchMode=yes", host, "qstat -u ucestes"],
-                           capture_output=True, text=True, timeout=SSH_TIMEOUT_SECS)
-    except Exception:  # noqa: BLE001 - transport failure is reported, never fatal
-        return {}
-    if p.returncode not in (0, 1):
-        return {}
-    tally = {}
-    for line in p.stdout.splitlines()[2:]:
+#: Job states that mean "this line HAS work that will run", beyond the eligible `qw`.
+#: ⚠ `hqw` WAS DROPPED ENTIRELY UNTIL 2026-08-06, AND THAT MADE STUCK FIRE ON HEALTHY LINES.
+#: A line whose pending jobs are HELD has work -- a hold is reversible by construction and the
+#: jobs run the moment it is released -- but `cluster_jobs` counted only `r` and `qw`, so a held
+#: line read as ZERO running and ZERO queued, i.e. exactly the STUCK signature. Measured live: the
+#: authorised 2026-08-06 floor reorder held all 157 of `glm_5_2`'s jobs and `line_balance`
+#: immediately began counting it down toward the 45-minute STUCK alarm ("job-less for 21.3 min"),
+#: on a line that had lost nothing at all. `arm_jobs.report` already took the correct view in as
+#: many words -- *"this file counts a job as COVERING in whatever state it holds, because a held
+#: job is still work"* -- so the two instruments disagreed about what a job IS, and the one that
+#: raises the alarm held the wrong view.
+HELD_STATES = ("hqw", "hRwq", "hqr")
+
+
+def parse_qstat_tally(text: str) -> tuple[dict, dict]:
+    """({tag: (running, queued_incl_held)}, {tag: held}) from `qstat -u ucestes` output.
+
+    Split out from the transport so the selftest can exercise it with no cluster, exactly as
+    `arm_jobs.parse_qstat_xml` is. Held jobs are counted INTO `queued` so STUCK cannot fire on a
+    held line, and reported SEPARATELY so a held-only line stays visible rather than silently
+    reading healthy -- masking a permanently-held job would be a fail-open, and this file's whole
+    job is to notice a line that will never produce.
+    """
+    tally: dict = {}
+    held: dict = {}
+    for line in text.splitlines()[2:]:
         f = line.split()
         if len(f) < 5 or not f[0].isdigit():
             continue
@@ -157,7 +172,31 @@ def cluster_jobs(host: str = "myriad") -> dict:
             run += 1
         elif f[4] == "qw":
             queued += 1
+        elif f[4] in HELD_STATES:
+            queued += 1
+            held[tag] = held.get(tag, 0) + 1
         tally[tag] = (run, queued)
+    return tally, held
+
+
+#: Populated by the last `cluster_jobs()` call so `report` can name held work without changing the
+#: (running, queued) contract every caller reads.
+LAST_HELD: dict = {}
+
+
+def cluster_jobs(host: str = "myriad") -> dict:
+    """{batch_tag: (running_jobs, queued_jobs)} from ONE cheap qstat. {} if unreachable."""
+    global LAST_HELD
+    try:
+        p = subprocess.run(["ssh", "-o", "BatchMode=yes", host, "qstat -u ucestes"],
+                           capture_output=True, text=True, timeout=SSH_TIMEOUT_SECS)
+    except Exception:  # noqa: BLE001 - transport failure is reported, never fatal
+        LAST_HELD = {}
+        return {}
+    if p.returncode not in (0, 1):
+        LAST_HELD = {}
+        return {}
+    tally, LAST_HELD = parse_qstat_tally(p.stdout)
     return tally
 
 
@@ -383,6 +422,12 @@ def report(jobs: dict) -> int:
         print("UNDECIDED this pass -- reporting nothing rather than guessing.")
         return 2
     print()
+    if LAST_HELD:
+        print("HELD (counted as queued so STUCK cannot false-fire, but NAMED so a held-only line")
+        print("  stays visible -- a permanently-held job must never read as healthy): %s"
+              % ", ".join("%s=%d" % kv for kv in sorted(LAST_HELD.items(), key=lambda kv: -kv[1])))
+        print("  A hold is reversible and bounded (docs/ops/job_rank_governor.py writes")
+        print("  docs/ops/watch/JOB_RANK_HOLDS.json; --release-from regenerates the qrls).")
     print("CLEAN -- every line below the deepest rung has work in flight or queued.")
     return 0
 
@@ -483,6 +528,23 @@ def _selftest() -> int:
          not (30 < 568 and 8 == 0 and 0 == 0)),
         ("at the deepest rung is neither stuck nor waiting",
          not (568 < 568)),
+    ]
+    # --- hqw MUST COUNT AS WORK (2026-08-06). These fail against the pre-fix `cluster_jobs`, which
+    # dropped `hqw` and so gave a HELD line the exact STUCK signature: 0 running, 0 queued.
+    _q = ("job-ID  prior   name       user         state submit/start at     queue      slots\n"
+          "-------------------------------------------------------------------------------\n"
+          "  1 2.0 leg2_x     ucestes      hqw   08/06/2026 05:05:00                    8\n"
+          "  2 2.0 leg2_y     ucestes      hqw   08/06/2026 05:05:00                    8\n"
+          "  3 2.0 c1_bayes   ucestes      qw    08/06/2026 05:05:00                    8\n"
+          "  4 2.0 c1_bayes   ucestes      r     08/06/2026 04:58:00 Bran@node-d00a-1    8\n")
+    _t, _h = parse_qstat_tally(_q)
+    cases += [
+        ("hqw is counted as queued, so a HELD line is not STUCK", _t.get("leg2") == (0, 2)),
+        ("held jobs are reported SEPARATELY (no fail-open masking)", _h.get("leg2") == 2),
+        ("a running+queued line is unaffected by the change", _t.get("c1") == (1, 1)),
+        ("a line with no held jobs reports no held count", "c1" not in _h),
+        ("a genuinely job-less line still reads (0,0) and CAN go STUCK",
+         parse_qstat_tally(_q)[0].get("leg9") is None),
     ]
     cases += _dwell_cases()
     bad = 0
