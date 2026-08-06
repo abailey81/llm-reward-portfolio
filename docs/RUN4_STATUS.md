@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 07:46 UTC -- T+202h37m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 07:47 UTC -- T+202h38m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+202h37m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+202h38m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18903** |
+| records archived | **18904** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.0 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 7.7 h ago** |
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **931** (112 running, 819 queued) |
-| **cores computing** | **896** |
+| cluster jobs | **931** (113 running, 818 queued) |
+| **cores computing** | **904** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -40,7 +40,7 @@ test tier: 17,361 records over 69 of the 71 registered units (lanes.py _TEST_UNI
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 95.6 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h       2 records       2.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     235 records      78.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     233 records      77.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1147 records      95.6 rec/h   usable
     last 24 h    3075 records     128.1 rec/h   usable
     12 h rate is 50% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
@@ -71,14 +71,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 78% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @896 cores      @830 cores   binding
+     rung      @904 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           6.0 d           6.5 d   throughput
-      279           8.6 d           9.3 d   throughput
-      340          10.3 d          11.1 d   throughput
-      403          12.1 d          13.0 d   throughput
-      568          16.7 d          18.1 d   throughput
+      279           8.5 d           9.3 d   throughput
+      340          10.2 d          11.1 d   throughput
+      403          12.0 d          13.0 d   throughput
+      568          16.6 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -178,7 +178,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
-| kimi_k3 | **143** | 148 | 5 |  |
+| kimi_k3 | **144** | 148 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
