@@ -1,0 +1,546 @@
+#!/usr/bin/env python
+"""JOB RANK GOVERNOR — rank OUR OWN pending queue by marginal value to the REPORTED RESULT.
+
+Tamer, 2026-08-06: *"have a very smart ranking system that places jobs, don't place the jobs
+blindly."*  This is that ranking system.
+
+THE PROBLEM, AND IT IS NOT A CLUSTER PROBLEM
+--------------------------------------------
+Our pending jobs are dispatched in an order set almost entirely by ACCRUED WAITING TIME (the
+Myriad priority formula gives waiting time weight 1.0 while our functional tickets sit pinned at
+the cluster floor — dossier §1). Waiting time is a function of SUBMISSION ORDER, which is an
+accident of which driver reached its next batch boundary first. **It has no relationship whatever
+to what the dissertation needs next.**
+
+Measured on 2026-08-06 04:2x UTC, that accident costs us everything:
+
+    our pending set              892 jobs
+    jobs outranking c1_tpe       410  (233 leg10 + 157 leg2 + 13 leg3 + 7 c1)
+    => c1_tpe sits at rank 408-411 of 892, behind ~60 h of queue drain at 6.4-6.8 jobs/h
+
+and c1 is **the only line whose work can raise the reported result at all** (below).
+
+THE VALUE MODEL — WHY "MARGINAL VALUE" HAS AN EXACT DEFINITION HERE
+-------------------------------------------------------------------
+Under R101 the reported result is the COMMON RUNG: the MINIMUM banked rung over every registered
+(line, arm). So a job's value is not "does it produce a record" — every job does that. It is:
+
+    >>> by how much does completing this job raise that MINIMUM? <<<
+
+That makes the ranking objective rather than a matter of taste, and it makes most of our fleet
+worthless *at the margin*: eleven of twelve lines already bank rung 30, so a record landing on any
+of them moves the reported minimum by exactly ZERO. Tamer's 2026-08-06 priority — *"bank all the
+results for absolutely all arms at 30 seeds first, the ladder is optional comparing to that"* — is
+therefore not a preference imposed on the arithmetic. It IS the arithmetic.
+
+    V0  FLOOR-CRITICAL     the (line, arm) banks BELOW the floor rung. These arms are PINNING the
+                           common rung right now, so ONLY these jobs can raise the reported result.
+    V1  HOLE REPAIR        the arm's banked rung is demoted by a hole below its own frontier.
+                           Cheap and violently non-linear: haiku holds 566 records with a frontier
+                           of 567 and banks 189, because seeds 272/273 are missing. Eight trainings
+                           would take that line 189 -> 568.
+    V2  LINE MINIMUM       the arm is the minimum inside its own line, so it gates that line's next
+                           rung. Real value, but above the floor.
+    V3  LADDER EXTENSION   everything else. ZERO marginal value to the floor.
+
+WHAT THIS IS NOT — AND WHY THAT DISTINCTION IS THE WHOLE SAFETY ARGUMENT
+------------------------------------------------------------------------
+`MYRIAD_EXPERT_DOSSIER §0-PRE M5` REFUTED "hold jobs to concentrate tickets", by controlled test:
+holding 228 of 309 pending jobs moved our top priority 2.0165 -> 2.0413 (waiting-time accrual,
+which happens anyway) and **decayed our running count 44 -> 9. We starved ourselves.**
+
+This governor does not claim, and does not need, the mechanism M5 refuted. It makes NO claim about
+our standing against other users, which is fair-share and not ours to move. It claims only the
+tautology that a HELD job is not eligible, so among OUR OWN jobs the next free slot goes to the
+highest-priority job we have left eligible. M5 starved because it left 81 eligible against 44
+running, and 60 of those 81 were 32-core jobs that could never place. The corresponding invariant
+here is `min_eligible`, and it is enforced, not hoped for:
+
+    eligible_after >= max(DEPTH_FACTOR * running_jobs, DEPTH_FLOOR)
+
+At the live 68 running jobs that is 272, and the plan below leaves 489. Queue depth stays ~7x our
+running count, i.e. the same backfill flow that currently sustains the fleet (dossier M4).
+
+SAFETY INVARIANTS — all enforced in code, all covered by `--selftest`
+--------------------------------------------------------------------
+ 1. `qhold` / `qrls` ONLY. This module never emits `qdel` and never emits `qalter -p`
+    (CLAUDE.md: never lower the priority of any of our jobs, EVER; `qalter -p` is one-way for a
+    non-operator, `qdel` destroys up to 15 h of irreplaceable sealed-test work).
+ 2. Only state `qw` is ever considered. A RUNNING job is structurally unreachable here.
+ 3. `min_eligible` is a hard floor: the plan is TRUNCATED to respect it, never the reverse.
+ 4. **THIS MODULE EXECUTES NOTHING.** It emits a command list for a human to run. Reordering our
+    own queue crosses a standing rule (CLAUDE.md ★ MYRIAD PRIORITY) and is Tamer's call, so the
+    tool does the arithmetic and the human takes the decision.
+ 5. Every emitted plan writes a JOURNAL of held ids, so a full release is possible even if this
+    process, the session, or the laptop dies mid-way. `--release-from` regenerates that release.
+
+USAGE
+    python docs/ops/job_rank_governor.py                 # measure + rank + print the plan
+    python docs/ops/job_rank_governor.py --selftest      # no cluster needed
+    python docs/ops/job_rank_governor.py --release-from docs/ops/watch/JOB_RANK_HOLDS.json
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "docs" / "ops"))
+sys.path.insert(0, str(REPO / "docs" / "analysis"))
+
+import arm_jobs as AJ                       # noqa: E402  — reuse, never re-derive
+import record_seed_completeness as S15      # noqa: E402
+
+ROOT = REPO / "outputs" / "campaign_cluster_run4"
+JOURNAL = REPO / "docs" / "ops" / "watch" / "JOB_RANK_HOLDS.json"
+SSH_TIMEOUT_SECS = 120
+
+DEPTH_FACTOR = 4          # eligible queue must stay >= 4x the running job count (backfill flow)
+DEPTH_FLOOR = 200         # ... and never below this in absolute terms
+# ⚠ DEFAULT IS 0 — FLOOR ONLY — AND THAT IS A MEASURED CHOICE, NOT TIMIDITY. Promoting V0+V1
+# together costs far more than it buys: haiku's repair job carries a LOWER priority than c1's, so
+# including it drags the promotion target down and turns a 402-job hold into a 619-job hold that
+# hits the depth guard exactly (272 eligible, 4.0x running, 14 blockers left in on purpose).
+# Promoting V0 alone holds 402 and leaves 489 eligible (7.2x running) with no truncation at all.
+# Tamer's 2026-08-06 priority is the FLOOR — "the ladder is optional comparing to that" — and
+# haiku's +379 rungs are ladder. Use --promote-max-tier 1 to include the repair deliberately.
+PROMOTE_MAX_TIER = 0
+
+# ⚠ THE HOLE-COST BOUND, AND IT IS LOAD-BEARING. A hole alone does NOT make an arm worth
+# promoting, because `FLAWLESS_LEDGER` records the reason plainly: "During pipelined C4 a line
+# lands seeds OUT OF ORDER as pack-8 jobs return, so a CLIMBING LINE ALWAYS SHOWS HOLES. That is
+# the normal state and it self-heals." Without this bound the first live run promoted 321 of 891
+# pending jobs — every kimi sweep job, because kimi is mid-climb with 312 holes per arm — and
+# buried the 8 floor-critical jobs the whole instrument exists to surface. V1 must therefore mean
+# what it says: a CHEAP repair with a LARGE rung payoff (haiku, 8 missing records for +379 rungs),
+# never "this line is still climbing". 24 = three pack-8 jobs' worth of trainings.
+REPAIR_MAX_HOLES = 24
+
+TIER_NAME = {0: "V0 FLOOR-CRITICAL", 1: "V1 HOLE-REPAIR",
+             2: "V2 LINE-MINIMUM", 3: "V3 LADDER-EXTENSION"}
+
+
+# ---------------------------------------------------------------------------------------------
+# the live read
+# ---------------------------------------------------------------------------------------------
+def _ssh(cmd: str, host: str) -> tuple[str, str]:
+    try:
+        p = subprocess.run(["ssh", "-o", "BatchMode=yes", host, cmd],
+                           capture_output=True, encoding="utf-8", errors="replace",
+                           timeout=SSH_TIMEOUT_SECS)
+    except Exception as exc:                                    # noqa: BLE001
+        return "", "TRANSPORT-FAILED: %s" % repr(exc)[:90]
+    if p.returncode not in (0, 1):
+        return "", "TRANSPORT-FAILED: rc=%d %s" % (p.returncode, (p.stderr or "")[:120])
+    return p.stdout, "OK"
+
+
+def parse_jobs_xml(text: str) -> tuple[list[dict], str]:
+    """[{jid, name, state, prior}] from `qstat -u ucestes -xml`.
+
+    Split out from the transport so the selftest exercises it with no cluster. `arm_jobs`
+    deliberately returns only (name, state); the governor additionally needs the job ID (to emit a
+    command) and the priority (to know what is actually in FRONT), so this is the one piece of
+    qstat parsing that cannot be reused as-is.
+    """
+    if not text.strip():
+        return [], "EMPTY-OUTPUT: qstat returned nothing at all"
+    try:
+        tree = ET.fromstring(text)
+    except Exception as exc:                                    # noqa: BLE001
+        return [], "UNPARSEABLE-XML: %s" % repr(exc)[:90]
+    out: list[dict] = []
+    for jl in tree.iter("job_list"):
+        jid = (jl.findtext("JB_job_number") or "").strip()
+        nm = (jl.findtext("JB_name") or "").strip()
+        st = (jl.findtext("state") or jl.get("state") or "").strip()
+        try:
+            pr = float(jl.findtext("JAT_prio") or "0")
+        except ValueError:
+            pr = 0.0
+        if jid and nm:
+            out.append({"jid": jid, "name": nm, "state": st, "prior": pr})
+    return out, "OK"
+
+
+# ---------------------------------------------------------------------------------------------
+# the value model  (pure — this is what the selftest pins)
+# ---------------------------------------------------------------------------------------------
+def arm_tiers(scan: dict, rungs: list) -> dict:
+    """{(line, arm): (tier, banked, banked_if_repaired)} for every registered (line, arm).
+
+    `banked_if_repaired` answers the question that makes V1 worth a tier of its own: what would
+    this arm bank if the holes below its frontier were filled? For haiku that is 568 against a
+    banked 189, and the gap is the value of ~8 trainings.
+    """
+    floor = min(rungs)
+    per_line: dict[str, list] = {}
+    banked: dict = {}
+    repaired: dict = {}
+    for (line, arm), d in scan.items():
+        b = S15.banked_rung(d["seeds"], rungs)
+        banked[(line, arm)] = b
+        if d["started"] and d["holes"] and len(d["holes"]) <= REPAIR_MAX_HOLES:
+            filled = set(d["seeds"]) | set(d["holes"])
+            repaired[(line, arm)] = S15.banked_rung(filled, rungs)
+        else:
+            # either no holes at all, or too many to be a repair: a mid-climb line is NOT a
+            # repair candidate however large its notional rung gap (REPAIR_MAX_HOLES).
+            repaired[(line, arm)] = b
+        per_line.setdefault(line, []).append(b)
+
+    out = {}
+    for (line, arm), b in banked.items():
+        if b < floor:
+            tier = 0
+        elif repaired[(line, arm)] > b:
+            tier = 1
+        elif b == min(per_line[line]):
+            tier = 2
+        else:
+            tier = 3
+        out[(line, arm)] = (tier, b, repaired[(line, arm)])
+    return out
+
+
+def job_tier(job_name: str, tag_to_line: dict, rosters: dict, tiers: dict) -> tuple[int, list]:
+    """The BEST (numerically lowest) tier of any arm this job covers, plus the arms it covers.
+
+    A job is worth what its most valuable covered arm is worth: a pack-8 job carrying one
+    floor-critical seed is floor-critical, whatever else rides along with it.
+
+    ⚠ THE COVERING RULE IS `arm_jobs.covering_jobs`'s, REPRODUCED EXACTLY, AND THE `_sweep_t`
+    CLAUSE IS THE ONE THAT MATTERS. A sweep job (`leg5_leg_haiku_4_5_sweep_t3_r1`) names NO arm
+    and covers ALL of them. My first version omitted that clause, and the live run scored haiku's
+    pending hole-repair job — worth +379 rungs on five arms — as V3 LADDER-EXTENSION, i.e. as
+    worthless. A ranking instrument that silently misranks the highest-value job in the queue is
+    worse than no instrument, because it launders a bad placement as a considered one.
+    """
+    tag = job_name.split("_", 1)[0]
+    line = tag_to_line.get(tag)
+    if line is None:
+        return 3, []                       # unknown tag -> treat as ladder, never as critical
+    roster = rosters.get(line, set())
+    covered = [a for a in roster if AJ.names_arm(job_name, a, roster)]
+    if "h2_pair" in job_name:
+        covered = sorted(set(covered) | (AJ.H2_PAIR & roster))
+    if "_sweep_t" in job_name:
+        covered = sorted(roster)
+    if not covered:
+        return 3, []
+    best = min(tiers.get((line, a), (3, 0, 0))[0] for a in covered)
+    return best, [(line, a) for a in covered]
+
+
+def build_plan(jobs: list[dict], tier_of: dict, *, promote_max_tier: int = PROMOTE_MAX_TIER,
+               depth_factor: int = DEPTH_FACTOR, depth_floor: int = DEPTH_FLOOR) -> dict:
+    """The minimal, depth-respecting hold set that puts promoted work at the front of OUR queue.
+
+    `tier_of` maps job id -> tier. Only `qw` jobs are eligible for holding; a running job is not
+    even considered, which is invariant 2 expressed as code rather than as a comment.
+    """
+    running = [j for j in jobs if j["state"].strip() == "r"]
+    pending = [j for j in jobs if j["state"].strip() == "qw"]
+
+    promote = [j for j in pending if tier_of.get(j["jid"], 3) <= promote_max_tier]
+    others = [j for j in pending if tier_of.get(j["jid"], 3) > promote_max_tier]
+
+    min_eligible = max(depth_factor * len(running), depth_floor)
+    plan = {"running": len(running), "pending": len(pending), "promote": promote,
+            "min_eligible": min_eligible, "hold": [], "truncated": False,
+            "blockers_total": 0}
+    if not promote:
+        return plan
+
+    # a "blocker" is a non-promoted pending job that currently outranks the WEAKEST promoted job:
+    # those, and only those, are what the scheduler tries before it reaches the work that matters.
+    target = min(j["prior"] for j in promote)
+    blockers = sorted([j for j in others if j["prior"] > target],
+                      key=lambda j: -j["prior"])       # hold the ones actually in front FIRST
+    plan["blockers_total"] = len(blockers)
+
+    max_holdable = max(0, len(pending) - min_eligible)
+    hold = blockers[:max_holdable]
+    plan["hold"] = hold
+    plan["truncated"] = len(hold) < len(blockers)
+    return plan
+
+
+# ---------------------------------------------------------------------------------------------
+# reporting
+# ---------------------------------------------------------------------------------------------
+def _chunks(seq, n=40):
+    for i in range(0, len(seq), n):
+        yield seq[i:i + n]
+
+
+def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) -> int:
+    try:
+        rungs = S15.registered_rungs()
+    except Exception as exc:                                    # noqa: BLE001
+        print("COULD NOT READ THE REGISTERED LADDER: %s" % exc)
+        return 2                                                # undecidable, never a finding
+    scan = S15.scan(str(ROOT))
+    if not scan:
+        print("COULD NOT READ THE ARCHIVE at %s" % ROOT)
+        return 2
+
+    raw, status = _ssh("qstat -u ucestes -xml", host)
+    if status != "OK":
+        print("qstat status: %s  -> UNDECIDABLE, no plan emitted" % status)
+        return 2
+    jobs, pstat = parse_jobs_xml(raw)
+    if pstat != "OK":
+        print("qstat parse: %s  -> UNDECIDABLE, no plan emitted" % pstat)
+        return 2
+
+    tag_to_line = {tag: line for line, tag in AJ.batch_tag_map(ROOT).items()}
+    rosters = {line: AJ.registered_arms(ROOT, line) for line in {ln for ln, _ in scan}}
+    tiers = arm_tiers(scan, rungs)
+    floor = min(rungs)
+
+    print("=== JOB RANK GOVERNOR — floor-first value ranking of OUR pending queue ===")
+    print("registered ladder: %s   FLOOR RUNG = %d" % (rungs, floor))
+    print("jobs seen: %d   (states: %s)" % (
+        len(jobs), ", ".join("%s=%d" % (s, sum(1 for j in jobs if j["state"].strip() == s))
+                             for s in sorted({j["state"].strip() for j in jobs}))))
+
+    print("\n--- ARMS PINNING THE COMMON RUNG (tier V0: banked < %d) ---" % floor)
+    v0 = sorted(k for k, v in tiers.items() if v[0] == 0)
+    if not v0:
+        print("  NONE — every registered arm banks at or above the floor rung.")
+    for line, arm in v0:
+        print("  %-28s %-18s banked=%d" % (line, arm, tiers[(line, arm)][1]))
+
+    print("\n--- ARMS DEMOTED BY A HOLE (tier V1: repair lifts the banked rung) ---")
+    v1 = sorted(k for k, v in tiers.items() if v[0] == 1)
+    if not v1:
+        print("  NONE")
+    for line, arm in v1:
+        t, b, r = tiers[(line, arm)]
+        print("  %-28s %-18s banked=%-4d -> %-4d if repaired  (+%d rungs)" % (line, arm, b, r, r - b))
+
+    tier_of, arms_of = {}, {}
+    for j in jobs:
+        t, cov = job_tier(j["name"], tag_to_line, rosters, tiers)
+        tier_of[j["jid"]] = t
+        arms_of[j["jid"]] = cov
+
+    print("\n--- OUR PENDING JOBS BY VALUE TIER ---")
+    pending = [j for j in jobs if j["state"].strip() == "qw"]
+    for t in (0, 1, 2, 3):
+        n = sum(1 for j in pending if tier_of[j["jid"]] == t)
+        print("  %-22s %4d job(s)" % (TIER_NAME[t], n))
+
+    plan = build_plan(jobs, tier_of, promote_max_tier=promote_max_tier)
+    print("\n--- THE PLAN ---")
+    print("  running jobs               : %d" % plan["running"])
+    print("  pending jobs               : %d" % plan["pending"])
+    print("  promoted (tier <= %d)       : %d" % (promote_max_tier, len(plan["promote"])))
+    print("  blockers ahead of them     : %d" % plan["blockers_total"])
+    print("  min_eligible (depth guard) : %d   [max(%d x running, %d)]"
+          % (plan["min_eligible"], DEPTH_FACTOR, DEPTH_FLOOR))
+    print("  TO HOLD                    : %d" % len(plan["hold"]))
+    print("  eligible AFTER the hold    : %d  (%.1fx the running job count)"
+          % (plan["pending"] - len(plan["hold"]),
+             (plan["pending"] - len(plan["hold"])) / max(1, plan["running"])))
+    if plan["truncated"]:
+        print("  ⚠ TRUNCATED by the depth guard: %d blocker(s) left eligible on purpose."
+              % (plan["blockers_total"] - len(plan["hold"])))
+    if not plan["promote"]:
+        print("\n  NOTHING TO PROMOTE — no pending job serves the floor. No action; this is a")
+        print("  legitimate state (it means the floor work is already running or already banked).")
+        return 0
+    if not plan["hold"]:
+        print("\n  NO HOLD NEEDED — the promoted work is already at the front of our eligible set.")
+        return 0
+
+    print("\n  promoted jobs, which are what this is FOR:")
+    for j in sorted(plan["promote"], key=lambda j: -j["prior"])[:20]:
+        print("    %-8s %-34s tier=%d prior=%.5f" % (j["jid"], j["name"][:34],
+                                                     tier_of[j["jid"]], j["prior"]))
+
+    held_by_prefix: dict[str, int] = {}
+    for j in plan["hold"]:
+        held_by_prefix[j["name"].split("_", 1)[0]] = held_by_prefix.get(j["name"].split("_", 1)[0], 0) + 1
+    print("\n  hold set by line tag: %s"
+          % ", ".join("%s=%d" % kv for kv in sorted(held_by_prefix.items(), key=lambda kv: -kv[1])))
+
+    ids = [j["jid"] for j in plan["hold"]]
+    JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+    JOURNAL.write_text(json.dumps(
+        {"held": ids, "promote": [j["jid"] for j in plan["promote"]],
+         "min_eligible": plan["min_eligible"]}, indent=1), encoding="utf-8")
+    print("\n  journal written: %s  (%d ids — release is possible even if this session dies)"
+          % (JOURNAL.relative_to(REPO), len(ids)))
+
+    print("\n  ⇒ COMMANDS TO APPLY (this tool executes NOTHING — invariant 4):")
+    for ch in _chunks(ids):
+        print("     ssh myriad \"qhold %s\"" % " ".join(ch))
+    print("\n  ⇒ COMMANDS TO RELEASE (run these the moment the promoted work dispatches,")
+    print("    and unconditionally within 90 minutes whatever the outcome):")
+    for ch in _chunks(ids):
+        print("     ssh myriad \"qrls %s\"" % " ".join(ch))
+    return 0
+
+
+def release_from(path: str) -> int:
+    try:
+        ids = json.loads(Path(path).read_text(encoding="utf-8"))["held"]
+    except Exception as exc:                                    # noqa: BLE001
+        print("could not read the journal %s: %s" % (path, exc))
+        return 2
+    print("=== RELEASE PLAN from %s (%d held ids) ===" % (path, len(ids)))
+    for ch in _chunks(ids):
+        print("  ssh myriad \"qrls %s\"" % " ".join(ch))
+    return 0
+
+
+# ---------------------------------------------------------------------------------------------
+# selftest — every case is a MUTATION that must change the answer, so a broken model cannot pass
+# ---------------------------------------------------------------------------------------------
+def selftest() -> int:
+    fails = []
+
+    def ck(name, got, want):
+        if got != want:
+            fails.append("%s: got %r want %r" % (name, got, want))
+
+    rungs = [30, 100, 189, 568]
+
+    # --- banked-rung / tier model -------------------------------------------------------------
+    sc = {
+        ("test", "bayes_opt"): {"seeds": set(), "holes": [], "frontier": -1, "n": 0, "started": False},
+        ("test", "cma_es"): {"seeds": set(range(30)), "holes": [], "frontier": 29, "n": 30, "started": True},
+        # haiku shape: frontier 567 with two holes -> banks 189, would bank 568 repaired
+        ("test_leg_h", "scalar"): {"seeds": set(range(568)) - {272, 273}, "holes": [272, 273],
+                                   "frontier": 567, "n": 566, "started": True},
+        ("test_leg_h", "placebo"): {"seeds": set(range(568)), "holes": [], "frontier": 567,
+                                    "n": 568, "started": True},
+    }
+    t = arm_tiers(sc, rungs)
+    ck("V0 for an arm with no records", t[("test", "bayes_opt")][0], 0)
+    ck("V0 banked is 0", t[("test", "bayes_opt")][1], 0)
+    ck("cma_es at exactly the floor is NOT V0", t[("test", "cma_es")][0] == 0, False)
+    ck("holed arm is V1", t[("test_leg_h", "scalar")][0], 1)
+    ck("holed arm banks 189", t[("test_leg_h", "scalar")][1], 189)
+    ck("holed arm would bank 568", t[("test_leg_h", "scalar")][2], 568)
+    ck("complete arm above its line min is V3", t[("test_leg_h", "placebo")][0], 3)
+    # THE HOLE-COST BOUND. A MID-CLIMB arm (kimi's real shape: frontier 409, banked 30, 312 holes)
+    # must NOT be V1, however large its notional rung gap. Without this the live plan promoted 321
+    # of 891 jobs and buried the floor-critical eight.
+    mid = {("test_leg_k", "scalar"): {"seeds": set(range(30)) | set(range(350, 410)),
+                                      "holes": list(range(30, 350)), "frontier": 409,
+                                      "n": 90, "started": True}}
+    ck("a mid-climb arm with 320 holes is NOT V1", arm_tiers(mid, rungs)[("test_leg_k", "scalar")][0] != 1, True)
+    ck("a mid-climb arm's repaired == banked",
+       arm_tiers(mid, rungs)[("test_leg_k", "scalar")][1] == arm_tiers(mid, rungs)[("test_leg_k", "scalar")][2], True)
+    # MUTATION: fill the holes and V1 must collapse to V2/V3 — if it does not, the tier is
+    # keyed on something other than the repair gap and the model is wrong.
+    sc2 = dict(sc)
+    sc2[("test_leg_h", "scalar")] = {"seeds": set(range(568)), "holes": [], "frontier": 567,
+                                     "n": 568, "started": True}
+    ck("repairing the hole removes V1", arm_tiers(sc2, rungs)[("test_leg_h", "scalar")][0] != 1, True)
+
+    # --- job -> tier --------------------------------------------------------------------------
+    tag_to_line = {"c1": "test", "leg5": "test_leg_h"}
+    rosters = {"test": {"bayes_opt", "cma_es"}, "test_leg_h": {"scalar", "scalar_cvar5", "placebo"}}
+    ck("floor-critical job", job_tier("c1_bayes_opt_test_p01", tag_to_line, rosters, t)[0], 0)
+    ck("banked-arm job", job_tier("c1_cma_es_test_p01", tag_to_line, rosters, t)[0],
+       t[("test", "cma_es")][0])
+    ck("unknown tag is never critical", job_tier("zz9_whatever_p01", tag_to_line, rosters, t)[0], 3)
+    # the longest-arm rule must hold: a scalar_cvar5 job must NOT be scored as `scalar`
+    ck("scalar_cvar5 does not match scalar",
+       job_tier("leg5_scalar_cvar5_test_p01", tag_to_line, rosters, t)[1], [("test_leg_h", "scalar_cvar5")])
+    # THE SWEEP RULE. A sweep job names no arm and covers the whole roster, so it must inherit the
+    # BEST tier on the line. Without this clause it scored V3 and the live plan ignored haiku's
+    # +379-rung repair job entirely.
+    ck("sweep job covers the whole roster and inherits the best tier",
+       job_tier("leg5_leg_haiku_4_5_sweep_t3_r1", tag_to_line, rosters, t)[0], 1)
+    ck("sweep job covers all three roster arms",
+       len(job_tier("leg5_leg_haiku_4_5_sweep_t3_r1", tag_to_line, rosters, t)[1]), 3)
+    # MUTATION: a sweep job on a line whose arms are ALL complete must NOT be promoted — otherwise
+    # the clause is promoting on the word "sweep" rather than on measured value.
+    t_all_done = arm_tiers({("test_leg_h", a): {"seeds": set(range(568)), "holes": [],
+                                                "frontier": 567, "n": 568, "started": True}
+                            for a in ("scalar", "scalar_cvar5", "placebo")}, rungs)
+    ck("sweep on a fully-banked line is NOT promoted",
+       job_tier("leg5_leg_haiku_4_5_sweep_t3_r1", tag_to_line, rosters, t_all_done)[0] <= 1, False)
+
+    # --- the plan, and its invariants ---------------------------------------------------------
+    jobs = ([{"jid": "1", "name": "c1_bayes_opt_test_p01", "state": "qw", "prior": 2.001}]
+            + [{"jid": str(100 + i), "name": "leg10_x_sweep_p01", "state": "qw", "prior": 2.010 + i * 1e-5}
+               for i in range(500)]
+            + [{"jid": str(900 + i), "name": "leg10_x_sweep_p01", "state": "r", "prior": 2.0}
+               for i in range(10)])
+    tier_of = {"1": 0}
+    tier_of.update({str(100 + i): 3 for i in range(500)})
+    tier_of.update({str(900 + i): 3 for i in range(10)})
+    p = build_plan(jobs, tier_of, depth_factor=4, depth_floor=200)
+    ck("running counted", p["running"], 10)
+    ck("pending counted", p["pending"], 501)
+    ck("one promoted", len(p["promote"]), 1)
+    ck("all 500 are blockers", p["blockers_total"], 500)
+    ck("min_eligible is the floor here", p["min_eligible"], 200)
+    ck("hold truncated to respect depth", len(p["hold"]), 301)
+    ck("plan reports truncation", p["truncated"], True)
+    ck("eligible after >= min_eligible", p["pending"] - len(p["hold"]) >= p["min_eligible"], True)
+    ck("no RUNNING job is ever held", any(j["state"] == "r" for j in p["hold"]), False)
+    ck("no promoted job is ever held", any(j["jid"] == "1" for j in p["hold"]), False)
+    ck("highest-priority blockers held first",
+       p["hold"][0]["prior"] > p["hold"][-1]["prior"], True)
+    # MUTATION: raise the depth floor above what is holdable and the plan must empty, not overrun.
+    p2 = build_plan(jobs, tier_of, depth_factor=4, depth_floor=5000)
+    ck("an impossible depth guard yields an EMPTY hold", len(p2["hold"]), 0)
+    # MUTATION: if the promoted job already outranks everything, no hold is needed at all.
+    jobs3 = [dict(j) for j in jobs]
+    jobs3[0]["prior"] = 9.0
+    ck("already-front promoted work needs no hold", len(build_plan(jobs3, tier_of)["hold"]), 0)
+
+    # --- parser ------------------------------------------------------------------------------
+    xml = ("<job_info><queue_info>"
+           "<job_list state='running'><JB_job_number>7</JB_job_number>"
+           "<JB_name>c1_x</JB_name><state>r</state><JAT_prio>2.5</JAT_prio></job_list>"
+           "</queue_info></job_info>")
+    js, st = parse_jobs_xml(xml)
+    ck("parser status", st, "OK")
+    ck("parser jid", js[0]["jid"], "7")
+    ck("parser prior", js[0]["prior"], 2.5)
+    ck("empty input is undecidable", parse_jobs_xml("")[1].startswith("EMPTY-OUTPUT"), True)
+    ck("bad xml is undecidable", parse_jobs_xml("<not xml")[1].startswith("UNPARSEABLE"), True)
+
+    if fails:
+        print("SELFTEST FAILED (%d)" % len(fails))
+        for f in fails:
+            print("  " + f)
+        return 1
+    print("SELFTEST OK — 32 assertions incl. 6 mutation controls and 2 undecidable-input cases")
+    return 0
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--host", default="myriad")
+    ap.add_argument("--promote-max-tier", type=int, default=PROMOTE_MAX_TIER,
+                    choices=(0, 1, 2),
+                    help="0 = floor-critical only (default, Tamer's floor-first priority); "
+                         "1 additionally promotes cheap hole repairs; 2 adds line minima.")
+    ap.add_argument("--selftest", action="store_true")
+    ap.add_argument("--release-from", metavar="JOURNAL")
+    a = ap.parse_args(argv)
+    if a.selftest:
+        return selftest()
+    if a.release_from:
+        return release_from(a.release_from)
+    return report(a.host, promote_max_tier=a.promote_max_tier)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

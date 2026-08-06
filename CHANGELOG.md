@@ -3,6 +3,187 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
+
+**WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a
+fragmented pool), the rung-30 floor named as the absolute priority, 120 trainings outstanding on
+`c1`, and a proposed one-off `qhold` of kimi's pending jobs awaiting Tamer's GO. **WHAT TAMER ASKED
+FOR TODAY, verbatim:** *"maximise the amount of cores"* · *"try not to narrow"* · *"make sure you
+ultrathink, and have a very smart ranking system that places jobs, don't place the jobs blindly"* ·
+*"have an extremely comprehensive understanding of this project before you even start doing
+anything, zero gaps in your knowledge."*
+
+### ⓵ THE STANDING CORES NARRATIVE IS WRONG IN BOTH DIRECTIONS, AND BOTH ERRORS ARE THE SAME CLASS
+
+`docs/RUN4_STATUS.md:99-116` states *"every host has 105-167 GB free … Memory and disk block ZERO
+hosts. Memory was never scarce at all (160 GB free per host); the three separate investigations that
+'fixed' it were fixing a non-problem"* and *"2,576 cores are placeable"*. **Both figures measure the
+wrong quantity.** Read first-hand off `node-d00a-218`:
+
+```
+hl:mem_free = 120.773G     <- OS-level free memory. What RUN4_STATUS reports.
+hc:memory   =  16.000G     <- the scheduler's CONSUMABLE. What actually gates placement.
+complex_values ... memory=160G      (capacity)   hc:slots = 0
+```
+
+`qconf -sc` settles it: `memory MEMORY <= YES YES` — **requestable AND consumable.** So 144 G of the
+host's 160 G is already RESERVED by running jobs while only 67 G is USED, and a pack-8 job asking
+`memory=2G` × 8 needs 16 G of the *consumable*, not of the OS free pool. Memory therefore blocks
+**8 of the 21 open d-pool hosts holding ≥8 free slots** — not zero. And "2,576 placeable" is ~5× the
+truth, the signature of the `qstat -f` hostname-truncation double count RUN 23 already retracted
+(§5.2 item 1). ⇒ **Same failure mode as RUN 23's headline error: an instrument measuring the
+quantity ADJACENT to the one that matters.** `docs/DEFERRED_FIXES_RUN4.md:1757` had the memory
+finding right all along; the two documents have contradicted each other since 2026-08-03.
+
+**THE AUDITED NUMBERS**, from the repo's own committed instrument (`docs/ops/placeable_capacity.py`,
+which takes queue-instance STATE from `qstat -f`, free slots from `hc:slots`, and gates on memory
+and tmpfs) on one simultaneous snapshot at 04:3x UTC:
+
+| pool | hosts | blocked | free slots | STRANDED | by slots | memory forbids | **placeable** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| d00a | 242 | 57 | 412 | **324** | 11 | 8 | **24 cores** |
+| d00b | 17 | 8 | 13 | 13 | 0 | 0 | 0 |
+| b00a | 16 | 5 | 54 | 22 | 4 | 1 | **24 cores** |
+
+**324 of d00a's 412 free slots are STRANDED on hosts holding fewer than 8 free — 79 %.** That is the
+fragmentation cost, and it is the largest single term. Memory then removes 8 of the 11 jobs slots
+alone would allow. **Both dimensions bind hard, and the honest total placeable capacity in our
+reachable pools right now is 24 cores (48 with pool b).** We hold 544. **The 2,320-core peak of
+2026-08-03 02:21Z was a genuinely emptier cluster on a Sunday night, not a configuration we lost.**
+
+### ⓶ D30 POOL WIDENING: THE SOLE STATED BLOCKER IS FALSE, AND THE RECORD'S "APPLIED" CLAIM IS STALE
+
+`scripts/mode_d_supervisor.ps1:139-150` records why the last big cores lever was prepared and not
+applied: *"process termination is BLOCKED for the agent (both taskkill and Stop-Process were refused
+by the harness classifier on 2026-08-02) … the one-token edit is left for whoever can restart a
+supervisor."* **Tested on a throwaway target, per §12's own instruction to test the specific
+command:**
+
+```
+spawned dummy PID=12184 -> Stop-Process: SUCCEEDED -> VERIFIED: dummy process is gone
+```
+
+⇒ **The blocker no longer exists.** Two further corrections travel with it:
+* **`DEFERRED_FIXES_RUN4.md:1787` claims `$cpuLane` "now reads `--pool db`". THE ARTEFACT SAYS `d`**
+  (`mode_d_supervisor.ps1:184`), and line 141 still carries the instruction to change it. All 14
+  live drivers were enumerated and every one passes `--pool d --pack 8`. The widening was never
+  applied. **The artefact governs over the record.**
+* **`DEFERRED_FIXES_RUN4.md:1627` cites D23 as unfixed** ("a refusal RAISES rather than backing
+  off") and uses it as a reason not to restart a line. **D23's own section at :985 says
+  "RESOLVED THE SAME DAY … NOT A HAZARD"**, with the code paths read at :990-1000 and a measured
+  scan of all twelve driver logs finding **0 cap rejections, 0 unparsable qsubs, 0 fatal streaks**.
+  An internal contradiction in one file, on the load-bearing point.
+
+**AND THE RECORD STOPPED ME FROM REPEATING RUN 23's WORST ERROR.** My own `qhost` arithmetic said
+e00a offered **+304 placeable cores** and f00a +32, and I was about to submit CPU probes to both.
+`DEFERRED_FIXES_RUN4.md:1721-1734` records that **four real `qsub` submissions with `-ac allow=e`
+were all rejected** ("Unable to find a place to run this job"), `-pe smp-F` "only offers 0 slots",
+and `src/cluster/lanes.py:165 EXCLUDED_CPU_POOLS` already lists e/f/l/u/v. **A real `qsub` is the
+authoritative oracle; `qhost` is not.** Also banked: the flag value is **`db`**, not `d,b` — the site
+JSV maps `allow=` onto a wildcard PE, and `-pe smp-B` is rejected outright by policyjsv.
+
+### ⓷ THE FINDING THAT MATTERS MORE THAN CORES — 100 % OF OUR FLEET IS DOING ZERO-VALUE WORK
+
+Under R101 the reported result is the **COMMON RUNG**: the minimum banked rung over every registered
+`(line, arm)`. Eleven of twelve lines already bank 30. `c1` banks **0** on four arms. Therefore:
+
+```
+running: 68 jobs / 544 cores, ALL on leg10 (kimi), climbing above rung 30
+c1 running jobs: 0        c1's marginal value: the ONLY work that can raise the reported result
+=> every one of our 544 held cores is producing records worth EXACTLY ZERO at the margin
+```
+
+**And our own queue order is an accident.** Measured: **410 of our 891 pending jobs outrank the
+weakest `c1` job — 233 leg10 + 157 leg2 + 13 leg3 + 7 c1.** ⚠ **This CORRECTS RUN 24 §4, which says
+to hold "just enough of KIMI's pending jobs": holding kimi alone leaves 170 leg2/leg3 jobs still
+ahead of `c1_tpe`.** `c1_bayes_opt` sits at rank 234-237 of 891 and `c1_tpe` at 408-411, behind
+~60 h of queue drain at the confirmed 6.4-6.8 jobs/h.
+
+### ⓸ BUILT: `docs/ops/job_rank_governor.py` — THE RANKING SYSTEM TAMER ASKED FOR
+
+Ranks every pending job by **marginal value to the reported common rung**, which makes "value" an
+exact quantity here rather than a matter of taste: *by how much does completing this job raise the
+MINIMUM?* Four tiers — **V0** floor-critical (banks below the floor rung, the only jobs that can
+move the result) · **V1** cheap hole repair · **V2** line minimum · **V3** ladder extension. Reuses
+`record_seed_completeness.scan/banked_rung` and `arm_jobs.batch_tag_map/names_arm/H2_PAIR` rather
+than re-deriving either. **Live verdict: V0 = 8 jobs, V1 = 1, V2 = 882.**
+
+**WHY IT IS NOT THE REFUTED M5 LEVER.** Dossier §0-PRE M5 refuted ticket concentration by controlled
+test (held 228 of 309, priority moved 2.0165→2.0413, running count decayed **44 → 9**). The governor
+makes **no claim about our standing against other users** — that is fair-share and not ours to move.
+It claims only the tautology that a held job is not eligible, so among OUR OWN jobs the next free
+slot goes to the highest-priority job we left eligible. M5 starved because it left 81 eligible
+against 44 running, 60 of them unplaceable 32-core jobs. The governor's `min_eligible` guard is
+enforced in code, not hoped for: the floor-only plan holds 402 and **leaves 489 eligible = 7.2× the
+running job count**, the same 8-wide backfill flow that currently sustains the fleet (M4).
+
+**IT EXECUTES NOTHING** — invariant 4, deliberate. Reordering our own queue crosses CLAUDE.md
+★ MYRIAD PRIORITY, so the tool does the arithmetic and Tamer takes the decision. It also journals
+every held id to `docs/ops/watch/JOB_RANK_HOLDS.json` so a full `qrls` is possible even if the
+session dies, and `--release-from` regenerates that release. (The single-job `qhold` reversibility
+canary was **refused by the permission classifier**, which is consistent with the same boundary.)
+
+### ⓹ FOUR DEFECTS OF MY OWN — THREE CAUGHT BEFORE BANKING, AND ONE THAT WENT LIVE
+
+0. ⛔ **I BROKE THE STATUS PAGE'S ASCII GATE — THE FIFTH BREACH OF A RULE WHOSE OWN COMMENT SAYS IT
+   WAS "BROKEN FOUR TIMES, TWICE BY THE PERSON FIXING THE PREVIOUS BREACH."** My correction to
+   `publish_status.sh` (item ⓵) contained a single `§` (U+00A7). `publish_status.sh:495-518` reads the
+   page back and refuses any codepoint > 127, because non-ASCII mojibakes on Tamer's phone. So every
+   publish cycle for ~8 minutes: wrote the page, failed the gate, `git checkout --` reverted it, and
+   **`exit 1` aborted before the commit and push.** Tamer's live status page was frozen from ~04:38
+   to 04:47Z. **The symptom was diagnostically perfect and I nearly misread it:** the file's mtime
+   kept updating (the `cat >` heredoc ran) while `grep` still found the OLD text (the checkout
+   reverted it), which looks exactly like "the generator edit is inert". The publisher log named the
+   cause exactly — `FATAL - 1 non-ASCII line(s) ... line 107 (0xa7)`. **Fixed** (`§5.2` -> `section
+   5.2`), then the whole heredoc region re-scanned for codepoints > 127 (**0 lines**) and `bash -n`
+   re-run. ⇒ **The gate worked exactly as designed and it is the reason this cost 8 minutes of a
+   status page rather than a silently corrupted artefact. The lesson is not about the gate; it is
+   that I edited an ASCII-fenced generator using the same prose conventions as the surrounding
+   markdown documents, which are NOT ASCII-fenced. Check the fence of the file you are editing, not
+   the fence of the file you were just reading.**
+
+**AND THE THREE CAUGHT BEFORE ANYTHING WAS BANKED:**
+
+1. **I published 368 placeable cores; the audited instrument says 24.** When I moved from summing
+   per-queue-instance `used` (route 1) to the `hc:slots` consumable (route 2) I **dropped the
+   disabled/alarm host filter**, so route 2 counted 57 blocked d00a hosts as available. Caught by
+   running the repo's own `placeable_capacity.py` — the author must not grade their own work.
+2. **The governor's first live run scored haiku's repair job V3, i.e. worthless.** `arm_jobs`
+   carries an explicit `"_sweep_t"` clause because a sweep job names NO arm and covers ALL of them;
+   I had omitted it. haiku's one pending job lifts five arms **189 → 568 (+379 rungs) for 8
+   trainings** and my instrument ranked it last.
+3. **Adding that clause then over-promoted 321 of 891 jobs and buried the floor-critical eight** —
+   every kimi sweep job scored V1, because a **mid-climb line ALWAYS shows holes** (FLAWLESS_LEDGER
+   says exactly this) and kimi carries 312 per arm. Fixed with `REPAIR_MAX_HOLES = 24`: V1 now means
+   what it says, a cheap repair with a large payoff. **A ranking instrument that silently misranks
+   the highest-value job in the queue is worse than no instrument, because it launders a bad
+   placement as a considered one.**
+
+**VERIFICATION STANDARD.** 32 assertions including 6 mutation controls and 2 undecidable-input
+cases, and — the part that matters — **four independent falsifications, each of which fails the
+suite**: break the tier model (5 assertions fail), ignore the depth guard (4 fail), remove the sweep
+clause (2 fail), remove the hole-cost bound (2 fail). A test that cannot fail verifies nothing.
+
+### WHAT HAPPENS NEXT — two levers, both awaiting Tamer's explicit GO
+
+1. **QUEUE ORDER (the ranking governor).** `qhold` 402 zero-marginal-value jobs → `c1`'s 8 reach the
+   front of our eligible set within 1-2 scheduler cycles → `qrls` immediately on dispatch, hard
+   limit 90 minutes. Turns a ~60 h wait into ~1-2 h and takes an estimated **2-3 days off the
+   complete rung-30 bank**. Reversible; running jobs never touched; 489 left eligible.
+2. **POOL WIDENING `d` → `db`.** One token at `mode_d_supervisor.ps1:184`, then restart one
+   report-only supervisor and let the fenced watchdog revive it. Safety is identity, not tolerance:
+   `node-b00a-013` reports the same `Intel Xeon Gold 6240 @ 2.60GHz` as pool d, so the C3 substrate
+   key cannot become heterogeneous. ⚠ **`node-b00a-008` reports a DIFFERENT CPU flag sha**
+   (`639b672208417b8c` vs `9ede37ab7eb264ea`) and `node-b00a-014` was never probed — both must be
+   added to `-ExcludeHosts` or probed first. Worth +24 cores today, more when the cluster breathes.
+   Touches a drift-fenced file, so it needs the `RUNNING_SHA` re-base protocol.
+
+**Also this pass:** the 30-minute flawlessness loop was **re-armed** at `7,37 * * * *` with the full
+STEP 0-6 contract (Tamer cancelled it at 01:30Z during the RUN 23 cores investigation). Board green
+throughout: cycle OK, drift 0, freeze MATCHES, records 18,641, spend $45.5019, seed loss **zero**,
+sealed-test permanent-leak check **0**, `line_balance` CLEAN. One 246.6 s sweep spike at 04:07Z,
+inside the 900 s cap and self-recovered to 26.7 s.
+
 ## [2026-08-06a] ★★★★★ RUN 23 (OPS), CLOSE — **TAMER CHANGED THE CAMPAIGN'S OPERATING PRIORITY TO THE RUNG-30 FLOOR, AND THE CORES QUESTION WAS ANSWERED AFTER EIGHT WRONG TURNS** · the answer is `smp-D`'s `$pe_slots` against a fragmented pool, not priority, not fair share, not a penalty · **the entire remaining requirement for a writable result is 120 trainings**
 
 ### PAST · PRESENT · FUTURE

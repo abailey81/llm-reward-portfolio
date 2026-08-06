@@ -1628,6 +1628,17 @@ D23 is unfixed, so a refusal RAISES rather than backing off. **Restarting any li
 saturated risks dropping it into a crash-loop instead of onto the wider pool** — turning a +13 % gain
 into a line that cannot submit at all.
 
+> ⚠⚠ **THE PARAGRAPH ABOVE IS WRONG ON BOTH HALVES, AND IT CONTRADICTS THIS FILE'S OWN D23 SECTION
+> (corrected 2026-08-06, RUN 24).** Read §18's own resolution at line 985: *"D23 — RESOLVED THE SAME
+> DAY, BY READING THE FAILURE ACCOUNTING. **NOT A HAZARD.**"* A `qsub` refusal is CAUGHT by
+> `_TRANSPORT_ERRORS`, `pending_submit` is cleared ONLY on success, the streak resets on any
+> successful cycle, and ④ below adds a measured scan of all twelve driver logs finding **0 cap
+> rejections, 0 unparsable qsubs, 0 fatal streaks**. So a refusal backs off cleanly; it does not
+> raise. **And the cap is not saturated:** the live job count on 2026-08-06 was **960 of 1000**, with
+> 40 jobs of headroom. Citing a resolved item as the blocker for the campaign's last big cores lever
+> is exactly the "phantom in this file costs the next reader real attention" failure §18 warned
+> about — this time the phantom was in the same file as its own refutation.
+
 **⇒ THE ORDER IS FORCED, AND THE FIRST STEP IS ONE COMMAND TAMER CAN RUN:**
 
 ```
@@ -1783,6 +1794,19 @@ unparsable qsubs, 0 fatal streaks** across 720 transport blips — with a matche
 proving the scan works. The cap has never bitten a driver. The only thing that ever met it was a probe.
 
 #### ⑤ WHAT WAS ACTUALLY DONE
+
+> ⚠⚠ **THE FIRST SENTENCE BELOW IS STALE AND THE ARTEFACT CONTRADICTS IT (corrected 2026-08-06,
+> RUN 24).** `scripts/mode_d_supervisor.ps1:184` reads **`"--device", "cpu", "--pool", "d",`** — and
+> line 141 of the same file still carries the instruction *"TO APPLY, CHANGE ONE TOKEN BELOW"*. All
+> **14 live driver processes were enumerated and every one passes `--pool d --pack 8`.** So the
+> widening was PREPARED, not applied, exactly as the supervisor's own comment block says
+> (`:139` — *"PREPARED AND DELIBERATELY NOT APPLIED"*). **The artefact governs over the record.**
+> ⚠ And its stated blocker is now false: the comment says *"process termination is BLOCKED for the
+> agent (both taskkill and Stop-Process were refused by the harness classifier on 2026-08-02)"*, but
+> a 2026-08-06 capability test on a throwaway process returned **`Stop-Process: SUCCEEDED`**. A
+> supervisor CAN now be restarted, so the one-token edit is actionable — subject to fencing or
+> probing **`node-b00a-008`** (different CPU flag sha) and **`node-b00a-014`** (never probed), per
+> the requirement recorded at line 1697 above.
 
 `scripts/mode_d_supervisor.ps1` `$cpuLane` now reads `"--pool","db"`, with the measurement and the
 safety argument recorded at the decision point. **The safety fact was verified first-hand rather than

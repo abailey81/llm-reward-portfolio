@@ -303,12 +303,21 @@ nothing more to submit. **That is no longer true and has been replaced with what
 now hold a deep backlog we cannot place, and the binding constraint is UCL's fair-share policy, which
 is not ours to change.
 
-* **The jobs ARE assignable and we still do not get the slots.** \`qalter -w p\` on a real pending job
-  returns *"found possible assignment with 8 slots"*; \`qquota -u ucestes\` is EMPTY, so no quota caps
-  us; every host has 105-167 GB free; **2,576 cores are placeable** -- and our core count stays
-  pinned. That combination has exactly one explanation: **functional fair-share by user**
-  (\`policy_hierarchy OSF\`, \`weight_tickets_functional 500000000\` against \`share 10000\`, 6+ active
-  users). More users on the cluster means a smaller share each, and that is the whole story.
+* **The jobs ARE assignable, \`qquota -u ucestes\` is EMPTY, and fair share is real -- but it is NOT
+  "the whole story", and the two numbers this bullet used to quote were both WRONG (corrected
+  2026-08-06, RUN 24).** It said *"every host has 105-167 GB free"* and *"2,576 cores are
+  placeable"*. **Neither survives measurement.** (i) The memory figure read \`hl:mem_free\`, the OS
+  free pool, when the scheduler gates on the \`hc:memory\` CONSUMABLE (\`qconf -sc\`: \`memory\` is
+  requestable AND consumable). On \`node-d00a-218\`: \`hl:mem_free=120.8G\` but **\`hc:memory=16.0G\`** --
+  144 G of a 160 G capacity already RESERVED while only 67 G is USED. (ii) The 2,576 figure is ~5x
+  the truth, the signature of the \`qstat -f\` hostname-truncation double count already retracted in
+  RUN 23 section 5.2. **The audited instrument (\`docs/ops/placeable_capacity.py\`, which takes queue state
+  from \`qstat -f\`, slots from \`hc:slots\`, and gates on memory and tmpfs) measured on one snapshot:
+  pool d = 24 placeable cores, pool b = 24, and 324 of d00a's 412 free slots (79%) are STRANDED on
+  hosts holding fewer than one pack-8 job.** So the ceiling is fragmentation AND the memory
+  consumable AND fair share together -- and the honest statement is that on a busy day there is
+  almost nothing to place, which is why the 2,320-core peak of 2026-08-03 was an emptier cluster
+  rather than a setting we lost.
 * **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.** \`qdel\` on our
   own running jobs would destroy up to 15 h of irreplaceable work each; \`qalter\` on the parallel
   environment is refused site-wide by the JSV; raising priority is operator-only; and **lowering our
@@ -319,8 +328,14 @@ is not ours to change.
   counts candidates rejected BEFORE any training is submitted (one LLM call, not a 15 h training),
   and **zero trainings have been lost**: every completed ladder -- gemini's five arms and h3 -- has
   568 seeds with **ZERO holes**, as does every 30-seed line.
-* **Memory and disk block ZERO hosts.** Memory was never scarce at all (160 GB free per host); the
-  three separate investigations that "fixed" it were fixing a non-problem.
+* **DISK blocks zero hosts. MEMORY DOES NOT -- this bullet was wrong and is corrected (2026-08-06,
+  RUN 24).** It claimed *"Memory was never scarce at all (160 GB free per host); the three separate
+  investigations that 'fixed' it were fixing a non-problem."* **The three investigations were right
+  and this sentence was the non-problem.** Measured: of the 21 d-pool hosts open to us holding >= 8
+  free slots, **8 cannot take a pack-8 job because \`hc:memory\` is under the 16 G it requests**
+  (2 G/slot x 8). \`docs/DEFERRED_FIXES_RUN4.md:1757\` had already measured the same effect at 82 % on
+  2026-08-02 and this file contradicted it for three days. 160 GB is the host's memory CAPACITY, not
+  its free consumable.
 
 **Bottom line: buying more hardware cannot make this finish sooner, and neither can any setting we
 control.** The seed ladder is tiered (30 -> 189 -> ... -> 568), a truncated run banks the largest

@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-06"
-  head: "38e7167f"
+  head: "d3c22dac"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 23 close: SWEEP-1 + budget_watch fixed and proven; cores question answered (smp-D $pe_slots fragmentation); floor = 120 records on c1"
+  suite_status: "governor selftest 32/32 + 4 independent falsifications; freeze MATCHES; drift 0"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```
