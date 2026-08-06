@@ -66,9 +66,38 @@ if [ "$MODE" = "--release-when-ready" ]; then
 fi
 
 if [ "$MODE" = "--release" ]; then
-    # Release every NON-c1 job we hold. c1 is never held by this script, so it is never released
-    # by it either -- the floor's state is untouched in both directions.
-    qstat -u ucestes -s h | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u > "$SEL"
+    # Release the FLOOR HOLD only, never the LADDER LOCK.
+    #
+    # ⚠ THE TWO HOLDS ARE DIFFERENT INSTRUMENTS AND MUST NOT BE UNDONE TOGETHER. The LADDER LOCK
+    # (386 jobs) is Tamer's ratified ORDERING policy -- every line works its lowest incomplete
+    # block -- and it is meant to persist for days. The FLOOR HOLD (408) is a tactical ticket
+    # concentration that expires the moment c1's h2_pair array is running. Releasing both would
+    # silently revert the ordering policy to the pipelined scatter that D73 exists to correct,
+    # and nothing would report that it had happened.
+    #
+    # Releasing only the floor set also restores 408 eligible jobs, comfortably above the 291-job
+    # burst floor, so depth returns without giving up the ordering.
+    #
+    # ~/floor_ids.txt is written at hold time from docs/ops/watch/FLOOR_HOLD.json. If it is
+    # missing we fall back to "every held non-c1 job", which is the OLD, blunter behaviour -- and
+    # we say so, because silently doing something broader than asked is how a fix becomes a fault.
+    if [ -s "$HOME/floor_ids.txt" ]; then
+        # intersect the recorded floor set with what is ACTUALLY held: the live queue is the
+        # authority, and a job that has already been released must not be "released" again.
+        qstat -u ucestes -s h | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u \
+            > /tmp/floor_live_held.txt
+        # ⚠ STRIP CR. The id list is written on Windows, whose text mode silently rewrites \n to
+        # \r\n, and a trailing \r makes every id fail to match -- which turned this release into a
+        # SILENT NO-OP ("would release: 0") when it was previewed on 2026-08-06. Caught only by
+        # previewing the selection instead of trusting it, minutes before it had to work.
+        tr -d '\r' < "$HOME/floor_ids.txt" | sort -u > /tmp/floor_recorded.txt
+        comm -12 /tmp/floor_live_held.txt /tmp/floor_recorded.txt > "$SEL"
+        echo "releasing the FLOOR HOLD only; the LADDER LOCK stays held (ordering policy)"
+    else
+        echo "!! ~/floor_ids.txt MISSING -- falling back to releasing EVERY held non-c1 job."
+        echo "!! That also lifts the LADDER LOCK. Re-run the governor afterwards to restore it."
+        qstat -u ucestes -s h | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u > "$SEL"
+    fi
     n=$(wc -l < "$SEL")
     echo "releasing $n held non-c1 job(s)"
     [ "$n" -gt 0 ] && xargs -a "$SEL" -r qrls
