@@ -119,9 +119,15 @@ if [ "$MODE" = "--release" ]; then
     # Releasing only the floor set also restores 408 eligible jobs, comfortably above the 291-job
     # burst floor, so depth returns without giving up the ordering.
     #
-    # ~/floor_ids.txt is written at hold time from docs/ops/watch/FLOOR_HOLD.json. If it is
-    # missing we fall back to "every held non-c1 job", which is the OLD, blunter behaviour -- and
-    # we say so, because silently doing something broader than asked is how a fix becomes a fault.
+    # ~/floor_ids.txt is written by the APPLY path at the bottom of this file. ⚠ CORRECTED 2026-08-06
+    # (RUN 28): this comment previously said it was "written at hold time from
+    # docs/ops/watch/FLOOR_HOLD.json", and that was NEVER TRUE -- nothing wrote it anywhere, so this
+    # branch scoped against whatever a previous era had left on disk (measured: 408 ids from 14:46Z
+    # against 546 actually held). The write now exists; see the R27-5 FIX note beside it.
+    # If the file is missing we fall back to "every held non-c1 job", which is the OLD, blunter
+    # behaviour -- and we say so, because silently doing something broader than asked is how a fix
+    # becomes a fault. ⚠ THE FALLBACK IS NOW THE DANGEROUS BRANCH, not the safe one: it also lifts
+    # the LADDER LOCK. Prefer re-applying the hold (which writes the file) over taking the fallback.
     if [ -s "$HOME/floor_ids.txt" ]; then
         # intersect the recorded floor set with what is ACTUALLY held: the live queue is the
         # authority, and a job that has already been released must not be "released" again.
@@ -177,6 +183,20 @@ if [ "$MODE" = "--dry" ]; then
 fi
 
 xargs -a "$SEL" -r qhold
+
+# ⚠⚠ R27-5 FIX, RUN 28, 2026-08-06. THIS WRITE DID NOT EXIST, AND THE WHOLE RELEASE PATH DEPENDS ON IT.
+# `~/floor_ids.txt` was READ in three places -- the --auto release branch and both --release branches
+# -- and WRITTEN in none, so it only ever held whatever a previous era had left on disk. Measured on
+# the node at 20:29Z: 408 ids, mtime 14:46:11Z, six hours stale, against 546 jobs actually held.
+# TWO failure modes followed, and the second is worse than the one first recorded:
+#   1. --release intersects the live held set with a stale list and SILENTLY UNDER-RELEASES;
+#   2. --auto computes `floorheld` from that same stale list, so it can conclude "nothing of the
+#      floor hold is held. No action." WHILE THE HOLD IS HELD -- a silent no-op in a script whose
+#      entire design is to be run on a loop.
+# Written AFTER the qhold and only on the apply path, so a --dry run still mutates nothing, and with
+# `>` rather than `>>` so a second apply can never accumulate ids from a previous hold.
+sort -u "$SEL" > "$HOME/floor_ids.txt"
+echo "recorded      : $(grep -c . "$HOME/floor_ids.txt") id(s) -> ~/floor_ids.txt (what --release will scope to)"
 echo "---"
 echo "held now      : $(qstat -u ucestes -s h | tail -n +3 | wc -l)   (expect ~$((n + $(cat "$C1" | wc -l) * 0 )) more than before)"
 echo "eligible now  : $(qstat -u ucestes -s p | tail -n +3 | grep -vc hqw)"
