@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+197h23m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18617** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.2 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 02:32 UTC | elapsed 8.22 d | 20.9 d to the Aug-27 stop
+generated 2026-08-06 02:33 UTC | elapsed 8.23 d | 20.9 d to the Aug-27 stop
 test tier: 17,074 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      61 records      61.0 rec/h
-    last  3 h     293 records      97.7 rec/h
-    last 12 h    1751 records     145.9 rec/h
+    last  1 h      60 records      60.0 rec/h
+    last  3 h     291 records      97.0 rec/h
+    last 12 h    1750 records     145.8 rec/h
     last 24 h    3482 records     145.1 rec/h
     12 h rate is 63% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,629      61  GATED             GATED             barrier>=30
-      189       6,193      61  GATED             GATED             barrier>=30
-      279      10,241      61  GATED             GATED             barrier>=30
-      340      12,986      61  GATED             GATED             barrier>=30
-      403      15,821      61  GATED             GATED             barrier>=30
-      568      23,254      61  GATED             GATED             barrier>=30
+      100       2,629      60  GATED             GATED             barrier>=30
+      189       6,193      60  GATED             GATED             barrier>=30
+      279      10,241      60  GATED             GATED             barrier>=30
+      340      12,986      60  GATED             GATED             barrier>=30
+      403      15,821      60  GATED             GATED             barrier>=30
+      568      23,254      60  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 4 min ago)
+## Monitoring -- the cycle (last monitoring cycle 5 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
