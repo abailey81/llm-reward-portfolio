@@ -109,6 +109,46 @@ them from the archive rather than from assumption:
    any-quantifier release fired at poll 1, and the remaining 7 of 8 `c1` jobs sank straight back from
    ranks 1-8 to 226-402. Once priorities recompute, released jobs return level with the promoted ones.
 
+### ⚠⚠⚠ A BULK `qrls` DOES NOT RETURN JOBS INSTANTLY — THE SITE JSV THROTTLES THE RETURN
+
+**MEASURED 2026-08-06, after I mis-diagnosed it twice in both directions.** Releasing 395 jobs at
+once does NOT put them straight back in `qw`. The site's `policyjsv` applies a **SYSTEM hold** to the
+returning jobs and drains it progressively:
+
+```
+jsv_url          /opt/geassist/bin/policyjsv
+jsv_allowed_mod  ac,h,i,e,o,j,M,N,p,w        <-  'h' = HOLD is JSV-mediated
+
+05:55Z hs=395  qw=476        drain measured at ~400 jobs/h; qw RISES as hs falls
+05:58Z hs=368
+06:02Z hs=348  qw=524
+```
+
+> ## ⇒ THE SIGNATURE OF A SUCCESSFUL RELEASE MID-THROTTLE, WHICH LOOKS EXACTLY LIKE A FAILURE:
+> ## `qrls` prints NOTHING · `qstat -s hu` = 0 · `qstat -s hs` > 0 · state still reads `hqw`
+> ## and `qrls -h s` answers `denied: "ucestes" must be manager to remove manager hold`.
+> ## **ALL OF THAT IS NORMAL. WAIT AND RE-MEASURE. DO NOT ESCALATE, DO NOT RE-ISSUE.**
+
+**HOW TO TELL A THROTTLE FROM A SANCTION, in one command each:**
+
+| question | command | benign answer |
+|---|---|---|
+| is it targeted at us? | `qstat -u '*' -s hs \| awk 'NR>2{print $4}' \| sort -u` | **40 users**, incl. every large one |
+| are we throttled? | `qstat -u ucestes -s r \| wc -l` | still dispatching (74 jobs / 592 cores at the time) |
+| is it draining? | the same `-s hs` count, 3 samples over ~7 min | **monotone FALLING**, `qw` rising |
+
+⚠ **AND VERIFY THE SELECTORS BEFORE TRUSTING THEM — I nearly banked a wrong conclusion twice.**
+A controlled throwaway settles both in one job: apply a KNOWN user hold and confirm it appears under
+`-s hu` and NOT `-s hs` (it does, so the selectors are sound and a system hold is genuinely a system
+hold); then run `qrls -h s` on that user-held job and confirm it returns **EMPTY, not an error** (it
+does, so the "must be manager" message fires only when a real manager hold exists, rather than being
+generic to the operation). **Without those two controls, "no user hold" and "manager denied" are both
+uninterpretable.**
+
+⇒ **THE PRACTICAL RULE: a bulk release is ASYNCHRONOUS with a site-controlled tail of roughly an
+hour.** Reversibility holds, but not instantly — so never plan a hold whose correctness depends on
+an INSTANT return, and never re-issue `qrls` into the throttle.
+
 ### MEASURING IT — two traps that both read in the reassuring direction
 
 * **`qstat -s p` means PENDING, which INCLUDES `hqw`.** Ranking over it counts the jobs you just
