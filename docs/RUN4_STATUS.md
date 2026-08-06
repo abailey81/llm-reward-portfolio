@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+196h29m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18564** |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18565** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 1.6 h ago; none live, newest failure 1.6 h ago** |
@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 01:38 UTC | elapsed 8.19 d | 20.9 d to the Aug-27 stop
-test tier: 17,021 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 01:39 UTC | elapsed 8.19 d | 20.9 d to the Aug-27 stop
+test tier: 17,022 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      36 records      36.0 rec/h
-    last  3 h     425 records     141.7 rec/h
-    last 12 h    1887 records     157.2 rec/h
+    last  1 h      37 records      37.0 rec/h
+    last  3 h     424 records     141.3 rec/h
+    last 12 h    1888 records     157.3 rec/h
     last 24 h    3472 records     144.7 rec/h
     12 h rate is 68% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,682      35  GATED             GATED             barrier>=30
-      189       6,246      36  GATED             GATED             barrier>=30
-      279      10,294      36  GATED             GATED             barrier>=30
-      340      13,039      36  GATED             GATED             barrier>=30
-      403      15,874      36  GATED             GATED             barrier>=30
-      568      23,307      36  GATED             GATED             barrier>=30
+      100       2,681      36  GATED             GATED             barrier>=30
+      189       6,245      37  GATED             GATED             barrier>=30
+      279      10,293      37  GATED             GATED             barrier>=30
+      340      13,038      37  GATED             GATED             barrier>=30
+      403      15,873      37  GATED             GATED             barrier>=30
+      568      23,306      37  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -162,7 +162,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
-| kimi_k3 | **75** | 80 | 5 |  |
+| kimi_k3 | **76** | 80 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T01:30:41Z  OK  records=18555 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.9m  drift=0  sci=OK  r115=22B  sweep=29.7s  auto-cycle
 2026-08-06T01:31:39Z  OK  records=18555 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.9m  drift=0  sci=OK  r115=22B  sweep=28.7s  auto-cycle
 2026-08-06T01:32:39Z  OK  records=18555 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.9m  drift=0  sci=OK  r115=22B  sweep=29.0s  auto-cycle
 2026-08-06T01:33:49Z  OK  records=18556 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.9m  drift=0  sci=OK  r115=22B  cores=544  sweep=40.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T01:34:48Z  OK  records=18557 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=28.8s  auto-cycle
 2026-08-06T01:38:06Z  OK  records=18561 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=167.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T01:39:03Z  OK  records=18565 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.4m  drift=0  sci=OK  r115=22B  sweep=27.5s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
