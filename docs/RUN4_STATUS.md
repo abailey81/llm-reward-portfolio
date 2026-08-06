@@ -16,7 +16,7 @@ back what it did.
 | records archived | **19824** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.6 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=156; worst streak 11/240 (4.6% to fatal), pull on core, 5 min ago; LIVE, still failing** |
+| transport health | **timeouts 6h=156; worst streak 11/240 (4.6% to fatal), pull on core, 6 min ago; LIVE, still failing** |
 | transport timeouts (cumulative, ever) | 342 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -24,9 +24,9 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **855** (58 running, 797 queued) |
-| **cores computing** | **464** |
-| **cores doing RUNG-RAISING work** | **17.0%** -- 72 of 424 cores (82 min old) |
+| cluster jobs | **855** (59 running, 796 queued) |
+| **cores computing** | **472** |
+| **cores doing RUNG-RAISING work** | **17.0%** -- 72 of 424 cores (83 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -185,7 +185,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 8 min ago)
+## Monitoring -- the cycle (last monitoring cycle 9 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
