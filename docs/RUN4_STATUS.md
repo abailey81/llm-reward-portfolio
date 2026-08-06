@@ -34,17 +34,17 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 01:48 UTC | elapsed 8.19 d | 20.9 d to the Aug-27 stop
-test tier: 17,031 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 01:49 UTC | elapsed 8.19 d | 20.9 d to the Aug-27 stop
+test tier: 17,034 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      38 records      38.0 rec/h
-    last  3 h     419 records     139.7 rec/h
-    last 12 h    1873 records     156.1 rec/h
-    last 24 h    3464 records     144.3 rec/h
-    12 h rate is 68% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
+    last  1 h      41 records      41.0 rec/h
+    last  3 h     422 records     140.7 rec/h
+    last 12 h    1874 records     156.2 rec/h
+    last 24 h    3467 records     144.5 rec/h
+    12 h rate is 67% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
-    !! 68% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
+    !! 67% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,672      38  GATED             GATED             barrier>=30
-      189       6,236      38  GATED             GATED             barrier>=30
-      279      10,284      38  GATED             GATED             barrier>=30
-      340      13,029      38  GATED             GATED             barrier>=30
-      403      15,864      38  GATED             GATED             barrier>=30
-      568      23,297      38  GATED             GATED             barrier>=30
+      100       2,669      41  GATED             GATED             barrier>=30
+      189       6,233      41  GATED             GATED             barrier>=30
+      279      10,281      41  GATED             GATED             barrier>=30
+      340      13,026      41  GATED             GATED             barrier>=30
+      403      15,861      41  GATED             GATED             barrier>=30
+      568      23,294      41  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -162,7 +162,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
-| kimi_k3 | **76** | 81 | 5 |  |
+| kimi_k3 | **77** | 83 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
@@ -215,7 +215,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
