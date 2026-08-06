@@ -24,9 +24,9 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **913** (112 running, 801 queued) |
-| **cores computing** | **896** |
-| **cores doing RUNG-RAISING work** | **20.7%** -- 200 of 968 cores (18 min old) |
+| cluster jobs | **913** (113 running, 800 queued) |
+| **cores computing** | **904** |
+| **cores doing RUNG-RAISING work** | **20.7%** -- 200 of 968 cores (19 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,13 +37,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 09:38 UTC | elapsed 8.52 d | 20.6 d to the Aug-27 stop
+generated 2026-08-06 09:39 UTC | elapsed 8.52 d | 20.6 d to the Aug-27 stop
 test tier: 17,508 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 90.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h     126 records     126.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     151 records      50.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     150 records      50.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1089 records      90.8 rec/h   usable
     last 24 h    2809 records     117.0 rec/h   usable
     12 h rate is 67% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
@@ -74,14 +74,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 78% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @896 cores      @830 cores   binding
+     rung      @904 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           6.0 d           6.5 d   throughput
-      279           8.6 d           9.3 d   throughput
-      340          10.3 d          11.1 d   throughput
-      403          12.1 d          13.0 d   throughput
-      568          16.7 d          18.1 d   throughput
+      279           8.5 d           9.3 d   throughput
+      340          10.2 d          11.1 d   throughput
+      403          12.0 d          13.0 d   throughput
+      568          16.6 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -234,7 +234,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
