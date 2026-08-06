@@ -23,10 +23,16 @@
 #     (docs/ops/watchdog_fenced.ps1:231 - the same omission that file was forked to fix for
 #     -ExcludeHosts). Ledger R26-10.
 #
-# USAGE
-#   powershell -ExecutionPolicy Bypass -File docs\ops\canary_duration.ps1 -WhatIf
-#   powershell -ExecutionPolicy Bypass -File docs\ops\canary_duration.ps1
-#   powershell -ExecutionPolicy Bypass -File docs\ops\canary_duration.ps1 -Revert
+# USAGE -- ABSOLUTE PATH, ALWAYS.
+#   Tamer's shell sits at C:\Users\User, not the repo, so a relative path fails with
+#   "The argument ... to the -File parameter does not exist". That was the THIRD handover in one
+#   session to fail because a command assumed the agent's working context instead of his: first
+#   bash quoting, then PowerShell 5.1 stripping inner quotes, then this. Ledger R26-8.
+#   The rule that covers all three: test the command AS HE WILL RUN IT, FROM HIS DIRECTORY.
+#
+#   powershell -ExecutionPolicy Bypass -File "C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\docs\ops\canary_duration.ps1" -WhatIf
+#   powershell -ExecutionPolicy Bypass -File "C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\docs\ops\canary_duration.ps1"
+#   powershell -ExecutionPolicy Bypass -File "C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\docs\ops\canary_duration.ps1" -Revert
 param(
     [string]$Line = "kimi-k3",
     [int]$SpecsPerTask = 16,
