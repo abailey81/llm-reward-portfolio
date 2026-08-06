@@ -242,7 +242,39 @@ backup branch: origin/backup-2026-08-06 (pushed)
 
 ---
 
-# §4 ★★★★★★★ THE FLOOR — **RUNG 30 ≈ 00:01Z ON 7 AUGUST**
+# §4 ★★★★★★★ THE FLOOR — ~~RUNG 30 ≈ 00:01Z ON 7 AUGUST~~ ⛔ **CORRECTED 2026-08-06: THIS MODEL OMITS A ~32 h QUEUE-WAIT TERM**
+
+> ## ⛔⛔⛔ READ THIS BEFORE THE BLOCK BELOW. THE ARITHMETIC IN §4 IS MISSING A TERM WORTH ~40 HOURS.
+>
+> `drain + wall` is **not** when a rung lands. It is `drain + `**`QUEUE WAIT`**` + wall`, and the
+> queue wait was never measured until RUN 26. Measured 2026-08-06 across **all 99 running jobs**:
+>
+> ```
+> min 28.0h   p25 32.2h   MEDIAN 32.6h   p75 33.3h   max 37.3h
+> under 1h:  0 (0%)   ·   over 24h: 99 (100%)   ·   over 30h: 97 (98%)
+> ```
+>
+> **Not one job started in under 28 hours.** `c1`'s own round-1 jobs were submitted **Aug 4 22:19Z**
+> and started **Aug 6 04:58Z** — **30.6 h**. So the block below is right about the DRAIN and the
+> WALL and silent about the term that dominates both.
+>
+> ⚠ **AND THE WAY IT SURVIVED IS THE LESSON.** RUN 25 re-derived this date every pass, got 00:01Z
+> every time, and read the stability as evidence of correctness — §4's own instruction is to check
+> *"whether the INPUTS move"*. They DID move, and the answer held, **because the missing term was
+> not an input at all.** ⇒ **RE-DERIVING A NUMBER EVERY PASS DOES NOT VALIDATE THE MODEL IT COMES
+> FROM.** Only a term the model does not have can hide there, and stability is exactly what it looks
+> like from the outside.
+>
+> ⇒ **USE `docs/ops/queue_wait.py`** (RUN 26). It prints the live distribution, the per-line
+> breakdown (a line's wait IS its ticket rank made visible) and rung 30 under BOTH models — with the
+> queue term at zero it reproduces the number below exactly, which is how the omission is
+> demonstrated rather than asserted. `docs/ops/stage_eta.py` was separately telling Tamer rung 30
+> landed in ~90 minutes; it now GATES any rung whose owing units have not started.
+>
+> ⇒ **THE ONE INTERVENTION THAT MOVES IT:** concentrating our functional-ticket allocation onto the
+> floor (`docs/ops/floor_hold.sh`) is priced at **~31 hours** on this rung, because
+> `share_functional_shares=TRUE` splits our pool across contending jobs and all our jobs carry
+> near-identical `ntckts` — so the floor's 8 jobs otherwise compete with ~412 of our OWN sweep jobs.
 
 ```
 c1 round 1 (bayes_opt 30 + tpe 30 = 60 trainings, 8 jobs) ALL RUNNING since 04:58-05:46Z
@@ -302,6 +334,34 @@ the §5.4 unfenced-copy pattern AND a live restart of the line carrying the enti
 ---
 
 # §5 ★★★★★★★ THE CORES MAP — WHAT IS **SETTLED BY MEASUREMENT** AND WHAT IS **OPEN**
+
+> ## ⛔⛔⛔ CORRECTED 2026-08-06 (RUN 26): §5's DIAGNOSIS IS WRONG. IT IS NOT CAPACITY, NOT
+> ## FRAGMENTATION AND NOT A PENALTY — **WE LOSE THE PRIORITY RACE, AND WE DILUTE OUR OWN TICKETS.**
+>
+> Measured in one window: **78 D-pool hosts held ≥8 free slots (2,801 free slots) while we won ZERO
+> dispatches in two hours**, and in the same window `ucaqcsu` won **19 jobs × 8 slots**, `zccambr`
+> and `uctpec1` six each. **Pack-8 jobs were being placed all around us**, which refutes
+> fragmentation, the memory consumable and pack width in a single measurement — §5.2's mechanical
+> conclusions are correct but they are answers to a question that is not the binding one.
+>
+> **THE BINDING CONSTRAINT IS `ntckts`.** Dispatch order is decided ENTIRELY by it: `weight_urgency`
+> is **0**, so waiting time earns nothing, and `prior = 4.0×npprior + 1.5×ntckts` (exact to 5 dp on
+> a live job). Per-job tickets: `ucjvddm` 442,628 · `ucaphge` 400,379 · `ucaqcsu` 59,547 · **us
+> 14,757.**
+>
+> ⚠ **AND THE FIRST EXPLANATION FOR THAT WAS ALSO WRONG, SO DO NOT REPEAT IT.** RUN 26 initially
+> reported a *fair-share ceiling* — that we are throttled for being a heavy user. **Our TOTAL
+> allocation is 13.2 M, which is the cluster MEDIAN.** `ucaqcsu` holds LESS total than we do and
+> still ranks 4× higher per job, purely because they spread it over 174 jobs and we spread ours over
+> 897. `ucbtjji` holds **five times less** and still ranks higher. **We are not penalised; we
+> dilute.** `share_functional_shares` is **TRUE**.
+>
+> ⇒ **THE LEVER IS THEREFORE WORTH MORE THAN §5.3 SAYS, BECAUSE IT PULLS TWICE.** 16 specs per task
+> doubles job DURATION *and* halves our job COUNT, so both terms of
+> `cores = dispatch_rate × duration × 8` improve together. `ucbtjji` is the existence proof:
+> `h_rt=172800` (48 h) against our `54000` (15 h), holding **768 cores from 98 jobs**. The patch is
+> staged at `apply_duration_patch.py` — 11 edits each matching exactly once, byte-identical with the
+> flag unset. ⛔ NEVER on `c1`.
 
 ## 5.1 ⛔ SETTLED. DO NOT RE-DERIVE ANY OF THIS.
 
