@@ -34,15 +34,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 08:06 UTC | elapsed 8.46 d | 20.7 d to the Aug-27 stop
+generated 2026-08-06 08:07 UTC | elapsed 8.46 d | 20.7 d to the Aug-27 stop
 test tier: 17,363 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 92.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 92.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h       4 records       4.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     212 records      70.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1115 records      92.9 rec/h   usable
-    last 24 h    3000 records     125.0 rec/h   usable
+    last  3 h     210 records      70.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1113 records      92.8 rec/h   usable
+    last 24 h    2996 records     124.8 rec/h   usable
     12 h rate is 52% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 16% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
