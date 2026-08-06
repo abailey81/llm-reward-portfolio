@@ -72,12 +72,31 @@ WARN_FRACTION = 0.45
 #: WARN instead of OVER in the selftest. Compare with a tolerance.
 _EPS = 1e-9
 
-#: ⚠ DELIBERATELY `myriad13`, NOT `myriad`. Since 2026-08-03 the `myriad` alias routes through
-#: docs/ops/ssh_gate.py, so measuring through it would put the OBSERVER inside the mechanism it is
-#: observing: the guard's own probe queues behind driver traffic, and a probe that loses its slot
-#: returns nothing (observed live as `PROBE-UNPARSED ''`). `myriad13` reaches the same physical
-#: login node ungated, so the reading is of the node rather than of the gate. Its cost is one `ps`.
-HOST = "myriad13"
+#: ⚠⚠ CORRECTED 2026-08-06 (RUN 28). THIS WAS `myriad13`, AND THAT COST US THE GUARD FOR 3 h 40 m.
+#:
+#: The ORIGINAL reasoning was right and is preserved, because half of it still binds: since
+#: 2026-08-03 the `myriad` alias routes through docs/ops/ssh_gate.py, so measuring THROUGH the gate
+#: would put the OBSERVER inside the mechanism it observes -- the probe queues behind driver traffic
+#: and a probe that loses its slot returns nothing (`PROBE-UNPARSED ''`). It also steals one of the
+#: gate's four slots from the drivers.
+#:
+#: What that reasoning MISSED is that `myriad13` names a FIXED PHYSICAL NODE while `myriad` names
+#: WHEREVER THE CAMPAIGN CURRENTLY IS, and those diverge the moment the alias is repointed. At
+#: 16:27:55Z on 2026-08-06 two of three login nodes died and RUN 27 moved `Host myriad` from login13
+#: to login12. Every driver followed (`src/cluster/{campaign,driver,poll,submit,telemetry}.py` all
+#: pass the literal "myriad"). This guard did not. Its last real reading was
+#:     2026-08-06T16:25:04Z  OK  node=login13.myriad.ucl.ac.uk  cores=0.00/6.0
+#: followed by 133 consecutive PROBE-UNPARSED, because it was probing a DEAD node while twelve
+#: driver lines loaded login12 -- the very node that earned UCL's `penalty1` on 2026-08-03, and the
+#: one instrument docs/ops/MAINTENANCE_2026-08-12.md §5 names as the only one to check on the day.
+#:
+#: ⇒ FOLLOW THE ALIAS THE DRIVERS USE, AND UNGATE IT ON THE COMMAND LINE INSTEAD. A command-line
+#: `-o ProxyCommand=none` overrides the config's ProxyCommand, so the probe reaches the campaign's
+#: CURRENT node directly, outside the gate, and can never again watch a node the campaign has left.
+#: Pinned by tests/test_loginnode_guard_target.py, which reads the alias out of the driver sources.
+HOST = "myriad"
+#: Overrides the `ProxyCommand` in ~/.ssh/config so this probe never enters the admission gate.
+SSH_UNGATE = ["-o", "ProxyCommand=none"]
 DEFAULT_INTERVAL = 120.0
 _HERE = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(_HERE, "watch", "LOGINNODE_GUARD.log")
@@ -136,11 +155,20 @@ def _unknown(kind: str, detail: str) -> int:
     print("  *** THE LOGIN-NODE GUARD HAS NO READING. This is NOT 'comfortable'. ***")
     print("  The probe reached no usable answer, so nothing is known about our CPU/memory")
     print("  footprint on the login node or about whether a UCL penalty is in force.")
+    # ⚠ NAME THE TARGET. Added 2026-08-06 (RUN 28): the message below listed three generic causes
+    # and never said WHAT was being probed, so a guard watching a node the campaign had already
+    # left read exactly like a node that was merely refusing SSH. That cost 40 minutes to diagnose.
+    print("  PROBE TARGET: ssh alias %r (ungated). Check what it resolves to:" % HOST)
+    print("    grep -A2 '^Host %s' ~/.ssh/config     # and compare against the node the" % HOST)
+    print("    drivers load -- src/cluster/driver.py passes this same alias, so if this guard")
+    print("    and the drivers ever disagree, tests/test_loginnode_guard_target.py has broken.")
     print("  Most likely causes, in the order they have actually occurred here:")
     print("    1. the login node is refusing SSH (kex reset / connection closed) -- a transport")
     print("       event, ours or UCL's; check driver logs for rising 'pull failed' counts;")
     print("    2. a probe that lost its slot behind gated driver traffic (the 2026-08-03 cause);")
-    print("    3. the node was renamed or the ps/awk output shape changed.")
+    print("    3. the node was renamed or the ps/awk output shape changed;")
+    print("    4. the alias points at a node that is DOWN while the campaign runs elsewhere")
+    print("       (the 2026-08-06 cause -- 133 blind probes over 3 h 40 m).")
     print("  DO NOT retry in a loop and DO NOT relaunch lines by hand: a stampede of reconnects")
     print("  is exactly what earned the 2026-08-03 00:33:47Z penalty. Wait for the drivers'")
     print("  own backoff. Death clocks: TEST 240 x 180 s = 12.0 h, SEARCH 240 x 45 s = 3.0 h.")
@@ -150,7 +178,7 @@ def _unknown(kind: str, detail: str) -> int:
 def sample(penalised: bool = False, quiet: bool = False) -> int:
     try:
         out = subprocess.run(
-            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", HOST, REMOTE],
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", *SSH_UNGATE, HOST, REMOTE],
             capture_output=True, text=True, timeout=90,
         ).stdout.strip()
     except Exception as exc:                                   # noqa: BLE001

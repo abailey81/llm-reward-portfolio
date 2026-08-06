@@ -3,6 +3,192 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06h] ★★★★★ RUN 28 (OPS), pass 1 — **THE LOGIN-NODE PENALTY GUARD HAD BEEN BLIND FOR 3 h 40 m BECAUSE RUN 27's OWN OUTAGE FIX REPOINTED THE CAMPAIGN AWAY FROM THE NODE IT WATCHES** · a BINDING line was completely asleep with all 165 of its jobs held · the ladder's single highest-value job (+379 rungs on five arms for ~8 trainings) was held · and the cadence this brief prescribes for the promotion hold is measured to STARVE the fleet
+
+**WHERE WE WERE.** RUN 27 handed over at T+214 h with the floor unblocked and running (all eight
+`c1_h2_pair_test` jobs dispatched in 73 minutes against a 34.3 h median), cores at 712, and a unified
+model of the core count: `cores = lambda x duration x 8` with `lambda` fixed by absolute ticket rank.
+Its ranked instruction for this session was to raise `specs_per_task` from 24 to 32 to 40, and to
+re-run `docs/ops/promote_duration_jobs.sh` **every ten minutes**.
+
+**WHAT IS TRUE NOW.** The floor is still healthy and untouched — all 8 `c1_h2_pair_test` jobs running
+(`103187`-`103194`, 64 cores), `0/60 done` at driver-log 20:41:26 local (= 19:41:26 UTC, the driver
+clock is host-local +0100), tracking the ~02:00-04:00Z completion the c1 precedent predicts. Freeze
+**MATCHES** `3ca6f01a...`, drift **0** on every fenced path, permanent-batch guard **0**. Cores are
+**816 across 102 running jobs**, of which **10 carry `h_rt=162000`** (24-spec), up from 7.
+
+**AND THE SESSION DID NOT DO WHAT IT WAS TOLD TO DO, FOR MEASURED REASONS.** Both of RUN 27's ranked
+instructions turned out to be wrong in their current form, and the two defects behind them were doing
+active harm while the brief recommended repeating them.
+
+### 1. ⛔⛔⛔ THE PENALTY GUARD WAS WATCHING A DEAD NODE WHILE THE CAMPAIGN LOADED A LIVE ONE
+
+`docs/ops/loginnode_guard.py` last produced a real reading at **`2026-08-06T16:25:04Z  OK
+node=login13.myriad.ucl.ac.uk`**, then logged **133 consecutive `PROBE-UNPARSED ''`** through
+20:05:13Z. Three independent routes give one cause. The file hardcoded `HOST = "myriad13"`, and
+`~/.ssh/config` maps that alias to **login13**. `ssh myriad13 hostname` returns
+`kex_exchange_identification: read: Connection reset by peer` / `Connection reset by
+193.60.252.109 port 22` — login13 is down, corroborated by `MYRIAD_SSH_WATCH.log` at 19:27:56Z
+showing **only login12 SERVING**. And every driver passes the literal alias `"myriad"`
+(`src/cluster/campaign.py:178`, `driver.py:365`, `poll.py:213`, `submit.py:91,96,206`,
+`telemetry.py:293`), which **R27-2 moved to login12 at 16:27:55Z** to fix the outage.
+
+**So from 16:27Z the guard watched a dead stranger while twelve driver lines loaded login12 — the
+exact node that earned UCL's `penalty1` on 2026-08-03, and the one instrument
+`docs/ops/MAINTENANCE_2026-08-12.md` §5 designates as the only one to check on the at-risk day, which
+is five days away.**
+
+⚠ **The original choice was not careless, and that is the interesting part.** `Host myriad` carries a
+`ProxyCommand` through `docs/ops/ssh_gate.py` (admission cap 4), so probing through the alias would
+put the observer inside the mechanism it observes and consume a slot the drivers need. The docstring
+says so and it is still true. What the reasoning missed is that **`myriad13` names a fixed physical
+node while `myriad` names wherever the campaign currently is**, and those diverge the moment the
+alias is repointed. ⚠ I nearly shipped the naive fix: an early `grep -A4 '^Host myriad'` showed no
+`ProxyCommand` and I concluded the docstring was stale. It was a **truncated view** — the full block
+carries the ProxyCommand ~40 lines down. Reading the untruncated block is what stopped a fix that
+would have re-broken the thing the docstring was protecting.
+
+**FIXED, PINNED, AND MUTATION-PROVEN.** `HOST = "myriad"` so the guard follows the drivers, plus
+`SSH_UNGATE = ["-o", "ProxyCommand=none"]` on the ssh argv — a command-line `-o` overrides the config,
+so the probe reaches the campaign's current node **outside** the gate. `_unknown()` now names the
+probe target, because the old failure message listed three generic causes and never said what it was
+probing, which is why this took forty minutes to find rather than ten seconds.
+
+**Live proof:** `2026-08-06T20:10:20Z  OK  node=login12.myriad.ucl.ac.uk  cores=0.01/6.0  mem=0.00GB
+qacct=0  comfortable`, rc=0. First real reading of the loaded node in 3 h 45 m, and it says we are
+nowhere near the ceiling — which is information we did not have.
+
+New `tests/test_loginnode_guard_target.py`, four tests, proven to FAIL against the pre-fix file on all
+three invariants before the fix existed. It reads the alias **out of the driver sources** and asserts
+the guard matches it; asserts `ProxyCommand=none` appears in the argv the module **actually builds**
+(behaviour, not source text — the first draft asserted on source text and would have failed a correct
+fix built from a named constant); and byte-walks the printed output for non-ASCII, since the console
+is cp1251. Then mutated three ways against a **copy** — via an `LNG_GUARD_PATH` seam, so a file a
+two-minute loop is reading is never edited merely to prove a test can fail. `HOST` back to `myriad13`
+fails invariant 1; `SSH_UNGATE = []` fails invariant 2; a `_unknown()` that stops naming the target
+fails invariant 3. The guard's own `--selftest` remains **ALL PASS**.
+
+⇒ **THE GENERAL LESSON: A HANDOVER FIX THAT REPOINTS A SHARED CONTROL POINT MUST ENUMERATE EVERY
+CONSUMER OF IT.** R27-2 was right that no driver relaunch was needed because ssh re-reads its config
+per invocation. That is precisely why the one consumer that deliberately bypasses the alias was left
+behind by a fix nobody had to deploy.
+
+### 2. ⛔⛔ THE INSTRUMENT THE BRIEF SAYS TO RUN EVERY TEN MINUTES WAS HAMMERING THE ONLY SERVING LOGIN NODE
+
+`docs/ops/promote_duration_jobs.sh:64-70` looped `qstat -j "$j"` **once per eligible job**. At the
+live depth measured at 19:51Z (171 eligible) that is ~171 qmaster queries per invocation and ~1,026
+an hour at the prescribed cadence. **§12 of the RUN 28 brief forbids exactly this** — *"NEVER loop
+`qstat -j` per job on a login node; `login12` is the node that earned `penalty1`"* — a rule RUN 27
+added in R27-2, in the same session that shipped this script.
+
+Fixed to **one** `qstat -u ucestes -r` call, which carries id, state and `h_rt` for every job, so cost
+no longer scales with queue depth. Falsifying test written first, with a shimmed `qstat` that counts
+invocations by form: **pre-fix 6 per-job calls / 9 total for a 6-job queue; post-fix 0 / 3**, selection
+**byte-identical**. Mutated three ways, each caught by the assertion that should catch it: inverting
+`hrt == want` breaks the selection; dropping the `st == "qw"` filter admits a RUNNING job; re-injecting
+the loop breaks the call-count budget.
+
+⚠ **AND THE PARSER WAS GUILTY BEFORE THE WORLD WAS.** My first version returned **0 rows from 10,234
+lines** of real `qstat -r` output, because header lines begin with **spaces**, not column 1. The
+printed `ROWS=` counter is what exposed it — the downstream summaries had cheerfully printed
+"(none eligible)", which is indistinguishable from a clean board. Separately, `$9` is slots and `$10`
+is ja-task-ID and **both are numeric**, so a "last numeric field" heuristic silently picks the wrong
+one; slots are now read from the `Granted PE:` / `Requested PE:` label lines instead of by index.
+
+### 3. ⚠⚠ MY OWN ERROR, AND IT IS R27-17 REPEATING IN A NEW INSTRUMENT
+
+At 19:51:21Z I applied the promotion hold. Its safety check passed — `running in selection 0`,
+`c1 in selection 0` — and I banked it. Cross-tabulating the exact 147 held ids against the live queue
+**by line** showed **all 147 belonged to `leg7_leg_nemotron_3_super`**, one of the three lines
+`job_rank_governor.py` names as **STARVED and BINDING** (owes 350 trainings to rung 100, holding 24
+cores against a 106 deficit-proportional target).
+
+**A safety check that asks "did I touch anything forbidden" cannot answer "did I hold the wrong
+thing".** That is the second session running in which that distinction has cost us.
+
+⚠ Honest attribution, because the opposite error is also a defect: **haiku's repair job 95416 was NOT
+in my selection** (`grep -cx 95416 /tmp/pdj_sel_s.txt` = **0**). It was already held before I acted.
+
+**AND THE BRIEF'S PRESCRIBED CADENCE IS ITSELF WRONG.** Re-running the promotion every ten minutes
+starves the fleet, on three independent derivations: it drove eligible depth **171 -> 24** against
+`job_rank_governor`'s own depth guard of **396** (`max(4 x running, 200)`); **M5 measured a fleet
+decaying 44 -> 9 running when the eligible queue was thinned to 80**, and 24 is far below that; and 24
+eligible divided by the measured 11.2 dispatches/h is **2.1 hours of supply**. The governor, written
+before this session, independently returned `TO HOLD: 0` for exactly the first reason.
+
+⚠ **And the promoted work was the wrong work regardless.** The 24 jobs it left as our sole eligible
+set are all block **t6** on `leg3`, whose next-needed block is **t2** — distance **d4**, on a line the
+governor rates **over-served**. The instrument optimises job SHAPE and is structurally blind to job
+VALUE.
+
+### 4. ⭐⭐⭐⭐⭐ A BINDING LINE WAS ASLEEP, AND THE LADDER'S BEST JOB WAS HELD
+
+One `qstat -u ucestes -r` at 19:55-19:58Z, cross-read against the governor:
+
+* **`leg1_leg_deepseek_v4_pro`: 165 jobs held, ZERO running, ZERO eligible** — including **all 27 of
+  its next-needed `t1` block**. A line owing 350 trainings to the next common rung was doing nothing
+  at all, and was structurally unable to complete the block that would advance it.
+* **`leg5_leg_haiku_4_5` job 95416, `..._sweep_t3_r1`** — a REPAIR round worth **+379 rungs on FIVE
+  arms for ~8 trainings** (`job_rank_governor.py:242-243`; its V1 table reads `banked=189 -> 568 if
+  repaired` on distributional, placebo, placebo_shuffled, scalar and scalar_cvar5) — **held.**
+* `nemotron` running only `t3` and `t5` (deferred) while all 43 of its `t1` jobs slept.
+* Allocative efficiency **30.3%**: 552 of 792 cores on deferred blocks, with `kimi` over-served at
+  496 cores against a 102-training deficit and 22 of its 62 running jobs on block `t6`.
+
+⭐⭐ **THE SYNTHESIS, AND IT DISSOLVES AN APPARENT TRADE-OFF.** RUN 27 established that a line submits
+new 24-spec work **only when a block COMPLETES**. Holding a line's next-needed block is therefore
+**exactly what prevents the conversion**. The allocative fix and the duration-lever fix are **the same
+action**, not competing ones — which is why the release below is a cores intervention as much as a
+fairness one.
+
+**RELEASED 166 JOBS, SCOPED BY VALUE RATHER THAN BY SHAPE.** Dry-run first. Every held job at its
+line's next-needed block, plus one block up for the two starved binding lines: deepseek `t1` 27 +
+`t2` 22, nemotron `t1` 43 + `t2` 42, glm `t1` 18, kimi `t1` 1, qwen3.6 `t2` 12, haiku's repair 1. The
+per-line next-needed block was passed as DATA read from the governor's own output, so the release
+script cannot drift from the value model it serves. Assertions: `running in selection 0`,
+`c1 in selection 0`, `haiku 95416 in selection 1`. After: **user-held 712 -> 546 (exactly 166),
+running 99 -> 102, `c1` untouched at 8.**
+
+⭐ **EFFECT MEASURED BY IDENTITY, NOT BY COUNTS** — R27-18's lesson applied rather than quoted. Jobs
+**103103, 103104, 103105 moved `qw -> r` in 11 m 19 s**, while the 8-spec running count held flat at
+92, so **every dispatch in that window went to a 24-spec job**. Cores **800 -> 816**; 24-spec running
+**7 -> 10**.
+
+⚠ **NOT YET SETTLED.** The released 166 re-enter through the site JSV at ~400/h, so eligible depth and
+the deepseek/nemotron `t1` dispatches will not appear for ~45 minutes. A flat reading before then sits
+inside the period and is not evidence of anything. Re-read next pass.
+
+### 5. WHY `specs_per_task` WAS **NOT** RAISED TO 32 THIS PASS
+
+The brief ranks this first, and the arithmetic still favours it — but two facts change the timing, and
+neither was in the brief.
+
+**The UCL maintenance notice is a dispatch constraint, not just an outage.** UCL will *"only start
+jobs if they can complete before the outage"*, so the cliff for a job requesting `h_rt = H` arrives
+`H` hours before **2026-08-12 08:00 local**. From now that is **86 h of runway at a 45 h wall, 71 h at
+60 h, and 59 h at 72 h**. Workable, but it makes the taper a five-day question rather than the
+twenty-one-day one §5.4 frames.
+
+**And raising it requires restarting six live supervisors**, each re-verifying ~36.8 MB of gold on a
+shared login node — the stampede condition that earned `penalty1` — onto the **single serving login
+node**, while the floor is in flight and while the guard that would have caught it had just been
+proven blind. The benefit is also deferred at least 26.7 h regardless, because **block completion, not
+the parameter, is the binding constraint**: six lines have carried `SpecsPerTask 24` since 16:33Z and
+only `leg3` has submitted anything at the new shape.
+
+**Position: stage it per line at natural restarts.** That is the same reasoning §5.4 item 8 already
+applies to fencing `node-d00b-020`.
+
+**HOUSEKEEPING.** The two-hourly deep loop is re-armed at `7 */2 * * *` with the STEP contract, now
+carrying the corrected promotion-cadence guidance and the guard check. ⚠ It is **session-only and
+expires after seven days**, so a successor must re-arm it. `~/.ssh/config` `Host myriad` still points
+at **login12** and must stay there until `MYRIAD_SSH_WATCH.log` reports login13 SERVING.
+
+**VERIFIED GREEN AT PASS END.** freeze `--check` MATCHES `3ca6f01a...`; drift 0 on `src|scripts|config|prompts`;
+cycle OK with `sci=OK`, `guards=0n/2k`, `drift=0`; records 19,962; spend $45.5019; `c1` 8/8 running.
+Files changed: `docs/ops/loginnode_guard.py`, `docs/ops/promote_duration_jobs.sh`,
+`tests/test_loginnode_guard_target.py` (new). No fenced file touched.
+
 ## [2026-08-06e] ★★★★★ RUN 27 (OPS), pass 1 — **THE FLOOR'S HEADLINE RISK EVAPORATED, TWO LOGIN NODES DIED UNDER US, AND THE DISPATCH BOTTLENECK TURNED OUT TO BE OUR OWN PENDING QUEUE DEPTH** · `prior = 2.0 + 1.5·(tickets ÷ cluster max)` and our tickets are our pool divided by our contending job count, so 828 pending jobs put the floor 255th of 262 in our own queue · `ucakvro` holds 3.3× our cores with a queue one eleventh as deep
 
 **WHERE WE WERE.** RUN 26 handed over one thing above all others: `c1_bayes_opt_test` was 29/30 with a
