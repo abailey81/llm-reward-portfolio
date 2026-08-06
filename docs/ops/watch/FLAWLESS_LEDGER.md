@@ -134,11 +134,33 @@ next free slot goes to the highest-priority job left eligible. The invariants:
 5. **Every hold is journalled** (`docs/ops/watch/JOB_RANK_HOLDS.json`, and `~/hold_ids.txt` on
    Myriad) so a full release survives the session dying. `--release-from` regenerates it.
 
-⚠ **THE FLOOR TAKES TWO ROUNDS, SO THIS WILL BE NEEDED AGAIN.** `campaign.py:1904-1910` builds the
-H2 pair as ONE interleaved CRN array, so `distributional`+`scalar` submit only after
-`bayes_opt`+`tpe` complete. **When round 2 appears, re-run the governor and re-apply** — Tamer's
-2026-08-06 authorisation is for the floor, and the 90-minute bound plus the depth guard are its
-envelope.
+### ⚠⚠ STANDING INSTRUCTION TO EVERY PASS: RE-APPLY UNTIL THE FLOOR IS DISPATCHED
+
+**MEASURED 2026-08-06: dispatch runs at ~3.6 jobs/h, so 8 floor jobs need ~2.2 h — WHICH EXCEEDS
+THE 90-MINUTE HOLD BOUND.** One application is therefore NOT enough, and this is not a defect in
+the bound: bounded-and-re-applied is deliberately safer than one long hold, because each
+re-application re-measures instead of assuming.
+
+**SO, EVERY PASS, WHILE ANY V0 JOB IS STILL `qw`:**
+1. `python docs/ops/job_rank_governor.py` — it recomputes the plan from the live queue.
+2. If it reports `TO HOLD > 0`, apply the emitted `qhold` and re-arm a bounded release.
+3. If it reports `TO HOLD = 0`, do nothing: the floor work is already at the front (or running).
+
+**Tamer's 2026-08-06 authorisation covers the floor**, and the envelope is unchanged: `qhold`/`qrls`
+only, running jobs never touched, `min_eligible` enforced, a 90-minute bound per application, two
+independent release mechanisms, and every id journalled.
+
+⚠ **AND THE FLOOR TAKES TWO ROUNDS.** `campaign.py:1905-1910` builds the H2 pair as ONE interleaved
+CRN-paired array (`run_test_leg(..., name="h2_pair_test", interleave=True)`) submitted only after the
+per-arm round completes, so `distributional`+`scalar` arrive LATER with ZERO accrued waiting time —
+i.e. at the BACK of our queue, needing this treatment again from scratch.
+
+> ⭐ **BUT KEEP THE ARITHMETIC IN VIEW, BECAUSE IT BOUNDS HOW MUCH THIS IS WORTH.** Round 1 is
+> `TEST / per-arm` mean **9.04 h** and round 2 is `TEST / h2_pair` mean **9.05 h**, serial by design
+> ⇒ **18.09 h of the floor is IRREDUCIBLE PHYSICS.** Dispatch is ~2.6 h of a ~20.7 h path. The
+> reorder already took queueing from ~60 h to ~1.6 h, i.e. essentially ALL of the compressible time.
+> **Do not trade any campaign risk for the remaining minutes** (see RESOLVED row R24-8, where
+> narrowing `c1` was declined for exactly this reason).
 
 ## ★★★ THE SPEED COMPONENT — MEASURED EVERY PASS, AND ACTIVELY MAXIMISED
 
