@@ -536,6 +536,56 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
     return 0
 
 
+def verify_release(host: str = "myriad") -> int:
+    """Assert the hold is GONE, by reading the live queue — never by trusting `qrls`'s exit code.
+
+    ⚠ THIS EXISTS BECAUSE MY OWN RELEASE WATCHER LIED ON 2026-08-06. It ran the `qrls` loop with
+    `>/dev/null 2>&1`, saw the ssh exit 0, and logged **"RELEASE COMPLETE"** while **395 jobs were
+    still `hqw`**. That is the exact defect class this repository has hit repeatedly: a banner that
+    asserts an outcome it never measured (`run_record_layers.sh` printed "ALL SEVEN LAYERS RC=0"
+    after executing three).
+
+    ⚠ AND THE OPPOSITE ERROR IS EQUALLY AVAILABLE, WHICH IS WHY THIS REPORTS EVIDENCE RATHER THAN A
+    VERDICT ALONE. On the same day I then declared the release BROKEN on the strength of the state
+    string, when `qstat -j` showed **no hold field at all**, `ntckts` 0.00000 and `version: 11` —
+    i.e. the release HAD applied and only the state/priority display lagged the 10-minute
+    `schedule_interval`. **`hqw` in `qstat` is a DISPLAY; the absence of a hold field in `qstat -j`
+    is the STATE.** So this checks BOTH and says which it saw.
+
+    Exit 0 only when the queue itself shows zero held jobs.
+    """
+    ids = []
+    if JOURNAL.is_file():
+        try:
+            ids = json.loads(JOURNAL.read_text(encoding="utf-8")).get("held", [])
+        except Exception:                                       # noqa: BLE001
+            ids = []
+    raw, status = _ssh("qstat -u ucestes", host)
+    if status != "OK":
+        print("CANNOT VERIFY -- %s. An unread queue is NOT a released one." % status)
+        return 2
+    held = [ln.split()[0] for ln in raw.splitlines()[2:]
+            if len(ln.split()) >= 5 and ln.split()[0].isdigit() and ln.split()[4].startswith("h")]
+    print("journalled hold: %d id(s)   still showing a hold state: %d" % (len(ids), len(held)))
+    if not held:
+        print("RELEASE VERIFIED: zero jobs in a hold state.")
+        return 0
+    still = sorted(set(held) & set(ids))
+    print("NOT YET RELEASED: %d of the journalled ids still display a hold." % len(still))
+    if still:
+        detail, s2 = _ssh("qstat -j %s 2>/dev/null | egrep -i '^(job_number|version)|hold'"
+                          % still[0], host)
+        if s2 == "OK":
+            print("  sample job %s:" % still[0])
+            for ln in detail.splitlines()[:4]:
+                print("    %s" % ln.strip())
+            print("  ⇒ if NO hold field appears above, the release APPLIED and only the state")
+            print("    string lags the 10-minute schedule_interval. Re-check, do NOT re-issue.")
+    print("  release commands: python docs/ops/job_rank_governor.py --release-from %s"
+          % JOURNAL.relative_to(REPO))
+    return 1
+
+
 def release_from(path: str) -> int:
     try:
         ids = json.loads(Path(path).read_text(encoding="utf-8"))["held"]
@@ -688,9 +738,13 @@ def main(argv=None) -> int:
                          "1 additionally promotes cheap hole repairs; 2 adds line minima.")
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--release-from", metavar="JOURNAL")
+    ap.add_argument("--verify-release", action="store_true",
+                    help="assert the hold is GONE by reading the live queue, never from qrls rc")
     a = ap.parse_args(argv)
     if a.selftest:
         return selftest()
+    if a.verify_release:
+        return verify_release(a.host)
     if a.release_from:
         return release_from(a.release_from)
     return report(a.host, promote_max_tier=a.promote_max_tier)
