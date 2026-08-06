@@ -19,6 +19,38 @@
 # SAFETY: refuses to hold a RUNNING job or anything on the c1 (confirmatory) line, and reports what
 # it skipped rather than silently narrowing.
 set -u
+
+# --release-all: lift EVERY user hold except the c1 (confirmatory) line.
+#
+# ⚠ WHEN THIS IS THE RIGHT MOVE, AND IT IS THE OPPOSITE OF THE HOLD ABOVE. Concentration raises
+# per-job RANK; depth raises the number of chances. Which one wins depends entirely on whether the
+# cluster is full. Measured 2026-08-06: in the 03:00-08:00Z window the cluster empties and we take
+# ~40 jobs/h, and at that moment DEPTH is everything and a held queue is pure loss. The rest of the
+# day the cluster is full, we win ~0/h, and depth buys nothing while concentration might.
+#
+# THE MODEL THAT SETTLES IT (measured, and it explains the whole campaign's core history):
+#   ~200 jobs won per night x (duration / 24h) = the equilibrium running count.
+#   At h_rt 15h that is ~125 jobs ~ 1,000 cores -- exactly the band we have oscillated in.
+#   At h_rt 45h it is  ~375 jobs ~ 3,000 cores.
+# We were never losing cores. We were failing to KEEP them: every night's winnings expired within
+# fifteen hours. So the lever is duration, and the job of the queue is simply to be DEEP when the
+# window opens.
+#
+# NEVER touches c1: it carries the entire reported result and its holds are the floor's business.
+if [ "${1:-}" = "--release-all" ]; then
+    qstat -u ucestes -s hu 2>/dev/null | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u \
+        > /tmp/rel_all.txt
+    n=$(wc -l < /tmp/rel_all.txt)
+    echo "releasing $n user-held non-c1 job(s)"
+    [ "$n" -gt 0 ] && xargs -a /tmp/rel_all.txt -r qrls > /dev/null 2>&1
+    echo "--- after (a bulk release drains through the site JSV at ~400/h; hqw stays high, record S7) ---"
+    echo -n "  user-held: "; qstat -u ucestes -s hu 2>/dev/null | tail -n +3 | wc -l
+    echo -n "  eligible : "; qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -vc hqw
+    echo -n "  running  : "; qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l
+    echo -n "  c1 jobs  : "; qstat -u ucestes 2>/dev/null | tail -n +3 | grep -c c1_
+    exit 0
+fi
+
 IDS="$HOME/hold_ids.txt"
 [ -s "$IDS" ] || { echo "no $IDS"; exit 2; }
 
