@@ -180,6 +180,10 @@ def build_cluster_run(
     pool_report_only: str = "L",
     pack: int = 1,
     chunk_tasks: int | None = None,
+    # 2026-08-06 DURATION LEVER: trainings per TASK, independent of `pack` (trainings at ONCE).
+    # >pack means multiple waves in one job, which holds its cores longer at the same dispatch
+    # rate — the only variable left once fair share caps acquisition. Caller must size `h_rt`.
+    specs_per_task: int | None = None,
     max_consecutive_errors: int = 240,
     poll_secs: float = 600.0,
     min_pull_interval: float = 60.0,
@@ -358,6 +362,7 @@ def build_cluster_run(
             local_batch_root=local_batch_root, local_archive_root=local_archive_root,
             remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
             host=host, runner=runner, pull=shared_pull, pack=pack, chunk_tasks=chunk_tasks,
+            specs_per_task=specs_per_task,
             max_consecutive_errors=max_consecutive_errors,
             poll_secs=(poll_call if poll_call is not None else poll_secs), pool=pool,
             priority=priority, heartbeat=emit_heartbeat, **_jk,

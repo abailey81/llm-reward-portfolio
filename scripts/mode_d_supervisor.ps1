@@ -68,7 +68,18 @@ param(
     # The deployed code tree (~/llmrp) and the licensed gold (-GoldDir, on ACFS) do NOT move, so
     # provenance stamps and the gold sha256 are unchanged: same code, same data, same frozen hash.
     [string]$OutDir = "outputs\campaign_cluster",
-    [string]$RemoteRoot = "~/Scratch/llmrp"
+    [string]$RemoteRoot = "~/Scratch/llmrp",
+    # THE DURATION LEVER (2026-08-06). Trainings per TASK, independent of --pack (trainings at
+    # ONCE). N>pack runs multiple WAVES in one job, so the job holds its cores ~N/pack times longer
+    # at the SAME dispatch rate. That is the only free variable left: measured 2026-08-06, 78
+    # pool-d hosts held >=8 free slots while we won ZERO dispatches in two hours, because dispatch
+    # order is decided entirely by ntckts and ours is the lowest of any major user but one.
+    # 0 = unset = the behaviour this campaign has run with all along, byte for byte.
+    [int]$SpecsPerTask = 0,
+    # MUST be raised with -SpecsPerTask: run_one warns about extra waves but sizes nothing. At
+    # pack 8, N=16 is 2 waves and ~18.2h of work; today's utilisation is 61% of a 15h limit, so
+    # 30:0:0 holds the same wall-kill margin. Empty = leave the autosized value alone.
+    [string]$HRt = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -191,6 +202,13 @@ $cpuLane = @(
   "--poll-secs", "180", "--search-poll-secs", "45",
   "--output-dir", $outDir, "--resume"
 )
+
+# THE CANARY SEAM. Both default to off, so an unmodified launch produces a BYTE-IDENTICAL argument
+# vector and this file cannot change any line that does not explicitly ask for it. That property is
+# load-bearing rather than tidy: watchdog_fenced.ps1 may relaunch ANY supervisor at any moment,
+# including the core line that carries the entire reported result.
+if ($SpecsPerTask -gt 0) { $cpuLane += @("--specs-per-task", "$SpecsPerTask") }
+if ($HRt -ne "")         { $cpuLane += @("--h-rt", $HRt) }
 
 if ($Line -eq "h3") {
     # THE H3 FLOOR UNIT: the pre-registered single-shot control (generations=1, no reflection),

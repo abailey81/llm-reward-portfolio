@@ -104,11 +104,34 @@ def batch_jobs_in_queue(
     return names, states
 
 
-def _chunk_packs(flat: list[dict[str, Any]], pack: int) -> list[Any]:
-    """Flat specs → task payloads: dicts for pack=1, lists of ≤pack specs for §15 GPU packing."""
-    if pack <= 1:
+def _chunk_packs(flat: list[dict[str, Any]], pack: int,
+                 specs_per_task: int | None = None) -> list[Any]:
+    """Flat specs → task payloads: dicts for size 1, lists of ≤N specs for §15 packing.
+
+    ``pack`` is CONCURRENCY — how many trainings run at once inside a task, and therefore the
+    job's core request. ``specs_per_task`` is BATCH SIZE — how many trainings that one task
+    performs in total. They were the same number until 2026-08-06, and separating them is what
+    lets a job hold its cores for several WAVES instead of one.
+
+    WHY THAT IS THE ONLY LEVER LEFT, measured 2026-08-06 rather than inferred: the steady state is
+    ``cores = dispatch_rate × duration × 8``, and dispatch_rate is set by fair share and is not
+    ours to move — 78 D-pool hosts held ≥8 free slots while we won ZERO dispatches in two hours,
+    because dispatch order is decided ENTIRELY by ``ntckts`` (``weight_urgency=0``, so waiting time
+    contributes nothing) and ours is the lowest of any major user but one. DURATION is the only
+    free variable, and ``ucbtjji`` is the existence proof: ``h_rt`` 48 h against our 15 h, holding
+    768 cores from 98 jobs on 1.65× our tickets.
+
+    ⚠ ``specs_per_task > pack`` means MULTIPLE WAVES inside one task. ``run_one`` supports that and
+    warns, but sizes nothing: it is the CALLER's job to pass a matching ``--h-rt``. This function
+    cannot see the walltime and deliberately does not guess at it.
+
+    ⚠ UNSET IS BYTE-IDENTICAL TO THE OLD BEHAVIOUR. That is the safety property that lets this land
+    on a live campaign — nothing changes until a line is restarted with the flag.
+    """
+    n = int(specs_per_task) if specs_per_task else int(pack)
+    if n <= 1:
         return list(flat)
-    return [flat[i : i + pack] for i in range(0, len(flat), pack)]
+    return [flat[i : i + n] for i in range(0, len(flat), n)]
 
 
 def submit_batch(
@@ -122,6 +145,7 @@ def submit_batch(
     push: Callable[..., None] = push_batch,
     pack: int = 1,
     chunk_tasks: int | None = None,
+    specs_per_task: int | None = None,
     **jobscript_kwargs: Any,
 ) -> list[tuple[str, str]]:
     """Write specs + jobscripts locally, prepare the remote tree, push, qsub — possibly as
@@ -132,7 +156,7 @@ def submit_batch(
     pack of N specs is one task).
     """
     name = sanitize_name(name)
-    tasks = _chunk_packs(flat_specs, pack)
+    tasks = _chunk_packs(flat_specs, pack, specs_per_task)
     # CHUNKED SUBMISSION (2026-07-13 max-throughput lever): the scheduler's serialization
     # policy (snx=1, OBSERVED ACTIVE) holds a multi-task array's tail in hqw and self-releases
     # ~one task per ~2 h — a 180-task tier array would crawl for days regardless of free GPUs.
@@ -344,6 +368,7 @@ def _run_batch_unlocked(
     pull: Callable[[], int] | None = None,
     pack: int = 1,
     chunk_tasks: int | None = None,
+    specs_per_task: int | None = None,
     poll_secs: float = 600.0,
     max_wall_secs: float | None = None,
     max_consecutive_errors: int = 72,
@@ -625,7 +650,7 @@ def _run_batch_unlocked(
                     pending_submit, round_name,
                     local_batch_root=local_batch_root, remote_root=remote_root,
                     gold_dir=gold_dir, runner=runner, push=push, pack=pack,
-                    chunk_tasks=chunk_tasks, **jobscript_kwargs,
+                    chunk_tasks=chunk_tasks, specs_per_task=specs_per_task, **jobscript_kwargs,
                 )
                 job_ids.extend(jid for jid, _ in submitted)
                 last_parts = list(submitted)

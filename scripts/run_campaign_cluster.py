@@ -353,6 +353,14 @@ def build_parser() -> argparse.ArgumentParser:
                         "(93-97%% of all trainings). Device homogeneity is enforced per CONTRAST, "
                         "so a GPU search + CPU test split is legitimate — see the dossier §0-PRE.")
     p.add_argument("--pack", type=int, default=1, help="§15 GPU packing (concurrent trainings/job).")
+    p.add_argument("--specs-per-task", type=int, default=None, metavar="N",
+                   help="THE DURATION LEVER (2026-08-06). Trainings per TASK, independent of "
+                        "--pack (trainings at ONCE). N>pack runs multiple WAVES inside one job, so "
+                        "the job holds its cores ~N/pack times longer at the SAME dispatch rate — "
+                        "the only free variable once fair share caps acquisition. It also HALVES "
+                        "the job count at N=2*pack, which raises per-job functional tickets. "
+                        "⚠ YOU MUST size --h-rt for the extra waves: at pack 8, N=16 is 2 waves, "
+                        "~18.2h of work, so --h-rt 30:0:0 keeps today's 61%% utilisation margin.")
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
@@ -1320,7 +1328,7 @@ def main(argv: list[str] | None = None) -> int:
         remote_root=remote_root, remote_outputs_root=f"{remote_root}/outputs",
         local_batch_root=f"{args.output_dir}/batches", local_archive_root=args.output_dir,
         gold_dir=args.gold_dir, host=args.host, pool_confirmatory=args.pool, pack=args.pack,
-        chunk_tasks=args.chunk_tasks,
+        chunk_tasks=args.chunk_tasks, specs_per_task=args.specs_per_task,
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
         apptainer_sif=(args.apptainer_sif or None), cores_per_training=args.cores_per_training,
         h_rt=(args.h_rt or None),
