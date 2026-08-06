@@ -406,6 +406,55 @@ deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES STARVED, unc
 **ESCALATIONS UNCHANGED (pass 5).** R25-1/2/3 remain Tamer's. Job-cap headroom **89 of 1,000**
 against the **1,347 jobs `c1` will submit in roughly fourteen hours**.
 
+### ⑫ PASS 6 (10:19-10:3xZ) — **A CLEAN PASS. THE PASS-5 FIX IS PROVEN ON LIVE DATA, AND BOTH APPARENT ALARMS WERE MY OWN READING**
+
+**Board GREEN.** cores **904** (113 jobs), accumulator 8/8, `ACCUMULATING`, GROWING +120 over 3.6 h,
+drift 0, `sci OK`, `Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, `line_balance` CLEAN, inbox empty,
+ssh OK. **No new defect.**
+
+**⭐ THE PASS-5 JOINT-SIGNAL FIX IS NOW VERIFIED END TO END, NOT ASSUMED.** `records_rising(live
+history) = True` (17,521 -> 17,532), and fed the pass-5 shape it converts the false alarm exactly as
+designed: `shrinking, marginal 0.233 > average 0.204, records_rising=True -> OK`. The live trend this
+pass reads `marginal 21.0% against a 21.2% average, SHRINKING -> no trend finding`. ⚠ **Stated
+precisely because it matters: that verdict resolved on the marginal-vs-average branch, NOT on the
+joint signal, so the joint signal was exercised SEPARATELY and directly rather than inferred from a
+green line.**
+
+**PROVEN-BENIGN #1 — THE RECORD "FLATLINE" WAS THE MIRROR'S PULL CADENCE, AND IT VALIDATES THE
+LANDING FORECAST.** `CYCLE_LOG` sat at `records=19067 (+0)` for ~21 minutes. Measured ON THE CLUSTER
+rather than on the mirror: **84 records in the last 60 min, 14 in the last 30**, and the accumulator
+reads `records/h 1h=88`. ⭐ **And it is a second, independent confirmation of the pass-1 landing
+forecast, which predicted 32 records for the 10:00Z hour from job start times plus the measured
+9.17 h wall — measured, 14 in 30 min = 28/h.** The forecast model is now validated twice (the 09:00Z
+burst arrived, and this quiet hour was predicted).
+
+**PROVEN-BENIGN #2 — TWO "cycle.py" PROCESSES ARE ONE PROCESS TREE.** `ps -ef` showed two, which
+would have doubled every archive sweep. `Win32_Process` gives the answer: **PID 27980's PARENT is
+PID 7732**, i.e. the venv `python.exe` is a launcher stub that re-execs the base interpreter, both
+created at the same instant. `session_preflight`'s own `cycle_loops=1` agrees — two derivations.
+
+**⚠ AND BOTH APPARENT ALARMS THIS PASS CAME FROM MY OWN SHELL READING, NOT THE SYSTEM.** `ps -ef`
+also rendered the cycle command line as `--note auto-cycle --quiet mpaigna`, a garbled fragment that
+does not exist in the real command line. **That is the third time this session a shell tool's
+rendering has produced a false signal** (the multi-space `Full jobname:` grep, the filtered-empty
+`RC=127`, and now this). **The lesson is consistent: for anything load-bearing, read the structured
+source (`Win32_Process`, a captured file, the tool's own RC), never a formatted terminal view.**
+
+**STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
+**Round 1 completes ~14:54Z, 4.5 h out. RUNG 30 = `2026-08-07 00:02Z`.**
+⚠ **PRE-EMPTIVE NOTE FOR THE NEXT PASS:** the date has now held at 00:02Z for two passes, and §9
+says no movement in three is an OPEN FINDING. **It is a STABLE FORECAST ON STABLE INPUTS, not a
+frozen instrument**, and the discriminator is on record: the median wall has moved **9.17 -> 9.16 ->
+9.14 -> 9.13 h** across passes and the date moved with it each time. The rule exists to catch an
+instrument that stopped reading; this one is reading.
+
+**STEP 5.** Placeable **1,592 against 904 held — 688 of headroom.** Allocative **21.2%**.
+`kimi` **768 cores owing 230, the LEAST**; `c1` **64 against a 491 target**; deepseek/glm/nemotron
+**0 cores owing 350 each**. **4 BINDING LINES STARVED, unchanged.**
+
+**ESCALATIONS UNCHANGED (pass 6).** R25-1/2/3 remain Tamer's. Job-cap headroom **92 of 1,000**
+against the **1,347 jobs `c1` will submit in roughly thirteen and a half hours.**
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a

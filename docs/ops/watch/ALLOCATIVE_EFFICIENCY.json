@@ -1,17 +1,17 @@
 {
- "utc": "2026-08-06T09:54:37Z",
- "epoch": 1786010077,
- "useful_cores": 184,
- "deferred_cores": 720,
+ "utc": "2026-08-06T10:20:35Z",
+ "epoch": 1786011635,
+ "useful_cores": 192,
+ "deferred_cores": 712,
  "total_cores": 904,
- "efficiency": 0.2035,
+ "efficiency": 0.2124,
  "by_distance": {
   "-1": 64,
-  "0": 120,
-  "1": 160,
+  "0": 128,
+  "1": 152,
   "2": 176,
-  "3": 80,
-  "4": 176,
+  "3": 88,
+  "4": 168,
   "5": 128
  },
  "needed_block": {
