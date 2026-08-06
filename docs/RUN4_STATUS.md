@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 02:07 UTC -- T+196h59m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 02:08 UTC -- T+196h59m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -34,12 +34,12 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 02:08 UTC | elapsed 8.21 d | 20.9 d to the Aug-27 stop
+generated 2026-08-06 02:09 UTC | elapsed 8.21 d | 20.9 d to the Aug-27 stop
 test tier: 17,062 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      62 records      62.0 rec/h
-    last  3 h     386 records     128.7 rec/h
+    last  3 h     384 records     128.0 rec/h
     last 12 h    1826 records     152.2 rec/h
     last 24 h    3477 records     144.9 rec/h
     12 h rate is 65% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
