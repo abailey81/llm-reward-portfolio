@@ -389,6 +389,41 @@ PROCESSES**, which read like I had killed something. `Win32_Process` showed **7 
 driver processes, cycle, watchdog, sentinel and backup all alive** — `ps -ef` truncation again, the
 brief's standing warning, and the reason to verify before reacting.
 
+**25. ⚠⚠ TWO DEFECTS IN THE RELEASE PATH, CAUGHT BY PREVIEWING IT INSTEAD OF TRUSTING IT — MINUTES
+BEFORE IT HAD TO WORK.** (a) `--release` freed EVERY held non-`c1` job, i.e. all 794 — **including
+the 386 LADDER LOCK jobs.** Those are Tamer's ratified ORDERING policy and are meant to persist for
+days, while the floor hold is a tactical concentration that expires the moment `h2_pair` runs.
+Undoing both together would have **silently reverted the ladder to the pipelined scatter D73 exists
+to correct**, with nothing reporting it. Now releases the 408 floor ids only; 386 stay held, and 408
+eligible is above the 291-job burst floor. (b) **THE ID LIST HAD CRLF LINE ENDINGS.** Python's text
+mode on Windows rewrote `\n` to `\r\n`, every id carried a trailing `\r`, matched nothing, and the
+preview read **`WOULD RELEASE: 0`** — the release would have been a **SILENT NO-OP at the critical
+moment.** Fixed at both ends (`newline=''` on write, `tr -d '\r'` on read). Preview now reads
+`live held 794 · WOULD RELEASE 408 · WOULD STAY HELD 386`. ⇒ **A DESTRUCTIVE-OR-CRITICAL COMMAND
+GETS ITS SELECTION PREVIEWED, ALWAYS.** Both defects were invisible in the code and obvious in the
+preview.
+
+**⇒ THE POST-RELEASE SEQUENCE, IN ORDER, SO IT IS NOT IMPROVISED:**
+
+1. **`h2_pair` starts** → auto-release fires → 408 eligible, 386 still held.
+2. **MEASURE THE DECISIVE NUMBER FIRST**: `queue_wait.py`, `c1` row. Round 2's wait against the
+   **32.6 h baseline**. This is the clean controlled test of ticket concentration — same line, same
+   job shape, same cluster, only our contending-job count changed. ⚠ Take it BEFORE anything else
+   perturbs the fleet, and report it whichever way it falls.
+3. **CAPTURE THE CANARY BASELINE** for `kimi`/leg10 — job count, running, cores, per-job tickets,
+   its `queue_wait` row, median successful wall. ⚠ **AFTER the release, not before**: kimi's jobs are
+   held right now, so a baseline taken now would measure the hold rather than the line.
+4. **APPLY** `apply_duration_patch.py` (11 edits, each matching exactly once) → run the cluster
+   tests → commit → `canary_duration.ps1` (Tamer; `Stop-Process` on a live campaign process is
+   classifier-blocked for the agent) → **re-base `RUNNING_SHA`**, recording that the change is
+   STAGED for every other line and LIVE only on kimi.
+5. **RE-CHECK THE LIVE `CommandLine`** before trusting any canary number (R26-10: the watchdog
+   revives without the flags).
+6. ⭐ **IF 16 PROVES OUT, 32 IS AVAILABLE AND DOUBLES AGAIN** — `ucbtjji` runs `h_rt` 48 h
+   successfully, so ~36.5 h of work is placeable. Costs to weigh then: a wall-kill loses more
+   in-flight work, the ladder advances in lumpier chunks, and a job started near the 2026-08-27
+   exogenous stop wastes more. **Canary 16 first, measure, then decide** — do not jump to 32.
+
 **WHAT IS NEXT.** Re-measure the ticket experiment past a scheduler recompute. Re-run the governor on
 the 2-hourly cadence so the LADDER LOCK's release rule fires as blocks complete — *that cadence is the
 system*. Be present for `c1`'s C4 moment at ~00:0xZ on 7 August, when it tries 1,347 jobs into ~100
