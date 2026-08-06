@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+206h56m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19151** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **899** (105 running, 794 queued) |
 | **cores computing** | **840** |
-| **cores doing RUNG-RAISING work** | **22.9%** -- 192 of 840 cores (1 min old) |
+| **cores doing RUNG-RAISING work** | **22.9%** -- 192 of 840 cores (0 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,13 +37,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 12:05 UTC | elapsed 8.62 d | 20.5 d to the Aug-27 stop
-test tier: 17,608 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 12:06 UTC | elapsed 8.62 d | 20.5 d to the Aug-27 stop
+test tier: 17,609 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 58.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      20 records      20.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     201 records      67.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     200 records      66.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     706 records      58.8 rec/h   usable
     last 24 h    2571 records     107.1 rec/h   usable
     12 h rate is 98% from ONE line (test_leg_kimi_k3); 2 line(s) contributed at all
@@ -61,10 +61,10 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
       189       5,689       0  GATED             GATED             barrier>=30
-      279       9,707      20  GATED             GATED             barrier>=30
-      340      12,452      20  GATED             GATED             barrier>=30
-      403      15,287      20  GATED             GATED             barrier>=30
-      568      22,720      20  GATED             GATED             barrier>=30
+      279       9,706      20  GATED             GATED             barrier>=30
+      340      12,451      20  GATED             GATED             barrier>=30
+      403      15,286      20  GATED             GATED             barrier>=30
+      568      22,719      20  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -181,7 +181,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
-| kimi_k3 | **193** | 198 | 5 |  |
+| kimi_k3 | **193** | 199 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
