@@ -87,10 +87,33 @@ is not "zero": scalar at 66.3 % against scalar_cvar5 at 48.6 % is a gap ~22 cell
 **CORES** 848 across 106 running; 24-spec flat at 10, which is CORRECT — the eligible 24-spec work is
 `leg3` block `t6`, four blocks deferred on an over-served line, and the promotion dry-run would have
 held 64 binding-line `t2` jobs while buying no ordering, so it was **not run**.
-**RECORDS** The flat reading was sampling inside the arrival quantum, and this was settled by
-measurement rather than by quoting the caveat: the current gap of **32.7 min** sits inside the 24 h
-distribution — **3 of 27 gaps (11 %) were at least that long**, p90 35.5 min, max 67.7 min. Burst
-sizes are median 6 but mean 72.8 and max 675, so no short window can price anything. **PROVEN-BENIGN.**
+**RECORDS** ⚠⚠ **THIS PARAGRAPH ORIGINALLY READ "PROVEN-BENIGN, current gap 32.7 min, 3 of 27 gaps
+(11 %) at least that long". THAT WAS WRONG, IT WAS MY OWN MEASUREMENT ERROR, AND THE CORRECTED
+ANSWER REVERSED IT BEFORE IT WAS RE-DERIVED.** The error surfaced from an internal-consistency check
+rather than from suspicion: the cycle log read `records=19970` while my own glob counted **20,032**,
+and a count that disagrees between two places is a defect, not rounding. Cause: my rate script
+globbed `**/record.json` with **no exclusions**, so it swept in **60 `/frozen` copies** — which
+`retriage_alarms.py` excludes by name as *"COPIES of search records (would double-count)"*. Clean
+count **19,972** against the cycle's 19,970 six minutes earlier: consistent. ⚠ **And the
+contamination reached exactly the windows under test — 30 of the 60 frozen copies carry mtimes
+inside the last 12 h, newest 7.0 h ago, because a copy's mtime is when it was COPIED.** Corrected:
+last 1 h **0** records, 3 h 4.7, 6 h 31.0, 12 h **73.5**, 24 h **76.9** rec/h, and **the current gap
+is 88.4 min against 0 of 27 gaps in 24 h being that long — an OUTLIER, not ordinary.**
+**⇒ SO IT WAS INVESTIGATED RATHER THAN REPORTED, AND IT IS EXPLAINED.** Two derivations. (i)
+`transport_health.py` verdict **HEALTHY**, every streak far below the bound; drivers polling, stalest
+2.2 min; 106 jobs running; the only pull-failure counts are core 1 and haiku 11 in 200 lines, and
+haiku has no running jobs to pull for. (ii) **THE WHOLE FLEET IS MID-WAVE.** Elapsed time on the 105
+running jobs is tightly clustered and every line sits **4–7 h into an ~8.9 h wave that emits its 8
+records only at the end**: kimi 61 jobs at mean 6.2 h, qwen3.6 19 at 3.6–4.3 h, glm 14 at mean 5.2 h,
+nemotron 3 at 6.6 h, **c1 8 at 6.3–6.4 h — and `near-wall(>85 %)` is ZERO on every line**, so there
+is no wall-kill exposure either. The fleet is now MORE synchronised than during the 24 h comparison
+window, which is precisely why the present trough exceeds every gap in it. **⇒ NOT A STALL, and the
+account is falsifiable rather than a shrug: a large burst is due within ~2–3 h.** ⭐ It also dates
+the floor independently — c1 at 6.35 h against its own 8.6 h median implies **~00:50Z**, ahead of the
+02:00–04:00Z the brief projected. **⇒ THE LESSON, AND IT IS THE SESSION'S SECOND OF THIS SHAPE: an
+exclusion another instrument documents by name is part of the MEASUREMENT, not housekeeping — and
+the cross-check that caught it was two counts of the same thing disagreeing, which is why every
+count worth quoting should be derived twice.**
 **ALLOCATION** efficiency **29.4 % → 32.1 %**, with the governor's own trend reporting a **marginal
 useful fraction of 40.0 % against a 32.1 % average while the fleet grows** — the released cores are
 going to better work than the average. `V1 HOLE-REPAIR` shows **1 job** for the first time: haiku's
