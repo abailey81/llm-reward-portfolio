@@ -37,14 +37,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 10:41 UTC | elapsed 8.56 d | 20.6 d to the Aug-27 stop
+generated 2026-08-06 10:42 UTC | elapsed 8.56 d | 20.6 d to the Aug-27 stop
 test tier: 17,550 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 78.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      39 records      39.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    => OPERATIVE RATE 78.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      38 records      38.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     190 records      63.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     947 records      78.9 rec/h   usable
+    last 12 h     946 records      78.8 rec/h   usable
     last 24 h    2681 records     111.7 rec/h   usable
     12 h rate is 81% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,717      39  GATED             GATED             barrier>=30
-      279       9,765      39  GATED             GATED             barrier>=30
-      340      12,510      39  GATED             GATED             barrier>=30
-      403      15,345      39  GATED             GATED             barrier>=30
-      568      22,778      39  GATED             GATED             barrier>=30
+      189       5,717      38  GATED             GATED             barrier>=30
+      279       9,765      38  GATED             GATED             barrier>=30
+      340      12,510      38  GATED             GATED             barrier>=30
+      403      15,345      38  GATED             GATED             barrier>=30
+      568      22,778      38  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -250,12 +250,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T10:29:02Z  OK  records=19081 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  sweep=27.4s  auto-cycle
 2026-08-06T10:29:58Z  OK  records=19081 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=26.3s  auto-cycle
 2026-08-06T10:30:55Z  OK  records=19082 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=26.8s  auto-cycle
 2026-08-06T10:36:05Z  OK  records=19088 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  sweep=280.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:39:54Z  OK  records=19089 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.2m  drift=0  sci=OK  r115=22B  sweep=198.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:40:52Z  OK  records=19090 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.1m  drift=0  sci=OK  r115=22B  sweep=27.6s  auto-cycle
+2026-08-06T10:41:51Z  OK  records=19093 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.2m  drift=0  sci=OK  r115=22B  sweep=29.5s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
