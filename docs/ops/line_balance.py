@@ -184,6 +184,52 @@ def parse_qstat_tally(text: str) -> tuple[dict, dict]:
 LAST_HELD: dict = {}
 
 
+def classify_below(below: list, held: dict) -> tuple:
+    """(unknown, idle, waiting, held_out) for the lines below the deepest rung.
+
+    Extracted from `report()` for the same reason `parse_qstat_tally` and `_dwell_step` were: a test
+    must drive the production predicate, never re-implement it.
+
+    ⚠⚠ `held_out` EXISTS BECAUSE OF A MEASURED BLIND SPOT, 2026-08-06 (RUN 28), AND IT IS A SUBSET
+    OF `waiting` RATHER THAN A NEW ALARM STATE.
+
+    `HELD_STATES` are counted INTO `queued` (see the note above it) so STUCK cannot fire on a line
+    whose jobs are merely held. That fix was right for the case it addressed, and it rests on a
+    premise stated in its own comment -- *"a hold is reversible by construction and the jobs run the
+    moment it is released"*. **THE PREMISE IS ONLY TRUE IF SOMETHING WILL ACTUALLY RELEASE THEM.**
+
+    Measured live at 19:55Z: `leg1_leg_deepseek_v4_pro` -- a BINDING line gating the next common
+    rung -- held **165 jobs with ZERO running and ZERO eligible**, and nothing was scheduled to
+    release them: `job_rank_governor.ladder_lock_plan` only releases ids in its OWN journal, and
+    `promote_duration_jobs.sh` had no release path at all. The line was structurally unable to
+    complete the block that would advance it, or to submit the next batch. `line_balance` read it as
+    WAITING and the published page said `CLEAN`, while `acknowledged_alarms.txt`'s registered
+    re-triage trigger for `seed_alignment:CRITICAL` -- *"any line BELOW the deepest rung that has
+    ZERO running AND ZERO queued jobs"* -- had in substance fired and nobody could see it.
+
+    ⇒ The honest discriminator is not held-versus-not-held. It is **whether the line has work that
+    will run WITHOUT further intervention**. A line at zero running and zero ELIGIBLE depends on a
+    human lifting a hold, and that is a different condition from both WAITING and STUCK: the cluster
+    is not at fault and the remedy is entirely ours.
+
+    It is REPORTED rather than escalated to a non-zero exit, deliberately. A hold cycle legitimately
+    passes through this state for minutes at a time, and this file's own history records that a
+    false alarm here *"gets a healthy line relaunched"* -- the expensive error. The residual is
+    disclosed rather than hidden: a genuinely permanent held-out line is visible on every pass and
+    in the published verdict, but will not by itself turn the cycle red.
+    """
+    unknown = [r for r in below if r[4] < 0 or r[5] < 0]
+    idle = [r for r in below if r[4] == 0 and r[5] == 0]
+    waiting = [r for r in below if r[4] > 0 or r[5] > 0]
+    held_out = []
+    for r in waiting:
+        nheld = held.get(r[3], 0) if r[3] else 0
+        # r[5] is queued INCLUDING held, so eligible is the difference.
+        if r[4] == 0 and nheld > 0 and (r[5] - nheld) <= 0:
+            held_out.append(r)
+    return unknown, idle, waiting, held_out
+
+
 def cluster_jobs(host: str = "myriad") -> dict:
     """{batch_tag: (running_jobs, queued_jobs)} from ONE cheap qstat. {} if unreachable."""
     global LAST_HELD
@@ -347,9 +393,7 @@ def report(jobs: dict) -> int:
         print("  result by NOTHING until the laggards climb. That is the design, not a fault.")
 
     below = [r for r in rows if r[0] < deepest]
-    unknown = [r for r in below if r[4] < 0 or r[5] < 0]
-    idle = [r for r in below if r[4] == 0 and r[5] == 0]
-    waiting = [r for r in below if r[4] > 0 or r[5] > 0]
+    unknown, idle, waiting, held_out = classify_below(below, LAST_HELD)
 
     # ⚠ STUCK NOW REQUIRES A DWELL TIME, AND THIS IS A REAL DEFECT FIX (2026-08-03, RUN 17, s.129).
     #
@@ -396,6 +440,20 @@ def report(jobs: dict) -> int:
     print()
     print("WAITING (work running or queued; benign): %s"
           % (", ".join(r[2] for r in waiting) if waiting else "none"))
+    if held_out:
+        print()
+        print("*** HELD-OUT -- ZERO RUNNING AND ZERO ELIGIBLE; THE ONLY WORK THIS LINE HAS IS HELD"
+              " BY US ***")
+        for r in held_out:
+            print("      %-30s min rung %d, tag %s, %d job(s) held, 0 eligible, 0 running"
+                  % (r[2], r[0], r[3] or "(tag unknown)", LAST_HELD.get(r[3], 0)))
+        print("    This reads as WAITING because held jobs count into `queued`, and that is correct")
+        print("    ONLY IF SOMETHING WILL RELEASE THEM. Nothing releases a hold placed by")
+        print("    promote_duration_jobs.sh, and ladder_lock_plan releases only ids in its OWN")
+        print("    journal -- so a line can be held to a standstill and still read healthy.")
+        print("    The remedy is ours and immediate: release this line's LOWEST pending block.")
+        print("    Measured 2026-08-06: deepseek sat at 165 held / 0 running / 0 eligible while")
+        print("    gating the next common rung, and every instrument reported CLEAN.")
     if young:
         print("IDLE, NOT YET STUCK (a line is legitimately job-less BETWEEN BATCHES; measured 20 min"
               " on gpt-5.6-luna while it self-healed 8 seeds):")
