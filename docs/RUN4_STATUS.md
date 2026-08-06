@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 01:18 UTC -- T+196h09m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 01:19 UTC -- T+196h10m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+196h09m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+196h10m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18550** |
@@ -38,10 +38,10 @@ generated 2026-08-06 01:19 UTC | elapsed 8.17 d | 20.9 d to the Aug-27 stop
 test tier: 17,007 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      53 records      53.0 rec/h
+    last  1 h      49 records      49.0 rec/h
     last  3 h     463 records     154.3 rec/h
-    last 12 h    1902 records     158.5 rec/h
-    last 24 h    3486 records     145.2 rec/h
+    last 12 h    1901 records     158.4 rec/h
+    last 24 h    3485 records     145.2 rec/h
     12 h rate is 69% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 69% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,696      45  GATED             GATED             barrier>=30
-      189       6,260      52  GATED             GATED             barrier>=30
-      279      10,308      53  GATED             GATED             barrier>=30
-      340      13,053      53  GATED             GATED             barrier>=30
-      403      15,888      53  GATED             GATED             barrier>=30
-      568      23,321      53  GATED             GATED             barrier>=30
+      100       2,696      41  GATED             GATED             barrier>=30
+      189       6,260      48  GATED             GATED             barrier>=30
+      279      10,308      49  GATED             GATED             barrier>=30
+      340      13,053      49  GATED             GATED             barrier>=30
+      403      15,888      49  GATED             GATED             barrier>=30
+      568      23,321      49  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
