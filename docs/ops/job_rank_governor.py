@@ -485,14 +485,30 @@ def allocative_efficiency(jobs: list[dict], tag_to_line: dict, needed: dict,
             "efficiency": (useful / tot) if tot else 0.0, "by_distance": by_dist}
 
 
+#: ⚠⚠ THE MINIMUM CORE DELTA A MARGINAL FRACTION MAY BE PRICED FROM (RUN 25 pass 3, and I caught
+#: this on my OWN instrument one pass after building it). At 08:48Z the trend read
+#: **"MARGINAL useful fraction: 100.0%"** off **two readings and a +8-core delta — ONE pack-8 job.**
+#: A single job landing on a distance-0 block reads 100%; the same job on a distance-5 block reads
+#: 0%. Neither is evidence of anything, and "100% marginal" is exactly the kind of number that gets
+#: quoted as reassurance. **Overstating is as inaccurate as understating**, so below this delta the
+#: function reports the raw deltas and REFUSES the fraction, the same "no trend yet is not a flat
+#: trend" discipline one level up. 64 cores = 8 pack-8 jobs = roughly one dispatch hour at the
+#: measured 10.9 jobs/h, which is the smallest window in which the allocation can actually be seen.
+MIN_TREND_CORE_DELTA = 64
+
+
 def efficiency_trend(path, window: int = 8):
-    """(delta_cores, delta_useful, marginal_useful_fraction, n) over the last `window` readings.
+    """(delta_cores, delta_useful, marginal_useful_fraction_or_None, n) over the last `window` reads.
 
     Returns None when fewer than two readings exist — **not a zero**, because "no trend yet" and
     "a flat trend" are different states and conflating them is how a monitor reports reassurance it
     never measured. The MARGINAL fraction is the load-bearing number: the AVERAGE efficiency can sit
     still while every newly-won core goes to deferred work, which is exactly what was measured on
-    2026-08-06 (cores +96, useful +16 => 16.7% marginal against a 20.3% average).
+    2026-08-06 (cores +104, useful +16 => 15.4% marginal against a 20.2% average).
+
+    ⚠ The fraction itself is **None** below :data:`MIN_TREND_CORE_DELTA`. The deltas are still
+    returned, because a caller may legitimately want to say "cores +8, useful +8, too small to
+    price" — which is the honest rendering of that state.
     """
     try:
         lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -510,7 +526,7 @@ def efficiency_trend(path, window: int = 8):
         return None
     d_tot = int(rows[-1]["total_cores"]) - int(rows[0]["total_cores"])
     d_use = int(rows[-1]["useful_cores"]) - int(rows[0]["useful_cores"])
-    marg = (d_use / d_tot) if d_tot > 0 else 0.0
+    marg = (d_use / d_tot) if d_tot >= MIN_TREND_CORE_DELTA else None
     return d_tot, d_use, marg, len(rows)
 
 
@@ -868,7 +884,12 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
         d_tot, d_use, marg, n = tr
         print("  --- THE TREND over the last %d reading(s) ---" % n)
         print("      cores %+d, USEFUL cores %+d" % (d_tot, d_use))
-        if d_tot > 0:
+        if marg is None:
+            print("      marginal fraction NOT PRICED: the core delta is under %d (= %d pack-8"
+                  % (MIN_TREND_CORE_DELTA, MIN_TREND_CORE_DELTA // 8))
+            print("      jobs). One job on a distance-0 block reads 100%, the same job on a")
+            print("      distance-5 block reads 0% -- neither is evidence. Waiting for depth.")
+        else:
             print("      MARGINAL useful fraction: %.1f%%  (against the %.1f%% average)"
                   % (100.0 * marg, 100.0 * eff["efficiency"]))
             if marg < eff["efficiency"]:
@@ -1266,9 +1287,26 @@ def selftest() -> int:
     ck("T3 a genuinely healthy trend reads marginal ABOVE the average",
        round(efficiency_trend(_hist([{"total_cores": 800, "useful_cores": 160},
                                      {"total_cores": 900, "useful_cores": 260}]))[2], 3), 1.0)
-    ck("T4 cores FALLING gives marginal 0.0 rather than a divide-by-zero or a negative ratio",
+    ck("T4 cores FALLING refuses to price a fraction (no divide-by-zero, no negative ratio)",
        efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
-                               {"total_cores": 800, "useful_cores": 190}]))[2], 0.0)
+                               {"total_cores": 800, "useful_cores": 190}]))[2], None)
+    # ⚠⚠ T6 IS THE LIVE DEFECT I CAUGHT IN MY OWN INSTRUMENT ONE PASS AFTER BUILDING IT.
+    # At 08:48Z the trend printed "MARGINAL useful fraction: 100.0%" off TWO readings and a
+    # +8-core delta -- ONE pack-8 job. That is noise rendered as reassurance. Below
+    # MIN_TREND_CORE_DELTA the fraction must be None while the DELTAS still report, so the honest
+    # rendering is "cores +8, useful +8, too small to price".
+    thin = efficiency_trend(_hist([{"total_cores": 992, "useful_cores": 200},
+                                   {"total_cores": 1000, "useful_cores": 208}]))
+    ck("T6 THE LIVE NOISE CASE: a +8-core delta refuses to price a marginal fraction",
+       thin[2], None)
+    ck("T6b but the raw deltas ARE still reported, so the state is renderable",
+       (thin[0], thin[1]), (8, 8))
+    ck("T6c a delta at exactly the threshold IS priced (the boundary is inclusive)",
+       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
+                               {"total_cores": 964, "useful_cores": 216}]))[2], 0.25)
+    ck("T6d one core under the threshold is NOT priced",
+       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
+                               {"total_cores": 963, "useful_cores": 216}]))[2], None)
     ck("T5 a torn append line is skipped, not fatal",
        (lambda p: (p.write_text('{"total_cores":800,"useful_cores":160}\n{"total_c\n'
                                 '{"total_cores":900,"useful_cores":180}\n', encoding="utf-8"),

@@ -246,6 +246,53 @@ so the >=500-record trigger is nowhere near.
 `qhold`/restart actions that are **CLASSIFIER-BLOCKED for the agent**; everything around them is
 fixed. **No new defect was found this pass.**
 
+### ⓽ PASS 3 (08:49-08:56Z) — **I CAUGHT MY OWN NEW INSTRUMENT OVER-READING NOISE AS REASSURANCE, ONE PASS AFTER BUILDING IT**
+
+**Board GREEN.** cores **1,000** (125 jobs), accumulator 8/8, `VERDICT: ACCUMULATING`, **GROWING
++216 cores over 2.1 h**, drift 0, `sci OK`, `Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, ssh OK,
+inbox empty. **Records recovering exactly as the landing forecast predicted: 18,909 -> 18,929**, and
+the sweep fell back to **26-29 s** the moment my scanning stopped — the second independent
+confirmation that pass 2's 638 s was my own load.
+
+**⚠⚠ THE FINDING, AND IT IS AGAINST MYSELF.** The `efficiency_trend` I built in pass 2 printed
+**"MARGINAL useful fraction: 100.0%"** — off **two readings and a +8-core delta, i.e. ONE pack-8
+job.** A single job landing on a distance-0 block reads 100%; the same job on a distance-5 block
+reads 0%. **Neither is evidence, and "100% marginal" is exactly the kind of number that gets quoted
+as reassurance.** The instrument I built to stop a monitor reporting comfort it never measured was
+doing precisely that within one pass. **FIXED** with `MIN_TREND_CORE_DELTA = 64` (8 pack-8 jobs, ~one
+dispatch hour at the measured 10.9 jobs/h): below it the fraction is **None** while the raw deltas
+still report, so the honest rendering is *"cores +8, USEFUL cores +8, marginal fraction NOT PRICED"*.
+**MUTATION-PROVEN: with the guard removed the same live data prices at 1.0** — the exact false
+number — and T6/T6d fail. Boundary cases pinned both ways (64 priced, 63 not).
+
+**⚠ AND A PROCESS NEAR-MISS WORTH MORE THAN THE FIX.** A filtered call
+(`core_accumulator.py 2>&1 | sed -n '...'`) printed **NOTHING**, and an empty filtered output is
+indistinguishable from a clean board. Re-run unfiltered it was **RC=127 — the tool never executed**
+(the shell's cwd had reset, so `.venv/Scripts/python.exe` did not resolve). **A whole board
+instrument was one step from being scored as green without having run.** That is the §9 rule
+*"read EACH tool's OWN verdict, never a pipe's"* landing on me. Every board call in this pass now
+captures to a file, prints its **real RC**, and is read unfiltered. Absolute paths throughout.
+
+**STEP 2 THE FLOOR — unchanged and on track.** 8/8 RUNNING, 0 records on all four `c1` arms,
+`h2_pair` NOT submitted (0 in queue). **RUNG 30 re-derived from live start times + a freshly measured
+epilogue median (9.16 h, n=375): `2026-08-07 00:06Z`.** Pass 1 (handover) 01:00Z -> pass 2 00:07Z ->
+pass 3 00:06Z. **It moves with its inputs, so the forecast is live rather than carried — NOT a
+stale-ETA finding.**
+
+**STEP 5.** Placeable capacity (audited instrument) **1,600 cores at pack 8 against 1,000 held —
+600 of headroom**, still not against the ceiling. Allocative **20.8%** (208 of 1,000 useful).
+`kimi` **864 cores while owing 247, the LEAST**; `test`/`c1` 64 against a 540 target;
+deepseek/glm/nemotron **0 cores each owing 350**. **4 BINDING LINES STARVED, unchanged.**
+
+**⚠ PASS 3 OF 3 ON THE ESCALATIONS, SAID TO TAMER BY NAME AS THE CONTRACT REQUIRES.** R25-1 (the
+rung-order `qhold`), R25-2 (`--pipeline-rungs` OFF for `c1` before ~00:06Z on 7 Aug) and R25-3 (the
+90-minute hold rule) have now survived three consecutive passes. **They are ESCALATED, which the
+contract treats as terminal — but only because every fixable thing AROUND them is fixed, and that
+condition genuinely holds.** What blocks them is not analysis: `qhold` and a live driver restart are
+**CLASSIFIER-BLOCKED for the agent** (three refusals under explicit ratification in RUN 24). **They
+need Tamer's hand and nothing else.** Job-cap headroom is **71 of 1,000** against the 1,347 jobs
+`c1` will try to submit in roughly fifteen hours.
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a
