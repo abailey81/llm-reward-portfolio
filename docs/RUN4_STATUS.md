@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+204h08m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18982** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **927** (125 running, 802 queued) |
 | **cores computing** | **986** |
-| **cores doing RUNG-RAISING work** | **20.8%** -- 208 of 1000 cores (25 min old) |
+| **cores doing RUNG-RAISING work** | **20.8%** -- 208 of 1000 cores (26 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,13 +37,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 09:17 UTC | elapsed 8.51 d | 20.6 d to the Aug-27 stop
+generated 2026-08-06 09:18 UTC | elapsed 8.51 d | 20.6 d to the Aug-27 stop
 test tier: 17,439 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 86.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      74 records      74.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     121 records      40.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     120 records      40.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1038 records      86.5 rec/h   usable
     last 24 h    2779 records     115.8 rec/h   usable
     12 h rate is 63% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
