@@ -484,6 +484,26 @@ argued afterwards.**
 **STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
 **Round 1 completes ~14:54Z — 4.0 h out.**
 
+> ### ✅ THE LAYERS LANDED: **ALL 7 LAYERS RAN, ALL RC=0** — and the layer COUNT was verified as 7,
+> which is the check the script itself insists on (*"a missing layer is indistinguishable from a
+> passing one unless the count is checked"*), not merely the wrapper's exit code.
+> `L1 330s · L2 312s · L3 274s · L4 3s · L5 318s · L6 287s · L7 229s`. `M2` and `M3` exit 1 and both
+> are ANNOTATED BY THE SCRIPT as disclosures rather than regressions (M2: R115's registered
+> insensitivity claim genuinely IS falsified; M3: holes/C6, normal mid-campaign, actionable only on
+> ZERO jobs — and `line_balance` reads CLEAN).
+>
+> **⭐ THE COST ARGUMENT IS NOW PROVEN, NOT ARGUED. The cycle sweep NEVER BREACHED THE CAP across
+> the whole 29-minute run: peak 286.8 s against 900 s**, with most cycles at 28-31 s
+> (`10:56:40Z 28.3 · 11:01:42Z 28.2 · 11:05:33Z 200.6 · 11:10:50Z 286.8 · 11:14:57Z 27.8`). The
+> sequential-layer reading was right and pass 2's deferral was over-cautious.
+>
+> ⚠ **AND A STANDING FIGURE IN THE BRIEF IS NOW STALE, MEASURED: the seven layers cost 1,753 s
+> (29.2 min), not the ~1,342 s `RUN25_SESSION_PROMPT` §1 quotes — 31% higher.** At 19,166 records
+> that is **91.5 ms/record**, which projects to **~3,853 s (64 min) at the 42,128-record end
+> state.** ⇒ **The layer cost scales with the archive on the same trajectory the preflight already
+> flags for the cycle sweep (ledger row SWEEP-1-fix).** It remains safe as an out-of-band hourly
+> run — the measurement above shows why — but the figure quoted in the brief should not be reused.
+
 **STEP 5.** Placeable **1,560 against 896 held — 664 of headroom.** Allocative **21.4%**; the trend
 reads `cores -104, USEFUL -16, marginal 20.7% vs a 21.4% average, SHRINKING -> no trend finding`.
 `kimi` **760 cores owing 230, the LEAST**; `c1` **64 against a 486 target**; deepseek/glm/nemotron
