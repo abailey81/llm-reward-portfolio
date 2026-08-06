@@ -229,6 +229,106 @@ a false count — the same defect class as the *"35 registered keys"* this proje
 until an AST walk said 39. Now computed from a counter incremented inside `ck()`, and it reads **76**.
 Found incidentally while mutation-testing something else, and fixed on sight per the zero-defect rule.
 
+---
+
+### PASS 2 — TAMER REDIRECTED ONTO THE TWO PRIORITIES, AND THE DIAGNOSIS INVERTED TWICE
+
+**14. ⭐⭐⭐ IT IS NOT CAPACITY AND IT IS NOT A PENALTY: WE ARE LOSING THE PRIORITY RACE, AND THE
+CORES DIAGNOSIS IN §5 OF THE BRIEF IS WRONG.** Tamer's words: *"why dont you listen to the
+priorities? we need to maximise the cores to an absolute maximum, bring them back, its fucking 808
+now."* He was right that pass 1 spent itself on diagnosis and instrument hygiene while cores fell
+824 -> 808. Measured immediately:
+
+| | |
+|---|---|
+| free 8-slot hosts on our pool | **78 hosts, 2,801 free slots** |
+| our dispatches in the previous 2 h | **ZERO** |
+| `ucaqcsu` dispatches, same window | **19 jobs x 8 slots** |
+| `zccambr` / `uctpec1` | 6 jobs each |
+
+**Pack-8 jobs were being placed all around us.** That refutes fragmentation, the memory consumable
+and pack width in one measurement: the capacity was sitting there and we were not winning it.
+
+**THE CAUSE, and it is not gameable.** Per-job functional tickets: `ucjvddm` 442,628 · `ucaphge`
+400,379 · `ucaqcsu` 59,547 · **us 14,757**. It tracks **usage**, not just job count, and we are the
+#1-2 user by running slots. **That is fair share working as designed.** ⇒ **We are at our fair-share
+ceiling on the RATE at which cores can be ACQUIRED. Yesterday's 1,642 was us above equilibrium on an
+emptier cluster, not a setting we lost.** In `cores = dispatch_rate x duration x 8`, the rate is not
+ours, so **DURATION is the only free variable** — and `ucbtjji` is the existence proof, first-hand:
+`h_rt=172800` (48 h) against our `54000` (15 h), holding **768 cores from 98 jobs** on 1.65x our
+tickets. ⚠ Also confirmed from `qstat -j`: our PE is `smp-[D]*` (one pool) against their
+`smp-[TD]*`, and `reserve: y` is genuinely set on our jobs.
+
+**15. ⭐⭐⭐⭐ THE FALSIFICATION TEST I RAN ON MY OWN REASONING RETURNED THE OPPOSITE OF A REFUTATION,
+AND IT IS THE FINDING OF THE SESSION.** Before asking Tamer to hold 412 jobs I tried to break the
+premise: if `c1`'s round 1 had dispatched quickly despite competing with hundreds of our sweep jobs,
+the hold would be unnecessary and I should not ask for it. Measured: **round 1 was submitted
+`Aug 4 22:19Z` and started `Aug 6 04:58Z` — 30.6 hours.** Then across ALL 99 running jobs:
+
+```
+min 28.0h   p25 32.2h   MEDIAN 32.6h   p75 33.3h   max 37.3h
+under 1h:  0 (0%)   ·   over 24h: 99 (100%)   ·   over 30h: 97 (98%)
+```
+
+**Not one job started in under 28 hours.** ⇒ **THE PLAN OF RECORD'S RUNG-30 DATE IS WRONG BY ~40
+HOURS.** It reads *"round 1 drains ~14:53Z, then round 2 runs ~9.12 h"* = 00:01Z on 7 August — a
+model with **no queue-wait term at all**. With the measured wait, round 2 would not START until ~8
+August and rung 30 lands **8-9 August**.
+
+⚠⚠ **AND THE WAY IT HID IS THE LESSON.** RUN 25 re-derived that date every pass, got 00:01Z every
+time, and read the stability as evidence of correctness — the brief even records the discriminator
+as *"whether the INPUTS move"*. The inputs DID move and the answer held, because the missing term
+was not an input at all. **RE-DERIVING A NUMBER EVERY PASS DOES NOT VALIDATE THE MODEL THE NUMBER
+COMES FROM.** A grep for `submission_time` across `docs/ops/**` and `docs/analysis/**` returned
+**nothing**: no instrument anywhere modelled queue wait.
+
+**16. ⭐⭐ `docs/ops/queue_wait.py` — BUILT, and it makes the omitted term visible instead of
+asserted.** Reports the distribution, the per-line breakdown (a line's wait IS its ticket rank made
+visible: `leg10` 32.8 h, `c1` 30.8 h, `leg3` 30.6 h) and **rung 30 under BOTH models**, so with the
+queue term set to zero it reproduces the plan of record's `2026-08-07 01:01` host-local exactly.
+**Verified three ways:** 16 assertions; the live run reproduces the manual measurement **to the
+decimal** by an independent route (median 32.6 h, min 28.0, max 37.3); **8 of 9 mutants killed.**
+⚠ The survivor (dropping the `isdigit` guard) is recorded as **genuinely redundant** — the
+`try/except` around `strptime` already covers its path — rather than given a contrived fixture to
+manufacture a 9/9. Mutation testing again killed two of my own weak tests first: a junk fixture with
+EIGHT fields never exercised the length guard, and the case that does is a **digit-leading short
+line**, which raises `IndexError` that `except ValueError` does not catch.
+
+**17. ⭐⭐⭐ THE FLOOR HOLD — APPLIED BY TAMER, AND IT IS WORTH ~31 HOURS.** Because
+`share_functional_shares=TRUE` splits our pool across contending jobs, and all our jobs carry
+near-identical `ntckts`, `c1`'s 8 round-2 jobs would have landed as 8 entries in a raffle of 420 of
+our OWN sweep jobs, holding the newest job ids. Holding the sweep drops contending 514 -> ~108 and
+puts the whole allocation on the floor: projected **~60,600 tickets/job against 14,757**, i.e.
+`ucaqcsu`'s level. **It costs almost nothing because those 412 jobs had won ZERO dispatches in two
+hours.** Live after: **held 794, eligible 0, `c1` untouched at 8 running**, and the two stale probe
+jobs (`cpuprobe14`, `flagprobe`) swept up with it. `queue_wait.py` prices the intervention directly:
+**31.6 hours.**
+
+⚠ **THE COST IS REAL AND TIME-BOXED.** Eligible 0 means finishing jobs cannot be replaced, so cores
+drift down until round 2 is running; `A1` (eligible >= 291) and `A6` will fail meanwhile and that is
+DELIBERATE, not a defect. A watch releases on: round 2 fully running · round 1 drained with round 2
+absent (needs a human) · cores below 400 while eligible is 0.
+
+⚠ **AND A DELIVERY DEFECT WORTH KEEPING.** My first hold command was **bash-quoted and Tamer runs
+PowerShell**, so `\$3` and `tr "\n" " "` were mangled and it failed. The second attempt failed too —
+PowerShell 5.1 strips inner quotes when passing to a native command. **Fixed by removing the shell
+gymnastics entirely**: `floor_hold.sh` lives on Myriad, self-asserts that the selection contains no
+`c1` and no running job, refuses if not, and carries `--dry` and `--release`. Verified in PowerShell
+before being handed over. ⇒ **A command handed to Tamer must be tested IN HIS SHELL, not mine.**
+
+**18. THE DURATION PATCH IS BUILT AND HELD BACK ON PURPOSE.** Nine edits, each verified to match
+**exactly once** against the live tree, separating `pack` (concurrency, = the core request) from
+`specs_per_task` (batch size). 20 semantics assertions, including that **with the flag unset the
+chunking is byte-identical to today's** — which is what makes it safe to land on a live campaign.
+Safety precondition confirmed first-hand, not from the brief: `_archive_result` really is inside the
+`as_completed` loop and `run_one` really does support N > pack. Sizing derived: 16 at pack 8 is
+exactly 2 waves, ~18.2 h; today's utilisation is 61% of a 15 h limit, so **`--h-rt 30:0:0`** holds
+the same wall-kill margin. ⚠ **Kept in the SCRATCHPAD, not the live tree**, because
+`watchdog_fenced.ps1` can restart a supervisor at any moment and would pick up an uncommitted
+`src/` edit unintentionally — including on `c1`. It applies, commits, restarts `kimi` only and
+re-bases `RUNNING_SHA` in one move, which is the sanctioned exit for a fenced change that is
+genuinely reachable from the driver.
+
 **WHAT IS NEXT.** Re-measure the ticket experiment past a scheduler recompute. Re-run the governor on
 the 2-hourly cadence so the LADDER LOCK's release rule fires as blocks complete — *that cadence is the
 system*. Be present for `c1`'s C4 moment at ~00:0xZ on 7 August, when it tries 1,347 jobs into ~100
