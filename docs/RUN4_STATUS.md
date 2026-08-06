@@ -37,22 +37,22 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 11:53 UTC | elapsed 8.61 d | 20.5 d to the Aug-27 stop
+generated 2026-08-06 11:54 UTC | elapsed 8.61 d | 20.5 d to the Aug-27 stop
 test tier: 17,605 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 61.6 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      37 records      37.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    => OPERATIVE RATE 61.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      35 records      35.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     207 records      69.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     739 records      61.6 rec/h   usable
-    last 24 h    2592 records     108.0 rec/h   usable
+    last 12 h     737 records      61.4 rec/h   usable
+    last 24 h    2591 records     108.0 rec/h   usable
     12 h rate is 97% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (62 rec/h); latest excludes cells already within
-    8 of the ceiling (62 rec/h). Window 12 h.
+    the whole fleet (61 rec/h); latest excludes cells already within
+    8 of the ceiling (61 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,689      10  GATED             GATED             barrier>=30
-      279       9,710      37  GATED             GATED             barrier>=30
-      340      12,455      37  GATED             GATED             barrier>=30
-      403      15,290      37  GATED             GATED             barrier>=30
-      568      22,723      37  GATED             GATED             barrier>=30
+      189       5,689       8  GATED             GATED             barrier>=30
+      279       9,710      35  GATED             GATED             barrier>=30
+      340      12,455      35  GATED             GATED             barrier>=30
+      403      15,290      35  GATED             GATED             barrier>=30
+      568      22,723      35  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -250,12 +250,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T11:38:11Z  OK  records=19140 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  sweep=29.4s  auto-cycle
 2026-08-06T11:39:09Z  OK  records=19140 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=27.5s  auto-cycle
 2026-08-06T11:44:30Z  OK  records=19143 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.1m  drift=0  sci=OK  r115=22B  sweep=291.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:45:28Z  OK  records=19143 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.9m  drift=0  sci=OK  r115=22B  sweep=27.3s  auto-cycle
 2026-08-06T11:46:25Z  OK  records=19143 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.0m  drift=0  sci=OK  r115=22B  sweep=26.9s  auto-cycle
 2026-08-06T11:52:48Z  OK  records=19148 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.0m  drift=0  sci=OK  r115=22B  cores=840  sweep=353.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T11:53:47Z  OK  records=19148 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=28.9s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
