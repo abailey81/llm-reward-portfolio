@@ -24,6 +24,47 @@ SEL=/tmp/floor_hold_ids.txt
 RUN=/tmp/floor_hold_running.txt
 C1=/tmp/floor_hold_c1.txt
 
+# --release-when-ready: a SAFE no-op until the hold has served its purpose, so it can be invoked on
+# a loop. The hold exists to put our whole ticket allocation on c1's round-2 (h2_pair) array; the
+# moment that array is RUNNING the concentration has done its job and every further minute is pure
+# cost, because eligible=0 means finishing jobs cannot be replaced.
+#
+# TWO release conditions, and the second is the safety valve:
+#   1. an h2_pair job is RUNNING  -> purpose served, release.
+#   2. cores < 400 while eligible is 0 -> the hold is now costing more than it can buy; release
+#      regardless of c1, because a floor that is not dispatching is not worth an idle fleet.
+# It deliberately does NOT release merely because round 2 was SUBMITTED: submitted-and-queued is
+# exactly the state the concentration exists to get through.
+if [ "$MODE" = "--release-when-ready" ]; then
+    c1run=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | grep -c h2_pair)
+    runtot=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l)
+    eligtot=$(qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -vc hqw)
+    heldtot=$(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | wc -l)
+    cores=$(( runtot * 8 ))
+    # ⚠ AN EMPTY qstat IS NOT A MEASUREMENT OF ZERO (learned live 2026-08-06 14:07Z, when an empty
+    # rc=0 response made a watch announce the campaign was dead while records were still landing).
+    # Zero jobs in EVERY state is an unread queue, and releasing on it would be acting on nothing.
+    if [ "$runtot" -eq 0 ] && [ "$eligtot" -eq 0 ] && [ "$heldtot" -eq 0 ]; then
+        echo "UNREAD: qstat returned no job in any state. No action."
+        exit 0
+    fi
+    if [ "$heldtot" -eq 0 ]; then
+        echo "nothing held. No action."
+        exit 0
+    fi
+    echo "h2_pair running=$c1run  cores=$cores  eligible=$eligtot  held=$heldtot"
+    if [ "$c1run" -gt 0 ]; then
+        echo "*** RELEASING: the floor's h2_pair array is RUNNING -- the hold has served its purpose."
+        MODE="--release"
+    elif [ "$cores" -lt 400 ] && [ "$eligtot" -eq 0 ]; then
+        echo "*** RELEASING: cores=$cores with eligible=0 -- the hold now costs more than it buys."
+        MODE="--release"
+    else
+        echo "holding: the floor's h2_pair array is not running yet."
+        exit 0
+    fi
+fi
+
 if [ "$MODE" = "--release" ]; then
     # Release every NON-c1 job we hold. c1 is never held by this script, so it is never released
     # by it either -- the floor's state is untouched in both directions.
