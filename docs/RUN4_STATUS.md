@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **909** (111 running, 798 queued) |
 | **cores computing** | **888** |
-| **cores doing RUNG-RAISING work** | **20.3%** -- 184 of 904 cores (8 min old) |
+| **cores doing RUNG-RAISING work** | **20.3%** -- 184 of 904 cores (9 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,15 +37,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 10:03 UTC | elapsed 8.54 d | 20.6 d to the Aug-27 stop
+generated 2026-08-06 10:04 UTC | elapsed 8.54 d | 20.6 d to the Aug-27 stop
 test tier: 17,524 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 84.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 84.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h     120 records     120.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     165 records      55.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1019 records      84.9 rec/h   usable
-    last 24 h    2775 records     115.6 rec/h   usable
+    last 12 h    1017 records      84.8 rec/h   usable
+    last 24 h    2773 records     115.5 rec/h   usable
     12 h rate is 73% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 1% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -234,7 +234,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
