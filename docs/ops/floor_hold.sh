@@ -54,7 +54,7 @@ if [ "$MODE" = "--auto" ]; then
     run=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | grep -c h2_pair)
     runtot=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l)
     eligtot=$(qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -vc hqw)
-    heldtot=$(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | wc -l)
+    heldtot=$(qstat -u ucestes -s hu 2>/dev/null | tail -n +3 | wc -l)
     # an empty qstat is not a measurement of zero (learned live 14:07Z)
     if [ "$runtot" -eq 0 ] && [ "$eligtot" -eq 0 ] && [ "$heldtot" -eq 0 ]; then
         echo "UNREAD: qstat returned no job in any state. No action."; exit 0
@@ -67,7 +67,7 @@ if [ "$MODE" = "--auto" ]; then
     else
         # covers BOTH "not submitted yet" and "already running": in neither case does the hold buy
         # anything, and in both cases an idle queue is pure loss.
-        floorheld=$(comm -12 <(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | awk '{print $1}' | sort -u) \
+        floorheld=$(comm -12 <(qstat -u ucestes -s hu 2>/dev/null | tail -n +3 | awk '{print $1}' | sort -u) \
                              <(tr -d '\r' < "$HOME/floor_ids.txt" 2>/dev/null | sort -u) | wc -l)
         if [ "$floorheld" -eq 0 ]; then echo "nothing of the floor hold is held. No action."; exit 0; fi
         if [ "$run" -gt 0 ]; then echo "*** RELEASING: h2_pair is RUNNING -- the hold has served."
@@ -80,7 +80,7 @@ if [ "$MODE" = "--release-when-ready" ]; then
     c1run=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | grep -c h2_pair)
     runtot=$(qstat -u ucestes -s r 2>/dev/null | tail -n +3 | wc -l)
     eligtot=$(qstat -u ucestes -s p 2>/dev/null | tail -n +3 | grep -vc hqw)
-    heldtot=$(qstat -u ucestes -s h 2>/dev/null | tail -n +3 | wc -l)
+    heldtot=$(qstat -u ucestes -s hu 2>/dev/null | tail -n +3 | wc -l)
     cores=$(( runtot * 8 ))
     # ⚠ AN EMPTY qstat IS NOT A MEASUREMENT OF ZERO (learned live 2026-08-06 14:07Z, when an empty
     # rc=0 response made a watch announce the campaign was dead while records were still landing).
@@ -125,7 +125,7 @@ if [ "$MODE" = "--release" ]; then
     if [ -s "$HOME/floor_ids.txt" ]; then
         # intersect the recorded floor set with what is ACTUALLY held: the live queue is the
         # authority, and a job that has already been released must not be "released" again.
-        qstat -u ucestes -s h | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u \
+        qstat -u ucestes -s hu | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u \
             > /tmp/floor_live_held.txt
         # ⚠ STRIP CR. The id list is written on Windows, whose text mode silently rewrites \n to
         # \r\n, and a trailing \r makes every id fail to match -- which turned this release into a
@@ -137,7 +137,7 @@ if [ "$MODE" = "--release" ]; then
     else
         echo "!! ~/floor_ids.txt MISSING -- falling back to releasing EVERY held non-c1 job."
         echo "!! That also lifts the LADDER LOCK. Re-run the governor afterwards to restore it."
-        qstat -u ucestes -s h | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u > "$SEL"
+        qstat -u ucestes -s hu | tail -n +3 | grep -v c1_ | awk '{print $1}' | sort -u > "$SEL"
     fi
     n=$(wc -l < "$SEL")
     echo "releasing $n held non-c1 job(s)"
