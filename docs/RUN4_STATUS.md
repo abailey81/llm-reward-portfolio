@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 14:20 UTC -- T+209h11m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 14:20 UTC -- T+209h12m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,13 +10,13 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+209h11m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+209h12m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19274** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.7 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=121; worst streak 2/240 (0.8% to fatal), ops on core, 13 min ago; LIVE, still failing** |
+| transport health | **timeouts 6h=121; worst streak 2/240 (0.8% to fatal), ops on core, 13 min ago; none live, newest failure 10 min ago** |
 | transport timeouts (cumulative, ever) | 307 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **884** (90 running, 794 queued) |
 | **cores computing** | **720** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (96 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (97 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,7 +37,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 14:20 UTC | elapsed 8.72 d | 20.4 d to the Aug-27 stop
+generated 2026-08-06 14:21 UTC | elapsed 8.72 d | 20.4 d to the Aug-27 stop
 test tier: 17,731 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -45,7 +45,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      92 records      92.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     137 records      45.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     664 records      55.3 rec/h   usable
-    last 24 h    2451 records     102.1 rec/h   usable
+    last 24 h    2450 records     102.1 rec/h   usable
     12 h rate is 94% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -59,12 +59,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30          89      31  2026-08-06 15:57  2026-08-06 15:57  yes
-      100       2,539      31  2026-08-08 12:13  2026-08-08 12:13  yes
-      189       5,655      34  2026-08-10 20:32  2026-08-10 20:32  yes
+      100       2,539      31  2026-08-08 12:14  2026-08-08 12:14  yes
+      189       5,655      34  2026-08-10 20:33  2026-08-10 20:33  yes
       279       9,584      92  2026-08-13 19:33  2026-08-13 19:33  yes
-      340      12,329      92  2026-08-15 21:09  2026-08-15 21:09  yes
-      403      15,164      92  2026-08-18 00:23  2026-08-18 00:23  yes
-      568      22,597      92  2026-08-23 14:43  2026-08-23 14:43  yes
+      340      12,329      92  2026-08-15 21:10  2026-08-15 21:10  yes
+      403      15,164      92  2026-08-18 00:24  2026-08-18 00:24  yes
+      568      22,597      92  2026-08-23 14:44  2026-08-23 14:44  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
