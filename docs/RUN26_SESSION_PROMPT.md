@@ -448,6 +448,86 @@ hold, **rank 285, ~22 h**.
 
 ---
 
+# §6.5 ⛔⛔⛔ **THE CORE COLLAPSE 1,642 → 824, AND THE PENALTY QUESTION. TAMER RAISED THIS AND HE IS RIGHT. THIS IS YOUR #1 INVESTIGATION.**
+
+**TAMER, 2026-08-06:** *"I have received an email from RC support in response to my email to raise
+my priority. They said they have received a lot of MSc students asking to raise their priorities,
+and all of them were denied to ensure everything is fair. I need you to deeply check if our priority
+was not downgraded, or any other slowing actions were not applied to us. Today's results are
+ridiculous — at that time yesterday we were at like 1,700 cores, and now we are at 800. Ultrathink
+about that, and raise the cores back."*
+
+## ⓵ THE PENALTY QUESTION IS **ANSWERED: NO PENALTY.** Four independent checks, all clean.
+
+| check | command | result |
+|---|---|---|
+| POSIX priority | `qstat -u ucestes -pri` (`ppri` column) | **0** on every job — **NOT downgraded** (a penalty would be negative) |
+| resource quota | `qconf -srqsl` then `qconf -srqs slowemdown` | the cluster's ONLY RQS is **`slowemdown`**, and it reads **`enabled FALSE`** with **`limit users ucapsy0 to slots=50`** — a DIFFERENT user, and switched OFF |
+| our user object | `qconf -suser ucestes` | **`oticket 0, fshare 1`** |
+| the same for every other heavy user | `qconf -suser <u>` for the 8 largest | `ucecgwh · ucecwly · ucaphge · uccaewo · ucechh1 · uceccho · ucbtjji` — **ALL `oticket 0, fshare 1`. IDENTICAL to ours.** |
+
+⭐ **AND THE STRONGEST EVIDENCE OF ALL: WE ARE THE #1 USER ON THE CLUSTER.** Live running slots:
+**`ucestes 824` · ucbtjji 808 · uccaewo 632 · zccambr 516 · ucaqcsu 288.** A throttled account does
+not lead the cluster. **Report this to Tamer plainly — RC did not penalise us.**
+
+⚠ **RE-RUN ALL FOUR CHECKS ON YOUR FIRST PASS ANYWAY.** They are cheap, they are the exact thing
+Tamer asked to be watched, and a state that is clean today can change. **`ppri` must stay 0 and no
+enabled RQS may ever name `ucestes`.**
+
+## ⓶ THE COLLAPSE IS REAL, IT IS **NOT** THE DIURNAL PATTERN, AND ITS MECHANISM IS **UNRESOLVED**
+
+Reconstructed from the recorded `CYCLE_LOG` (hour, mean cores):
+
+```
+08-05 06Z 1,642 | 08-05 12Z 1,384 | 08-05 16Z 1,381 | 08-05 18Z 1,075 | 08-05 23Z   699
+08-06 00Z   533 | 08-06 03Z   546 | 08-06 06Z   773 | 08-06 08Z   976 | 08-06 12Z   824
+```
+
+**Yesterday at 12Z: 1,384. Today at 12Z: 824. A 40% fall at the same hour.**
+
+⚠⚠ **AND IT INVERTS THE EXPECTED SHAPE, WHICH IS WHY "it is just diurnal" DOES NOT CLOSE IT.** The
+dossier's measured best window is **03:00–08:00Z** (mean 1,524 cores). On 08-05 that window
+delivered **1,496–1,642**. On 08-06 the SAME window delivered **546–976 — our LOWEST readings of the
+whole period.** The pattern did not merely shift; it reversed.
+
+**WHAT IS ESTABLISHED:**
+* `cores = dispatch_rate × job_duration × 8`. Job duration is stable (median SUCCESSFUL task wall
+  9.12–9.17 h across the whole session). **So the fall is a DISPATCH-RATE fall**, measured across
+  passes: **12.6 → 11.2 → 10.9 → 10.3 → 9.1 → 7.9 jobs/h.** At 9.12 h that predicts
+  `7.9 × 9.12 × 8 = 576` cores against 824 held — the right order of magnitude and the right
+  direction.
+* **It is NOT our queue running dry:** eligible depth is **794 jobs = 6,352 slots of demand**, `Eqw`
+  0, unschedulable 0, `jobs 897/1000`.
+* **It is NOT the placement ceiling:** `placeable_capacity` reads **1,544 cores at pack 8 against
+  824 held — ~720 placeable cores we are not taking.**
+* Cluster-wide at the same moment: **4,109 running slots in 2,556 jobs, 3,808 jobs pending.**
+
+**WHAT IS NOT ESTABLISHED, AND IS YOUR JOB:** *why the dispatch rate halved.* The honest position is
+that a penalty is RULED OUT and the mechanism is OPEN. Candidate hypotheses, each with the
+measurement that would settle it — **and take two independent routes before banking any of them:**
+
+1. **FAIR-SHARE USAGE FEEDBACK.** RUN 24 recorded `weight_tickets_share 1e4` against
+   `weight_tickets_functional 5e8`, i.e. functional (usage-history-FREE) tickets dominate by ~5e4×,
+   which is why *"holding more does NOT shrink our future share"* was banked. ⚠ **VERIFY THAT
+   FIRST-HAND rather than inheriting it** — read `qconf -ssconf` yourself, and read our actual
+   ticket counts with `qstat -u ucestes -ext` (⚠ RUN 25's attempt used the wrong column index and
+   returned zeros for everyone — **find the right column and prove it with a known-good row**).
+2. **A COMPETITOR AROSE.** `uctpec1` alone had **769 pending jobs** at 12Z. Compare the top users'
+   RUNNING slots against yesterday. If someone large arrived, our share fell for a legitimate reason
+   and the answer is capacity, not fairness.
+3. **THE POOL EMPTIED OF *PLACEABLE* SHAPE.** Fragmentation is strongly time-varying (§5.2). Track
+   `placeable_capacity --pack 8` on a **diurnal series**, not a single reading.
+4. **OUR OWN SUBMISSION SHAPE CHANGED.** Which lines were submitting on 08-05 versus now? Today
+   `deepseek`, `glm`, `nemotron` and `haiku` hold **ZERO running jobs** while holding queued work.
+   Reconstruct from `CYCLE_LOG` and the driver logs.
+
+⭐ **AND NOTE THE ONE STRUCTURAL LEVER THAT DIRECTLY ATTACKS A DISPATCH-RATE FALL:** since
+`cores = rate × duration × 8` and **the rate is not ours to move**, **DURATION is** — §5.3, whose
+safety precondition RUN 25 verified. **If the rate has genuinely halved, the duration lever is worth
+twice what it was.**
+
+---
+
 # §7 ⚠⚠ A BULK `qrls` IS THROTTLED BY THE SITE JSV — AND SUCCESS LOOKS EXACTLY LIKE FAILURE
 
 Releasing 395 jobs at once does **not** return them to `qw` directly. The site's `policyjsv`
@@ -528,6 +608,12 @@ it fixed).** No row may age three passes. **NEVER weaken a check to make it pass
 
 # §10 WHERE RUN 26 MUST GO DEEPER — RANKED BY VALUE
 
+0. ⛔⛔⛔ **THE CORE COLLAPSE 1,642 -> 824 (§6.5). TAMER RAISED IT AND IT IS YOUR #1 ITEM.** The
+   PENALTY question is ANSWERED (no downgrade, no quota, `fshare` identical to every heavy user, and
+   we are the #1 user on the cluster) -- **re-verify all four checks on pass 1 anyway**. The
+   MECHANISM of the dispatch-rate halving (12.6 -> 7.9 jobs/h) is **OPEN**, and the collapse INVERTS
+   the measured diurnal shape, so it is not explained away. Four hypotheses and their tests are in
+   §6.5.
 1. ⭐⭐⭐ **GET THE LADDER LOCK APPLIED (§6.3).** It is built, tested and generated. It needs Tamer's
    `qhold`, and then **RE-RUN THE GOVERNOR EVERY FEW HOURS** so the release rule fires as blocks
    complete. **That cadence IS the system.**
