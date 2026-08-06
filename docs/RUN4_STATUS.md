@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 11:59 UTC -- T+206h50m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 12:00 UTC -- T+206h51m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+206h50m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+206h51m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19149** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **899** (105 running, 794 queued) |
 | **cores computing** | **840** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 192 of 848 cores (10 min old) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 192 of 848 cores (11 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -41,10 +41,10 @@ generated 2026-08-06 12:00 UTC | elapsed 8.62 d | 20.5 d to the Aug-27 stop
 test tier: 17,606 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 59.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      27 records      27.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     206 records      68.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     717 records      59.8 rec/h   usable
+    => OPERATIVE RATE 59.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      25 records      25.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     205 records      68.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     714 records      59.5 rec/h   usable
     last 24 h    2573 records     107.2 rec/h   usable
     12 h rate is 98% from ONE line (test_leg_kimi_k3); 2 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,689       3  GATED             GATED             barrier>=30
-      279       9,709      27  GATED             GATED             barrier>=30
-      340      12,454      27  GATED             GATED             barrier>=30
-      403      15,289      27  GATED             GATED             barrier>=30
-      568      22,722      27  GATED             GATED             barrier>=30
+      189       5,689       1  GATED             GATED             barrier>=30
+      279       9,709      25  GATED             GATED             barrier>=30
+      340      12,454      25  GATED             GATED             barrier>=30
+      403      15,289      25  GATED             GATED             barrier>=30
+      568      22,722      25  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
