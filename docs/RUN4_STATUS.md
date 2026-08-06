@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 04:40 UTC -- T+199h31m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 04:46 UTC -- T+199h37m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,13 +10,13 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+199h31m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+199h37m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18662** |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18667** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 4.6 h ago; none live, newest failure 4.6 h ago** |
+| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 4.7 h ago; none live, newest failure 4.7 h ago** |
 | transport timeouts (cumulative, ever) | 186 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **958** (67 running, 891 queued) |
-| **cores computing** | **536** |
+| cluster jobs | **957** (69 running, 888 queued) |
+| **cores computing** | **552** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -34,21 +34,21 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 04:40 UTC | elapsed 8.31 d | 20.8 d to the Aug-27 stop
-test tier: 17,119 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 04:47 UTC | elapsed 8.32 d | 20.8 d to the Aug-27 stop
+test tier: 17,124 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      40 records      40.0 rec/h
-    last  3 h      96 records      32.0 rec/h
-    last 12 h    1398 records     116.5 rec/h
-    last 24 h    3507 records     146.1 rec/h
-    12 h rate is 50% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
+    last  1 h      44 records      44.0 rec/h
+    last  3 h      92 records      30.7 rec/h
+    last 12 h    1372 records     114.3 rec/h
+    last 24 h    3509 records     146.2 rec/h
+    12 h rate is 49% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
-    !! 50% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
+    !! 49% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (116 rec/h); latest excludes cells already within
+    the whole fleet (114 rec/h); latest excludes cells already within
     8 of the ceiling (58 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,585      39  GATED             GATED             barrier>=30
-      189       6,148      40  GATED             GATED             barrier>=30
-      279      10,196      40  GATED             GATED             barrier>=30
-      340      12,941      40  GATED             GATED             barrier>=30
-      403      15,776      40  GATED             GATED             barrier>=30
-      568      23,209      40  GATED             GATED             barrier>=30
+      100       2,581      42  GATED             GATED             barrier>=30
+      189       6,143      44  GATED             GATED             barrier>=30
+      279      10,191      44  GATED             GATED             barrier>=30
+      340      12,936      44  GATED             GATED             barrier>=30
+      403      15,771      44  GATED             GATED             barrier>=30
+      568      23,204      44  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -70,14 +70,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 77% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @536 cores      @830 cores   binding
+     rung      @552 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
-      100           5.9 d           4.6 d   critical_chain
-      189          10.1 d           6.5 d   throughput
-      279          14.4 d           9.3 d   throughput
-      340          17.2 d          11.1 d   throughput
-      403          20.2 d          13.0 d   throughput
-      568          28.0 d          18.1 d   throughput
+      100           5.7 d           4.6 d   critical_chain
+      189           9.8 d           6.5 d   throughput
+      279          13.9 d           9.3 d   throughput
+      340          16.7 d          11.1 d   throughput
+      403          19.6 d          13.0 d   throughput
+      568          27.2 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -96,12 +96,21 @@ nothing more to submit. **That is no longer true and has been replaced with what
 now hold a deep backlog we cannot place, and the binding constraint is UCL's fair-share policy, which
 is not ours to change.
 
-* **The jobs ARE assignable and we still do not get the slots.** `qalter -w p` on a real pending job
-  returns *"found possible assignment with 8 slots"*; `qquota -u ucestes` is EMPTY, so no quota caps
-  us; every host has 105-167 GB free; **2,576 cores are placeable** -- and our core count stays
-  pinned. That combination has exactly one explanation: **functional fair-share by user**
-  (`policy_hierarchy OSF`, `weight_tickets_functional 500000000` against `share 10000`, 6+ active
-  users). More users on the cluster means a smaller share each, and that is the whole story.
+* **The jobs ARE assignable, `qquota -u ucestes` is EMPTY, and fair share is real -- but it is NOT
+  "the whole story", and the two numbers this bullet used to quote were both WRONG (corrected
+  2026-08-06, RUN 24).** It said *"every host has 105-167 GB free"* and *"2,576 cores are
+  placeable"*. **Neither survives measurement.** (i) The memory figure read `hl:mem_free`, the OS
+  free pool, when the scheduler gates on the `hc:memory` CONSUMABLE (`qconf -sc`: `memory` is
+  requestable AND consumable). On `node-d00a-218`: `hl:mem_free=120.8G` but **`hc:memory=16.0G`** --
+  144 G of a 160 G capacity already RESERVED while only 67 G is USED. (ii) The 2,576 figure is ~5x
+  the truth, the signature of the `qstat -f` hostname-truncation double count already retracted in
+  RUN 23 section 5.2. **The audited instrument (`docs/ops/placeable_capacity.py`, which takes queue state
+  from `qstat -f`, slots from `hc:slots`, and gates on memory and tmpfs) measured on one snapshot:
+  pool d = 24 placeable cores, pool b = 24, and 324 of d00a's 412 free slots (79%) are STRANDED on
+  hosts holding fewer than one pack-8 job.** So the ceiling is fragmentation AND the memory
+  consumable AND fair share together -- and the honest statement is that on a busy day there is
+  almost nothing to place, which is why the 2,320-core peak of 2026-08-03 was an emptier cluster
+  rather than a setting we lost.
 * **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.** `qdel` on our
   own running jobs would destroy up to 15 h of irreplaceable work each; `qalter` on the parallel
   environment is refused site-wide by the JSV; raising priority is operator-only; and **lowering our
@@ -112,8 +121,14 @@ is not ours to change.
   counts candidates rejected BEFORE any training is submitted (one LLM call, not a 15 h training),
   and **zero trainings have been lost**: every completed ladder -- gemini's five arms and h3 -- has
   568 seeds with **ZERO holes**, as does every 30-seed line.
-* **Memory and disk block ZERO hosts.** Memory was never scarce at all (160 GB free per host); the
-  three separate investigations that "fixed" it were fixing a non-problem.
+* **DISK blocks zero hosts. MEMORY DOES NOT -- this bullet was wrong and is corrected (2026-08-06,
+  RUN 24).** It claimed *"Memory was never scarce at all (160 GB free per host); the three separate
+  investigations that 'fixed' it were fixing a non-problem."* **The three investigations were right
+  and this sentence was the non-problem.** Measured: of the 21 d-pool hosts open to us holding >= 8
+  free slots, **8 cannot take a pack-8 job because `hc:memory` is under the 16 G it requests**
+  (2 G/slot x 8). `docs/DEFERRED_FIXES_RUN4.md:1757` had already measured the same effect at 82 % on
+  2026-08-02 and this file contradicted it for three days. 160 GB is the host's memory CAPACITY, not
+  its free consumable.
 
 **Bottom line: buying more hardware cannot make this finish sooner, and neither can any setting we
 control.** The seed ladder is tiered (30 -> 189 -> ... -> 568), a truncated run banks the largest
@@ -232,12 +247,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T04:16:02Z  OK  records=18645 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=27.9s  auto-cycle
-2026-08-06T04:17:01Z  OK  records=18645 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=28.4s  auto-cycle
-2026-08-06T04:28:01Z  OK  records=18649 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=630.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T04:32:14Z  OK  records=18655 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=223.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T04:39:09Z  OK  records=18661 (+6)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.9m  drift=0  sci=OK  r115=22B  cores=544  sweep=384.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T04:40:08Z  OK  records=18662 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  sweep=28.5s  auto-cycle
+2026-08-06T04:41:08Z  OK  records=18663 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.4m  drift=0  sci=OK  r115=22B  sweep=29.8s  auto-cycle
+2026-08-06T04:42:08Z  OK  records=18663 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.7m  drift=0  sci=OK  r115=22B  sweep=30.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T04:46:25Z  OK  records=18667 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.9m  drift=0  sci=OK  r115=22B  sweep=226.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
