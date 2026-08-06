@@ -306,6 +306,75 @@ node-b00a-008                Xeon Gold 6240  ucode 0x5003901  flags_sha 639b6722
 differs, on the FLAG SET while sharing model AND microcode — so a flag-level diff was submitted to
 decide whether even that host needs fencing rather than assuming it does.
 
+### ⓽ THE EFFICIENCY AUDIT TAMER ASKED FOR — 98.5% OF EVERY ACCUMULATED CORE-HOUR BECOMES CAMPAIGN WORK
+
+**Tamer, 2026-08-06:** *"make sure these accumulated cores are actually working on the campaign …
+actually fully contribute to the campaign run, records, speeds up the speed to an absolute maximum."*
+The question decomposes into three measurable links, and **the one nobody had measured was the first.**
+
+| link | measured | evidence |
+|---|---|---|
+| cores -> computation | **99.61%** | `cpu/(elapsed x slots)` over 75 running jobs: min 0.964, median **0.998**, mean 0.996 -> **2.3 idle-equivalent cores of 600** |
+| slot-time -> completed task | **98.84%** | 4,027 epilogue rows: rc=0 **3,811**; `h_rt` wall (rc=126) **22 tasks = 2,641 slot-h = 1.158%** |
+| sandbox rejects | ~free | 194 rows at a mean of **0.003 h = 11 SECONDS** each -- and they ARE the authoring-reliability finding, not waste |
+| **END TO END** | **~98.5%** | real yield excluding the free rejects: 3,811/3,833 = **99.43%** |
+
+⭐ **THIS CLOSES LEDGER ROW F7**, which recorded that `mean_slots_per_task` *"is documented at :205-213
+as a cross-check that must land near the packing depth we actually requested"* and that **nothing in
+the file compares it to anything.** It is now compared: 7.96 of 8 requested cores are busy.
+
+⚠ **AND I GOT IT WRONG ONCE ON THE WAY, IN THE FLATTERING DIRECTION.** My first pass scanned the
+`qstat` fields in reverse for the slot count and matched **`ja-task-ID` = 1** instead of `slots` = 8,
+which made every efficiency read **7.96 instead of 0.995 -- eight times too good.** A number above 1.0
+for a ratio that cannot exceed 1.0 is the tell, and it is the same class as the RUN 23 hostname
+truncation: a parser matching the wrong column and reporting the wrong quantity confidently.
+
+**THE ONLY GENUINE WASTE IS 1.158%, AND IT IS CORRECTLY NOT WORTH FIXING.** A task killed at the
+15.00 h wall burns 120 slot-hours and produces nothing, but the killswitch REQUEUES it (`secs` ~
+`h_rt` -> expected walltime kill), so the work is redone rather than lost. Recovering it needs a
+fenced change to `h_rt` sizing to win back ~4 h of a 378 h path. **Declined on the arithmetic.**
+
+⇒ **THE CONSEQUENCE FOR THE ETA IS THE USEFUL PART: with efficiency at 98.5% there is nothing left to
+reclaim inside the fleet, so the ETA is now PURELY capacity-bound.** At the measured 736 cores,
+rung 568's 23,179 remaining trainings take **12.3 days against 21 days remaining -- 8.7 days of
+slack.** Cores climbed **544 -> 592 -> 656 -> 688 -> 736** across this session.
+
+### ⓾ POOL b: PACKAGED AS ONE SELF-VERIFYING COMMAND, AND ITS OWN DRY RUN CAUGHT TWO OF MY BUGS
+
+`docs/ops/apply_pool_db_canary.ps1` rolls ONE line onto `--pool db`, verifies the result, and leaves a
+self-healing fallback. **Worth roughly DOUBLE the placeable capacity:** audited instrument, one
+snapshot -- **b00a 40 placeable cores (memcap 0, 1.5 TB RAM per host) against d00a 32 and d00b 8.**
+
+**haiku-4.5 is the canary on a measured criterion, not by default:** 1 queued job, 0 running, i.e. it
+is AT its batch boundary, so the widening lands in HOURS rather than the ~2.5 days a 248-job line
+needs (a restarted driver ADOPTS its queued work). It is also report-only, so its work is ladder with
+zero marginal value to the reported common rung today.
+
+**THE SCIENCE WAS CHECKED BEFORE THE ENGINEERING.** A unit spanning pool d and pool b stays
+HOMOGENEOUS because the C3 substrate key is `cpu model | omp | threads | cuda` and both pools report
+`Intel Xeon Gold 6240`, omp=1, threads=1, no CUDA -- ONE distinct substrate string. Physically: same
+model, **same microcode 0x5003901**, same flags sha, and the trainings run inside the SAME apptainer
+`.sif` regardless of host, so the software stack cannot differ either. `node-b00a-008` is fenced
+because its flags sha differs (`639b672208417b8c`) and the C3 gate keys on the model NAME, so it would
+not notice. **Identity, not tolerance.**
+
+⚠ **THE `-WhatIf` DRY RUN CAUGHT TWO DEFECTS OF MINE BEFORE EITHER COULD TOUCH THE CAMPAIGN.**
+(1) I derived the repo root with two `Split-Path` calls on `$PSCommandPath`, which lands on `docs`
+rather than the repo, so it looked for `docs/docs/ops/...`. (2) **In PowerShell 5.1 a SINGLE pipeline
+object is NOT an array, so a lone supervisor yields `.Count` = `$null`, not 1** -- the pre-flight
+REFUSED on a perfectly healthy line whose PID it had just printed correctly. All counts now use
+`@(...).Count`, correct for 0, 1 and many. ⇒ **A dry run is not ceremony; it found two bugs in a
+script whose whole purpose is to be run once, correctly, against a live campaign.**
+
+⚠ **NOT EXECUTED: the harness permission classifier refuses stopping a live campaign process, and
+that refusal is independent of Tamer's ratification.** The operation is therefore left as one command
+for him: `powershell -NoProfile -ExecutionPolicy Bypass -File docs/ops/apply_pool_db_canary.ps1`.
+Order and fallback are both load-bearing and documented in the file: the supervisor is stopped FIRST
+because it relaunches its driver on exit, the driver MUST also be stopped because on Windows an
+orphaned child keeps the P12 batch lock and would cause the replacement to be REFUSED, and if anything
+fails the watchdog revives the line from the FENCED script within 300 s -- back onto pool d, losing
+only the widening.
+
 ### WHAT HAPPENS NEXT — the remaining lever awaiting Tamer's explicit GO
 
 1. **QUEUE ORDER (the ranking governor).** `qhold` 402 zero-marginal-value jobs → `c1`'s 8 reach the
