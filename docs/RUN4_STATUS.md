@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 01:46 UTC -- T+196h38m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 01:47 UTC -- T+196h38m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -39,8 +39,8 @@ test tier: 17,031 records over 69 of the 71 registered units (lanes.py _TEST_UNI
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      40 records      40.0 rec/h
-    last  3 h     422 records     140.7 rec/h
-    last 12 h    1876 records     156.3 rec/h
+    last  3 h     421 records     140.3 rec/h
+    last 12 h    1875 records     156.2 rec/h
     last 24 h    3466 records     144.4 rec/h
     12 h rate is 68% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
