@@ -37,7 +37,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 10:28 UTC | elapsed 8.56 d | 20.6 d to the Aug-27 stop
+generated 2026-08-06 10:29 UTC | elapsed 8.56 d | 20.6 d to the Aug-27 stop
 test tier: 17,538 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -45,7 +45,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      54 records      54.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     179 records      59.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     979 records      81.6 rec/h   usable
-    last 24 h    2705 records     112.7 rec/h   usable
+    last 24 h    2701 records     112.5 rec/h   usable
     12 h rate is 77% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 0% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -251,12 +251,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T10:10:56Z  OK  records=19067 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=631.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:21:28Z  OK  records=19075 (+8)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  cores=904  sweep=601.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:22:28Z  OK  records=19077 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.2m  drift=0  sci=OK  r115=22B  sweep=29.1s  auto-cycle
 2026-08-06T10:23:26Z  OK  records=19080 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=28.4s  auto-cycle
 2026-08-06T10:27:00Z  OK  records=19080 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=184.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:28:04Z  OK  records=19081 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  cores=904  sweep=33.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T10:29:02Z  OK  records=19081 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.5m  drift=0  sci=OK  r115=22B  sweep=27.4s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
