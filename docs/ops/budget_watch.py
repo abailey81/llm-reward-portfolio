@@ -28,6 +28,10 @@ import glob
 import json
 import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from record_shrink_cache import load_shrunken_records  # noqa: E402
 from collections import defaultdict
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else "outputs/campaign_cluster_run4"
@@ -82,13 +86,44 @@ def _spent_by_line() -> dict[str, float]:
     return out
 
 
+def _project(obj):
+    """Keep ONLY the two fields this file reads. The cache stores the RESULT of this, so the entry is
+    ~60 bytes instead of the ~23 KB a full shrunken record costs — about 1 MB for the whole archive.
+
+    ⚠ IT MUST STAY A PURE FUNCTION OF THE RECORD, because `record_shrink_cache` keys its cache on this
+    function's SOURCE: change what is projected and every entry is invalidated and rebuilt, which is
+    the intended behaviour and the reason a stale cache cannot outlive its definition.
+    """
+    if isinstance(obj, dict):
+        return {"arm": obj.get("arm"), "generation": obj.get("generation")}
+    return {}
+
+
 def _generation_depth() -> dict[str, dict[str, int]]:
+    """Deepest generation reached per (archive root, arm).
+
+    ⚠⚠ SWEEP-1, SECOND APPLICATION, 2026-08-05. THIS FUNCTION WAS A THIRD FULL-ARCHIVE WALKER AND IT
+    WAS THE ONE STILL BREAKING THE CYCLE. It ran `glob.glob(ROOT/**/record.json)` and `json.load` on
+    every record, against `cycle.py`'s 180 s timeout, so the board read `budget=99` — "that number is
+    BLIND this cycle" — on most cycles once the archive passed ~18,000 records. **The W6 row blamed a
+    spend-ledger scan; the ledgers are STATIC at 2,956 rows and the spend has not moved since C1
+    closed. It was always this walk.** Measured live at 2026-08-05 22:11:49Z: a 998.6 s sweep with
+    1,029 s between cycle lines, on a loop I had just observed executing `budget_watch` — i.e. the
+    false-DEAD condition, ALIVE, with `science_watch` and `results_audit` already cached down to
+    seconds. **SWEEP-1 did not close that on its own.**
+
+    ⚠ THE ONE BEHAVIOURAL DIFFERENCE, MEASURED RATHER THAN ASSUMED TO BE HARMLESS. This walk excluded
+    NOTHING; the cache excludes `.pull_tmp*` and `_quarantined*`. Measured on the live archive:
+    `_quarantined*` is **0 directories and 0 records**, and `.pull_tmp*` is **3 records, all with the
+    `.pull_tmp` directory as their FIRST path segment**. Those three can therefore only ever key into
+    roots named `.pull_tmp.28884` / `.pull_tmp.34624` — and `main()` iterates the FIXED `LINES`
+    registry and reads `depth.get(root, {})`, so a root outside that registry is never looked at.
+    **The exclusion is provably output-neutral here, and the byte-identity proof against
+    `git show HEAD:` confirms it rather than resting on this argument.**
+    """
     depth: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(lambda: -1))
-    for path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
-        try:
-            rec = json.load(open(path, encoding="utf-8"))
-        except Exception:
-            continue
+    records, _unreadable = load_shrunken_records(ROOT, _project)
+    for path, rec in records:
         arm = rec.get("arm")
         gen = rec.get("generation")
         if arm in ARMS and isinstance(gen, int):

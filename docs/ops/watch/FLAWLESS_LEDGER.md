@@ -565,6 +565,51 @@ About **81% of the last 12 h of production landed above the common rung.** That 
 answered with its number, and it is NOT actionable from here: steering which line SGE runs would
 need a `qdel` or a held-back submission, and both are standing prohibitions.
 
+### ⛔⭐ 2026-08-05 22:12 UTC (RUN 23 pass 5) — **SWEEP-1 DID NOT CLOSE THE FALSE-DEAD CONDITION. I
+### CAUGHT IT LIVE, FOUND THE THIRD WALKER, AND FIXED IT — W6 IS NOW CLOSED WITH A PROOF.**
+
+⚠⚠ **I BANKED SWEEP-1 AS CLOSED THIS EVENING AND IT WAS NOT SUFFICIENT.** Observed live, in order:
+```
+21:54:40Z  last cycle line          -> then NOTHING for 17 minutes
+22:09:35Z  cycle.py ALIVE (pids 32792/33596, started 21:55:10Z, i.e. 14.4 min into its sweep)
+           and executing budget_watch.py, started 22:07:33Z
+22:11:49Z  the line lands: sweep=998.6s, gap 21:54:40 -> 22:11:49 = 1,029 s
+```
+**A 1,029 s gap against a 900 s cap on a loop I had just watched running. That is the false-DEAD
+condition, live, with `science_watch` and `results_audit` already cached down to 14-20 s.** The cache
+fixed the two walkers I knew about; **the cycle contained a third.**
+
+⭐⭐ **AND IT IS THE ONE W6 HAD MIS-DIAGNOSED TWICE.** `budget_watch._generation_depth` ran
+`glob.glob(ROOT/**/record.json)` + `json.load` on every record against `cycle.py`'s **180 s** timeout.
+The original W6 row blamed *"a probe that scans the spend ledgers and therefore GROWS with the
+campaign"* — **the ledgers are STATIC at 2,956 rows and the spend has not moved since C1 closed.** My
+own pass-3 re-diagnosis got the walk right but called it "marginal at the cap"; it is not marginal,
+it is the dominant term in the sweep now that the other two are cached.
+
+**FIXED, WITH THE SMALLEST POSSIBLE CHANGE.** The function reads exactly two scalar fields, so it
+gets a **PROJECTION** rather than the full shrunken record — `{"arm", "generation"}` — which makes its
+cache **3.3 MB** against the 459 MB the science tools need.
+
+⚠ **THE ONE BEHAVIOURAL DIFFERENCE WAS MEASURED, NOT ASSUMED HARMLESS.** This walk excluded NOTHING;
+the cache excludes `.pull_tmp*` and `_quarantined*`. Live archive: **`_quarantined*` = 0 records**,
+and **`.pull_tmp*` = 3 records, every one with the `.pull_tmp` directory as its FIRST path segment**,
+so they can only key into roots named `.pull_tmp.28884` / `.pull_tmp.34624` — and `main()` iterates
+the FIXED `LINES` registry via `depth.get(root, {})`, so a root outside it is never read. **Provably
+output-neutral, and then proven anyway rather than argued.**
+
+**VERIFICATION — BYTE-IDENTITY AGAINST `git show HEAD:docs/ops/budget_watch.py`:**
+```
+BASELINE (pre-change)   rc=2   97.0s   stdout 1,737 B
+cached-COLD             rc=2  150.5s   stdout 1,737 B   BYTE-IDENTICAL
+cached-WARM             rc=2    3.8s   stdout 1,737 B   BYTE-IDENTICAL   25.4x
+live cold 3 s · live warm 2 s, against the 180 s cap it had been blowing
+```
+`rc=2` is this tool's own pre-existing "over the credit ESTIMATE (owner-watched)" state, unchanged.
+The proof ran against a PRIVATE cache directory and never touched the live one. ruff clean.
+⇒ **W6: FIXED.** ⚠ **The false-DEAD condition is NOT declared closed** — it is now down to the
+cadence-gated heavy probes plus `integrity_gate`, and the next elevated sweep should be attributed
+before anything else is assumed.
+
 ### ⭐⭐ 2026-08-05 22:10 UTC (RUN 23 pass 5) — **NINE ARCHIVE WALKERS, AT LEAST FIVE DIFFERENT
 ### EXCLUSION RULES. PROVEN-BENIGN TODAY BY MEASUREMENT — AND IT KILLS MY OWN PASS-4 PLAN.**
 
