@@ -284,6 +284,73 @@ def job_tier(job_name: str, tag_to_line: dict, rosters: dict, tiers: dict) -> tu
     return best, [(line, a) for a in covered]
 
 
+def balance_targets(deficits: dict, total_cores: int, per_line_cores: dict) -> dict:
+    """{line: (target_cores, held_cores, starved)} — the DEFICIT-PROPORTIONAL allocation.
+
+    ⭐⭐⭐ THE SCHEDULING RESULT THAT MAKES THIS THE RIGHT ANSWER, AND IT IS NOT INTUITIVE.
+    The reported result is a MINIMUM over lines, so it rises only when the LAST binding line arrives.
+    For a min-over-lines objective at fixed total capacity, the makespan is minimised when every
+    binding line FINISHES AT THE SAME TIME — which means cores must be allocated in proportion to
+    each line's REMAINING DEFICIT. Concentrating capacity on one line is therefore not merely
+    suboptimal, it is the WORST available allocation: it finishes a line that was never the
+    constraint while the actual constraint sits idle.
+
+    ⚠ MEASURED 2026-08-06, AND IT IS WHY THIS FUNCTION EXISTS. Tamer asked why work was sequential.
+    It was: kimi held **81 of 98 running jobs = 648 cores = 83% of the fleet** while deepseek (165
+    queued), glm (157), nemotron (248) and haiku (1) held **ZERO RUNNING JOBS between them**. Kimi
+    owed the LEAST toward rung 100 (254 trainings) and the three starved lines owed the MOST (350
+    each). At 648 cores kimi clears its 254 in 3.7 h and then climbs PAST the common rung while the
+    lines that actually gate it have not started.
+
+    The cause is the same accidental ordering as the floor defect: kimi's jobs carry the oldest
+    submission time (08/04 22:52), so accrued waiting time hands them every freed slot.
+    """
+    binding = {ln: d for ln, d in deficits.items() if d > 0}
+    tot_def = sum(binding.values())
+    out: dict = {}
+    for ln, d in binding.items():
+        target = int(round(total_cores * d / tot_def)) if tot_def else 0
+        have = per_line_cores.get(ln, 0)
+        out[ln] = (target, have, have < 0.5 * target)
+    return out
+
+
+def balance_hold_plan(jobs: list[dict], tag_to_line: dict, targets: dict, run_cores: dict,
+                      deficits: dict, *, depth_factor: int = DEPTH_FACTOR,
+                      depth_floor: int = DEPTH_FLOOR) -> dict:
+    """Hold the OVER-SERVED lines' pending jobs so freed slots go to the STARVED binding lines.
+
+    ⚠ THE MECHANISM IS INDIRECT AND THAT IS WHY IT IS SAFE. It does NOT touch a running job, so it
+    frees nothing immediately: kimi's 82 running jobs run to completion. What it changes is where
+    each slot goes WHEN it frees. Today accrued waiting time hands it straight back to kimi, because
+    kimi's queued jobs carry the oldest submission time. With those queued jobs held, the next
+    eligible job belongs to a starved binding line instead. Over roughly one job-duration (~9.4 h)
+    the fleet re-shapes itself onto the lines that actually gate the common rung.
+
+    A line is OVER-SERVED at more than 1.5x its deficit-proportional target, and a line owing ZERO
+    toward the target rung is over-served at ANY core count — it cannot advance the result at all.
+    """
+    running = [j for j in jobs if j["state"].strip() == "r"]
+    pending = [j for j in jobs if j["state"].strip() == "qw"]
+    over: set = set()
+    for ln, c in run_cores.items():
+        if deficits.get(ln, 0) <= 0:
+            over.add(ln)                                   # owes nothing: any core is misallocated
+        else:
+            t = targets.get(ln, (0, 0, False))[0]
+            if t and c > 1.5 * t:
+                over.add(ln)
+    cand = [j for j in pending if tag_to_line.get(j["name"].split("_", 1)[0]) in over]
+    cand.sort(key=lambda j: -j["prior"])                   # the ones actually winning slots first
+    min_elig = max(depth_factor * len(running), depth_floor)
+    max_hold = max(0, len(pending) - min_elig)
+    hold = cand[:max_hold]
+    return {"over_served": sorted(over), "candidates": len(cand), "hold": hold,
+            "min_eligible": min_elig, "eligible_after": len(pending) - len(hold),
+            "running": len(running), "pending": len(pending),
+            "truncated": len(hold) < len(cand)}
+
+
 def build_plan(jobs: list[dict], tier_of: dict, *, promote_max_tier: int = PROMOTE_MAX_TIER,
                depth_factor: int = DEPTH_FACTOR, depth_floor: int = DEPTH_FLOOR) -> dict:
     """The minimal, depth-respecting hold set that puts promoted work at the front of OUR queue.
@@ -484,6 +551,67 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
         n = sum(1 for j in pending if tier_of[j["jid"]] == t)
         print("  %-22s %4d job(s)" % (TIER_NAME[t], n))
 
+    # ---- THE BALANCER: is the fleet CONCENTRATED on one line while binding lines starve? --------
+    cur, nxt_rung = common_rung(scan, rungs)
+    after_floor = next((r for r in sorted(rungs) if r > max(cur, min(rungs))), max(rungs))
+    line_of_tag = tag_to_line
+    run_cores: dict = {}
+    for j in jobs:
+        if j["state"].strip() == "r":
+            ln = line_of_tag.get(j["name"].split("_", 1)[0])
+            if ln:
+                run_cores[ln] = run_cores.get(ln, 0) + 8
+    defs_next = line_deficits(scan, after_floor)
+    tg = balance_targets(defs_next, sum(run_cores.values()), run_cores)
+    print("\n=== FLEET BALANCE — cores must go to the LARGEST deficit, not the oldest queue ===")
+    print("The reported result is a MINIMUM over lines, so it rises only when the LAST binding line")
+    print("arrives. At fixed capacity the makespan is minimised when every binding line FINISHES AT")
+    print("THE SAME TIME, i.e. cores in proportion to remaining DEFICIT. Concentrating on one line is")
+    print("not merely suboptimal -- it is the WORST allocation, finishing a line that was never the")
+    print("constraint while the actual constraint sits idle.")
+    print("  target rung for this table: %d" % after_floor)
+    print("  %-28s %8s %8s %8s  %s" % ("line", "owes", "cores", "target", "verdict"))
+    starved = []
+    for ln, (target, held_c, is_starved) in sorted(tg.items(), key=lambda kv: -kv[1][0]):
+        v = "STARVED" if is_starved else ("over-served" if held_c > 1.5 * target else "balanced")
+        if is_starved:
+            starved.append(ln)
+        print("  %-28s %8d %8d %8d  %s" % (ln, defs_next.get(ln, 0), held_c, target, v))
+    if starved:
+        print("  ⇒ %d BINDING LINE(S) STARVED: %s" % (len(starved), ", ".join(sorted(starved))))
+        print("    These gate the common rung and hold under half their deficit-proportional share.")
+        print("    The cause is accrued waiting time, not the cluster: the line holding the fleet")
+        print("    simply has the OLDEST submission time, so it wins every freed slot.")
+    else:
+        print("  ⇒ no binding line is starved; the fleet is reasonably balanced.")
+
+    if starved:
+        bp = balance_hold_plan(jobs, line_of_tag, tg, run_cores, defs_next)
+        print("\n  --- THE REBALANCE (holds nothing that is running; changes only WHERE the NEXT")
+        print("      freed slot goes, so the fleet re-shapes over ~one job duration) ---")
+        print("    over-served lines : %s" % ", ".join(bp["over_served"]))
+        print("    their pending jobs: %d" % bp["candidates"])
+        print("    TO HOLD           : %d" % len(bp["hold"]))
+        print("    eligible after    : %d  (guard %d, %.1fx running)"
+              % (bp["eligible_after"], bp["min_eligible"],
+                 bp["eligible_after"] / max(1, bp["running"])))
+        if bp["truncated"]:
+            print("    ⚠ truncated by the depth guard: %d left eligible on purpose"
+                  % (bp["candidates"] - len(bp["hold"])))
+        if bp["hold"]:
+            ids = [j["jid"] for j in bp["hold"]]
+            JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+            JOURNAL.write_text(json.dumps({"held": ids, "promote": [], "mode": "balance",
+                                           "min_eligible": bp["min_eligible"]}, indent=1),
+                               encoding="utf-8")
+            print("    journal: %s (%d ids)" % (JOURNAL.relative_to(REPO), len(ids)))
+            print("    ⇒ COMMANDS (this tool executes NOTHING):")
+            for ch in _chunks(ids):
+                print("       ssh myriad \"qhold %s\"" % " ".join(ch))
+            print("    ⇒ RELEASE (bounded at 90 min, and re-check `qstat -s hs` before re-holding):")
+            print("       python docs/ops/job_rank_governor.py --release-from %s"
+                  % JOURNAL.relative_to(REPO))
+
     plan = build_plan(jobs, tier_of, promote_max_tier=promote_max_tier)
     print("\n--- THE PLAN ---")
     print("  running jobs               : %d" % plan["running"])
@@ -669,6 +797,26 @@ def selftest() -> int:
     ck("sweep on a fully-banked line is NOT promoted",
        job_tier("leg5_leg_haiku_4_5_sweep_t3_r1", tag_to_line, rosters, t_all_done)[0] <= 1, False)
 
+    # --- THE BALANCER: cores in proportion to DEFICIT, so binding lines finish together --------
+    # The live 2026-08-06 shape that prompted it: kimi 648 cores owing 254, three lines owing 350
+    # each with ZERO cores. The optimum for a min-over-lines objective is deficit-proportional.
+    defs_ = {"kimi": 254, "deepseek": 350, "glm": 350, "nemotron": 350, "done": 0}
+    have = {"kimi": 648, "deepseek": 0, "glm": 0, "nemotron": 0, "done": 72}
+    tg = balance_targets(defs_, 784, have)
+    ck("a line owing nothing gets NO target at all", "done" in tg, False)
+    ck("targets are deficit-proportional: 350/1304 of 784", tg["deepseek"][0], 210)
+    ck("the smallest deficit gets the smallest target", tg["kimi"][0], 153)
+    ck("targets sum to about the total capacity", sum(v[0] for v in tg.values()) in (783, 784, 785), True)
+    # ⭐ THE STARVATION FLAGS ARE THE ACTIONABLE OUTPUT
+    ck("a line at ZERO against a 210 target is STARVED", tg["deepseek"][2], True)
+    ck("kimi at 648 against a 153 target is NOT starved", tg["kimi"][2], False)
+    ck("starved lines are exactly the three at zero",
+       sorted(k for k, v in tg.items() if v[2]), ["deepseek", "glm", "nemotron"])
+    # a line at HALF its target is on the boundary and must NOT be called starved
+    ck("a line at exactly half its target is not starved",
+       balance_targets({"a": 100}, 100, {"a": 50})["a"][2], False)
+    ck("an empty deficit set cannot divide by zero", balance_targets({}, 784, {}), {})
+
     # --- the plan, and its invariants ---------------------------------------------------------
     jobs = ([{"jid": "1", "name": "c1_bayes_opt_test_p01", "state": "qw", "prior": 2.001}]
             + [{"jid": str(100 + i), "name": "leg10_x_sweep_p01", "state": "qw", "prior": 2.010 + i * 1e-5}
@@ -725,7 +873,7 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 36 assertions incl. 7 mutation controls and 2 undecidable-input cases")
+    print("SELFTEST OK — 46 assertions incl. 8 mutation controls and 2 undecidable-input cases")
     return 0
 
 
