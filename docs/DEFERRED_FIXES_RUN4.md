@@ -2587,3 +2587,67 @@ reproducing disclosure D-d to four decimals), while **22 search-tier candidates 
 ineligible**, the worst at **99.978%** — a kimi-k3 `distributional` candidate whose authored reward
 essentially never ran. `search`, `gpt-5.6-luna`, `sonnet-5` and `h3_singleshot` have none. That is
 the phenomenon the campaign measures, cleanly separated by tier.
+
+---
+
+### D73 (BLOCKING, code defect in a drift-fenced file) — the C4 assurance ladder has NO ordering mechanism, because the amendment that retired one was never applied to the layer beneath it
+
+**MEASURED 2026-08-06 (RUN 25), three independent routes, and confirmed from the source.**
+
+Two mechanisms were meant to make the C4 ladder climb in rung order. **Neither operates.**
+
+1. **`src/cluster/campaign.py:1646` `PRIORITY_RUNG_BASE = 0`.** The descending `-p` ladder was
+   retired on 2026-07-31 and **that retirement is CORRECT and must never be undone**: `-p` is a
+   GLOBAL POSIX priority weighted `4.0` (the largest term in `qconf -ssconf`), so it sank us beneath
+   every other user rather than ordering our own work. Measured then at 384 cores, falling from 728.
+2. **`src/cluster/campaign.py:2006-2007` names submission age as the replacement, and it is
+   structurally absent.** The comment reads *"blocks are submitted in rung order and
+   `weight_waiting_time = 1.0`, so the earlier block outranks the later one on age alone."* Twelve
+   lines below, **`campaign.py:2016-2017` submits all six blocks CONCURRENTLY** through
+   `ThreadPoolExecutor(max_workers=len(tiers)-1)` and `ex.map`. There is no age difference to order
+   by.
+
+**THE EVIDENCE, from the live system rather than from reading:**
+
+* **Queue.** Every line's six blocks were submitted inside a **3-5 minute window**, and on three
+  lines a HIGH block carries a **LOWER job id** than t1 — `glm` t5 = 91245 against t1 = 91250;
+  `kimi` t4 = 90960 against t1 = 90961; `deepseek` t4 = 94017 against t3 = 94019. `ppri` is **0 on
+  all 931 jobs** and the entire `prior` spread (2.00137-2.01351) is waiting-time accrual.
+* **Running fleet.** 111 jobs / 888 cores: **704 cores (79.3%) sit on blocks ABOVE their own line's
+  next-needed block**, so their records cannot lift any banked rung when they land. `qwen3.6` had
+  nine running jobs and **zero** on t2, the only block that can lift it off rung 100.
+* **Archive.** `kimi` holds six DISCONNECTED seed blocks — `0-48, 100-120, 189-212, 279-301,
+  340-354, 403-417` — and banks rung **30**. Across the 11 model lines, **2,328 of 16,791 sealed-test
+  records (13.9%)** sit at or above their own arm's next rung boundary.
+
+**WHY IT MATTERS AND IS NOT MERELY UNTIDY.** Under R101 the reported result is the COMMON RUNG, a
+MINIMUM over every registered `(line, arm)`. A record above the next rung boundary raises that
+minimum by **exactly zero** until every seed below it is present, and at the 2026-08-27 exogenous
+stop a block that is a few seeds short banks **nothing**. So pipelining without ordering converts
+deferred value into destroyed value at the stop.
+
+**THE FAILURE CLASS IS ONE THIS FILE ALREADY KNOWS.** The comment block at `campaign.py:1616-1619`
+names it two paragraphs before committing it: *"`mode_d_launch.ps1` was updated at the time ... The
+ARM-level and RUNG-level ladders in this module were not — a half-applied amendment, the same
+failure mode as R106."* The RUNG-level ladder was then retired, and the ordering it had been
+providing was not replaced.
+
+**NOT A DUPLICATE OF D25.** D25 covers the `max_u_jobs` consequence of submitting all six blocks at
+once. This row is about the ORDER in which they are then dispatched, which D25 does not touch.
+
+**MITIGATION IN PLACE, and it is deliberately outside the fence.** `docs/ops/job_rank_governor.py`
+now carries the RUNG-DISTANCE term (`job_sweep_tier`, `line_needed_block`, `rung_distance`,
+`allocative_efficiency`, `tier_value_hold_plan`), reports `ALLOCATIVE EFFICIENCY` every pass, and
+emits a hold set that restores the ordering in the only place still available — which jobs we allow
+to be ELIGIBLE. It never touches `-p`, never touches a running job, and never holds a distance-0 or
+a floor job. Mutation-proven: the pre-fix model fails 8 assertions.
+
+**THE REAL FIX, for a deploy window and Tamer's GO, in preference order:**
+
+1. **Run C4 with `--pipeline-rungs` OFF on the binding line.** The sequential path
+   (`campaign.py:2024-2042`) submits one block, drains it, then submits the next — rung-ordered by
+   construction, and it also removes the `max_u_jobs` breach. Cost: the drain bubble the pipelined
+   path was introduced to remove, and a live driver restart.
+2. **Order the `ex.map` submissions and stagger them** so the age term the comment relies on
+   actually exists. Cheapest code change; leaves the deep queue intact.
+3. **Do NOT reinstate the `-p` ladder.** It is refuted and prohibited.

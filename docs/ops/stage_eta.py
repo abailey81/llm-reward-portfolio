@@ -308,9 +308,32 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
              f"registered units (lanes.py _TEST_UNITS_PER_RUNG)")
     L.append("")
     L.append("MEASURED test-tier throughput (record mtimes; an observation, not a model):")
+    # ⚠⚠ P-RUN25, 2026-08-06. THE SHORT WINDOWS WERE PRINTED FIRST, BARE, AND THEY MISLED TAMER
+    # FOR THE SECOND TIME. The constant above already records the 2026-08-03 incident in full --
+    # "the 1 h window read 52 rec/h ... against a 12 h reading of 206" -- and MIN_ETA_WINDOW_H
+    # already stops those windows PRICING anything. But the RENDER still led with `last 1 h` and
+    # attached no marker, so a reader met the least reliable number first and reasonably concluded
+    # the campaign had collapsed. On 2026-08-06 the page read "last 1 h  14 records  14.0 rec/h"
+    # while the 24 h rate was 131.8 and the fleet was running at its mechanical ceiling.
+    # ⇒ A TOOL THAT KNOWS A NUMBER IS UNRELIABLE AND PRINTS IT UNMARKED IS THE DEFECT. The
+    # operative rate now leads, and every sub-quantum window carries the reason it cannot be read
+    # as a rate. No computation changes -- MIN_ETA_WINDOW_H already governed the ETA, and it still
+    # does; this makes the OUTPUT say what the code already believed.
+    # ASCII-ONLY: these lines reach the published status page, whose gate has been broken five
+    # times. No arrows, no dashes beyond '-', no section signs.
+    _usable = [(h, tp[h][1]) for h in WINDOWS_H if h >= MIN_ETA_WINDOW_H and tp[h][0] > 0]
+    if _usable:
+        _oh, _orate = min(_usable, key=lambda t: t[0])
+        L.append(f"    => OPERATIVE RATE {_orate:.1f} rec/h  (the {_oh} h window; the shortest one "
+                 f"an ETA may be priced from)")
     for h in WINDOWS_H:
         n, r = tp[h]
-        L.append(f"    last {h:>2} h   {n:>5} records   {r:>7.1f} rec/h")
+        if h >= MIN_ETA_WINDOW_H:
+            note = "usable"
+        else:
+            note = ("NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the "
+                    "gaps between 8-record bursts")
+        L.append(f"    last {h:>2} h   {n:>5} records   {r:>7.1f} rec/h   {note}")
 
     # ⚠ F8: THE COMPOSITION WARNING MUST DESCRIBE THE WINDOW THE ETA IS ACTUALLY PRICED FROM.
     # This was hardcoded to 12 h while `eh2` below falls back to 24 h when the 12 h window is empty

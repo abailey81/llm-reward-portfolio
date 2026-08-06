@@ -3,6 +3,192 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06c] ★★★★★ RUN 25 (OPS), pass 1 — **THE LADDER HAS NO ORDERING MECHANISM AT ALL, AND NOBODY NOTICED BECAUSE THE VALUE MODEL IS STRUCTURALLY BLIND TO IT** · 79.3% of 888 held cores are producing records that cannot raise any banked rung · the binding line walks into a job-cap wall in ~17 h · **and a tool that had already recorded why a 1 h throughput window is meaningless printed it first anyway, and misled Tamer with it for the second time**
+
+**WHERE WE WERE.** RUN 24 closed having taken cores 544 -> 800, executed the queue reorder that put
+`c1` at rank 1, built `job_rank_governor.py` and `core_accumulator.py`, and recorded in this file
+that *"every one of our 544 held cores is producing records with zero marginal value to the reported
+result"*. It named the fleet CONCENTRATION (kimi holding 83% while owing the least) as the cause and
+left a per-LINE rebalance plan awaiting Tamer's `qhold`.
+
+**WHAT TAMER ASKED FOR TODAY, verbatim, in three messages:** *"make sure all of these cores that we
+accumulate, they work for the campaign, records and etc, and they are efficient, and efficiently
+allocated and very smartly parallelised, and not just doing some useless scrap so we just see the
+higher number. I dont need a higher number if there is no use to it and it doesnt speed up the eta
+and doesnt contribute to the records."* · *"bring the efficiency to an absolute maximum to minimise
+the eta"* · *"17 records per hour???? That's extremely low."*
+
+### ⓵ THE PER-LINE DIAGNOSIS WAS RIGHT AND INCOMPLETE — THE REAL TERM IS PER-BLOCK, AND NO INSTRUMENT MEASURED IT
+
+`job_rank_governor.job_tier` scores a job by the best tier of any arm it COVERS, and for a
+`_sweep_t<k>` job it sets `covered = sorted(roster)` — **every arm on the line.** So
+`leg10_..._sweep_t1` and `leg10_..._sweep_t6` receive the **IDENTICAL** value. The model cannot
+distinguish the assurance block that LIFTS a line's banked rung from the block that cannot count for
+another five blocks. `FLAWLESS_LEDGER`'s placement policy shows the consequence in its own table:
+**882 jobs in one undifferentiated `V2 LINE MINIMUM` bucket.**
+
+**MEASURED THREE INDEPENDENT WAYS, 2026-08-06 07:5x-08:1xZ.**
+
+**(a) The live running census** (111 jobs / 888 cores, `qstat -u ucestes -r` joined to slot counts):
+
+| what it runs | jobs | cores | share | can it raise a banked rung? |
+|---|---:|---:|---:|---|
+| `c1` floor (bayes_opt + tpe) | 8 | 64 | 7.2% | **YES** — the only work moving the reported result |
+| kimi t1 (seeds 30-99) | 15 | 120 | 13.5% | yes, toward kimi's own next rung |
+| kimi t2-t6 | 79 | 632 | 71.2% | **no** — blocked behind t1 |
+| qwen3.6 t3 + t6 | 9 | 72 | 8.1% | **no** — it needs t2 and had **ZERO** t2 jobs running |
+
+⇒ **704 of 888 cores (79.3%) produce records that cannot lift any rung when they land.**
+
+**(b) The archive.** 16,791 sealed-test records over the 11 model lines. `kimi` holds **six
+disconnected seed blocks** — `0-48, 100-120, 189-212, 279-301, 340-354, 403-417` — and banks rung
+**30**. **2,328 records (13.9%) sit at or above their own arm's next rung boundary**, i.e. roughly
+21,900 core-hours already spent on records with zero current value.
+
+**(c) The queue.** Every line's six blocks were submitted inside a **3-5 minute window**, and on
+`glm`, `kimi` and `deepseek` a HIGH block carries a **LOWER job id** than t1 (glm t5=91245 against
+t1=91250; kimi t4=90960 against t1=90961). `ppri` is **0 on all 931 jobs** and the whole `prior`
+spread (2.00137-2.01351) is waiting-time accrual.
+
+### ⓶ ROOT CAUSE, READ FROM THE SOURCE: A HALF-APPLIED AMENDMENT LEFT THE LADDER WITH **NO** ORDERING MECHANISM
+
+Two mechanisms were meant to make the ladder climb in rung order. **Neither operates.**
+
+1. **`campaign.PRIORITY_RUNG_BASE = 0`** — the `-p` ladder was retired 2026-07-31, and that
+   retirement is **CORRECT and must never be undone**: `-p` is a GLOBAL POSIX priority weighted
+   `4.0` (the largest term in `qconf -ssconf`), so it sank us beneath every other user instead of
+   ordering our own work. Measured then at 384 cores and falling from 728.
+2. **Its stated replacement is structurally false.** `campaign.py:2006-2007` says *"blocks are
+   submitted in rung order and `weight_waiting_time = 1.0`, so the earlier block outranks the later
+   one on age alone."* **Twelve lines below, `campaign.py:2016-2017` submits all six blocks
+   CONCURRENTLY through a `ThreadPoolExecutor(max_workers=len(tiers)-1)`.** There is no age
+   difference to order them by.
+
+**This is the same failure mode the comment block itself names two paragraphs earlier for R106 and
+for the arm-level ladder: an amendment applied to one layer and not to the one beneath it.** It is
+NOT registered in `DEFERRED_FIXES_RUN4.md` — D25 covers the job-cap consequence of pipelined
+submission, not the ordering loss.
+
+### ⓷ THE FORWARD RISK, AND IT IS LARGER THAN THE CURRENT WASTE: `c1` WALKS INTO THE JOB CAP IN ~17 HOURS
+
+`c1` round 1 dispatched 05:44-05:46Z and completes ~14:51Z; round 2 (`h2_pair`) then completes
+~00:50Z on 7 Aug. **The review gate is NOT a stall** — verified at `campaign.py:1964`, it
+AUTO-PROCEEDS on green execution health and `hold_at_gate` is not set (no `TIER1_APPROVED_c1` file
+exists and none is needed). C4 then opens, and `c1` has **20 sweep units** (9 arms + the 11-name H1
+canon):
+
+| block | seeds | c1 jobs |
+|---|---|---:|
+| t1 | 30-99 | 175 |
+| t2 | 100-188 | 223 |
+| t3 | 189-278 | 225 |
+| t4 | 279-339 | 153 |
+| t5 | 340-402 | 158 |
+| t6 | 403-567 | 413 |
+| | | **1,347** |
+
+Against `max_u_jobs 1000` with **931 jobs live — 69 slots of headroom.** All six blocks go in
+concurrently, so `c1` places ~69 jobs of arbitrary block mix and then crash-loops (D25's documented,
+survivable behaviour), and every job it does place carries **zero accrued waiting time**, i.e. it
+queues behind kimi's 08/04 jobs. **The line that solely determines the reported result enters its
+largest phase with the worst queue position and 5% of its work submitted.**
+
+⚠ **AND THE OBVIOUS REMEDY DOES NOT WORK, WHICH IS WORTH STATING BECAUSE IT IS COUNTER-INTUITIVE:
+holding jobs buys NO cap headroom.** `max_u_jobs` counts jobs in the system, and an `hqw` job is in
+the system. Holding fixes DISPATCH ORDER only. (High confidence, not yet measured; it will be
+confirmed empirically the moment any hold is applied rather than left asserted.)
+
+**INDEPENDENT CROSS-CHECK OF THE WHOLE MODEL:** `c1`'s t1 block is 20 units x 70 seeds = 1,400
+trainings, plus the 120 still owed at tier 0 = **1,520** — which is exactly what
+`job_rank_governor` computes as `c1`'s deficit to common rung 100, by a completely different route
+(per-arm seed-set differencing). Two derivations, one number.
+
+### ⓸ THE FIX, BUILT INTO THE AUDITED INSTRUMENT AND MUTATION-PROVEN
+
+Added to `docs/ops/job_rank_governor.py` (unfenced; no `src/**` or `scripts/**` edit, `drift` stays
+0): **the RUNG-DISTANCE term** — `job_sweep_tier`, `line_needed_block`, `rung_distance`,
+`allocative_efficiency`, `tier_value_hold_plan`, plus a report section that now runs every pass of
+the 30-minute loop.
+
+* **`line_needed_block`** derives the block that lifts each line's next rung from the registered
+  ladder rather than assuming it: banked 30 -> next 100 -> index 1 -> `sweep_t1` (seeds 30-99).
+  Verified against all three live shapes — kimi 30->t1, qwen3.6 100->t2, haiku 189->t3, and haiku's
+  queued repair is indeed named `sweep_t3_r1`.
+* **It never touches `-p`, never touches a running job, and never holds a distance-0 or a
+  floor/round job.** The floor is structurally untouchable by this term (`rung_distance` returns
+  `None` for any non-sweep job, and `None` is never held).
+* **The depth guard binds first**, at `max(4 x running, 200)` — M5 measured what happens without it
+  (holding 228 of 309 left 80 eligible and our running count decayed **44 -> 9**).
+
+**LIVE OUTPUT:** `ALLOCATIVE EFFICIENCY 20.7% of 888 cores`; `running cores by distance:
+floor/round=64, d0=120, d1=144, d2=160, d3=96, d4=176, d5=128`; pending above their own next block
+**688**, `TO HOLD 376`, `eligible after 444 (guard 444, 4.0x running)`. The generated hold set was
+verified against a fresh queue snapshot and is **exactly t4/t5/t6 on kimi, deepseek, glm and
+nemotron** — no rung-lifting job, no `c1` job, no haiku repair.
+
+**MUTATION-PROVEN, because a test that cannot fail verifies nothing.** Run in-process against the
+live module: MUTANT 1 (the pre-fix model — distance always 0) fails **8 assertions**; MUTANT 2
+(needed block hardcoded to 1) fails; MUTANT 3 (depth guard removed) fails; restored code passes.
+Selftest now reads `46 + 22 assertions incl. 8 mutation controls, the 8 rung-distance
+discriminators, and 2 undecidable-input cases`.
+
+### ⓹ THE "17 RECORDS PER HOUR" IS A BROKEN INSTRUMENT, AND IT HAD ALREADY RECORDED WHY
+
+Tamer read **"last 1 h — 14 records — 14.0 rec/h"** off the status page and reasonably concluded the
+system had collapsed. **It has not.** Measured independently by walking all 17,359 sealed-test
+`record.json` mtimes: last 1 h **13**, last 6 h **349 (58.2/h)**, last 12 h **1,173 (97.8/h)**, last
+24 h **3,164 (131.8/h)**. Against the naive ceiling of `cores / 9.4 h` that is **97.8 against ~74**
+on the 12 h window and **131.8 against ~113** on the 24 h window — **the fleet is converting cores
+into records at or above its mechanical ceiling.** The `+0` runs in `CYCLE_LOG` are the same
+artefact: a ~1-minute poll against a 9.4-hour arrival quantum MUST read `+0` most of the time.
+
+⚠ **THE DEFECT IS THAT THE TOOL ALREADY KNEW.** `stage_eta.py:105-116` carries `MIN_ETA_WINDOW_H =
+12` and a comment recording the **2026-08-03** incident verbatim — *"MEASURED while Tamer asked why
+the rate had collapsed: the 1 h window read 52 rec/h and the 3 h read 94 rec/h against a 12 h
+reading of 206 rec/h"* — and the ETA logic correctly refuses to price anything from a short window.
+**But the RENDER still led with `last 1 h`, bare and unmarked.** So the same person was misled by
+the same number a second time, three days later. **A tool that knows a number is unreliable and
+prints it first without saying so is the defect, not the reader.**
+
+**FIXED** (`stage_eta.py`, output only — no computation changed, `MIN_ETA_WINDOW_H` already
+governed the ETA and still does): the block now leads with `=> OPERATIVE RATE 97.2 rec/h (the 12 h
+window; the shortest one an ETA may be priced from)` and every sub-quantum row carries `NOISE, not a
+rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts`.
+Verified live. **ASCII-checked by AST walk over every appended page string** — zero non-ASCII —
+because this output reaches the published page whose gate has now been broken five times.
+
+### ⓺ WHAT IS ESCALATED TO TAMER, AND WHY
+
+1. **`qhold` remains CLASSIFIER-BLOCKED for the agent** (three refusals under explicit ratification
+   in RUN 24). The rung-order hold set is generated and journalled to
+   `docs/ops/watch/RUNG_ORDER_HOLDS.json`; the commands are printed and executed by nobody.
+2. **A STANDING-RULE CONFLICT, surfaced rather than quietly broken.** `RUN25_SESSION_PROMPT` §13
+   says *"a hold must NEVER outlive 90 minutes"*. That rule was written for TACTICAL promotion
+   holds. A rung-order hold is STRATEGIC: it must persist until the blocks below drain, which is
+   days. Proposed substitute, which is strictly stronger than a timer and follows the ledger's own
+   *"the release predicate IS the lever"* lesson: the 30-minute loop verifies cores are not falling,
+   eligible depth stays above the measured 291-job burst floor, and the 12 h record rate is not
+   falling — and releases from the journal if any fails. **Not applied. Tamer's call.**
+3. **`--pipeline-rungs` OFF for `c1`** would fix both the ordering and the cap breach for the
+   binding line, since the sequential path submits t1 (175 jobs) and drains it before t2. It is a
+   supervisor FLAG (`scripts/mode_d_supervisor.ps1:211`), not a code edit — but that file is
+   drift-fenced, so it needs the unfenced-copy pattern, and it needs a live restart of the line
+   carrying the entire reported result. RUN 24 declined a `c1` restart for weaker reasons (R24-8).
+   **Costed and offered, not actioned.**
+
+### ⓻ SMALLER FINDINGS
+
+* **Two 0-byte junk files at the repo root**, `**You` and `driver`, both created 2026-08-01 17:14,
+  both UNTRACKED — the signature of a broken heredoc redirect. Cosmetic, but inside the
+  reproducibility artefact's blast radius. To be removed BY NAME, never by `git clean`.
+* **`PROMOTE_MAX_TIER = 0` starves haiku's repair**, as RUN 24 recorded. Measured this pass:
+  running `--promote-max-tier 1` produces a plan that holds **all 157 of glm's pending jobs** — and
+  glm is a STARVED BINDING line owing 350 trainings to rung 100. **So the V1 promotion as currently
+  built is worse than the default, and the right answer is neither: it is the rung-distance plan
+  above, which leaves haiku's repair eligible without holding a binding line at all.**
+* `stage_eta` independently corroborates the concentration finding without being asked:
+  *"12 h rate is 49% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all"*.
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a

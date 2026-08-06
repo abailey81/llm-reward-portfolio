@@ -84,6 +84,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -100,6 +101,11 @@ import record_seed_completeness as S15      # noqa: E402
 
 ROOT = REPO / "outputs" / "campaign_cluster_run4"
 JOURNAL = REPO / "docs" / "ops" / "watch" / "JOB_RANK_HOLDS.json"
+# ⚠ A SEPARATE JOURNAL, DELIBERATELY. The rung-order plan and the floor-promotion plan are
+# different hold sets with different release predicates, and writing both to one file would let a
+# release of one silently discard the record of the other — the single-file collision class that
+# `TIER1_APPROVED` already cost this campaign once (campaign.py:1927).
+TIER_JOURNAL = REPO / "docs" / "ops" / "watch" / "RUNG_ORDER_HOLDS.json"
 SSH_TIMEOUT_SECS = 120
 
 DEPTH_FACTOR = 4          # eligible queue must stay >= 4x the running job count (backfill flow)
@@ -349,6 +355,166 @@ def balance_hold_plan(jobs: list[dict], tag_to_line: dict, targets: dict, run_co
             "min_eligible": min_elig, "eligible_after": len(pending) - len(hold),
             "running": len(running), "pending": len(pending),
             "truncated": len(hold) < len(cand)}
+
+
+# ---------------------------------------------------------------------------------------------
+# ⭐⭐⭐ THE RUNG-DISTANCE TERM — the dimension the V0..V3 model above is STRUCTURALLY BLIND TO
+# ---------------------------------------------------------------------------------------------
+# **THE DEFECT THIS EXISTS TO CLOSE, measured 2026-08-06 (RUN 25), three independent routes.**
+#
+# `job_tier` scores a job by the best tier of any arm it COVERS, and for a `_sweep_t<k>` job it sets
+# `covered = sorted(roster)` — EVERY arm on the line. So `leg10_..._sweep_t1` and
+# `leg10_..._sweep_t6` receive the **IDENTICAL** tier. The value model cannot tell apart the block
+# that lifts a line's banked rung from the block that cannot count for another five blocks.
+# That blindness is not academic:
+#
+#   * LIVE CENSUS (111 running jobs / 888 cores): `c1` floor 64 cores, kimi t1 120 cores, and
+#     **704 cores (79.3%) on blocks ABOVE their own line's next-needed block** — records that
+#     cannot raise ANY banked rung when they land. qwen3.6 had NINE running jobs and **zero** on
+#     t2, the only block that can lift it off rung 100.
+#   * ARCHIVE (16,791 sealed-test records): kimi holds six DISCONNECTED seed blocks
+#     (0-48, 100-120, 189-212, 279-301, 340-354, 403-417) and banks rung **30**. 2,328 records
+#     (13.9%) sit above their own arm's next rung boundary.
+#   * QUEUE: every line's six blocks were submitted inside a 3-5 MINUTE window, and on glm, kimi
+#     and deepseek a HIGH block carries a LOWER job id than t1 (glm t5=91245 vs t1=91250).
+#
+# **ROOT CAUSE, read from the source rather than inferred.** Two mechanisms were meant to make the
+# ladder climb in order and NEITHER operates. (1) `campaign.PRIORITY_RUNG_BASE = 0` — the `-p`
+# ladder was retired 2026-07-31, CORRECTLY: `-p` is a GLOBAL POSIX priority weighted 4.0, so it sank
+# us beneath every other user instead of ordering our own work. That retirement must never be
+# undone. (2) Its stated replacement, `campaign.py:2006-2007` — *"blocks are submitted in rung order
+# and weight_waiting_time = 1.0, so the earlier block outranks the later one on age alone"* — is
+# structurally false: twelve lines below, `campaign.py:2016` submits all six blocks CONCURRENTLY
+# through a `ThreadPoolExecutor`, so there is no meaningful age difference to order them by.
+# **A half-applied amendment — the same failure mode the comment block itself names for R106.**
+#
+# ⇒ So the ordering must be restored where it still CAN be: in what we allow to be ELIGIBLE.
+# This term is deliberately NOT a priority change. It never touches `-p`, never touches a running
+# job, and frees nothing immediately. It only changes WHICH job takes the next freed slot.
+_SWEEP_TIER = re.compile(r"_sweep_t(\d+)")
+
+
+def job_sweep_tier(job_name: str) -> int | None:
+    """The assurance-BLOCK index a `_sweep_t<k>` job carries, or None if the job is not a sweep.
+
+    Returns None for floor/round jobs (`c1_tpe_test_p01`, `..._h2_pair_test_...`) and for probes.
+    None means "this term has no opinion", and a job this term has no opinion about is NEVER held
+    by it — the floor work must be untouchable by an ordering heuristic.
+    """
+    m = _SWEEP_TIER.search(job_name)
+    return int(m.group(1)) if m else None
+
+
+def line_needed_block(scan: dict, rungs: list) -> dict:
+    """{line: the assurance-BLOCK index that must complete for that line to bank its NEXT rung}.
+
+    The blocks are `src.utils.seeds.seed_tiers`' partition and the naming is `sweep_t<i>` for
+    `enumerate(tiers[1:], start=1)`, so block `i` spans `[rungs[i-1], rungs[i])` and completing it
+    banks `rungs[i]`. Therefore the needed block index is simply the INDEX of the line's next rung
+    in the sorted ladder: banked 30 -> next 100 -> index 1 -> `sweep_t1` (seeds 30-99). Verified
+    against the live archive for all three distinct cases on 2026-08-06 — kimi 30->t1,
+    qwen3.6 100->t2, haiku 189->t3 (and haiku's queued repair is indeed named `sweep_t3_r1`).
+
+    A line already at the ceiling gets `len(rungs)`, which no block index can reach, so every one
+    of its jobs scores the maximum distance. That is correct: it owes nothing.
+    """
+    srt = sorted(rungs)
+    per_line: dict[str, int] = {}
+    for (line, arm), d in scan.items():
+        b = S15.banked_rung(d["seeds"], srt)
+        per_line[line] = b if line not in per_line else min(per_line[line], b)
+    out: dict[str, int] = {}
+    for line, b in per_line.items():
+        nxt = next((r for r in srt if r > b), None)
+        out[line] = len(srt) if nxt is None else srt.index(nxt)
+    return out
+
+
+def rung_distance(job_name: str, tag_to_line: dict, needed: dict) -> int | None:
+    """How many assurance blocks ABOVE its own line's next-needed block this job sits.
+
+    ``0``  it fills the block that LIFTS the line's banked rung -> it converts into result today.
+    ``k>0`` it cannot lift ANY rung until `k` lower blocks complete first -> deferred value.
+    ``None`` not a sweep job, or an unknown line: this term declines to score it, and a job it
+    declines to score is never held by it.
+
+    Clamped at 0 below: a block BELOW the needed one is already complete for the line minimum, so
+    a stray job there is a repair, not a demotion candidate.
+    """
+    k = job_sweep_tier(job_name)
+    if k is None:
+        return None
+    line = tag_to_line.get(job_name.split("_", 1)[0])
+    if line is None:
+        return None
+    n = needed.get(line)
+    if n is None:
+        return None
+    return max(0, k - n)
+
+
+def allocative_efficiency(jobs: list[dict], tag_to_line: dict, needed: dict,
+                          slots_per_job: int = 8) -> dict:
+    """What share of the RUNNING fleet is producing a record that can raise a banked rung TODAY.
+
+    This is the number Tamer asked for on 2026-08-06: *"I dont need a higher number if there is no
+    use to it and it doesnt speed up the eta and doesnt contribute to the records."* A core is
+    counted USEFUL iff its job sits at rung-distance 0, or is a floor/round job this term declines
+    to score (those are `c1`'s pair rounds, which are the binding work by definition).
+    """
+    useful = deferred = 0
+    by_dist: dict[int, int] = {}
+    for j in jobs:
+        if j["state"].strip() != "r":
+            continue
+        d = rung_distance(j["name"], tag_to_line, needed)
+        if d is None or d == 0:
+            useful += slots_per_job
+        else:
+            deferred += slots_per_job
+        by_dist[-1 if d is None else d] = by_dist.get(-1 if d is None else d, 0) + slots_per_job
+    tot = useful + deferred
+    return {"useful_cores": useful, "deferred_cores": deferred, "total_cores": tot,
+            "efficiency": (useful / tot) if tot else 0.0, "by_distance": by_dist}
+
+
+def tier_value_hold_plan(jobs: list[dict], tag_to_line: dict, needed: dict, *,
+                         depth_factor: int = DEPTH_FACTOR,
+                         depth_floor: int = DEPTH_FLOOR) -> dict:
+    """Hold the pending jobs FURTHEST above their own line's next-needed block, worst first.
+
+    ⚠ THE THREE PROPERTIES THAT MAKE THIS SAFE, each expressed as code rather than as a promise:
+      1. **Only `qw` jobs are candidates.** A running job is never considered (invariant 2).
+      2. **Distance 0 and `None` are never held.** The block that lifts a rung, and every floor or
+         round job, stay eligible whatever else happens.
+      3. **The depth guard binds first.** We hold at most `pending - max(4 x running, 200)`, so the
+         eligible queue can never be thinned below the burst-absorption floor. M5 measured what
+         happens when it is: holding 228 of 309 left 80 eligible and our running count decayed
+         44 -> 9. The guard is what keeps this the opposite of that experiment.
+
+    Within the candidate set the sort is `(-distance, -prior)`: the furthest-from-useful first,
+    and inside a distance bucket the ones with the HIGHEST priority — because those are precisely
+    the jobs that would otherwise take the next freed slot.
+    """
+    running = [j for j in jobs if j["state"].strip() == "r"]
+    pending = [j for j in jobs if j["state"].strip() == "qw"]
+    scored = []
+    for j in pending:
+        d = rung_distance(j["name"], tag_to_line, needed)
+        if d is None or d <= 0:
+            continue
+        scored.append((d, j))
+    scored.sort(key=lambda t: (-t[0], -t[1]["prior"]))
+    min_elig = max(depth_factor * len(running), depth_floor)
+    max_hold = max(0, len(pending) - min_elig)
+    hold = [j for _, j in scored[:max_hold]]
+    dist_hist: dict[int, int] = {}
+    for d, _ in scored:
+        dist_hist[d] = dist_hist.get(d, 0) + 1
+    return {"hold": hold, "candidates": len(scored), "distance_histogram": dist_hist,
+            "min_eligible": min_elig, "eligible_after": len(pending) - len(hold),
+            "running": len(running), "pending": len(pending),
+            "truncated": len(hold) < len(scored)}
 
 
 def build_plan(jobs: list[dict], tier_of: dict, *, promote_max_tier: int = PROMOTE_MAX_TIER,
@@ -612,6 +778,56 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
             print("       python docs/ops/job_rank_governor.py --release-from %s"
                   % JOURNAL.relative_to(REPO))
 
+    # --- ⭐ ALLOCATIVE EFFICIENCY: is every core producing a record that RAISES a rung? --------- #
+    needed = line_needed_block(scan, rungs)
+    eff = allocative_efficiency(jobs, line_of_tag, needed)
+    print("\n=== ARE THE CORES USEFUL? — rung-distance of the RUNNING fleet ===")
+    print("Tamer, 2026-08-06: \"I dont need a higher number if there is no use to it and it doesnt")
+    print("speed up the eta and doesnt contribute to the records.\" A core is USEFUL iff its job")
+    print("fills the assurance block that LIFTS its line's banked rung. Everything else is deferred:")
+    print("real work, but it raises the reported result by ZERO until every block below it lands.")
+    print("  %-34s %s" % ("line", "next-needed block"))
+    for ln in sorted(needed):
+        print("  %-34s t%d" % (ln, needed[ln]))
+    print("  cores at distance 0 (USEFUL NOW) : %4d" % eff["useful_cores"])
+    print("  cores at distance > 0 (DEFERRED) : %4d" % eff["deferred_cores"])
+    print("  ⇒ ALLOCATIVE EFFICIENCY          : %.1f%%  of %d cores"
+          % (100.0 * eff["efficiency"], eff["total_cores"]))
+    if eff["by_distance"]:
+        print("  running cores by distance: %s"
+              % ", ".join("%s=%d" % ("floor/round" if k < 0 else "d%d" % k, v)
+                          for k, v in sorted(eff["by_distance"].items())))
+    tvp = tier_value_hold_plan(jobs, line_of_tag, needed)
+    print("\n  --- THE RUNG-ORDER RESTORE (holds nothing running; the floor is never touched) ---")
+    print("    ⚠ WHY THIS IS NEEDED: `campaign.PRIORITY_RUNG_BASE = 0` (the -p ladder was retired")
+    print("      2026-07-31, correctly) and its stated replacement — submission age — is defeated")
+    print("      by `campaign.py:2016`, which submits ALL six blocks concurrently through a")
+    print("      ThreadPoolExecutor. So nothing orders the ladder any more. This restores it in the")
+    print("      only place still available: which jobs we allow to be ELIGIBLE.")
+    print("    pending jobs above their own next block: %d" % tvp["candidates"])
+    print("    by distance: %s" % ", ".join("d%d=%d" % kv
+                                            for kv in sorted(tvp["distance_histogram"].items())))
+    print("    TO HOLD           : %d" % len(tvp["hold"]))
+    print("    eligible after    : %d  (guard %d, %.1fx running)"
+          % (tvp["eligible_after"], tvp["min_eligible"],
+             tvp["eligible_after"] / max(1, tvp["running"])))
+    if tvp["truncated"]:
+        print("    ⚠ truncated by the depth guard: %d left eligible on purpose (M5: holding 228 of"
+              % (tvp["candidates"] - len(tvp["hold"])))
+        print("      309 left 80 eligible and our running count decayed 44 -> 9)")
+    if tvp["hold"]:
+        tids = [j["jid"] for j in tvp["hold"]]
+        TIER_JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+        TIER_JOURNAL.write_text(json.dumps({"held": tids, "promote": [], "mode": "rung_order",
+                                            "min_eligible": tvp["min_eligible"]}, indent=1),
+                                encoding="utf-8")
+        print("    journal: %s (%d ids)" % (TIER_JOURNAL.relative_to(REPO), len(tids)))
+        print("    ⇒ COMMANDS (this tool executes NOTHING):")
+        for ch in _chunks(tids):
+            print("       ssh myriad \"qhold %s\"" % " ".join(ch))
+        print("    ⇒ RELEASE:  python docs/ops/job_rank_governor.py --release-from %s"
+              % TIER_JOURNAL.relative_to(REPO))
+
     plan = build_plan(jobs, tier_of, promote_max_tier=promote_max_tier)
     print("\n--- THE PLAN ---")
     print("  running jobs               : %d" % plan["running"])
@@ -868,12 +1084,85 @@ def selftest() -> int:
     ck("empty input is undecidable", parse_jobs_xml("")[1].startswith("EMPTY-OUTPUT"), True)
     ck("bad xml is undecidable", parse_jobs_xml("<not xml")[1].startswith("UNPARSEABLE"), True)
 
+    # --- THE RUNG-DISTANCE TERM (RUN 25) ------------------------------------------------------
+    # Every case below is a DISCRIMINATOR: it reads one way with the term and the opposite way
+    # without it. The pre-fix model scored `sweep_t1` and `sweep_t6` on the same line IDENTICALLY,
+    # so cases R2/R3/R6/R7 all fail against it. That is the point — a test that cannot fail
+    # against the pre-fix behaviour verifies nothing.
+    LR = [30, 100, 189, 279, 340, 403, 568]
+    ck("R0 a non-sweep job has no block index", job_sweep_tier("c1_tpe_test_p01"), None)
+    ck("R0b a sweep job's block index is parsed", job_sweep_tier("leg10_leg_kimi_k3_sweep_t6_p15"), 6)
+    ck("R0c the repair suffix does not break the parse",
+       job_sweep_tier("leg5_leg_haiku_4_5_sweep_t3_r1"), 3)
+
+    # THE THREE LIVE SHAPES, 2026-08-06. Each maps a banked rung to the block that lifts it.
+    nsc = {
+        ("test_leg_kimi_k3", "scalar"): {"seeds": set(range(49)), "holes": [], "frontier": 48,
+                                         "n": 49, "started": True},
+        ("test_leg_qwen3_6_27b", "scalar"): {"seeds": set(range(120)), "holes": [], "frontier": 119,
+                                             "n": 120, "started": True},
+        ("test_leg_haiku_4_5", "scalar"): {"seeds": set(range(568)) - {272, 273},
+                                           "holes": [272, 273], "frontier": 567, "n": 566,
+                                           "started": True},
+    }
+    nb = line_needed_block(nsc, LR)
+    ck("R1a kimi banks 30 so it needs block t1 (seeds 30-99)", nb["test_leg_kimi_k3"], 1)
+    ck("R1b qwen3.6 banks 100 so it needs block t2 (seeds 100-188)", nb["test_leg_qwen3_6_27b"], 2)
+    ck("R1c haiku banks 189 so it needs block t3 — and its queued repair IS sweep_t3_r1",
+       nb["test_leg_haiku_4_5"], 3)
+
+    t2l = {"leg10": "test_leg_kimi_k3", "leg3": "test_leg_qwen3_6_27b", "leg5": "test_leg_haiku_4_5"}
+    ck("R2 kimi t1 is distance 0 — it lifts the rung",
+       rung_distance("leg10_leg_kimi_k3_sweep_t1_p01", t2l, nb), 0)
+    ck("R3 kimi t6 is distance 5 — it lifts NOTHING until five blocks below it land",
+       rung_distance("leg10_leg_kimi_k3_sweep_t6_p01", t2l, nb), 5)
+    ck("R4 qwen3.6 t6 is distance 4 (its needed block is t2, not t1)",
+       rung_distance("leg3_leg_qwen3_6_27b_sweep_t6_p01", t2l, nb), 4)
+    ck("R5 haiku's repair is distance 0",
+       rung_distance("leg5_leg_haiku_4_5_sweep_t3_r1", t2l, nb), 0)
+    ck("R5b a FLOOR job is scored None, so this term can never demote c1",
+       rung_distance("c1_tpe_test_p01", t2l, nb), None)
+    ck("R5c an unknown tag is scored None, never held",
+       rung_distance("zz9_leg_x_sweep_t6_p01", t2l, nb), None)
+
+    def _j(jid, name, state, prior):
+        return {"jid": jid, "name": name, "state": state, "prior": prior}
+
+    # 12 pending: 2 useful (t1), 1 floor, 9 deferred (t6). Depth floor 200 must BLOCK every hold.
+    jobs = ([_j("1", "leg10_leg_kimi_k3_sweep_t1_p01", "qw", 2.01),
+             _j("2", "leg10_leg_kimi_k3_sweep_t1_p02", "qw", 2.01),
+             _j("3", "c1_tpe_test_p01", "qw", 2.00)]
+            + [_j(str(10 + i), "leg10_leg_kimi_k3_sweep_t6_p%02d" % i, "qw", 2.02)
+               for i in range(9)]
+            + [_j("99", "leg10_leg_kimi_k3_sweep_t6_p99", "r", 2.03)])
+    p_guarded = tier_value_hold_plan(jobs, t2l, nb)
+    ck("R6 the DEPTH GUARD binds first — nothing is held when the queue is shallow",
+       len(p_guarded["hold"]), 0)
+    ck("R6b and it says so rather than reporting a clean plan", p_guarded["truncated"], True)
+    p = tier_value_hold_plan(jobs, t2l, nb, depth_factor=0, depth_floor=3)
+    held = {j["name"] for j in p["hold"]}
+    ck("R7 with room, exactly the 9 deferred jobs are held", len(held), 9)
+    ck("R7b the block that LIFTS the rung is never held",
+       any("_sweep_t1_" in n for n in held), False)
+    ck("R7c the FLOOR job is never held", any(n.startswith("c1_") for n in held), False)
+    ck("R7d the RUNNING job is never held", "leg10_leg_kimi_k3_sweep_t6_p99" not in held, True)
+    ck("R7e the distance histogram is reported, not just the count",
+       p["distance_histogram"], {5: 9})
+
+    eff = allocative_efficiency(jobs, t2l, nb)
+    ck("R8 one running t6 job scores 0% allocative efficiency", eff["efficiency"], 0.0)
+    ck("R8b and it is counted in cores, not jobs", eff["total_cores"], 8)
+    eff2 = allocative_efficiency(jobs + [_j("100", "c1_tpe_test_p02", "r", 2.0)], t2l, nb)
+    ck("R8c adding one FLOOR job takes it to 50% — floor work counts as useful",
+       round(eff2["efficiency"], 3), 0.5)
+
     if fails:
         print("SELFTEST FAILED (%d)" % len(fails))
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 46 assertions incl. 8 mutation controls and 2 undecidable-input cases")
+    print("SELFTEST OK — 46 + 22 assertions incl. 8 mutation controls, the 8 rung-distance "
+          "discriminators, and 2 undecidable-input cases")
     return 0
 
 
