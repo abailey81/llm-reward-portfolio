@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-06"
-  head: "a6d4259b"
+  head: "3d26ae75"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (3,044 passed / 3 skipped / 0 failed, identical to pre-change)"
+  suite_status: "not re-run this session (ops-only; freeze MATCHES, drift 0)"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

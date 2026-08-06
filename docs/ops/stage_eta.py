@@ -280,6 +280,42 @@ def chain_remaining_days(root: str, floor_total: float) -> tuple[float | None, s
                                      f"{SERIAL_CHAIN_BUDGET[worst_arm]} candidates")
 
 
+def _unstarted_label(owing_unstarted) -> str:
+    """Name WHICH unstarted owing cells gate a rung, for the GATED column.
+
+    ⚠⚠ THIS EXISTS BECAUSE THE INLINE VERSION CRASHED AND TOOK THE WHOLE ETA PANEL WITH IT
+    (RUN 27, 2026-08-06). ``cells`` is keyed by a **tuple** ``(line, arm)`` -- its own selftest says
+    so at ``{("test_a", "x"): ...}`` -- but the caller did ``",".join(sorted(owing_unstarted)[:2])``,
+    which raises ``TypeError: sequence item 0: expected str instance, tuple found``. The page then
+    printed a bare traceback where the per-rung ETA table should be, and Tamer saw it.
+
+    THE FAILURE MODE IS WORTH NAMING: this line only executes when a rung is GATED, i.e. **exactly
+    when the R26-9 gating fix matters**. The guard added to stop the page misleading the reader
+    instead BLANKED the panel, and only in the situation it was written for.
+
+    A SECOND, LATENT CRASH IS CLOSED HERE TOO: the caller appends the string
+    ``"%d-unit(s)-absent"`` to the same list, so whenever ``n_absent > 0`` the list is MIXED and
+    ``sorted()`` itself raises on comparing ``str`` to ``tuple``. Normalising to text BEFORE sorting
+    removes both. Every element becomes a string first; nothing is sorted that is not.
+
+    ⚠⚠ THE LABEL SAYS "no-records", NOT "unstarted", AND THE DIFFERENCE IS NOT PEDANTRY.
+    The test above is ``not mts`` -- the cell has produced no RECORD -- which is a strictly weaker
+    statement than "nothing was submitted". Live on 2026-08-06 the page printed
+    ``unstarted:test/distributional,test/scalar`` at the very moment all EIGHT ``c1_h2_pair`` jobs
+    carrying exactly those two arms were RUNNING on the cluster, 73 minutes after dispatch. A reader
+    checking the floor would have concluded nothing had been submitted and gone looking for a
+    missing array. **This file exists to stop the status page saying something false about rung 30;
+    a word that means "nobody submitted it" when the answer is "it is running and has not finished
+    its first training" is the same defect in a new place.** ``no-records`` is what is measured, is
+    true whatever the queue is doing, and cannot mislead in either direction.
+    """
+    if not owing_unstarted:
+        return "barrier"
+    names = sorted("/".join(str(p) for p in n) if isinstance(n, tuple) else str(n)
+                   for n in owing_unstarted)
+    return "no-records:" + ",".join(names[:2])
+
+
 def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
            page: bool = False, registered_units: int = REGISTERED_UNITS) -> str:
     # ⚠ `registered_units` is a TEST SEAM, and it exists because the alternative was worse. The
@@ -558,8 +594,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
                     # Name WHICH unstarted cell gates it. "barrier" alone sends the reader looking
                     # for a stage gate; the actual answer is usually one named array nobody has
                     # submitted yet, and that is a different thing to go and check.
-                    gated_why = ("unstarted:" + ",".join(sorted(owing_unstarted)[:2])
-                                 if owing_unstarted else "barrier")
+                    gated_why = _unstarted_label(owing_unstarted)
                 tag = gated_why if gated_from == rung else f"{gated_why}>={gated_from}"
                 L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'GATED':<16}  {'GATED':<16}  "
                          f"{tag}")
@@ -723,6 +758,22 @@ def selftest() -> int:
     ck("D4 a FUTURE mtime is excluded from every window",
        all(tp[h][0] != 4 for h in WINDOWS_H), True)
     ck("D5 empty input is zero, not a crash", throughput({}, base)[12], (0, 0.0))
+
+    # F. THE GATED LABEL. `cells` is keyed by a TUPLE (line, arm) -- see C above -- and the inline
+    #    version of this join crashed the WHOLE renderer, so the live status page printed a bare
+    #    traceback instead of the per-rung ETA table (RUN 27, 2026-08-06). F1 and F2 both raise
+    #    TypeError against the pre-fix code, which is what makes them evidence rather than decoration.
+    ck("F1 tuple cell names render as line/arm",
+       _unstarted_label([("test", "scalar"), ("test", "distributional")]),
+       "no-records:test/distributional,test/scalar")
+    ck("F2 MIXED tuple + the n_absent STRING does not raise in sorted()",
+       _unstarted_label([("test", "scalar"), "2-unit(s)-absent"]),
+       "no-records:2-unit(s)-absent,test/scalar")
+    ck("F3 nothing unstarted is the barrier label", _unstarted_label([]), "barrier")
+    ck("F4 at most TWO names are shown",
+       len(_unstarted_label([("a", "b"), ("c", "d"), ("e", "f")]).split(",")), 2)
+    ck("F5 a plain string list still works (no regression for non-tuple keys)",
+       _unstarted_label(["zeta", "alpha"]), "no-records:alpha,zeta")
 
     # E. THE CLOCK BUG ITSELF, pinned BEHAVIOURALLY so it cannot come back (gen-2 defect 1).
     #    ⚠ My first attempt here GREPPED THIS FILE'S OWN SOURCE for "utcnow().timestamp()" and

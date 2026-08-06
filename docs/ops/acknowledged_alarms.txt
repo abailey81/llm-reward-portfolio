@@ -301,6 +301,27 @@ reward_scale:WARN
 #   excluded, and STATE the exclusion) more load-bearing than when it was written at 1.73 %.
 # TRIGGERS UNCHANGED: a `length` row on a `distributional` arm or on `c1`, or a FOURTH model.
 # THE CAP STILL STAYS AT 16,384 (registered R106).
+#
+# ── RE-RUN 2026-08-06T18:5xZ, RUN 27. ALL THREE TRIGGERS CLEAN. ACK STANDS, RE-DATED NOT LEFT. ──
+# Re-run because this guard is one of the two keeping the page at `guards RC=2`, and because the
+# measurement above was 35 h old -- this entry's own words are that "a trigger nobody re-runs is
+# decoration". Measured over all 2,956 `spend_ledger_*.jsonl` rows, 0 unparseable:
+#   nvidia/nemotron-3-super-120b-a12b   6 of 294 = 2.041 %
+#   qwen/qwen3.6-27b                    1 of 265 = 0.377 %
+#   moonshotai/kimi-k3-20260715         1 of 283 = 0.353 %
+#   claude-opus-5 (CONFIRMATORY)        0 of 325 = 0.000 %
+#   run-wide                            8 of 2,956 = 0.271 %
+# **TOTAL UNCHANGED AT 8, AND THE NEWEST IS STILL 2026-08-03T17:29:56Z -- nothing has truncated in
+# three days.** The arm attribution was RE-DERIVED through `<line>/<arm>/llm_calls.jsonl` rather than
+# inherited, and reproduces the 08-05 split exactly: nemotron placebo 3 / placebo_shuffled 1 /
+# scalar_cvar5 2, kimi placebo_shuffled 1, qwen3.6 scalar_cvar5 1 = 8 located.
+#   TRIGGER "a `length` row on a distributional arm" -> **0, CLEAN**
+#   TRIGGER "a `length` row on c1"                   -> **0, CLEAN**
+#   TRIGGER "a FOURTH model"                         -> **3 models, CLEAN**
+# The population identity RUN 17's auditor proved STILL HOLDS at this volume: llm_calls rows = 2,956
+# = ledger rows, exactly, 0 unparseable on both sides. H2's contrast and the numeracy-bottleneck
+# headline remain untouched, and the AT-MOST-2 upper bound on nemotron's cap-induced candidate loss
+# is unchanged because no new truncation exists to move it.
 guard:truncation
 
 # capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a
@@ -329,6 +350,40 @@ guard:truncation
 # been updated). Logged as the FIRST entry in DEVIATIONS.md. This WARN stays acknowledged because the
 # generation-drain reading below is still the correct explanation of the *shallow* dips — but the
 # trigger's wording is now proven, and the next time it fires the FIRST thing to check is our own `-p`.
+#
+# ── ★★ THE TRIGGER FIRED A SECOND TIME, 2026-08-06 (RUN 27). `-p` WAS CHECKED FIRST, AS INSTRUCTED
+#      ABOVE, AND IT IS CLEAN. THE CAUSE IS DIFFERENT AND IS NOW MEASURED. ──
+# CONDITION: cores fell **2,283 (08-03 00:08-06:08) -> 548 (08-06 00:08-06:08)**, a MONOTONE decline
+# across four days in the SAME window, while the backlog stayed deep (756 pending). That is the
+# trigger verbatim.
+#
+# 1. `-p` RULED OUT, header-verified so the 2026-08-06 column error cannot repeat: `qstat -u ucestes
+#    -pri` prints `job-ID prior nurg npprior ntckts ppri ...`, so **ppri is column 6**, and it reads
+#    **0 on all 841 jobs, a single distinct value**. Not us this time.
+# 2. THE ACTUAL MECHANISM, derived twice and verified to 5 dp on live jobs:
+#    `prior = 4.0*npprior + 1.5*ntckts` with `weight_urgency = 0`, e.g. job 91041
+#    `2.01765 = 4.0*0.50000 + 1.5*0.01176`. Nobody sets `-p`, so `npprior` is 0.5 for EVERY job on
+#    the cluster and **the ticket term is the only discriminator**. `share_functional_shares = TRUE`
+#    divides our pool among our CONTENDING jobs, a held job carries EXACTLY ZERO tickets
+#    (`hu n=309 sum=0`), and within our own queue tickets decay MONOTONICALLY with job id
+#    (261 adjacent pairs: 232 falling, 1 rising). So a deep pending queue is not neutral -- it
+#    DIVIDES the only quantity that orders dispatch.
+# 3. PART OF THE DECLINE IS NOT A FAULT AT ALL: **five of twelve lines COMPLETED at rung 568** and
+#    legitimately stopped consuming cores. Say so whenever this number is quoted; it is the campaign
+#    succeeding, not capacity lost.
+# 4. NOT THE CAUSE, each measured 2026-08-06 and recorded so they are not re-derived: capacity
+#    (**1,879 free d-pool cores while we held 480**), mechanical efficiency (**11.52 records/h per
+#    100 cores against an 11.24 ceiling = 102%**), job WIDTH (wider is WORSE: median wait 1.2 h at
+#    5-8 slots vs **15.3 h** at 25-36), `h_rt` duration (24-48 h jobs, **n=211, median wait 0.1 h**),
+#    and the other pools (E/F/L/S/U/V are `Rejected by policyjsv`).
+# ⇒ ACTED ON, NOT JUST DIAGNOSED: the FLOOR HOLD took `c1_h2_pair` from 255th-of-262 in our own queue
+#   to 1st and it dispatched in **73 minutes against a 34.3 h median**; the LADDER LOCK is applied
+#   (287 held) so freed slots go to the lines that gate the rung rather than to the one holding 77%
+#   of the fleet while owing the least work.
+# ⚠ RE-TRIAGE AGAIN IF cores decline while the ELIGIBLE (not merely pending) count is deep AND
+#   `ppri` is still 0 -- that would mean the dilution account is incomplete. The open question it
+#   leaves is why our HEAD job's tickets cap near 60-76k while single-job users reach ~4.7M; job
+#   count alone does not explain 62x, and the only clean test is a controlled canary of our own.
 capacity_accumulation:WARN
 
 # record_sanity CRITICAL — "1/300 recent record(s) are GARBAGE (distributional-g2-c2): the authored

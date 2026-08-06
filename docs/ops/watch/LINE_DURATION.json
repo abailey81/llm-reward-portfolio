@@ -1,0 +1,51 @@
+{
+  "_what": "PER-LINE DURATION SETTINGS THE WATCHDOG MUST PRESERVE WHEN IT REVIVES A DEAD LINE.",
+
+  "_why": [
+    "R26-10 / RUN 27: watchdog_fenced.ps1's revive path built its ArgumentList from a LITERAL list",
+    "carrying only -Line, -StaggerSecs, -ExcludeHosts, -OutDir and -RemoteRoot. mode_d_supervisor.ps1",
+    "defaults -SpecsPerTask to 0 (= unset = the pre-2026-08-06 behaviour), so ANY line that died and",
+    "was revived SILENTLY REVERTED from 24 specs / h_rt 45:0:0 back to 8 specs / 15 h -- undoing the",
+    "duration lever mid-measurement, with nothing reporting that it had happened.",
+    "PowerShell binds a script at PROCESS START, so a supervisor keeps the argument vector it was",
+    "launched with. That is exactly why this has to be DATA read at revive time rather than a",
+    "constant compiled into a long-lived watchdog process."
+  ],
+
+  "_how_this_file_was_built": [
+    "READ FIRST-HAND from the LIVE supervisor command lines at 2026-08-06T17:50Z via",
+    "Get-CimInstance Win32_Process, never from a remembered value:",
+    "  deepseek-v4-pro  SpecsPerTask=24 HRt=45:0:0 pid=36208",
+    "  glm-5.2          SpecsPerTask=24 HRt=45:0:0 pid=41752",
+    "  haiku-4.5        SpecsPerTask=24 HRt=45:0:0 pid=17596",
+    "  kimi-k3          SpecsPerTask=24 HRt=45:0:0 pid=24804",
+    "  nemotron-3-super SpecsPerTask=24 HRt=45:0:0 pid=32256",
+    "  qwen3.6-27b      SpecsPerTask=24 HRt=45:0:0 pid=25728",
+    "  core             SpecsPerTask=<none> HRt=<none> pid=4768"
+  ],
+
+  "_core_is_absent_on_purpose": [
+    "core (c1) carries the ENTIRE reported result and is DELIBERATELY still at 8 specs / 15 h.",
+    "Converting it is Tamer's call and only AFTER rung 30 banks (RUN 27 brief S5.5 item 2, S13).",
+    "Its absence here is load-bearing, not an omission: the reader in watchdog_fenced.ps1 ALSO",
+    "carries a hard guard that refuses to apply any override to 'core' even if this file gained one,",
+    "so the protection does not depend on this file staying correct."
+  ],
+
+  "_contract": [
+    "A line NOT listed here is revived EXACTLY as before -- no extra flags, byte-identical behaviour.",
+    "A missing, unreadable or malformed file means NO overrides for ANY line, i.e. the fix fails SAFE",
+    "to the pre-fix behaviour rather than to a guess.",
+    "KEEP IN SYNC: if a line's specs/h_rt is changed by canary_duration.ps1 or a manual relaunch,",
+    "update this file in the SAME change, or the next revive will silently undo it."
+  ],
+
+  "lines": {
+    "deepseek-v4-pro":  { "SpecsPerTask": 24, "HRt": "45:0:0" },
+    "glm-5.2":          { "SpecsPerTask": 24, "HRt": "45:0:0" },
+    "haiku-4.5":        { "SpecsPerTask": 24, "HRt": "45:0:0" },
+    "kimi-k3":          { "SpecsPerTask": 24, "HRt": "45:0:0" },
+    "nemotron-3-super": { "SpecsPerTask": 24, "HRt": "45:0:0" },
+    "qwen3.6-27b":      { "SpecsPerTask": 24, "HRt": "45:0:0" }
+  }
+}

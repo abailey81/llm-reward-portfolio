@@ -198,6 +198,62 @@ function Announce([string]$lineName, [string]$state, [string]$msg) {
     }
 }
 
+function Get-ReviveArgs {
+    # R26-10 / RUN 27. BUILD THE REVIVE ARGUMENT VECTOR, PRESERVING A LINE'S DURATION SETTINGS.
+    #
+    # THE DEFECT THIS CLOSES. The revive used to pass a LITERAL list carrying only -Line,
+    # -StaggerSecs, -ExcludeHosts, -OutDir and -RemoteRoot. mode_d_supervisor.ps1 defaults
+    # -SpecsPerTask to 0 (= unset = the pre-2026-08-06 behaviour), so ANY line that died and was
+    # revived SILENTLY REVERTED from 24 specs / h_rt 45:0:0 to 8 specs / 15 h, undoing the duration
+    # lever mid-measurement with nothing reporting it.
+    #
+    # WHY DATA AND NOT A CONSTANT. PowerShell binds a script at PROCESS START, so this watchdog
+    # keeps whatever it was launched with for days. A constant compiled in here would go stale the
+    # first time a line's duration changed. The settings are therefore READ AT REVIVE TIME from
+    # docs\ops\watch\LINE_DURATION.json.
+    #
+    # TWO SAFETY PROPERTIES, both asserted by docs\ops\watch\selftest_revive_args.ps1:
+    #   1. 'core' NEVER receives an override. The guard is here, in CODE, and does not depend on the
+    #      data file staying correct -- the selftest proves it holds even when the file names core.
+    #      core carries the entire reported result and is deliberately still at 8 specs / 15 h.
+    #   2. A missing, unreadable or malformed config yields the EXACT pre-fix vector. The fix fails
+    #      SAFE to today's behaviour rather than to a guess.
+    # A line not listed is revived byte-identically to before.
+    param(
+        [Parameter(Mandatory = $true)][string]$Line,
+        [Parameter(Mandatory = $true)][string]$Repo,
+        [string]$ExcludeHosts = "node-d00a-230",
+        [string]$OutDir = "outputs\campaign_cluster",
+        [string]$RemoteRoot = "~/Scratch/llmrp",
+        [string]$ConfigPath = ""
+    )
+    # NOTE: deliberately NOT named $args -- that is an automatic variable inside a function and
+    # assigning to it is a real footgun.
+    $a = @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $Repo "scripts\mode_d_supervisor.ps1"),
+        "-Line", $Line, "-StaggerSecs", "0",
+        "-ExcludeHosts", $ExcludeHosts,
+        "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
+    )
+    if ($Line.Trim() -ieq "core") { return $a }
+    if ([string]::IsNullOrEmpty($ConfigPath)) {
+        $ConfigPath = Join-Path $Repo "docs\ops\watch\LINE_DURATION.json"
+    }
+    try {
+        if (-not (Test-Path $ConfigPath)) { return $a }
+        $cfg = Get-Content -Raw $ConfigPath | ConvertFrom-Json
+        if ($cfg -eq $null -or $cfg.lines -eq $null) { return $a }
+        $entry = $cfg.lines.$Line
+        if ($entry -eq $null) { return $a }
+        if ($entry.SpecsPerTask) { $a += @("-SpecsPerTask", [string]$entry.SpecsPerTask) }
+        if ($entry.HRt)          { $a += @("-HRt", [string]$entry.HRt) }
+    } catch {
+        return $a
+    }
+    return $a
+}
+
 WLog ("started; watching {0} lines every {1}s (out={2}, remote={3}, fence={4})" -f `
     $lines.Count, $IntervalSecs, $OutDir, $RemoteRoot, $ExcludeHosts)
 
@@ -228,14 +284,18 @@ while ($true) {
     if ($dead.Count -gt 0) {
         WLog ("DEAD lines: {0}" -f ($dead -join ", "))
         foreach ($d in $dead) {
-            Start-Process powershell -ArgumentList @(
-                "-ExecutionPolicy", "Bypass",
-                "-File", (Join-Path $repo "scripts\mode_d_supervisor.ps1"),
-                "-Line", $d, "-StaggerSecs", "0",
-                "-ExcludeHosts", $ExcludeHosts,
-                "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
-            )
-            WLog ("  restarted {0} (fence={1})" -f $d, $ExcludeHosts)
+            $reviveArgs = @(Get-ReviveArgs -Line $d -Repo $repo -ExcludeHosts $ExcludeHosts `
+                -OutDir $OutDir -RemoteRoot $RemoteRoot)
+            Start-Process powershell -ArgumentList (Get-ReviveArgs -Line $d -Repo $repo `
+                -ExcludeHosts $ExcludeHosts -OutDir $OutDir -RemoteRoot $RemoteRoot)
+            # LOG THE DURATION SETTINGS THAT WERE ACTUALLY APPLIED. R26-10 was invisible precisely
+            # because the revive said only "restarted <line>": a line could silently drop from 24
+            # specs to 8 and the log would look identical. Now the evidence is in the record.
+            $dur = "specs=default h_rt=default"
+            if (($reviveArgs -join " ") -match "-SpecsPerTask\s+(\S+).*-HRt\s+(\S+)") {
+                $dur = ("specs={0} h_rt={1}" -f $Matches[1], $Matches[2])
+            }
+            WLog ("  restarted {0} (fence={1}, {2})" -f $d, $ExcludeHosts, $dur)
             Start-Sleep -Seconds 3
         }
     }

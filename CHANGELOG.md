@@ -3,6 +3,407 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06e] ★★★★★ RUN 27 (OPS), pass 1 — **THE FLOOR'S HEADLINE RISK EVAPORATED, TWO LOGIN NODES DIED UNDER US, AND THE DISPATCH BOTTLENECK TURNED OUT TO BE OUR OWN PENDING QUEUE DEPTH** · `prior = 2.0 + 1.5·(tickets ÷ cluster max)` and our tickets are our pool divided by our contending job count, so 828 pending jobs put the floor 255th of 262 in our own queue · `ucakvro` holds 3.3× our cores with a queue one eleventh as deep
+
+**WHERE WE WERE.** RUN 26 handed over one thing above all others: `c1_bayes_opt_test` was 29/30 with a
+single hole at seed 6, carried by job `91237`, which had run 11.0 h against a 9.12 h median and faced a
+wall-kill at 19:58:48Z. If it died, seed 6 would requeue *ahead* of `c1_h2_pair_test` and cost rung 30
+about nine hours of wall plus a 32.6 h queue wait. RUN 27's brief named checking it as the first action
+of every pass.
+
+### 1. ⭐⭐⭐ THE HANDOVER'S HEADLINE RISK IS GONE — `91237` FINISHED CLEANLY
+
+Measured, not inferred. `~/Scratch/llmrp4/outputs/test/bayes_opt` holds **30 directories and 30
+`record.json` files**, `bayes_opt-s6/record.json` timestamped **Aug 6 17:02 host-local = 16:02Z**, and
+`driver_core.log` records `[c1_bayes_opt_test] batch complete: {'ok': True, 'completed': 30, ...
+'job_ids': ['91237', ...]}` at 17:04:30 local = **16:04:30Z**. `c1_tpe_test` closed 30/30 at 15:09:48Z.
+**`c1_h2_pair_test` — distributional + scalar, interleaved and CRN-paired, 60 trainings — submitted at
+16:05:25Z as arrays `103187`–`103194`**, and every one landed in `qw`, not caught by the JSV throttle.
+⚠ **A TRANSIENT THAT WOULD HAVE MISLED A FASTER READER:** at 16:03:22Z `qstat -j 91237` still returned a
+full job block while `qstat -u ucestes` no longer listed it. That is the ordinary teardown window, not a
+contradiction; two minutes later `-j` said *"Following jobs do not exist"*.
+
+### 2. ⭐⭐⭐⭐⭐ THE DISPATCH BOTTLENECK, MEASURED FROM THE SCHEDULER CONFIG AND CONFIRMED TWICE
+
+`qconf -ssconf` settles what actually orders this queue:
+
+| parameter | value | consequence |
+|---|---|---|
+| `weight_priority` / `weight_ticket` / `weight_urgency` | 4.0 / 1.5 / **0** | `prior = 4.0·npprior + 1.5·ntckts`. Nobody sets `-p`, so `npprior = 0.5` for everyone and **the ticket term is the ONLY discriminator**, spanning 0 → 1.5. |
+| `weight_tickets_functional` / `weight_tickets_share` | 500,000,000 / 10,000 | functional dominates share by 50,000×, and the share tree is flat (`Root → default`, no user nodes) |
+| `share_functional_shares` | **TRUE** | our ticket pool is **DIVIDED among our contending jobs** |
+| `halftime` / `usage_weight_list` | 604800 / cpu=1.0 | usage decay applies to the **share** policy, whose weight is negligible ⇒ **holding cores does NOT penalise our future win rate** |
+| `max_reservation` | 20 | only the top 20 pending jobs cluster-wide get a reservation; ours never do |
+
+**Verified exactly on a live job:** `91264` reads `prior 2.02399`, `ntckts 0.01599`, `tckts 76149`.
+`2.0 + 1.5 × 0.01599 = 2.023985`. ✔ And `76149 ÷ 0.01599 = 4,762,289`, i.e. **`ntckts` is the job's
+tickets over the cluster maximum**.
+
+**THE CENSUS THAT FOLLOWS FROM IT (16:13Z):** our `r` n=47 mean 44,227 · `qw` n=234 mean 28,098 ·
+**`hqw` n=594 mean 0**. Cluster-wide, at the same lifecycle stage, users holding **one** pending job sit
+at **4,672,897 tickets** — **166× us**. The top of the global pending queue reads `prior 3.48` while our
+best eligible job reads `2.023` and `c1_h2_pair` reads `2.004`.
+
+**⇒ WE RAN THE SINGLE WORST STRATEGY THIS SCHEDULER ADMITS: 828 pending jobs, the second-deepest queue
+on the cluster.**
+
+### 3. ⭐⭐⭐⭐ AND WITHIN OUR OWN QUEUE, THE FLOOR WAS DEAD LAST
+
+Joining `qstat -ext` tickets against submit times over our 262 eligible jobs: **261 adjacent pairs, 232
+falling, 1 rising** — tickets decay monotonically with job id. By decile, 54,881 → 13,729.
+**`c1_h2_pair` holds the newest ids we own and sat at 13,083–13,417, ranks 255–262 of 262.** At the
+measured dispatch rate that is roughly *fifty-four hours* before its turn, far worse than the 34.3 h
+median `queue_wait.py` reports.
+
+### 4. ⭐⭐⭐ `ucakvro` REFUTES "DEPTH BUYS CHANCES" (RUN 26 brief §5.2 rule 2)
+
+Same lifecycle, same pool, one qstat apart:
+
+| user | pending | running | slots held | `h_rt` |
+|---|---:|---:|---:|---|
+| **ucakvro** | **74** | 170 | **1,360** | 8 h |
+| **ucestes** | **828** | 51 | **408** | 15 h |
+
+They hold **3.3× our cores with a queue one eleventh as deep and walls half as long.** Depth does not
+buy chances on a functional-ticket scheduler; it *divides the only quantity that orders the queue*.
+⇒ **A SHALLOW ELIGIBLE QUEUE IS A STANDING POLICY, NOT A TACTIC.**
+
+### 5. THE FLOOR HOLD — APPLIED, WITH ITS FALSIFYING TEST
+
+`bash ~/floor_hold.sh` (previewed with `--dry` first: 309 selected, 0 running, 0 `c1`). Result:
+eligible **309 → 10**, `c1` untouched at 8 jobs. **The falsifying test: `hu n=309 sum=0` — a USER-held
+job carries exactly zero tickets**, so a hold genuinely leaves the divisor rather than merely hiding a
+job. `c1_h2_pair` went **13,417 → 54,555 tickets, rank 255th-of-262 → 15th-of-59**, and eight of our
+jobs dispatched in the following three minutes against a prior rate of ~4.7/h. Re-applied at 17:00Z
+(444 selected) because the JSV system holds drain continuously — **594 → 33 in forty minutes** — and
+every drained job carries an *older* id than the floor, so a one-shot hold is leapfrogged within
+minutes.
+
+### 6. ⚠⚠ TWO OF THE THREE LOGIN NODES DIED AT 16:27:55Z, AND THE CAMPAIGN WAS DOWN 30 MINUTES
+
+`docs/ops/watch/MYRIAD_SSH_WATCH.log`: 3 nodes SERVING at 16:07:55Z → **only `login12` SERVING at
+16:27:55Z and 16:47:55Z**, the other two `RESET-NO-BANNER`. Confirmed first-hand on **direct**
+connections that bypass the `ssh_gate` ProxyCommand entirely, so the gate is not implicated:
+
+```
+login12 (193.60.252.108)  rc=0    login12.myriad.ucl.ac.uk, load 4.92, 44 users
+login13 (193.60.252.109)  rc=255  kex_exchange_identification: Connection reset by peer
+.107    (193.60.252.107)  rc=255  kex_exchange_identification: Connection reset by peer
+```
+
+**COST:** all twelve driver lines at `pull failed (10 consecutive, 30 min down)`, every one ssh exit
+255, archive frozen at **19,739 records**, `loginnode_guard` logging `PROBE-UNPARSED ''` from 16:33Z.
+
+⚠ **I CONSIDERED THAT I HAD CAUSED IT AND CHECKED BEFORE EXONERATING MYSELF.** A width probe had just
+made 81 sequential `qstat -j` calls on `login13`. Two facts rule it out as the cause: `.107` also died
+and never saw our traffic, and a per-source throttle would have taken `login12` too. It remains
+possible that the probe contributed to `login13` specifically, and the standing consequence is recorded
+below.
+
+**FIX (`~/.ssh/config`, `Host myriad`): `HostName login13 → login12`.** This *reverses* the 2026-08-03
+move, and that move's reason is recorded in the same file — a resume stampede after an outage earned
+the account `penalty1` on `login12`. **It is materially safer now: the SSH ADMISSION GATE
+(`ProxyCommand ssh_gate.py --max-wait 12`, cap 4) did not exist on 2026-08-03 and is active on this
+very Host block**, so twelve lines resuming are admitted a few at a time. `ssh` re-reads its config on
+every invocation, so **no driver relaunch was needed**. Verified: `ssh -G myriad` → `hostname
+login12.myriad.rc.ucl.ac.uk`; a live call through the gate returned rc=0; and `driver_core.log` logged
+a clean `[c1_h2_pair_test] 0/60 done, round 1` at 17:00:23Z. Revert instructions and the full
+measurement are written into the config beside the change.
+
+### 7. WIDTH — FEASIBLE, AND PARTLY ALREADY SETTLED
+
+`jobscript.py:247-253` already refuses `cores >= 36` on a live probe: UCL's JSV silently adds the
+exclusive complexes at a full-node request and the job starves (`cpucurve_d`, queued 2+ days). **35 is
+the ceiling.** Corrected host census (my first pass read `MEMTOT` from column 3, which is `NCPU` — see
+§8): of 291 D-pool hosts, **46 can place 8 slots + 16 G, 28 can place 35–36 slots + 72 G**, and 28
+D-pool Bran hosts are **completely empty**. `uctpec1` is the existence proof in our own PE:
+`smp-[D]* range 36`, `h_rt=604800`, holding **744 slots on 26 jobs**. Cluster-wide, **1,428 running
+jobs requested 48 h and 690 requested 72 h** — our 15 h jobs are among the shortest on the machine, so
+long walls are the norm here, not a risk. ⇒ **the width lever is real and is multiplicative with the
+duration lever and the queue-depth lever; it is NOT yet applied and must not be applied while the floor
+is mid-handover.**
+
+### 8. ⚠ THREE OF MY OWN INSTRUMENT ERRORS THIS PASS, ALL CAUGHT BY A SECOND ROUTE
+
+1. **`qstat -ext` COLUMN INDEX.** I filtered state on `$5`; in `-ext` format `$5` is *user* and state is
+   `$8`. The ticket census came back **empty**, which reads exactly like "no pending jobs". Refixed by
+   locating the state field **by value** rather than by index, and by printing `NF` with every field
+   labelled before trusting any of it.
+2. ⚠ **A WRONG ROOT CAUSE I PUBLISHED IN THIS VERY ENTRY, THEN CORRECTED.** The wait-vs-width table
+   printed **zero rows after 81 apparently-successful qstat calls**. I first wrote that the cause was a
+   `strptime` whitespace bug (`submission_time` renders as `Tue Aug  4 23:19:34 2026` with a *double*
+   space, which `%a %b %d` cannot parse). That bug is real, but **it was not the cause.** The actual
+   cause was that the login node runs **Python 3.6**, where `subprocess.run(capture_output=True)` raises
+   `TypeError` — and my `except Exception: failed += 1; continue` **converted a hard crash into a silent
+   "no data"**. ⇒ **A BROAD `except` AROUND A MEASUREMENT IS A DEFECT, NOT DEFENSIVENESS**: it is exactly
+   how "a filtered empty output is indistinguishable from a clean board" happens. Both bugs were fixed
+   (`stdout=PIPE, universal_newlines=True` + `re.sub(r'\s+',' ')`) and the table then returned n=124 with
+   **zero** parse failures.
+3. **⚠⚠ READING A TICKET VALUE INSIDE THE RECOMPUTE WINDOW.** I sampled `c1_h2_pair` 90 seconds after
+   applying the hold, saw tickets *fall* 13,417 → 10,442, and briefly treated my model as refuted. It
+   was the instrument: SGE recomputes on `schedule_interval 0:10:0`, and 80 seconds later the same
+   query returned **54,555**. ⇒ **A TICKET READING TAKEN INSIDE THE TEN-MINUTE RECOMPUTE IS NOT A
+   MEASUREMENT.** Record the timestamp, wait a full cycle, then read.
+
+### 9. STANDING CONSEQUENCES REGISTERED
+
+* **NEVER loop `qstat -j` per job on a login node.** Use one `qstat -j id1,id2,...` call. The
+  2026-08-03 `penalty1` incident was login-node CPU, and `login12` is the node that earned it.
+* **The eligible-queue depth is the primary core lever** and belongs in `job_rank_governor.py` as a
+  standing cap, not as a hand-applied hold.
+* **`floor_hold.sh --auto` has no core-floor valve** (only `--release-when-ready` does), so it must not
+  be looped unattended: it will hold indefinitely while `h2_pair` is pending, even if the fleet drains.
+
+### 10. ⭐⭐⭐ OUTCOME — THE FLOOR DISPATCHED IN 73 MINUTES AGAINST A 34.3 h MEDIAN
+
+| event | time (UTC) |
+|---|---|
+| `c1_h2_pair_test` submitted, arrays `103187`–`103194`, all `qw` | **16:05:25Z** |
+| floor hold applied (eligible 309 → 10) | 16:19Z |
+| tickets after one full recompute: **13,417 → 51,030**, rank 255/262 → **12/42** | 17:03:00Z |
+| hold re-applied twice as the JSV drain leapfrogged it; floor reaches **rank 1**, 58,438 tickets | 17:08:45Z |
+| **4 of 8 running** | 17:15:15Z |
+| **ALL 8 RUNNING — the whole 60-training round 2 dispatched** | **17:18:40Z** |
+
+**73 minutes from submission to full dispatch, against `queue_wait.py`'s 34.3 h median.** Rung 30 is now
+bounded by wall time alone (~9 h), not by queue position. Our running slots went **408 → 528** across the
+same window and the cycle returned to **OK** (records 19,830).
+
+**Hold released immediately afterwards** — the concentration's purpose was discharged, and depth is worth
+more than rank once the target is running. ⚠ **AND THE RELEASE UNDER-RELEASED, SILENTLY.**
+`floor_hold.sh --release` scopes itself to `~/floor_ids.txt`, but **the apply path
+(`xargs -a "$SEL" -r qhold`) NEVER WRITES THAT FILE** — it still held **408 ids from RUN 26**. So the
+release intersected my live holds against a stale foreign list, left **397 of my own holds in place**, and
+may have lifted RUN 26's LADDER LOCK ids instead of mine. Caught by re-measuring `hu` three minutes apart
+(397, flat — so not JSV drain lag) rather than by trusting the script's own "held now" line. Cleared with
+`hold_ids.sh --release-all`, which takes the **live queue** as the authority and never touches `c1`:
+`user-held: 0`, `c1 jobs: 8`. **REGISTERED AS A DEFECT: `floor_hold.sh` must write `floor_ids.txt` on
+every apply (appending, not replacing), or its `--release` must drop the file-scoping entirely.**
+
+### 11. ⚠ WHAT THIS PASS DOES **NOT** SUPPORT — corrections to inherited models
+
+* **"~200 jobs won per night"** (RUN 26's equilibrium model, restated inside `hold_ids.sh`'s own header):
+  **NOT SUPPORTED.** Our 47 running jobs at 16:10Z had start times spanning 06:03Z–16:05Z, i.e. **~47 wins
+  in ten hours (~4.7/h)**, not 40/h. The model is a two-parameter fit that has still not survived a cycle.
+* **"Depth raises the number of chances"** (RUN 26 brief §5.2 rule 2): **REFUTED as stated.** `ucakvro`
+  holds 1,360 slots on a 74-job pending queue while we held 408 on 828. Depth *divides* the only quantity
+  that orders the queue.
+* **The duration lever is SAFE and my own alarm about it was WRONG.** I hypothesised that longer walls
+  would cost queue position and said so before testing it. Measured cluster-wide: `h_rt` 24–48 h, **n=211,
+  median wait 0.1 h**; 48–72 h, n=78, 0.2 h; and **1,428 running jobs requested 48 h against our 15 h**.
+  RUN 26's 15 h → 45 h change is not hurting us. ⇒ **Recorded because overstating a risk is as inaccurate
+  as understating one.**
+* **Width is a NET LOSS and that was my own hypothesis too.** Median wait by slots: 0.0 h (1) · 0.7 h
+  (2–4) · **1.2 h (5–8, our shape)** · 6.3 h (9–16) · **15.3 h (25–36)**, n=124, zero parse failures. A
+  4.4× core gain costs ~12× in queue time. **DO NOT WIDEN `pack`.** `jobscript.py:247` already refuses
+  ≥36 for an independent reason (JSV exclusivity).
+* **⚠ THE HOLD'S BENEFIT IS *ORDERING*, NOT THROUGHPUT, AND THIS IS THE SUBTLE PART.** Eligible fell 33×
+  (262 → 8) but our top job's tickets rose only ~2× (28k → 58k) and our *maximum* actually FELL
+  (76,149 → 60,386). The per-user ticket schedule decays geometrically from a roughly fixed head, so
+  shrinking the list lifts the TAIL toward the head rather than raising the head. ⇒ **Holding cannot buy
+  more total dispatches; it decides WHICH of our jobs gets them.** That is precisely why it was worth ~33 h
+  on the floor and why it must NOT become a standing depth cap — and it is the strongest argument yet for
+  the LADDER LOCK, whose whole job is to make the work we want be the work holding the tickets.
+
+## [2026-08-06g] ★★★★★ RUN 27 (OPS), pass 3 — **TAMER FOUND A BROKEN STATUS PAGE AND IT LED TO THE REAL ANSWER ON CORES: THE DURATION LEVER IS ONLY 3.7% DEPLOYED** · the one intervention that would fix it in hours is MEASURED AND REJECTED, because it risks the result rather than the schedule
+
+### 1. ⛔ THE LIVE STATUS PAGE WAS BROKEN, AND TAMER FOUND IT, NOT ME
+
+`stage_eta.py:561` did `",".join(sorted(owing_unstarted)[:2])` on a dict keyed by a **tuple**
+`(line, arm)` — its own selftest says so at `{("test_a", "x"): ...}` — raising `TypeError`, `rc=1`,
+and printing a **truncated traceback where the entire per-rung ETA table belongs**. ⚠ **The failure
+mode is the point: that line runs ONLY when a rung is GATED, i.e. exactly when RUN 26's R26-9 gating
+fix matters.** A second latent crash sat beside it (line 545 appends a *string* to the same list, so
+`sorted()` raises whenever `n_absent > 0`). Fixed via `_unstarted_label()`, pinned with 5 new
+selftest cases of which **two crash against the pre-fix code**: **72/72 passed**, panel restored.
+
+⭐ **RESTORING IT EXPOSED A THIRD DEFECT.** The panel read `unstarted:test/distributional,test/scalar`
+**while all eight `c1_h2_pair` jobs carrying those exact arms were RUNNING**. The code tests `not mts`
+— *no record yet* — which is strictly weaker than *not submitted*. Relabelled **`no-records:`**.
+⇒ **I had been verifying instruments by RUNNING them, not by READING WHAT THEY PUBLISH.**
+
+### 2. ⚠ "QUEUED" OVERSTATED THE READY BACKLOG BY 62%, AND MY FIRST FIX MADE IT WORSE
+
+`publish_status.sh` counted queued with `awk "\$5 ~ /qw/"`, and that regex matches **hqw** too — so
+762 was shown against **470 actually dispatchable**. Split into `run / elig / hu / hsonly` from the
+SAME single ssh. ⚠ **My first version had `hs`, not `hsonly`, and the row summed to 1,128 against a
+total of 841**: measured `hu=287, hs=287, intersect=287, hs_only=0` — every job we hold ALSO carries
+a system hold. Now `run+elig+hu+hsonly == jobs` **EXACTLY** (85+469+287+0 = 841, verified live).
+Also caught: **backticks inside the double-quoted heredoc were eaten as command substitution**,
+printing `Only ELIGIBLE can be dispatched.  is the LADDER LOCK` — fixed, and a scan found **zero**
+other instances on the page. And I put a non-ASCII `⚠` into a string that *reaches the page*,
+violating the ASCII contract; caught by the byte walk the rule prescribes, now 0.
+
+### 3. ⭐⭐ TWO REGISTERED RE-TRIAGE TRIGGERS DISCHARGED — one FIRED, one CLEAN
+
+* **`capacity_accumulation:WARN` FIRED** ("concurrency declines while the QUEUED backlog is deep"):
+  cores **2,283 → 548** across four days in the same window with 756 pending. Its own entry says
+  *"the next time it fires the FIRST thing to check is our own `-p`"*. **Checked first, and clean:**
+  `qstat -pri` header-verified (`ppri` is **column 6**), **0 on all 841 jobs**. Cause is the ticket
+  dilution, and part of the decline is **five of twelve lines COMPLETING at rung 568**, which is the
+  campaign succeeding. Re-triage written into `acknowledged_alarms.txt`.
+* **`guard:truncation` CLEAN**, re-run because the entry's own rule is *"a trigger nobody re-runs is
+  decoration"* and it was 35 h stale: **8 truncations, unchanged, newest still 2026-08-03**; arm
+  attribution **re-derived** (not inherited) and reproduces the split exactly; **0 on
+  `distributional`, 0 on `c1`, 3 models not 4**; `llm_calls rows = 2,956 = ledger rows`.
+* **Transport RESOLVED by the SSH fix**: newest failure **16:58:33Z**, i.e. *during* the outage,
+  none since. ⚠ `transport_health.py` prints **host-local +0100** stamps unlabelled, which made
+  16:56Z read as "17:56" — I nearly convicted my own probing of causing ongoing failures.
+
+### 4. ⭐⭐⭐⭐⭐ THE REAL ANSWER ON CORES: THE DURATION LEVER IS 3.7% DEPLOYED
+
+| class | n | `h_rt` |
+|---|---:|---|
+| **running** | **85** | **ALL 54000 (15 h, OLD 8-spec)** |
+| eligible | 469 | 436 old · **31 at 162000 (45 h)** · 2 probes |
+| held by the lock | 287 | all old — **the lock held ZERO 45 h jobs** (verified) |
+
+**Only 31 of 841 jobs carry the new shape, and all 31 are from ONE line** (`leg3`/qwen3.6),
+submitted in a single burst at 15:38–15:41Z after its restart. The other five converted lines have
+submitted **nothing** new, because a line only submits when a block COMPLETES — and `glm` is polling
+**six blocks at once** (t1 350, t2 445, t3 450, t4 305, t5 315, t6 825 = **2,690 trainings, every one
+at `0/N done, round 0`**). That is D73's scatter made visible.
+
+**THE ARITHMETIC: `records/h = λ × specs_per_task`.** At the measured λ ≈ 9.6 dispatches/h, old
+8-spec gives **77 rec/h** (matching the observed 84.9) and 24-spec gives **230 rec/h**, with
+cores = 9.6 × 26.7 h × 8 = **2,050**. ⇒ **Dispatches are the scarce resource and every dispatch spent
+on an 8-spec job wastes two-thirds of it.** The 810 queued old jobs carry 6,480 trainings: **810
+dispatches / 84 h at the old packing versus 270 / 28 h at the new** — a **~56 h difference, 11% of
+the remaining campaign.**
+
+### 5. ⛔ AND THE ONE INTERVENTION THAT WOULD CAPTURE IT IS MEASURED AND **REJECTED**
+
+Repacking requires cancelling **queued, never-run** jobs so the drivers resubmit at 24 specs.
+`driver.py` confirms the mechanism would work (*"no live batch job + work remaining → a submission
+round"*, and `_chunk_packs` uses the driver's CURRENT `specs_per_task`). **It is still refused**, and
+not only because §13 forbids `qdel`: **`ledger.py:18` sets `MAX_RETRIES = 2`, and the third strike is
+a PERMANENT ledger row — the spec is abandoned.** A cancel spends one of two retries on every
+affected spec; at the measured 5.20% failure rate roughly **17 of 6,480 specs** would end one fault
+from permanent abandonment, **an abandoned spec is a HOLE, and one hole DEMOTES a line's banked
+rung**, which is the minimum over lines, i.e. the reported result. **Buying 56 hours by risking the
+result is the trade this project refuses.** ⇒ **The LADDER LOCK is the safe form of the same idea:**
+focusing a line on its LOWEST block makes that block complete, and the next submission is 24-spec —
+no cancel, no retry consumed. Extended this pass to **416 held, eligible 340, `c1` untouched**.
+
+### 6. ⭐⭐⭐ THE PROMOTION PLAY, PROVEN — AND THE EXACT TIMELINE OF MY OWN WORST ERROR
+
+Holding every eligible 8-spec job so the 24-spec jobs became our top-ranked work. The background
+monitor returned the trajectory:
+
+```
+19:15:00Z  leg3_running=0   running=84  slots=672
+19:16:35Z  leg3_running=2   running=86  slots=688   <- first 24-spec dispatch
+19:21:20Z  leg3_running=4   running=88  slots=704
+19:22:55Z  leg3_running=5   running=88  slots=704
+```
+
+**5 dispatches in ~25 minutes = 12/h, nearly 4× the 3.2/h break-even the hold needed to pay for
+itself.** ⛔ **I had already reverted it.** I judged it failing on a **19:08Z** sample showing zero,
+and the first dispatch landed at **19:16:35Z — eight minutes later**; by **19:19:45Z, before I issued
+the release, TWO were already running and I did not re-check.** Re-applied immediately; shipped as
+**`docs/ops/promote_duration_jobs.sh`** with the full derivation, the safety asserts, a `--dry` mode
+and an explicit warning not to judge it on less than a few multiples of SGE's `schedule_interval`.
+
+### 7. STATE AT HANDOVER, AND THE HANDOFF ITSELF
+
+```
+records 19,953 · spend $45.5019 · drift 0 · freeze MATCHES 3ca6f01a… · cycle OK · guards 0n/2k
+CORES 712 (89 jobs)  <-- 408 at this session's start, +75%
+  h_rt=162000 (24-spec/45h):  7 running   <-- 0 at the start. The conversion has begun.
+  h_rt=54000  (8-spec/15h):  82 running
+eligible 29 · user-held 444 · system-held 661 · total 838/1000 · c1 8/8 running
+7 supervisors alive; 6 legs at SpecsPerTask=24 HRt=45:0:0; core DELIBERATELY at 8/15h
+watchdog pid 42124 (restarted 17:58:44Z, carries the R26-10 fix)
+```
+
+**`docs/RUN28_SESSION_PROMPT.md` written** at Tamer's instruction, carrying his standing brief
+verbatim, the mandatory-reading gate, the unified cores model, the ranked experiment list with its
+arithmetic, the settled-do-not-re-derive register, the nine RUN 27 errors, and the harness limits.
+
+## [2026-08-06f] ★★★★ RUN 27 (OPS), pass 2 — **THE LADDER LOCK IS LIVE, R26-10 IS CLOSED AND ACTIVATED, AND THE CAMPAIGN'S WASTED COMPUTE IS NOW ACCOUNTED FOR TO 99.8%** · slots 408 → 584 (+43%) · and the two interventions I was building a case for were both REFUSED by their own measurements
+
+**WHERE THIS PASS STARTED.** Pass 1 unblocked rung 30 (all 8 `c1_h2_pair` jobs running, 73 minutes
+against a 34.3 h median) and fixed a 30-minute login-node outage. Tamer's standing instruction is to
+maximise cores, speed and efficiency and minimise the ETA, and not to stop.
+
+### 1. ⭐⭐⭐ THE LADDER LOCK IS APPLIED — D73 / R101 LOCKSTEP RESTORED
+
+The floor was the gate and it is open, so the deferred priority came next. The measured defect it
+targets, from `job_rank_governor.py` at target rung 100, and it was **getting worse as the fleet
+grew**:
+
+| line | owes | cores held | deficit-proportional target | verdict |
+|---|---:|---:|---:|---|
+| `test` (c1) | 1460 | 64 | 325 | **STARVED** |
+| `deepseek` | 350 | **0** | 78 | **STARVED** |
+| `nemotron` | 350 | 24 | 78 | **STARVED** |
+| **`kimi`** | **112** | **448** | **25** | **over-served 18×** |
+
+**Kimi held 77% of a 584-core fleet while owing the least work of any line**, which is why growing
+the fleet was not moving the reported result. Applied via a script that **re-selects against the LIVE
+queue** (the plan's id list was a minute old and one job had already dispatched): **287 held, 0
+running, 0 `c1`, eligible 207, `c1` untouched at 8.** Per line: `leg1` 89, `leg2` 108, `leg10` 84,
+`leg3` 6 — each line's ABOVE-block work, so every line now works its LOWEST incomplete block.
+⚠ **The fleet re-shapes over ~one job duration**, because a hold can never touch a running job.
+⚠ **The release rule only fires when the governor RUNS** — the cadence IS the system.
+
+### 2. ⭐⭐ R26-10 CLOSED **AND ACTIVATED** — the watchdog can no longer silently revert the duration lever
+
+`watchdog_fenced.ps1:228` built a LITERAL revive argument list with no `-SpecsPerTask`/`-HRt`, and
+`mode_d_supervisor.ps1` defaults `-SpecsPerTask` to 0, so any revived line dropped 24 specs/45 h →
+8/15 h silently. **Not theoretical: `watchdog.log` records the revive path firing twice on
+2026-08-05.** Fixed as **DATA** (`LINE_DURATION.json`, built by reading the six live supervisor
+command lines, `core` deliberately absent) plus `Get-ReviveArgs` with a **hard in-code guard that
+refuses `core` even if the data file names it**, fail-safe to the exact pre-fix vector on any config
+error, and a revive log line that now states the duration applied. `selftest_revive_args.ps1` lifts
+the function out of the shipped file **by AST** (a `while($true)` script cannot be dot-sourced),
+**failed against the pre-fix file on exactly the two fix assertions, and now passes 35/35** including
+the mutation and both fail-safe paths. **ACTIVATED** via `restart_watchdog.ps1`: live watchdog pid
+42124 created 17:58:44Z **postdates** the file edit at 17:54:13Z, all 7 supervisors intact.
+
+### 3. ⭐⭐⭐ WHERE THE WASTED COMPUTE WENT — 4,156 epilogues, and it splits in two
+
+| rc | n | median | core-hours lost | verdict |
+|---|---:|---:|---:|---|
+| **1** | 194 | **11 s** | **5** | historical, resolved, authoring rejects |
+| **126** | 22 | **54,016 s** (the 15 h wall) | **2,641** | **99.8% of the loss** |
+
+⚠ **`rc=126` IS THE SGE WALL-KILL, NOT THE CONTAINER FAULT `jobscript.py:169` DESCRIBES** — every
+one ran 54,001–54,031 s against `h_rt=54000`, zero under 60 s. The `rc=1` population stopped dead
+after 08-03 and is 113/194 `leg4` (qwen3.5-9b, the ~17%-yield authoring model). **21 of the 22
+wall-kills are on the LEG lines, which RUN 26 already moved to 45 h — this is the hard number that
+change never had.** 2,641 core-hours ≈ 281 trainings ≈ **1.3% of the remaining campaign**.
+
+### 4. ⚠⚠ TWO INTERVENTIONS I WAS BUILDING A CASE FOR, BOTH REFUSED BY THEIR OWN MEASUREMENTS
+
+* **Raising `core`'s `h_rt`.** The wall-kill finding pointed straight at it, and `91237` used 11.0 h
+  of its 15 h today. **REFUSED: c1 TEST-leg n=32, median 8.6 h, p95 9.6 h, MAX 11.0 h, ZERO
+  wall-kills, ZERO tasks past 13 h.** `h2_pair` has 4–5 h of margin on its own precedent.
+  **Disturbing the line that carries the entire reported result to chase a risk measured at 0 of 32
+  would be the error, not the fix.**
+* **Fencing `node-d00b-020`** (42.9% failure rate against a 5.20% baseline, the only host failing in
+  the last 48 h). **DEFERRED on arithmetic:** `-ExcludeHosts` binds at supervisor process start, so
+  it needs six live lines restarted, to avoid **~120 core-hours/day ≈ 5 cores ≈ 0.9% of the fleet.**
+  Fold in at the next natural restart. ⚠ And the ~15 hosts with 3–6 fast failures are **NOT** bad
+  hosts — that pattern is the systemic `leg4` reject population, and fencing them would shrink the
+  pool for nothing.
+
+### 5. ⚠ FOUR MORE SELF-INFLICTED BUGS, TWO OF THEM VERBATIM IN THE BRIEF'S OWN HARNESS TABLE
+
+`$wd.Count` on a single object is `$null` in PowerShell 5.1, so my safety pre-check refused while
+printing an empty count — **the brief's harness-limits table says exactly this and I walked into it**.
+A quote-anchored process regex went blind to my own relaunch (the ONSTART launcher quotes `-File`,
+`Start-Process -ArgumentList` does not), so the post-check reported **"0 watchdogs — RESTART
+PROBLEM"** while the process was demonstrably running and logging; **I briefly believed I had left the
+campaign with no watchdog.** Plus a three-deep `Split-Path` landing on `<repo>\docs`, and a `,$out`
+comma operator returning an array-containing-an-array. ⇒ **`-WhatIf` EARNED ITS PLACE: the dry run
+caught two of them before anything was stopped. Every destructive ops script gets a dry-run mode and
+it gets used.**
+
+**STATE AT CLOSE OF PASS 2:** slots **408 → 584 (+43%)**, running 73, floor 8/8 running, records
+19,902, freeze **MATCHES**, drift 0, cycle **OK**, 7 supervisors alive with the six legs still at
+`specs=24 hrt=45:0:0` and `core` at defaults.
+
 ## [2026-08-06d] ★★★★★ RUN 26 (OPS), pass 1 — **RC DID NOT PENALISE US, AND THE ANSWER CAME WITHIN ONE COLUMN OF BEING WRONG** · waiting time contributes EXACTLY ZERO to job priority on this cluster, which refutes the stated premise of D73's own diagnosis · the LADDER LOCK went live by Tamer's hand and handed us a controlled experiment on the ticket mechanism
 
 **WHERE WE WERE.** RUN 25 closed having registered **D73** (the C4 ladder has no ordering mechanism),

@@ -189,10 +189,30 @@ lbverdict=$("$PY" docs/ops/line_balance.py --once 2>/dev/null | grep -E "^(CLEAN
 # not: queued publishes died at the banner and the page showed `? cores` -- which is exactly what
 # Tamer saw. The gate's --max-wait was also lowered to 12 so no caller can be starved; this is the
 # belt to that braces, because this is the one page he actually watches.
-CL=$(ssh -o BatchMode=yes -o ConnectTimeout=30 myriad 'Q=$(qstat -u ucestes | tail -n +3); echo "jobs=$(echo "$Q" | grep -c .)"; echo "run=$(echo "$Q" | awk "\$5==\"r\"" | grep -c .)"; echo "qw=$(echo "$Q" | awk "\$5 ~ /qw/" | grep -c .)"; echo "cores=$(echo "$Q" | awk "\$5==\"r\" {s+=\$9} END {print s+0}")"' 2>/dev/null)
+# ⚠⚠ "QUEUED" WAS OVERSTATING OUR READY BACKLOG, AND BY A LOT (RUN 27, 2026-08-06).
+# The old field was `awk "\$5 ~ /qw/"`, and that regex matches **hqw** as well as **qw**, so every
+# HELD job was counted as queued. Live at 18:33Z the page said "762 queued" when only 470 were
+# ELIGIBLE: 287 were held by us (the ladder lock) and the rest by the site JSV. A held job cannot be
+# dispatched, so the number a reader uses to judge "is there work ready to run" was inflated by ~62%.
+# Now split three ways, from the SAME single ssh (no extra round trip on the one page Tamer watches):
+#   elig   = state EXACTLY qw                 -> genuinely dispatchable
+#   hu     = OUR user hold                    -> the ladder lock, ours to lift
+#   hsonly = a SITE system hold and NOT ours  -> policyjsv throttle, drains itself, not ours to lift
+# `hu` and `hs` need their own -s queries because `qstat` prints BOTH as the state string "hqw".
+#
+# ⚠⚠ AND `hsonly`, NOT `hs`, BECAUSE THE TWO HOLDS OVERLAP AND MY FIRST VERSION OF THIS FIX MADE THE
+# PAGE CONTRADICT ITSELF. Measured 2026-08-06T18:4xZ: hu=287, hs=287, **intersect=287, hs_only=0,
+# hu_only=0** -- every job we hold ALSO carries a system hold, so `run+elig+hu+hs` summed to 1,128
+# against a total of 841. A row whose parts do not add to its own total is exactly the defect this
+# change set out to remove. `comm -13` gives the system-held jobs that are NOT ours, and then
+# run + elig + hu + hsonly == jobs EXACTLY (verified live: 85+469+287+0 = 841).
+CL=$(ssh -o BatchMode=yes -o ConnectTimeout=30 myriad 'Q=$(qstat -u ucestes | tail -n +3); qstat -u ucestes -s hu | tail -n +3 | awk "{print \$1}" | sort -u > /tmp/ps_hu.txt; qstat -u ucestes -s hs | tail -n +3 | awk "{print \$1}" | sort -u > /tmp/ps_hs.txt; echo "jobs=$(echo "$Q" | grep -c .)"; echo "run=$(echo "$Q" | awk "\$5==\"r\"" | grep -c .)"; echo "qw=$(echo "$Q" | awk "\$5 ~ /qw/" | grep -c .)"; echo "elig=$(echo "$Q" | awk "\$5==\"qw\"" | grep -c .)"; echo "hu=$(grep -c . /tmp/ps_hu.txt)"; echo "hsonly=$(comm -13 /tmp/ps_hu.txt /tmp/ps_hs.txt | grep -c .)"; echo "cores=$(echo "$Q" | awk "\$5==\"r\" {s+=\$9} END {print s+0}")"' 2>/dev/null)
 jobs=$(echo "$CL"  | grep '^jobs='  | cut -d= -f2); jobs=${jobs:-?}
 run=$(echo "$CL"   | grep '^run='   | cut -d= -f2); run=${run:-?}
 qw=$(echo "$CL"    | grep '^qw='    | cut -d= -f2); qw=${qw:-?}
+elig=$(echo "$CL"  | grep '^elig='  | cut -d= -f2); elig=${elig:-?}
+hu=$(echo "$CL"    | grep '^hu='    | cut -d= -f2); hu=${hu:-?}
+hsonly=$(echo "$CL" | grep '^hsonly=' | cut -d= -f2); hsonly=${hsonly:-?}
 cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 
 # THE H1 CANON'S LIVE SEED DEPTH (P240). The page used to assert "30 seeds each" as a flat design
@@ -252,7 +272,14 @@ print("**%.1f%%** -- %d of %d cores (%d min old%s)"
       % (pct, d.get("useful_cores", 0), d.get("total_cores", 0), age, stale))
 print("A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's "
       "banked rung. The rest is real work whose records raise the reported result by ZERO until "
-      "every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).")
+      "every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- "
+      "`campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing "
+      "orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which "
+      "holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the "
+      "`held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. "
+      "!! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the "
+      "over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after "
+      "applying it is expected, not a failure.")
 PYEOF
 )
     if [ -n "$_ao" ]; then
@@ -316,7 +343,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **$jobs** ($run running, $qw queued) |
+| cluster jobs | **$jobs** = $run running + **$elig ELIGIBLE** + $hu held by us + $hsonly held only by the site |
+| | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **$cores** |
 | **cores doing RUNG-RAISING work** | $alloc |
 
