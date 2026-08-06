@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 05:51 UTC -- T+200h42m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 05:52 UTC -- T+200h43m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+200h42m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+200h43m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18809** |
@@ -38,17 +38,17 @@ generated 2026-08-06 05:52 UTC | elapsed 8.36 d | 20.8 d to the Aug-27 stop
 test tier: 17,266 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     133 records     133.0 rec/h
+    last  1 h     132 records     132.0 rec/h
     last  3 h     188 records      62.7 rec/h
-    last 12 h    1306 records     108.8 rec/h
-    last 24 h    3439 records     143.3 rec/h
+    last 12 h    1302 records     108.5 rec/h
+    last 24 h    3437 records     143.2 rec/h
     12 h rate is 37% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
-    !! 36% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
+    !! 35% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (109 rec/h); latest excludes cells already within
+    the whole fleet (108 rec/h); latest excludes cells already within
     8 of the ceiling (70 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
@@ -57,11 +57,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       6  GATED             GATED             barrier>=30
-      189       6,001     133  GATED             GATED             barrier>=30
-      279      10,049     133  GATED             GATED             barrier>=30
-      340      12,794     133  GATED             GATED             barrier>=30
-      403      15,629     133  GATED             GATED             barrier>=30
-      568      23,062     133  GATED             GATED             barrier>=30
+      189       6,001     132  GATED             GATED             barrier>=30
+      279      10,049     132  GATED             GATED             barrier>=30
+      340      12,794     132  GATED             GATED             barrier>=30
+      403      15,629     132  GATED             GATED             barrier>=30
+      568      23,062     132  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
