@@ -211,6 +211,85 @@ def in_burst_window(now: float) -> bool:
     return BURST_WINDOW_UTC[0] <= time.gmtime(now).tm_hour < BURST_WINDOW_UTC[1]
 
 
+CAPTURE_LOG = REPO / "docs" / "ops" / "watch" / "CORE_CAPTURE.jsonl"
+
+
+def log_capture(ts: float, cores: int, eligible: int, running: int) -> None:
+    """Append one sample so the instrument BOOTSTRAPS ITS OWN HISTORY.
+
+    The cycle log stamps `cores=` only occasionally, and nothing anywhere records our ELIGIBLE depth
+    over time — so the capture question below could not be asked at all. One append per run fixes
+    that without a new daemon. Failure is swallowed: observability must never break the pass.
+    """
+    try:
+        CAPTURE_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(CAPTURE_LOG, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"ts": round(ts, 1), "cores": cores,
+                                 "eligible": eligible, "running": running}) + "\n")
+    except OSError:
+        pass
+
+
+def read_capture(path: Path = CAPTURE_LOG) -> list[dict]:
+    out: list[dict] = []
+    if not path.is_file():
+        return out
+    try:
+        for ln in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            ln = ln.strip()
+            if ln:
+                try:
+                    out.append(json.loads(ln))
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+    return out
+
+
+def capture_verdict(samples: list[dict]) -> tuple[str, float | None]:
+    """Did we GROW when there was room to grow? Returns (verdict, best observed growth rate).
+
+    ⭐ THIS IS THE ONE QUESTION "DO NOT LET THE CORES GO" ACTUALLY REDUCES TO, AND NO OTHER CHECK IN
+    THIS FILE ASKS IT. Every other invariant is a precondition: it says we COULD absorb a burst. This
+    asks whether we DID. The 2,328-core peak proves the fleet can more than triple in a night, so a
+    long flat stretch while eligible depth was deep is the signature of a missed burst — and a core
+    we failed to absorb went to one of the other 100 users and only returns by being won again.
+
+    Deliberately reported as GROWTH RATE rather than as a ratio against free capacity: we do not have
+    a time series of placeable capacity (it costs 4 remote reads), and inventing one from a single
+    snapshot is precisely the ad-hoc arithmetic that has inflated the cores figure four times. Growth
+    is what we can measure honestly from our own samples.
+    """
+    if len(samples) < 3:
+        return "INSUFFICIENT HISTORY (need 3+ samples; this file bootstraps its own)", None
+    ok = [s for s in samples if isinstance(s.get("cores"), int) and isinstance(s.get("ts"), (int, float))]
+    if len(ok) < 3:
+        return "INSUFFICIENT HISTORY", None
+    ok.sort(key=lambda s: s["ts"])
+    best = None
+    for a, b in zip(ok, ok[1:]):
+        dt = (b["ts"] - a["ts"]) / 3600.0
+        if dt <= 0:
+            continue
+        rate = (b["cores"] - a["cores"]) / dt
+        if best is None or rate > best:
+            best = rate
+    span = (ok[-1]["ts"] - ok[0]["ts"]) / 3600.0
+    net = ok[-1]["cores"] - ok[0]["cores"]
+    if best is None:
+        return "UNDECIDABLE (no positive time deltas)", None
+    if net > 0:
+        return ("GROWING: %+d cores over %.1f h, peak growth %.0f cores/h" % (net, span, best), best)
+    if best > 0:
+        return ("CHURNING: net %+d over %.1f h but it DID grow at %.0f cores/h, so the fleet is "
+                "winning slots and losing them again -- check completions against dispatches"
+                % (net, span, best), best)
+    return ("FLAT OR SHRINKING: net %+d over %.1f h and never grew. If eligible depth was deep the "
+            "whole time, this is a MISSED BURST and it is the one loss that is ours." % (net, span),
+            best)
+
+
 def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
     """The seven invariants plus the ATTRIBUTION. Pure, so the selftest needs no cluster.
 
@@ -430,6 +509,14 @@ def report(host: str = "myriad") -> int:
         print("  ⇒ this is when whole nodes empty and the 2,328 peak happened. Keep the eligible")
         print("    queue DEEP and hold nothing that is not floor-critical.")
 
+    log_capture(time.time(), st["cores"], st["eligible"], st["running"])
+    cv, best = capture_verdict(read_capture())
+    print()
+    print("--- DID WE GROW WHEN THERE WAS ROOM? (the only question 'do not let them go' reduces to) ---")
+    print("  %s" % cv)
+    print("  reference: the 2,328-core peak means this fleet can more than TRIPLE in a night, so a")
+    print("    long flat stretch with deep eligible depth is a MISSED BURST, not a quiet cluster.")
+
     print()
     print("VERDICT: %s" % a["verdict"])
     print("HOLD ALLOWED: %s" % ("yes" if a["may_hold"] else
@@ -578,6 +665,33 @@ def selftest() -> int:
     ck("no dispatch rate means no forecast", time_to_dry(400, None), None)
     ck("a zero dispatch rate means no forecast (no division by zero)", time_to_dry(400, 0.0), None)
 
+    # --- capture: did we GROW when there was room? ----------------------------------------------
+    ck("capture needs 3+ samples before it will judge",
+       capture_verdict([{"ts": 0, "cores": 1}, {"ts": 3600, "cores": 2}])[0].startswith("INSUFFICIENT"), True)
+    grow = [{"ts": 0, "cores": 500}, {"ts": 3600, "cores": 900}, {"ts": 7200, "cores": 1400}]
+    ck("a rising fleet reads GROWING", capture_verdict(grow)[0].startswith("GROWING"), True)
+    ck("...and reports the PEAK growth rate, not the mean", round(capture_verdict(grow)[1]), 500)
+    flat = [{"ts": 0, "cores": 700}, {"ts": 3600, "cores": 700}, {"ts": 7200, "cores": 700}]
+    ck("a flat fleet reads FLAT OR SHRINKING (a MISSED BURST)",
+       capture_verdict(flat)[0].startswith("FLAT OR SHRINKING"), True)
+    # ⭐ CHURN is the case a net-change test alone would MISS: net negative, yet it did grow, so the
+    # fleet is winning slots and losing them again -- a different defect from never growing at all.
+    churn = [{"ts": 0, "cores": 900}, {"ts": 3600, "cores": 1300}, {"ts": 7200, "cores": 600}]
+    ck("net-down but it DID grow reads CHURNING, not flat",
+       capture_verdict(churn)[0].startswith("CHURNING"), True)
+    ck("a shrinking fleet that never grew is NOT called churning",
+       capture_verdict([{"ts": 0, "cores": 900}, {"ts": 3600, "cores": 700},
+                        {"ts": 7200, "cores": 600}])[0].startswith("FLAT OR SHRINKING"), True)
+    ck("out-of-order samples are sorted, not trusted",
+       capture_verdict([{"ts": 7200, "cores": 1400}, {"ts": 0, "cores": 500},
+                        {"ts": 3600, "cores": 900}])[0].startswith("GROWING"), True)
+    ck("malformed rows are dropped rather than crashing",
+       capture_verdict([{"ts": 0, "cores": 500}, {"nope": 1},
+                        {"ts": 3600, "cores": 900}, {"ts": 7200, "cores": 1400}])[0].startswith("GROWING"), True)
+    ck("a zero time delta cannot divide by zero",
+       capture_verdict([{"ts": 0, "cores": 500}, {"ts": 0, "cores": 900},
+                        {"ts": 3600, "cores": 1400}])[0].startswith("GROWING"), True)
+
     # --- the burst window, from the MEASURED diurnal shape --------------------------------------
     ck("05:00Z is inside the 03:00-08:00Z burst window",
        in_burst_window(float(calendar.timegm(time.strptime(
@@ -594,7 +708,7 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 48 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
+    print("SELFTEST OK — 57 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
     return 0
 
 
