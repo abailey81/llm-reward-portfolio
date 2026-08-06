@@ -34,12 +34,12 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 03:21 UTC | elapsed 8.26 d | 20.9 d to the Aug-27 stop
+generated 2026-08-06 03:22 UTC | elapsed 8.26 d | 20.9 d to the Aug-27 stop
 test tier: 17,079 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      12 records      12.0 rec/h
-    last  3 h     115 records      38.3 rec/h
+    last  3 h     112 records      37.3 rec/h
     last 12 h    1557 records     129.8 rec/h
     last 24 h    3476 records     144.8 rec/h
     12 h rate is 58% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
