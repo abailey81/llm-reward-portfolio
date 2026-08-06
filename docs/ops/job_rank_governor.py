@@ -111,6 +111,8 @@ TIER_JOURNAL = REPO / "docs" / "ops" / "watch" / "RUNG_ORDER_HOLDS.json"
 #: status page. Kept as state rather than recomputed on the page because `line_needed_block` walks
 #: the whole archive, and the publish loop runs every couple of minutes.
 EFF_STATE = REPO / "docs" / "ops" / "watch" / "ALLOCATIVE_EFFICIENCY.json"
+#: Append-only history of the same reading, so the SLOPE is machine-detectable.
+EFF_HISTORY = REPO / "docs" / "ops" / "watch" / "ALLOCATIVE_EFFICIENCY.jsonl"
 SSH_TIMEOUT_SECS = 120
 
 DEPTH_FACTOR = 4          # eligible queue must stay >= 4x the running job count (backfill flow)
@@ -483,6 +485,35 @@ def allocative_efficiency(jobs: list[dict], tag_to_line: dict, needed: dict,
             "efficiency": (useful / tot) if tot else 0.0, "by_distance": by_dist}
 
 
+def efficiency_trend(path, window: int = 8):
+    """(delta_cores, delta_useful, marginal_useful_fraction, n) over the last `window` readings.
+
+    Returns None when fewer than two readings exist — **not a zero**, because "no trend yet" and
+    "a flat trend" are different states and conflating them is how a monitor reports reassurance it
+    never measured. The MARGINAL fraction is the load-bearing number: the AVERAGE efficiency can sit
+    still while every newly-won core goes to deferred work, which is exactly what was measured on
+    2026-08-06 (cores +96, useful +16 => 16.7% marginal against a 20.3% average).
+    """
+    try:
+        lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    except OSError:
+        return None
+    rows = []
+    for l in lines[-window:]:
+        try:
+            d = json.loads(l)
+        except Exception:                                       # noqa: BLE001 — torn append
+            continue
+        if isinstance(d, dict) and "total_cores" in d and "useful_cores" in d:
+            rows.append(d)
+    if len(rows) < 2:
+        return None
+    d_tot = int(rows[-1]["total_cores"]) - int(rows[0]["total_cores"])
+    d_use = int(rows[-1]["useful_cores"]) - int(rows[0]["useful_cores"])
+    marg = (d_use / d_tot) if d_tot > 0 else 0.0
+    return d_tot, d_use, marg, len(rows)
+
+
 def tier_value_hold_plan(jobs: list[dict], tag_to_line: dict, needed: dict, *,
                          depth_factor: int = DEPTH_FACTOR,
                          depth_floor: int = DEPTH_FLOOR) -> dict:
@@ -818,8 +849,32 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
             "by_distance": {str(k): v for k, v in sorted(eff["by_distance"].items())},
             "needed_block": {k: v for k, v in sorted(needed.items())},
         }, indent=1), encoding="utf-8")
+        # ⭐ THE TREND, APPENDED — because the FINDING is not the level, it is the SLOPE.
+        # Measured 2026-08-06 across one session: cores 888 -> 976 -> 984 while USEFUL cores went
+        # 184 -> 200 -> 200, i.e. a MARGINAL useful fraction of 16/96 = 16.7%, BELOW the 20.3%
+        # average. A single reading cannot show that; it was only visible because one session
+        # happened to hold three of them. A one-line append makes the slope machine-detectable
+        # instead of depending on somebody remembering.
+        with EFF_HISTORY.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"epoch": int(_time.time()),
+                                 "total_cores": eff["total_cores"],
+                                 "useful_cores": eff["useful_cores"],
+                                 "efficiency": round(eff["efficiency"], 4)}) + "\n")
     except OSError as exc:                                      # noqa: BLE001
         print("  (could not write %s: %r)" % (EFF_STATE.name, exc))
+
+    tr = efficiency_trend(EFF_HISTORY)
+    if tr is not None:
+        d_tot, d_use, marg, n = tr
+        print("  --- THE TREND over the last %d reading(s) ---" % n)
+        print("      cores %+d, USEFUL cores %+d" % (d_tot, d_use))
+        if d_tot > 0:
+            print("      MARGINAL useful fraction: %.1f%%  (against the %.1f%% average)"
+                  % (100.0 * marg, 100.0 * eff["efficiency"]))
+            if marg < eff["efficiency"]:
+                print("      ⇒ ⚠ EVERY CORE WE GAIN IS GOING TO WORK THAT CANNOT RAISE A RUNG")
+                print("        faster than the average. Accumulating cores is NOT helping the")
+                print("        reported result while the ladder has no ordering (D73).")
 
     tvp = tier_value_hold_plan(jobs, line_of_tag, needed)
     print("\n  --- THE RUNG-ORDER RESTORE (holds nothing running; the floor is never touched) ---")
@@ -1179,6 +1234,45 @@ def selftest() -> int:
     eff2 = allocative_efficiency(jobs + [_j("100", "c1_tpe_test_p02", "r", 2.0)], t2l, nb)
     ck("R8c adding one FLOOR job takes it to 50% — floor work counts as useful",
        round(eff2["efficiency"], 3), 0.5)
+
+    # --- THE TREND (RUN 25 pass 2) --------------------------------------------------------------
+    # T2 is the discriminator that matters: the AVERAGE can sit still while every newly-won core
+    # goes to deferred work. A monitor that reported only the average would read "20.3%, stable"
+    # on the exact data that shows 16.7% marginal. T1 is the equally important control -- "no
+    # trend yet" must be DISTINGUISHABLE from "a flat trend", never both rendered as 0.
+    import tempfile as _tf
+    from pathlib import Path as _P
+
+    def _hist(rows):
+        p = _P(_tf.mkdtemp()) / "h.jsonl"
+        p.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+        return p
+
+    ck("T1 a SINGLE reading yields None, not a fake zero trend",
+       efficiency_trend(_hist([{"total_cores": 888, "useful_cores": 184}])), None)
+    ck("T1b an EMPTY history yields None too",
+       efficiency_trend(_hist([])), None)
+    ck("T1c an unreadable path yields None rather than raising",
+       efficiency_trend(_P(_tf.mkdtemp()) / "does_not_exist.jsonl"), None)
+    live = _hist([{"total_cores": 888, "useful_cores": 184},
+                  {"total_cores": 976, "useful_cores": 200},
+                  {"total_cores": 984, "useful_cores": 200}])
+    tr = efficiency_trend(live)
+    ck("T2 THE LIVE SHAPE: cores +96, useful +16", (tr[0], tr[1]), (96, 16))
+    ck("T2b marginal useful fraction is 16.7%, NOT the 20.3% average",
+       round(tr[2], 3), 0.167)
+    ck("T2c and it is strictly BELOW the average, which is the finding",
+       tr[2] < (200 / 984), True)
+    ck("T3 a genuinely healthy trend reads marginal ABOVE the average",
+       round(efficiency_trend(_hist([{"total_cores": 800, "useful_cores": 160},
+                                     {"total_cores": 900, "useful_cores": 260}]))[2], 3), 1.0)
+    ck("T4 cores FALLING gives marginal 0.0 rather than a divide-by-zero or a negative ratio",
+       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
+                               {"total_cores": 800, "useful_cores": 190}]))[2], 0.0)
+    ck("T5 a torn append line is skipped, not fatal",
+       (lambda p: (p.write_text('{"total_cores":800,"useful_cores":160}\n{"total_c\n'
+                                '{"total_cores":900,"useful_cores":180}\n', encoding="utf-8"),
+                   efficiency_trend(p))[1][:2])(_P(_tf.mkdtemp()) / "t.jsonl"), (100, 20))
 
     if fails:
         print("SELFTEST FAILED (%d)" % len(fails))

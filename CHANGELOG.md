@@ -189,6 +189,63 @@ because this output reaches the published page whose gate has now been broken fi
 * `stage_eta` independently corroborates the concentration finding without being asked:
   *"12 h rate is 49% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all"*.
 
+### ⓼ PASS 2 (08:17-08:22Z) — **THE FINDING IS NOT THE LEVEL, IT IS THE SLOPE: EVERY CORE WE GAINED THIS SESSION WENT TO WORK THAT CANNOT RAISE A RUNG**
+
+**The 30-minute deep check ran the full STEP contract. Board GREEN throughout** — accumulator 8/8
+invariants, `VERDICT: ACCUMULATING`, drift 0, `sci OK`, freeze MATCHES, `Eqw` 0, permanent-leak 0,
+ssh OK, inbox empty, `line_balance` CLEAN, C4/C5 NONE.
+
+**⭐ THE MEASUREMENT THAT MATTERS, and it is new.** Across four readings in one session:
+
+| time | cores | USEFUL cores | allocative |
+|---|---:|---:|---:|
+| 08:11Z | 888 | 184 | 20.7% |
+| 08:14Z | 976 | 200 | 20.5% |
+| 08:18Z | 984 | 200 | 20.3% |
+| 08:22Z | **992** | **200** | **20.2%** |
+
+**Cores +104. USEFUL cores +16. A MARGINAL useful fraction of 16/104 = 15.4%, BELOW the 20.2%
+average** — so the average is falling precisely because newly-won capacity lands on blocks that
+cannot lift a rung. And `kimi`'s share went **85% -> 86%** (848 of 984) while still owing the LEAST
+(254 against deepseek/glm/nemotron's 350 each). **The concentration is WORSENING, not stable.**
+
+⇒ **THIS IS THE DIRECT ANSWER TO TAMER'S STANDING QUESTION** — *"make sure the accumulated cores
+speed up the campaign and are very efficient and not just there."* Measured: **they are not.**
+
+**FIXED THIS PASS — the slope is now machine-detectable instead of depending on one session
+happening to hold four readings in its head.** `job_rank_governor.efficiency_trend` +
+`ALLOCATIVE_EFFICIENCY.jsonl` (append-only). **Mutation-proven, and MUTANT B is the one that
+matters:** reporting the AVERAGE instead of the MARGINAL reads `0.203` — "stable" — on the exact
+data whose marginal is `0.167`, and flips the "is it below average" assertion to **False**, i.e. **no
+finding at all**. MUTANT A (the pre-fix shape, no trend) fails 4 cases. `efficiency_trend` returns
+**None** on a single reading rather than a fake zero, because *"no trend yet"* and *"a flat trend"*
+are different states and conflating them is how a monitor reports reassurance it never measured.
+
+**STEP 2 THE FLOOR — RE-DERIVED FROM LIVE DATA, NOT CARRIED FORWARD.** Round 1 is **8/8 RUNNING**,
+0/30 done on both arms, `h2_pair` NOT yet submitted (0 in queue — correct, it submits on drain).
+From the eight live start times (04:58-05:46Z) plus the median SUCCESSFUL task wall re-measured this
+pass (**9.17 h**, n=430 epilogues): **round 1 completes ~14:57Z, RUNG 30 COMPLETE ~2026-08-07
+00:07Z** — **53 minutes EARLIER** than the handover's ~01:00Z. The date moved, favourably.
+
+**STEP 5 SPEED.** Placeable capacity by the AUDITED instrument: **1,576 cores at pack 8 against 984
+held — 592 of headroom**, so we are NOT against the placement ceiling. Capture verdict **GROWING**
+(+104 cores), no missed burst. Records resumed on schedule: **18,906 -> 18,909** as the forecast
+09:00Z landing window opened.
+
+**PROVEN-BENIGN, with the measurement, and it is my own load.** The cycle sweep read **638.3 s**
+against a 900 s false-DEAD cap. Two-point control at **IDENTICAL archive size (18,906 records both
+times)**: `08:00:03Z sweep=29.6 s` while I was idle, `08:18:39 Z sweep=638.3 s` during my instrument
+runs. ⇒ **concurrent scanning, not archive growth** — exactly the §1 warning. **CONSEQUENCE, decided
+on that evidence and recorded rather than silently skipped: `run_record_layers.sh` was NOT run this
+pass.** It costs ~1,342 s and would near-certainly have pushed the sweep past the cap while it sat at
+638 s. Deferred to a quiet window; last ALL-RC=0 was 01:26Z and only +7 records have landed since,
+so the >=500-record trigger is nowhere near.
+
+**STILL ESCALATED, unchanged and un-aged (pass 2 of 3):** R25-1 the 376-job `qhold`, R25-2
+`--pipeline-rungs` OFF for `c1` before ~00:07Z on 7 Aug, R25-3 the 90-minute hold rule. All three are
+`qhold`/restart actions that are **CLASSIFIER-BLOCKED for the agent**; everything around them is
+fixed. **No new defect was found this pass.**
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a
