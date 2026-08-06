@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+211h07m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **19695** |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **19698** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.7 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=156; worst streak 2/240 (0.8% to fatal), ops on core, 1.7 h ago; none live, newest failure 1.7 h ago** |
@@ -133,7 +133,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
 | qwen3_6_27b | **202** | 204 | 5 |  |
-| kimi_k3 | **273** | 284 | 5 |  |
+| kimi_k3 | **274** | 284 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -202,12 +202,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T15:39:27Z  OK  records=19599 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=32.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T15:40:28Z  OK  records=19599 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.1m  drift=0  sci=OK  r115=22B  sweep=30.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T15:46:42Z  OK  records=19611 (+12)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=344.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T15:54:41Z  OK  records=19642 (+31)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.1m  drift=0  sci=OK  r115=22B  sweep=448.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T16:02:07Z  OK  records=19643 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=415.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T16:16:02Z  ATTN  records=19688 (+45)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  cores=376  sweep=805.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T16:17:03Z  ATTN  records=19698 (+10)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.1m  drift=0  sci=OK  r115=22B  sweep=30.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
