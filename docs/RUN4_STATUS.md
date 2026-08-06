@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 13:24 UTC -- T+208h15m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 13:25 UTC -- T+208h16m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+208h15m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+208h16m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **0 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **19183** |
+| stalest driver log | **1 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **19185** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=71; worst streak 2/240 (0.8% to fatal), ops on core, 1 min ago; LIVE, still failing** |
@@ -45,7 +45,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      21 records      21.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     105 records      35.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     633 records      52.8 rec/h   usable
-    last 24 h    2526 records     105.2 rec/h   usable
+    last 24 h    2525 records     105.2 rec/h   usable
     12 h rate is 100% from ONE line (test_leg_kimi_k3); 2 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,10 +60,10 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         118       2  2026-08-06 15:39  2026-08-06 15:39  yes
       100       2,568       2  2026-08-08 14:06  2026-08-08 14:06  yes
-      189       5,687       2  2026-08-11 01:13  2026-08-11 01:13  yes
-      279       9,673      21  2026-08-14 04:47  2026-08-14 04:47  yes
-      340      12,418      21  2026-08-16 08:49  2026-08-16 08:49  yes
-      403      15,253      21  2026-08-18 14:34  2026-08-18 14:34  yes
+      189       5,687       2  2026-08-11 01:14  2026-08-11 01:14  yes
+      279       9,673      21  2026-08-14 04:48  2026-08-14 04:48  yes
+      340      12,418      21  2026-08-16 08:50  2026-08-16 08:50  yes
+      403      15,253      21  2026-08-18 14:35  2026-08-18 14:35  yes
       568      22,686      21  2026-08-24 11:29  2026-08-24 11:29  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
