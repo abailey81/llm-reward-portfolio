@@ -211,6 +211,46 @@ def in_burst_window(now: float) -> bool:
     return BURST_WINDOW_UTC[0] <= time.gmtime(now).tm_hour < BURST_WINDOW_UTC[1]
 
 
+def allocative_efficiency(per_line_cores: dict, deficits_now: dict, deficits_next: dict
+                          ) -> tuple[float, float, list]:
+    """(efficiency NOW, efficiency AFTER the next rung banks, per-line rows).
+
+    ⭐⭐ THE SECOND MEANING OF "EFFICIENT", AND THE ONE THAT MATTERS MORE.
+    Tamer, 2026-08-06: *"make sure the accumulated cores speed up the campaign and are very efficient
+    and not just there."* Mechanical efficiency answers "are the cores BUSY" and measures 98.5% here.
+    It says nothing about whether they are busy on work that moves the REPORTED result — and a core
+    can be 99.6% busy computing a record that raises the common rung by exactly zero.
+
+    ALLOCATIVE EFFICIENCY = the share of held cores on a line that still OWES trainings for the next
+    common rung. Measured 2026-08-06: **8.2%** (64 of 784), because `c1` alone owes anything at rung
+    30 while kimi's 648 cores are climbing above it.
+
+    ⚠ AND THE LOW NUMBER IS NOT, BY ITSELF, A DEFECT — WHICH IS WHY BOTH COLUMNS ARE REPORTED.
+    R101 licenses the ladder, and a line above the current rung is banking work that the NEXT rung
+    needs. The same measurement showed **90.8% becomes binding the moment rung 30 banks**, with no
+    intervention. So the actionable signal is NOT "efficiency is low" — it is a line that owes zero
+    at BOTH the current and the next rung, because that one is genuinely running ahead of anything
+    the result can use. On 2026-08-06 exactly one line qualified: qwen3.6, 72 cores, owing 0 toward
+    rung 30 and 0 toward rung 100.
+    """
+    tot = sum(per_line_cores.values())
+    if not tot:
+        return 0.0, 0.0, []
+    now = sum(c for ln, c in per_line_cores.items() if deficits_now.get(ln, 0) > 0)
+    nxt = sum(c for ln, c in per_line_cores.items() if deficits_next.get(ln, 0) > 0)
+    rows = []
+    for ln, c in sorted(per_line_cores.items(), key=lambda kv: -kv[1]):
+        dn, da = deficits_now.get(ln, 0), deficits_next.get(ln, 0)
+        if dn > 0:
+            v = "BINDING NOW"
+        elif da > 0:
+            v = "binding after the floor banks"
+        else:
+            v = "RUNNING AHEAD of both rungs -- the only actionable case"
+        rows.append((ln, c, dn, da, v))
+    return 100.0 * now / tot, 100.0 * nxt / tot, rows
+
+
 CAPTURE_LOG = REPO / "docs" / "ops" / "watch" / "CORE_CAPTURE.jsonl"
 
 
@@ -665,6 +705,26 @@ def selftest() -> int:
     ck("no dispatch rate means no forecast", time_to_dry(400, None), None)
     ck("a zero dispatch rate means no forecast (no division by zero)", time_to_dry(400, 0.0), None)
 
+    # --- ALLOCATIVE EFFICIENCY: busy is not the same as USEFUL ----------------------------------
+    # Live shape 2026-08-06: c1 64 cores owing 120 at rung 30; kimi 648 owing 0 now but 254 next;
+    # qwen3.6 72 owing 0 at BOTH. That is 8.2% now and 90.8% after the floor banks.
+    pc = {"c1": 64, "kimi": 648, "qwen": 72}
+    dn = {"c1": 120, "kimi": 0, "qwen": 0}
+    da = {"c1": 1520, "kimi": 254, "qwen": 0}
+    now_eff, nxt_eff, rows = allocative_efficiency(pc, dn, da)
+    ck("allocative efficiency NOW is 8.2%", round(now_eff, 1), 8.2)
+    ck("...and 90.8% AFTER the next rung banks", round(nxt_eff, 1), 90.8)
+    ck("the binding-now line is labelled BINDING NOW",
+       [r[4] for r in rows if r[0] == "c1"][0], "BINDING NOW")
+    ck("a line above the current rung but owing the NEXT one is NOT the actionable case",
+       [r[4] for r in rows if r[0] == "kimi"][0], "binding after the floor banks")
+    # ⭐ THE ONLY ACTIONABLE CASE: owes zero at BOTH rungs. Mislabelling this as merely
+    # 'zero marginal value' would hide it among the whole ladder, which is licensed by R101.
+    ck("owing zero at BOTH rungs is flagged as RUNNING AHEAD",
+       [r[4] for r in rows if r[0] == "qwen"][0].startswith("RUNNING AHEAD"), True)
+    ck("rows are ordered by cores, biggest first", [r[0] for r in rows], ["kimi", "qwen", "c1"])
+    ck("an empty fleet cannot divide by zero", allocative_efficiency({}, {}, {}), (0.0, 0.0, []))
+
     # --- capture: did we GROW when there was room? ----------------------------------------------
     ck("capture needs 3+ samples before it will judge",
        capture_verdict([{"ts": 0, "cores": 1}, {"ts": 3600, "cores": 2}])[0].startswith("INSUFFICIENT"), True)
@@ -708,7 +768,7 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 57 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
+    print("SELFTEST OK — 64 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
     return 0
 
 
