@@ -281,7 +281,13 @@ def chain_remaining_days(root: str, floor_total: float) -> tuple[float | None, s
 
 
 def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
-           page: bool = False) -> str:
+           page: bool = False, registered_units: int = REGISTERED_UNITS) -> str:
+    # ⚠ `registered_units` is a TEST SEAM, and it exists because the alternative was worse. The
+    # unstarted-unit gate below asks how many registered units have no directory at all, so a
+    # fixture that plants 3 cells against the live 71 has 68 "absent" units and gates every row --
+    # correctly, but it then cannot exercise the go-forward arithmetic it was written for. Padding
+    # the fixture with 68 filler directories would instead test the F11 name filter by accident.
+    # A fixture that says "this campaign has 3 registered units" is the honest model.
     # ⚠ F9: THE WALK COMES FIRST, THEN THE CLOCK. Sampling `now_epoch` before walking a 30k-record
     # tree gives records that land DURING the walk an mtime greater than `now_epoch`: they are then
     # excluded from every window and from `k`, while still counting in `len(mts)` -- so they inflate
@@ -475,8 +481,9 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
                  f"{'latest (UTC)':<16}  Aug-27?")
         lo1 = now_epoch - 3600.0
         gated_from: int | None = None   # F1: first gated rung; every higher rung inherits it
+        gated_why = "barrier"           # and WHY, so the reader knows what to go and look at
         for rung in RUNGS:
-            rem, _missing = backlog(rung, cells)
+            rem, n_absent = backlog(rung, cells, registered_units)
             # how much this rung's backlog actually fell in the last hour
             # ⚠ CORRECTED (auditor, 2026-08-04). This was `if len(mts) <= rung`, which counts ALL of
             # a cell's window records when the cell ends at or below the rung and ZERO when the cell
@@ -505,6 +512,37 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
             owing_rate = sum(
                 sum(1 for m in mts if lo2 <= m <= now_epoch)
                 for mts in cells.values() if len(mts) < rung) / eh2
+            # ⚠⚠ AND `owing_rate > 0` IS TOO WEAK A TEST — IT ASKS WHETHER **ANY** OWING CELL IS
+            # PRODUCING WHEN THE BINDING ONE MAY NOT HAVE STARTED (found live 2026-08-06).
+            # Measured that afternoon: this table printed `rung 30 ... 2026-08-06 15:57`, i.e. the
+            # campaign's most important number landing in ~90 minutes, computed as 89 remaining
+            # / 55.3 fleet rec/h. The gate passed because `c1_bayes_opt` and `c1_tpe` WERE
+            # producing (19/30 and 9/30 that minute). But 60 of those 89 records belong to
+            # `c1_distributional` and `c1_scalar`, which held **ZERO** records and **ZERO** jobs:
+            # their stage (C2's h2_pair array) had not been submitted at all, and could not be
+            # until round 1 drained. The true earliest was round-1 drain + a QUEUE WAIT measured
+            # that day at a 32.6 h median + one 9.12 h wall.
+            #
+            # A cell with SOME records is mid-climb and a fleet rate is a defensible estimator for
+            # it. A cell with NONE has not begun, so there is no rate to extrapolate and no amount
+            # of fleet throughput can date it — the honest statement is which barrier it waits on.
+            # This is a strictly narrower test than "no owing cell produced anything", which is why
+            # it does not reintroduce the degeneracy that removed the old no-redirection column:
+            # a mid-climb line always has thin cells, but it does not have EMPTY ones.
+            #
+            # ⚠⚠⚠ AND THE FIRST VERSION OF THIS GUARD DID NOT FIRE, FOR THE MOST INSTRUCTIVE REASON
+            # AVAILABLE. It scanned `cells`, and `c1_distributional` / `c1_scalar` HAVE NO DIRECTORY
+            # AT ALL, so they are not in `cells` and an empty-cell test cannot see them. `backlog()`
+            # has always returned their count as its second value, and this loop captured it as
+            # `_missing` and THREW IT AWAY, while the page printed a footnote naming them:
+            # *"(+2 registered unit(s) have no directory yet ... they have produced nothing at all,
+            # so no window contains them)"*. The tool held the disqualifying fact, SAID it in prose,
+            # and dated the row anyway — the same shape as the 1 h-window incident this file already
+            # records, where it printed a number it had itself documented as meaningless.
+            # A unit with no directory has not merely produced nothing; it has not STARTED.
+            owing_unstarted = [n for n, mts in cells.items() if len(mts) < rung and not mts]
+            if n_absent:
+                owing_unstarted = owing_unstarted + ["%d-unit(s)-absent" % n_absent]
             # ⚠⚠ F1 — GATED IS ABSORBING UPWARD, AND WITHOUT THIS THE TABLE COULD CONTRADICT ITSELF.
             # `owing_rate` is computed per rung, so a LOW rung whose few owing cells are idle gates
             # while a HIGHER rung, which has the busy cells below it too, gets a confident date.
@@ -514,10 +552,15 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
             # assertions filter GATED rows out before comparing, so the selftest was blind to it BY
             # CONSTRUCTION and it would have shipped silently the first time the fleet composition
             # changed. Once gated, every higher rung is gated.
-            if owing_rate <= 0 or gated_from is not None:
+            if owing_rate <= 0 or owing_unstarted or gated_from is not None:
                 if gated_from is None:
                     gated_from = rung
-                tag = "barrier" if gated_from == rung else f"barrier>={gated_from}"
+                    # Name WHICH unstarted cell gates it. "barrier" alone sends the reader looking
+                    # for a stage gate; the actual answer is usually one named array nobody has
+                    # submitted yet, and that is a different thing to go and check.
+                    gated_why = ("unstarted:" + ",".join(sorted(owing_unstarted)[:2])
+                                 if owing_unstarted else "barrier")
+                tag = gated_why if gated_from == rung else f"{gated_why}>={gated_from}"
                 L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'GATED':<16}  {'GATED':<16}  "
                          f"{tag}")
                 continue
@@ -536,7 +579,7 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
             L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {cf:<16}  {cs:<16}  {fits}")
         L.append("    GATED = the relevant rate is zero, so no throughput number can date that row -- it is")
         L.append("    waiting on a stage barrier (C1 chain / C3 gate), not on cores.")
-        _, missing = backlog(CEILING, cells)
+        _, missing = backlog(CEILING, cells, registered_units)
         if missing:
             # ⚠⚠ F6 -- THE ONE ASYMMETRY IN THIS TABLE, STATED RATHER THAN LEFT IMPLIED. A missing
             # unit has no directory, so it is NOT in `cells`; it contributes its FULL rung to every
@@ -806,7 +849,11 @@ def selftest() -> int:
         tp3 = throughput(c3, time.time())
         ck("I2 fixture: 1 h window is empty", tp3[1][0], 0)
         ck("I3 fixture: 12 h window is busy", tp3[12][0] > 100, True)
-        out_i = render(1000, root=tmp2, page=True)
+        # registered_units = the number this fixture actually plants (see the K2 note): against
+        # the live 71 every row would gate on the unstarted-unit rule and J1/J2/J3 would compare
+        # empty lists. Derived from the fixture rather than hardcoded, so adding a cell cannot
+        # silently re-break it.
+        out_i = render(1000, root=tmp2, page=True, registered_units=len(c3))
         ck("I4 an ETA is still produced from the 12 h window",
            "EMPIRICAL ETA" in out_i and "UNAVAILABLE" not in out_i, True)
         ck("I5 the sub-quantum caveat is stated", "STALL INDICATOR ONLY" in out_i, True)
@@ -881,7 +928,13 @@ def selftest() -> int:
         c4 = test_cells(tmp3)
         ck("K1 fixture: the near-ceiling cell is exactly at the exclusion boundary",
            sorted(len(m) for m in c4.values()), [20, 300, CEILING - PACK])
-        out_k = render(1000, root=tmp3)
+        # ⚠ THREE registered units, because this fixture plants exactly three. Against the live 71
+        # it would have 68 units with no directory, every row would gate on the unstarted-unit rule
+        # (CORRECTLY -- dating a rung whose units have not started is the defect that rule exists to
+        # stop), and K2 could not test the go-forward arithmetic it was written for. Found when the
+        # rule was added on 2026-08-06 and this assertion went red; the fixture was the unrealistic
+        # half, not the rule, so the fixture was made honest rather than the rule weakened.
+        out_k = render(1000, root=tmp3, registered_units=len(c4))
         rows_k = []
         # ⚠ ONLY the empirical table. The REGISTERED MODEL block below it ALSO prints rows whose
         # first token is a rung, and swallowing both is how L2 first reported six false rows.
@@ -892,6 +945,21 @@ def selftest() -> int:
                 if len(parts) >= 8 and parts[3][:2] == "20" and parts[5][:2] == "20":
                     rows_k.append((parts[3] + " " + parts[4], parts[5] + " " + parts[6]))
         ck("K2 the go-forward fixture produced dated rows", len(rows_k) >= 1, True)
+        # ⚠⚠ K3/K4 — THE UNSTARTED-UNIT GATE, added 2026-08-06 after this table told Tamer that
+        # rung 30 (the campaign's most important number) landed in ~90 MINUTES. It divided 89
+        # remaining by a 55.3 rec/h fleet rate; 60 of those 89 belonged to `c1_distributional` and
+        # `c1_scalar`, which had ZERO records and ZERO jobs because their array had not been
+        # submitted. The pre-existing gate asked whether ANY owing cell was producing, and two other
+        # c1 arms WERE, so it passed. A unit with no directory has not started, there is no rate to
+        # extrapolate for it, and a rung is a MINIMUM over units — so no fleet throughput can date
+        # it. K4 is the discriminator: identical archive, one extra REGISTERED unit that is absent.
+        out_k_gate = render(1000, root=tmp3, registered_units=len(c4) + 1)
+        gate_rows = [ln for ln in out_k_gate.split("REGISTERED MODEL")[0].splitlines()
+                     if ln.split() and ln.split()[0].isdigit() and int(ln.split()[0]) in RUNGS]
+        ck("K3 one ABSENT registered unit gates EVERY row, at any rate",
+           all("GATED" in ln for ln in gate_rows) and len(gate_rows) >= 3, True)
+        ck("K4 ...and the tag names the absence, not a vague 'barrier'",
+           any("absent" in ln for ln in gate_rows), True)
         # ⚠ A0e -- render() must CONSUME chain_remaining_days(), not just have it available. The
         # mutation proof caught this: reverting the CALL SITE to `floor_total - elapsed_d` left
         # A0a-A0d passing, because they call the function directly. This fixture has no `search/`
