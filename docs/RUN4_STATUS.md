@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 01:26 UTC -- T+196h17m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 01:27 UTC -- T+196h18m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+196h17m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+196h18m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18552** |
@@ -38,7 +38,7 @@ generated 2026-08-06 01:27 UTC | elapsed 8.18 d | 20.9 d to the Aug-27 stop
 test tier: 17,009 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      34 records      34.0 rec/h
+    last  1 h      33 records      33.0 rec/h
     last  3 h     451 records     150.3 rec/h
     last 12 h    1891 records     157.6 rec/h
     last 24 h    3479 records     145.0 rec/h
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,694      28  GATED             GATED             barrier>=30
-      189       6,258      34  GATED             GATED             barrier>=30
-      279      10,306      34  GATED             GATED             barrier>=30
-      340      13,051      34  GATED             GATED             barrier>=30
-      403      15,886      34  GATED             GATED             barrier>=30
-      568      23,319      34  GATED             GATED             barrier>=30
+      100       2,694      27  GATED             GATED             barrier>=30
+      189       6,258      33  GATED             GATED             barrier>=30
+      279      10,306      33  GATED             GATED             barrier>=30
+      340      13,051      33  GATED             GATED             barrier>=30
+      403      15,886      33  GATED             GATED             barrier>=30
+      568      23,319      33  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
