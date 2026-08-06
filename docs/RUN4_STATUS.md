@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **900** (106 running, 794 queued) |
 | **cores computing** | **848** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 192 of 848 cores (0 min old) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 192 of 848 cores (1 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,15 +37,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 11:23 UTC | elapsed 8.59 d | 20.5 d to the Aug-27 stop
+generated 2026-08-06 11:24 UTC | elapsed 8.59 d | 20.5 d to the Aug-27 stop
 test tier: 17,595 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 71.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      58 records      58.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     228 records      76.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     862 records      71.8 rec/h   usable
-    last 24 h    2653 records     110.5 rec/h   usable
+    last  3 h     227 records      75.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     861 records      71.8 rec/h   usable
+    last 24 h    2652 records     110.5 rec/h   usable
     12 h rate is 92% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -233,7 +233,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 8 min ago)
+## Monitoring -- the cycle (last monitoring cycle 9 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
