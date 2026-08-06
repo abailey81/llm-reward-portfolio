@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-08-05"
-  head: "a8858a6e"
+  regenerated_utc: "2026-08-06"
+  head: "38e7167f"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 23 ops: SWEEP-1 incremental record cache built + falsified (11/11, mutants PASS, static byte-identity PASS); science_watch 14s on 17,935 records"
+  suite_status: "RUN 23 close: SWEEP-1 + budget_watch fixed and proven; cores question answered (smp-D $pe_slots fragmentation); floor = 120 records on c1"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

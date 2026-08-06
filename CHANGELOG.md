@@ -3,6 +3,139 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06a] ★★★★★ RUN 23 (OPS), CLOSE — **TAMER CHANGED THE CAMPAIGN'S OPERATING PRIORITY TO THE RUNG-30 FLOOR, AND THE CORES QUESTION WAS ANSWERED AFTER EIGHT WRONG TURNS** · the answer is `smp-D`'s `$pe_slots` against a fragmented pool, not priority, not fair share, not a penalty · **the entire remaining requirement for a writable result is 120 trainings**
+
+### PAST · PRESENT · FUTURE
+
+**PAST.** RUN 23 opened at 2026-08-05 07:30 UTC with 15,657 records, 1,608 CPU cores and SWEEP-1 open.
+Passes 1–5 are `[2026-08-05a]`: the incremental record cache, the `budget_watch` fix, a red test
+corrected, and the §11.1 `src/inference` row closed at 94.25 % coverage.
+
+**NOW (2026-08-06 04:05 UTC, T+199 h).** **18,637 records · 536 CPU cores · 961 jobs · Eqw/hqw 0 ·
+drift 0 · freeze MATCHES · repro 8/0/0 · board OK · seven record layers ALL RC=0 · seed loss ZERO ·
+sweep 27.8 s (was 903.5 s) · `budget=2` (was 99).** Spend unchanged at $45.5019.
+
+**NEXT.** `docs/RUN24_SESSION_PROMPT.md` is the complete brief. The floor bank (§4 there) is the
+absolute priority; the queue-order intervention awaits Tamer's explicit go.
+
+### 1. ★★★★★★★ THE OPERATING PRIORITY CHANGED — **THE FLOOR FIRST, THE LADDER SECOND**
+
+**Tamer, verbatim:** *"our main priority is to bank all the results for absolutely all arms at 30
+seeds first, the ladder is optional comparing to that. We need the results to write the dissertation
+now, and we need them fast."*
+
+**MEASURED IMMEDIATELY, AND THE GAP IS SMALL. ELEVEN OF THE TWELVE LINES ALREADY HOLD RUNG 30.** The
+entire remaining requirement is four arms on the confirmatory line (`c1`):
+```
+bayes_opt 0/30 · tpe 0/30 · distributional 0/30 · scalar 0/30
+(cma_es, random_search, scalar_cvar5, placebo, placebo_shuffled all 30/30)
+```
+**120 trainings ≈ 1,128 CPU-core-hours ≈ two hours of the 536 cores we already hold.**
+
+⛔ **IT MUST GO IN TWO ROUNDS AND THAT IS A SCIENCE PROTECTION.** `campaign.py:1904-1910` builds the
+H2 pair as ONE `interleave=True` CRN-paired array holding `distributional` AND `scalar` together, and
+its own comment says why: *"the pair test would run with four of five arms, and every seed in it
+would be paired against a comparator set that is not the registered one."* So Round 1 is the
+`bayes_opt`+`tpe` test legs (8 jobs, already queued) and Round 2 is the pair, submitted only after
+Round 1 completes. All nine confirmatory arms already hold frozen winners.
+
+**COST OF DOING NOTHING: ~9 August. WITH THE §4 INTERVENTION: ~7 August. Two to three days on the one
+thing needed to write the dissertation.**
+
+### 2. ★★★★★★★ THE CORES QUESTION — THE ANSWER, AND IT IS STRUCTURAL
+
+Tamer, angry and correct: *"we went from 2300 cores at our peak to 544 cores now, this is
+ridiculous."* The 30-minute loop was **cancelled** at his instruction and a full investigation run.
+
+**THE ANSWER: `qconf -sp smp-D` → `allocation_rule $pe_slots`.** Every slot of a job must land on ONE
+host, and we run `--pack 8 --cores-per-training 1`, so we need **8 free CPU cores on a single node**.
+Measured on the d00 hosts open to us and not disabled:
+```
+8+ free: 5 nodes · 4-7: 28 · 2-3: 60 · 1: 43 · 0: 58        TOTAL FREE AND OPEN: 383 CPU cores
+what each width could claim from those 383:
+  width 8 (ours)  5 jobs =  40 cores  <- 10 %      width 4  39 jobs = 156
+  width 2       150 jobs = 300 cores  <- 7.5x      width 1 383 jobs = 383  <- 100 %
+```
+⇒ **AT OUR SHAPE WE CAN REACH ONE TENTH OF THE CAPACITY OPEN TO US.** The free cores are real and
+shattered into fragments of 1-7 that an 8-wide job cannot use.
+
+**IT EXPLAINS EVERY OBSERVATION, VIA A SEVEN-USER CONTROLLED COMPARISON:** `ucecgwh` (1-wide) has
+**zero** backlog · `uccaewo` (4-wide) **zero** · all three 8-wide users on our tier — us, `ucaqcsu`,
+`ucaqanw` — sit pinned at **504-536** · `ucbtjji` runs 8-wide with 1,064 cores because its jobs run
+for **days** and never hand slots back · and we surge to 2,300 overnight because that is when whole
+nodes empty. **Myriad is 13,048 CPU cores over 355 hosts and the d00 pool is 9,432 over 262 = 72 %,
+so we are not locked out of anything.**
+
+**AND WE ARE NOT BEING PENALISED.** `ucaqcsu` and `ucaqanw` are in the same `AllUsers` project with
+the same 8-wide shape and land within 32 cores of us. **263 of 263 jobs that ended in 24 h exited
+`failed 0, exit_status 0`** — nothing was drained, throttled or killed.
+
+### 3. ⛔⛔ EIGHT WRONG TURNS, PUBLISHED TO TAMER AND THEN RETRACTED. **ALL RECORDED SO RUN 24 CANNOT REPEAT THEM.**
+
+1. **"12,044 free CPU cores"** (then 10,499, then 8,863) — **`qstat -f` TRUNCATES the queue-instance
+   hostname**, so every host was counted twice and the figures were ~5× inflated. Corrected: 259
+   distinct d00 hosts, 9,324 cores, 71 % used.
+2. **Publishing free capacity without ACCESS CONTROL** — of 56 clear hosts with ≥8 free, **47 are
+   PAID/private and 9 are open to us.** ⚠ This repository had already withdrawn that exact claim
+   twice (lane messages **M203** and **M239**).
+3. **"14.2 jobs/h queue drain"** — fitted to one 38-minute window. The real figure over 6 h is
+   **6.4-6.8 jobs/h**, confirmed four times.
+4. **"The confirmatory line starts in ~19 h"** — wrong twice; ~37 h. Each revision came from finding
+   another queue term I had not counted.
+5. **"Pack 4 gives 18× placeable capacity"** — one volatile snapshot; forty minutes later the same
+   measurement read 4 vs 10. The DIRECTION is structural, the MAGNITUDE is not quotable.
+6. **"Concentrate our tickets by holding jobs"** — ⛔ **ALREADY TESTED AND REFUTED, dossier §0-PRE
+   M5, 2026-07-26**: 228 of 309 held, priority moved 2.0165→2.0413 (ordinary waiting-time accrual),
+   zero wide jobs placed, **and our running count decayed 44→9.** Searching the record is what
+   stopped it being re-run on a live campaign.
+7. **"A structural monotone decline"** — the status-commit history shows the count has oscillated
+   **336 ↔ 2,320 all campaign**, with a measured diurnal shape (best 03:00-08:00Z mean **1,524**,
+   worst 19:00-00:00Z mean **~950**). The 2,320 peak was 2026-08-03 02:21Z, a Sunday night.
+8. **"Gold projects / override tickets"** — `Gold*` carries `oticket 400000` and `AllUsers` 0, **but
+   every user beating us also has `otckt = 0`**, and `Gold`'s `acl Open` is a named list of teaching
+   accounts. Refuted within minutes.
+
+**ALSO REFUTED BY MEASUREMENT:** `h_rt` reduction (3,987 epilogues; p999 and max both **15.01 h**
+against a 15.00 h request — no slack, and a shorter request is BETTER for backfill) · `snx` (capacity
+~9,990/host) · a per-user slot RQS (the only rule set is disabled and targets another user) · memory
+over-request (`qacct maxvmem` **11.3-11.9 GB against a 16 GB request**, but memory is not the binding
+dimension — 92 hosts qualify on memory, 9 on cores) · other CPU pools (outside `smp-D`, excluded by
+the determinism envelope) · raising our own priority (a non-operator can only DECREASE) · priority
+creep (measured **+0.00015/h** on `c1` job 91237 over 6.4 h — real, far too slow to matter).
+
+### 4. THE PENDING INTERVENTION — **AWAITING TAMER'S EXPLICIT GO**
+
+`c1` needs **64 of our 536 CPU cores**, not all of them. So the action is small: `qhold` just enough
+of kimi's pending jobs that `c1`'s 8 rise to the top of our own pending set, watch for dispatch,
+`qrls` kimi immediately with a hard 90-minute limit. Kimi's ~68 RUNNING jobs are never touched, and
+every other line already holds its rung 30. ⚠ **`qhold`/`qrls` is chosen over `qalter -p` precisely
+because it is reversible.** ⚠ It crosses Tamer's standing 2026-07-24 rule; he was asked twice and had
+not given an explicit go when the session closed.
+
+### 5. THE EMAIL TO UCL RESEARCH COMPUTING — DRAFTED, ADDRESS VERIFIED, TAMER TO SEND
+
+Address **`rc-support@ucl.ac.uk`**, verified from Myriad's own `/etc/motd` and matching the address
+already in our docs. ⚠ **NOT `myriad-users@ucl.ac.uk`, which is the all-user announcement list.**
+Four drafts were iterated on Tamer's instructions: situation first then the ask, no offer to change
+our configuration, no paid option, no technical self-diagnosis (which would invite "then fix your job
+shape" and close the ticket), and the write-up framed as running in parallel rather than starting on
+27 August. The ask is a temporary priority allocation until 27 August. The persuasive core is that
+all eleven configurations must reach the same rung, so the result is set by the line furthest behind
+rather than by total throughput — the only line in the letter that explains why "you are getting your
+fair share" does not solve the problem.
+
+### 6. ⚠ NAMING — TAMER WAS RIGHTLY CONFUSED AND `CLAUDE.md` §C1 HAD BEEN IGNORED
+
+"core" was used for both a **CPU core** and the **confirmatory line (`c1`, Claude Opus 5, archive
+dirs `search/` and `test/`, log `driver_core.log`)** in the same sentences. Corrected everywhere and
+recorded as a standing rule in the RUN 24 brief: **never write "core" unqualified.**
+
+### 7. FILES
+
+**NEW:** `docs/RUN24_SESSION_PROMPT.md`.
+**EDITED:** `docs/ops/watch/FLAWLESS_LEDGER.md` · `CHANGELOG.md` · `docs/HANDOFF.md` ·
+`memory/session-current-focus.md`. **No `src|scripts|config|prompts` file was touched; drift is 0.**
+
 ## [2026-08-05a] ★★★★★ RUN 23 (OPS), passes 1–2 — **THE 900 s SWEEP CAP HAD ALREADY BEEN BREACHED ON A HEALTHY LOOP, SO SWEEP-1 WAS BUILT AND THEN FOUND THREE DEFECTS OF ITS OWN BEFORE IT WAS BANKED** · Tamer asked why the records and the cores had "downgraded" and the records had not moved down at all · **and R101's "lockstep" sentence is not true of the execution, which is now a registered disclosure**
 
 ### WHERE THIS SESSION STARTED AND WHERE IT ENDED

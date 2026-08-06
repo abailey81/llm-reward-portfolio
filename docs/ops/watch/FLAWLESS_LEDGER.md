@@ -565,6 +565,42 @@ About **81% of the last 12 h of production landed above the common rung.** That 
 answered with its number, and it is NOT actionable from here: steering which line SGE runs would
 need a `qdel` or a held-back submission, and both are standing prohibitions.
 
+### ★★★★★★★ 2026-08-06 04:10 UTC (RUN 23 CLOSE) — **THE OPERATING PRIORITY CHANGED, AND THE CORES
+### QUESTION IS ANSWERED. THE FULL BRIEF IS `docs/RUN24_SESSION_PROMPT.md`.**
+
+**TAMER, VERBATIM:** *"our main priority is to bank all the results for absolutely all arms at 30
+seeds first, the ladder is optional comparing to that. We need the results to write the dissertation
+now, and we need them fast."* ⇒ **THE FLOOR FIRST, THE LADDER SECOND. Every allocation decision is
+now judged against: does it complete the rung-30 bank?**
+
+**THE FLOOR IS 120 RECORDS, AND ELEVEN OF TWELVE LINES ALREADY HOLD IT.**
+```
+c1 bayes_opt 0/30 · tpe 0/30 · distributional 0/30 · scalar 0/30
+c1 cma_es, random_search, scalar_cvar5, placebo, placebo_shuffled  ALL 30/30
+every leg line and h3                                             ALL >= 30
+```
+≈ 1,128 CPU-core-hours ≈ **two hours of the 536 cores we already hold.**
+⛔ **TWO MANDATORY ROUNDS.** `campaign.py:1904-1910` builds the H2 pair as ONE `interleave=True`
+CRN-paired array, so `distributional`+`scalar` cannot be split and submit only after `bayes_opt`+`tpe`
+finish. **No intervention → ~9 August. With the §4 intervention → ~7 August.**
+
+**THE CORES ANSWER IS STRUCTURAL: `qconf -sp smp-D` → `allocation_rule $pe_slots`.** All 8 slots must
+land on ONE host. **383 free CPU cores are open to us; only 5 nodes have 8+ contiguous**, so our
+shape reaches **10 %** of them (width 4 → 40 %, width 2 → 78 %, width 1 → 100 %). Confirmed by a
+seven-user controlled comparison and by `qacct`: **263 of 263 jobs exited `failed 0` — nothing was
+drained or throttled, and `ucaqcsu`/`ucaqanw` (same project, same width) land within 32 cores of us.**
+
+⛔⛔ **EIGHT WRONG TURNS WERE PUBLISHED AND RETRACTED BEFORE THAT ANSWER. THEY ARE ENUMERATED IN
+`RUN24_SESSION_PROMPT.md` §5.2 AND MUST BE READ BEFORE ANY FUTURE CORES MEASUREMENT.** The worst:
+`qstat -f` truncates hostnames and inflated a headline 5×; access control was nearly omitted (the
+M203/M239 class, withdrawn twice before); a drain rate was fitted to 38 minutes and was double the
+truth; and **ticket concentration had ALREADY been refuted by dossier §0-PRE M5, whose controlled
+test starved us from 44 running jobs to 9.**
+
+**PENDING TAMER:** the `qhold`/`qrls` queue-order intervention (reversible; `qalter -p` is one-way for
+a non-operator and must not be used), and whether he sent the RC email to `rc-support@ucl.ac.uk`.
+⚠ **The 30-minute cron is STOPPED** at his instruction; the campaign's own cycle is green at 27.8 s.
+
 ### ⛔⛔⛔⛔ 2026-08-06 01:30-02:10 UTC (RUN 23, TAMER-DIRECTED CORES INVESTIGATION) — **THE LOOPS ARE
 ### STOPPED. §6's PACK-WIDTH REFUTATION RESTS ON A MEASUREMENT THAT NO LONGER DESCRIBES THE CLUSTER.**
 
