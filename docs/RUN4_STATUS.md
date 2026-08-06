@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **908** (113 running, 795 queued) |
 | **cores computing** | **904** |
-| **cores doing RUNG-RAISING work** | **21.2%** -- 192 of 904 cores (14 min old) |
+| **cores doing RUNG-RAISING work** | **21.2%** -- 192 of 904 cores (15 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -41,10 +41,10 @@ generated 2026-08-06 10:35 UTC | elapsed 8.56 d | 20.6 d to the Aug-27 stop
 test tier: 17,545 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 80.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      40 records      40.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    => OPERATIVE RATE 80.0 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      39 records      39.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     186 records      62.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     963 records      80.2 rec/h   usable
+    last 12 h     960 records      80.0 rec/h   usable
     last 24 h    2685 records     111.9 rec/h   usable
     12 h rate is 79% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,722      40  GATED             GATED             barrier>=30
-      279       9,770      40  GATED             GATED             barrier>=30
-      340      12,515      40  GATED             GATED             barrier>=30
-      403      15,350      40  GATED             GATED             barrier>=30
-      568      22,783      40  GATED             GATED             barrier>=30
+      189       5,722      39  GATED             GATED             barrier>=30
+      279       9,770      39  GATED             GATED             barrier>=30
+      340      12,515      39  GATED             GATED             barrier>=30
+      403      15,350      39  GATED             GATED             barrier>=30
+      568      22,783      39  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -233,7 +233,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 4 min ago)
+## Monitoring -- the cycle (last monitoring cycle 5 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
