@@ -1,18 +1,18 @@
 {
- "utc": "2026-08-06T09:19:36Z",
- "epoch": 1786007976,
- "useful_cores": 200,
- "deferred_cores": 768,
- "total_cores": 968,
- "efficiency": 0.2066,
+ "utc": "2026-08-06T09:54:37Z",
+ "epoch": 1786010077,
+ "useful_cores": 184,
+ "deferred_cores": 720,
+ "total_cores": 904,
+ "efficiency": 0.2035,
  "by_distance": {
   "-1": 64,
-  "0": 136,
+  "0": 120,
   "1": 160,
-  "2": 200,
-  "3": 88,
+  "2": 176,
+  "3": 80,
   "4": 176,
-  "5": 144
+  "5": 128
  },
  "needed_block": {
   "test": 0,

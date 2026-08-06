@@ -353,6 +353,59 @@ target**; deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES ST
 classifier-blocked for the agent. Job-cap headroom **77 of 1,000** against the **1,347 jobs `c1`
 will submit in roughly fourteen hours.**
 
+### ⑪ PASS 5 (09:49-10:0xZ) — **THE TREND PRICED FOR THE FIRST TIME AND WAS WRONG THREE DIFFERENT WAYS, INCLUDING ONE THAT PUT IT IN DIRECT CONTRADICTION WITH ANOTHER INSTRUMENT**
+
+**Board GREEN.** cores **904** (113 jobs), accumulator 8/8, `ACCUMULATING`, GROWING +120 over 3.1 h,
+drift 0, `sci OK`, `Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, `line_balance` CLEAN, inbox empty.
+**The burst landed as forecast: records 18,975 -> 19,058, and `records/h` 1 h = 145 against a 12 h
+of 90.** The joint signal reads exactly right — cores fell 968 -> 904 while the record rate rose
+75 -> 145, i.e. the pack-8 jobs holding those cores FINISHED and delivered.
+
+**The trend window cleared both guards for the first time and priced: `cores -88, USEFUL -16,
+marginal 23.3% against a 20.4% average`. Reading that output found THREE defects in it.**
+
+**⓵ THE SIGN OF "BAD" FLIPS WITH THE DIRECTION OF THE FLEET, AND THE CODE KNEW ONLY ONE.**
+GROWING + marginal BELOW average = new capacity wasted. **SHRINKING + marginal ABOVE average = the
+capacity LEAVING is worth more than what stays** — also bad, and the pre-fix code printed it with
+**no warning at all**. Mutation M1 proves it was wrong in BOTH directions on a shrinking fleet: it
+returned `OK` on the live bad case and `GAIN-WASTED` on a case that is fine.
+
+**⓶ THE VERDICT WAS UNTESTABLE, SO IT WAS EXTRACTED.** It lived inside `report()`, which needs ssh.
+`trend_verdict(marginal, average, delta_total, records_rising)` is now pure, and the selftest pins
+the STRING a session will actually read rather than a boolean nobody renders.
+
+**⓷⭐ AND THE THIRD IS THE ONE THAT MATTERS: THE FIXED VERSION IMMEDIATELY CONTRADICTED
+`core_accumulator`.** The trend cried **SHEDDING-USEFUL** while the accumulator, on the same fleet
+at the same moment, read **HEALTHY**. **Two instruments in one repository disagreeing is the P307
+defect class, and the accumulator was right.** It already carries the doctrine the trend lacked:
+*"a core fall only counts if the RECORD RATE fell too."* Cores fell because jobs COMPLETED and
+delivered 145 records/h. **Warning about that is a false alarm, which this project's contract calls
+a defect in the instrument, not a nuisance.** `records_rising()` now feeds the joint signal in from
+the history, and `records` was added to each appended row so it is computable from that file alone.
+⚠ **`None` (unmeasured) is deliberately NOT treated as rising** — an unmeasured joint signal must
+never silently suppress a real warning. Mutation M3 pins exactly that.
+
+**LIVE STATE OF THAT FIX, STATED HONESTLY: the warning STILL FIRES this pass**, because only one
+history row yet carries `records`, so `records_rising` returns `None` and the conservative branch
+holds. **It self-resolves on the next append.** The finding itself is **PROVEN-BENIGN** on the
+independent evidence: accumulator `records/h` 75 -> 145 over the same window.
+
+**ALL FOUR BEHAVIOURS ARE NOW INDIVIDUALLY MUTATION-PROVEN** (M1 growing-only, M2 joint-signal
+blind, M3 unmeasured-as-rising, plus the earlier time/spread/OLS mutants). **And an AST parse
+caught my own edit putting prose OUTSIDE a docstring** — the linter-as-self-correction rule earning
+its place.
+
+**STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
+**RUNG 30 re-derived: `2026-08-07 00:02Z`** (median wall 9.13 h, n=358).
+**01:00Z -> 00:07Z -> 00:06Z -> 00:04Z -> 00:02Z across five passes — it tracks its inputs.**
+
+**STEP 5.** Placeable **1,560 cores at pack 8 against 904 held — 656 of headroom.** Allocative
+**20.4%**. `kimi` **768 cores owing 230, the LEAST**; `c1` **64 against a 491 target**;
+deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES STARVED, unchanged.**
+
+**ESCALATIONS UNCHANGED (pass 5).** R25-1/2/3 remain Tamer's. Job-cap headroom **89 of 1,000**
+against the **1,347 jobs `c1` will submit in roughly fourteen hours**.
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a

@@ -558,6 +558,79 @@ def efficiency_trend(path, window: int = 8):
     return d_tot, d_use, sxy / sxx, len(rows)
 
 
+#: The three verdicts a priced trend can carry. Kept as constants so the selftest pins the STRING
+#: a session will actually read, not a boolean nobody renders.
+TREND_GAIN_WASTED = "GAIN-WASTED"     # growing, and the new cores are worse than the stock
+TREND_SHED_USEFUL = "SHEDDING-USEFUL"  # shrinking, and the cores leaving are worth more than those staying
+TREND_OK = "OK"
+
+
+def records_rising(path, window: int = 8):
+    """Is the archive record count RISING across the trend window? None when unmeasurable.
+
+    This is `core_accumulator`'s joint signal, made available to the trend so the two instruments
+    cannot contradict each other (they did, on 2026-08-06: the trend cried SHEDDING-USEFUL while
+    the accumulator read HEALTHY, and the accumulator was right). **None, not False, when the
+    field is absent** — history rows written before `records` was added carry no answer, and an
+    unmeasured joint signal must never be allowed to silently suppress a real warning.
+    """
+    try:
+        lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    except OSError:
+        return None
+    vals = []
+    for l in lines[-window:]:
+        try:
+            d = json.loads(l)
+        except Exception:                                       # noqa: BLE001 — torn append
+            continue
+        if isinstance(d, dict) and isinstance(d.get("records"), int):
+            vals.append(d["records"])
+    if len(vals) < 2:
+        return None
+    return vals[-1] > vals[0]
+
+
+def trend_verdict(marginal, average: float, delta_total: int,
+                  records_rising: bool | None = None) -> str:
+    """Direction-aware reading of a priced trend. Pure, so it is testable.
+
+    ⚠⚠ THE ASYMMETRY IS THE WHOLE POINT, AND THE FIRST VERSION OF THIS LOGIC MISSED HALF OF IT
+    (caught live 2026-08-06 pass 5). The slope is ``d(useful)/d(total)`` in both directions, but
+    what counts as BAD is not symmetric:
+
+    * **GROWING** and ``marginal < average`` -> newly-won capacity is landing on work that cannot
+      raise a rung, so accumulating cores is not helping the reported result.
+    * **SHRINKING** and ``marginal > average`` -> the capacity we are LOSING is worth more than
+      the capacity we are keeping.
+
+    The pre-fix code tested only the first, so at 09:49Z it printed *"MARGINAL 23.3% against a
+    20.4% average"* on a fleet that had just fallen 88 cores **with no warning at all.** A monitor
+    that can only see one direction is blind exactly half the time.
+
+    ⚠⚠⚠ AND THE THIRD CORRECTION, SAME PASS: A SHRINK CAUSED BY JOBS *COMPLETING* IS NOT A LOSS.
+    The first direction-aware version fired **SHEDDING-USEFUL** on the live fleet while
+    `core_accumulator` simultaneously reported **HEALTHY** — two instruments in one repository
+    contradicting each other, which is the P307 defect class. The accumulator was right and it
+    already carries the doctrine: *"a core fall only counts if the RECORD RATE fell too."* Cores
+    fell 1,000 -> 904 while `records/h` ROSE 75 -> 145, i.e. the pack-8 jobs holding those cores
+    FINISHED and delivered their records. **That is throughput arriving, not capacity leaking, and
+    warning about it is a false alarm — which this project's own contract calls a defect in the
+    instrument, not a nuisance.** So a shrink is only a finding when the record rate is NOT rising.
+    `records_rising=None` means "not measured", and an unmeasured joint signal must not silently
+    suppress a real warning, so it is treated as "not rising".
+    """
+    if marginal is None:
+        return TREND_OK
+    if delta_total > 0:
+        return TREND_GAIN_WASTED if marginal < average else TREND_OK
+    if delta_total < 0:
+        if records_rising:
+            return TREND_OK          # completion, not loss -- the accumulator's joint signal
+        return TREND_SHED_USEFUL if marginal > average else TREND_OK
+    return TREND_OK
+
+
 def tier_value_hold_plan(jobs: list[dict], tag_to_line: dict, needed: dict, *,
                          depth_factor: int = DEPTH_FACTOR,
                          depth_floor: int = DEPTH_FLOOR) -> dict:
@@ -900,9 +973,13 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
         # happened to hold three of them. A one-line append makes the slope machine-detectable
         # instead of depending on somebody remembering.
         with EFF_HISTORY.open("a", encoding="utf-8") as fh:
+            # `records` rides along so the JOINT SIGNAL is computable from this file alone: a core
+            # fall only counts if the record rate fell too (core_accumulator's doctrine, and the
+            # thing whose absence made this instrument raise a false alarm on 2026-08-06).
             fh.write(json.dumps({"epoch": int(_time.time()),
                                  "total_cores": eff["total_cores"],
                                  "useful_cores": eff["useful_cores"],
+                                 "records": sum(len(d["seeds"]) for d in scan.values()),
                                  "efficiency": round(eff["efficiency"], 4)}) + "\n")
     except OSError as exc:                                      # noqa: BLE001
         print("  (could not write %s: %r)" % (EFF_STATE.name, exc))
@@ -918,12 +995,33 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
             print("      jobs). One job on a distance-0 block reads 100%, the same job on a")
             print("      distance-5 block reads 0% -- neither is evidence. Waiting for depth.")
         else:
-            print("      MARGINAL useful fraction: %.1f%%  (against the %.1f%% average)"
-                  % (100.0 * marg, 100.0 * eff["efficiency"]))
-            if marg < eff["efficiency"]:
+            # ⚠⚠ THE SIGN OF "GOOD" FLIPS WITH THE DIRECTION OF THE FLEET, AND THE FIRST VERSION
+            # OF THIS BLOCK ONLY KNEW ONE DIRECTION (caught live, pass 5). The slope is
+            # d(useful)/d(total) either way, but its MEANING is not symmetric:
+            #   GROWING  and marg < average -> new capacity is going to deferred work. BAD.
+            #   SHRINKING and marg > average -> we are SHEDDING useful capacity faster than
+            #                                   deferred capacity. ALSO BAD, and the pre-fix code
+            #                                   printed it with NO warning at all.
+            # Measured 2026-08-06 09:49Z: cores -88, slope 23.3% against a 20.4% average, rendered
+            # as if healthy. A monitor that can only see one direction is blind exactly half the
+            # time, and it was blind on the half that was live.
+            verdict = trend_verdict(marg, eff["efficiency"], d_tot,
+                                    records_rising=records_rising(EFF_HISTORY))
+            print("      MARGINAL useful fraction: %.1f%%  (against the %.1f%% average) "
+                  "while the fleet is %s"
+                  % (100.0 * marg, 100.0 * eff["efficiency"],
+                     "GROWING" if d_tot > 0 else ("SHRINKING" if d_tot < 0 else "FLAT")))
+            if verdict == TREND_GAIN_WASTED:
                 print("      ⇒ ⚠ EVERY CORE WE GAIN IS GOING TO WORK THAT CANNOT RAISE A RUNG")
                 print("        faster than the average. Accumulating cores is NOT helping the")
                 print("        reported result while the ladder has no ordering (D73).")
+            elif verdict == TREND_SHED_USEFUL:
+                print("      ⇒ ⚠ WE ARE SHEDDING USEFUL CAPACITY FASTER THAN DEFERRED CAPACITY.")
+                print("        On a SHRINKING fleet a marginal ABOVE the average is the BAD case:")
+                print("        the cores leaving are worth more than the cores staying.")
+            else:
+                print("      ⇒ the marginal is on the FAVOURABLE side of the average for a fleet")
+                print("        moving this way. No trend finding.")
 
     tvp = tier_value_hold_plan(jobs, line_of_tag, needed)
     print("\n  --- THE RUNG-ORDER RESTORE (holds nothing running; the floor is never touched) ---")
@@ -1397,6 +1495,40 @@ def selftest() -> int:
     ck("T9b and the TIME guard alone would NOT have caught it (9000 s >= 3600 s)",
        (flat[-1]["epoch"] - flat[0]["epoch"]) >= MIN_TREND_SPAN_S, True)
     ck("T9c nor would the three-reading guard (4 readings)", len(flat) >= 3, True)
+
+    # ⚠⚠ T10 IS THE LIVE DEFECT FROM PASS 5. At 09:49Z the trend read "MARGINAL 23.3% against a
+    # 20.4% average" on a fleet that had just FALLEN 88 cores, and printed NO warning, because the
+    # verdict logic only knew the growing direction. What counts as BAD is not symmetric:
+    #   GROWING  + marginal BELOW average -> new capacity wasted
+    #   SHRINKING + marginal ABOVE average -> the capacity LEAVING is worth more than what stays
+    # A monitor that can only see one direction is blind exactly half the time, and it was blind
+    # on the half that was live.
+    ck("T10 THE LIVE CASE: shrinking with marginal ABOVE average is SHEDDING-USEFUL",
+       trend_verdict(0.233, 0.204, -88), TREND_SHED_USEFUL)
+    ck("T10b the SAME numbers while GROWING are fine -- the sign genuinely flips",
+       trend_verdict(0.233, 0.204, +88), TREND_OK)
+    ck("T10c growing with marginal BELOW average is GAIN-WASTED",
+       trend_verdict(0.154, 0.204, +88), TREND_GAIN_WASTED)
+    ck("T10d shrinking with marginal BELOW average is fine (we shed deferred work first)",
+       trend_verdict(0.154, 0.204, -88), TREND_OK)
+    ck("T10e an unpriced trend never carries a verdict",
+       trend_verdict(None, 0.204, -88), TREND_OK)
+    ck("T10f a FLAT fleet carries no verdict either", trend_verdict(0.9, 0.2, 0), TREND_OK)
+
+    # ⚠⚠⚠ T11 -- THE THIRD CORRECTION IN ONE PASS, AND IT CAME FROM TWO INSTRUMENTS DISAGREEING.
+    # The direction-aware verdict fired SHEDDING-USEFUL on the live fleet while core_accumulator
+    # simultaneously reported HEALTHY. The accumulator was right: cores fell 1,000 -> 904 while
+    # records/h ROSE 75 -> 145, i.e. the jobs holding those cores FINISHED and delivered. That is
+    # throughput arriving, and warning about it is a FALSE ALARM -- which this project's contract
+    # calls a defect in the instrument, not a nuisance.
+    ck("T11 THE LIVE CASE: shrinking + marginal above average, but records RISING -> OK",
+       trend_verdict(0.233, 0.204, -88, records_rising=True), TREND_OK)
+    ck("T11b the SAME shrink with records NOT rising IS the finding",
+       trend_verdict(0.233, 0.204, -88, records_rising=False), TREND_SHED_USEFUL)
+    ck("T11c an UNMEASURED joint signal must NOT suppress the warning (None != True)",
+       trend_verdict(0.233, 0.204, -88, records_rising=None), TREND_SHED_USEFUL)
+    ck("T11d the joint signal never rescues a GROWING fleet that is wasting its gains",
+       trend_verdict(0.154, 0.204, +88, records_rising=True), TREND_GAIN_WASTED)
     ck("T5 a torn append line is skipped, not fatal",
        (lambda p: (p.write_text('{"total_cores":800,"useful_cores":160}\n{"total_c\n'
                                 '{"total_cores":900,"useful_cores":180}\n', encoding="utf-8"),

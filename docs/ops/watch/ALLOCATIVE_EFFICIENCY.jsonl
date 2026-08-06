@@ -2,3 +2,6 @@
 {"epoch": 1786006205, "total_cores": 1000, "useful_cores": 208, "efficiency": 0.208}
 {"epoch": 1786006318, "total_cores": 1000, "useful_cores": 208, "efficiency": 0.208}
 {"epoch": 1786007976, "total_cores": 968, "useful_cores": 200, "efficiency": 0.2066}
+{"epoch": 1786009778, "total_cores": 904, "useful_cores": 184, "efficiency": 0.2035}
+{"epoch": 1786009892, "total_cores": 904, "useful_cores": 184, "efficiency": 0.2035}
+{"epoch": 1786010077, "total_cores": 904, "useful_cores": 184, "records": 17521, "efficiency": 0.2035}
