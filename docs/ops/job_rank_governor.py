@@ -82,8 +82,8 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
-import os
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -123,9 +123,18 @@ PROMOTE_MAX_TIER = 0
 # never "this line is still climbing". 24 = three pack-8 jobs' worth of trainings.
 REPAIR_MAX_HOLES = 24
 
-# Days from 2026-08-06 to the 2026-08-27 exogenous stop (R101). Recompute, never carry forward.
-import datetime as _dt
-DAYS_TO_STOP = max(0.0, (_dt.date(2026, 8, 27) - _dt.date(2026, 8, 6)).days)
+# ⚠ MY OWN DEFECT, CAUGHT ON RE-READING THE DIFF. This was written as
+#     max(0.0, (date(2026, 8, 27) - date(2026, 8, 6)).days)
+# i.e. a HARDCODED 21 dressed up as an arithmetic expression. It would have read 21 for the rest of
+# the campaign, and every capacity figure derived from it would have been silently optimistic by a
+# day per day. That is precisely the stale-count defect class this project keeps finding, and the
+# comment beside it said "Recompute, never carry forward" while the code did the opposite.
+EXOGENOUS_STOP = _dt.date(2026, 8, 27)          # R101, frozen
+
+
+def days_to_stop(today: _dt.date | None = None) -> float:
+    """Days remaining to the exogenous stop, from the REAL clock. Never negative."""
+    return float(max(0, (EXOGENOUS_STOP - (today or _dt.date.today())).days))
 
 TIER_NAME = {0: "V0 FLOOR-CRITICAL", 1: "V1 HOLE-REPAIR",
              2: "V2 LINE-MINIMUM", 3: "V3 LADDER-EXTENSION"}
@@ -393,7 +402,7 @@ def deep_report(scan: dict, rungs: list, queued_by_tag: dict, tag_to_line: dict,
     print("     and it is what the ranking below deprioritises.)")
 
     print("\n--- ⭐ THE CRITICAL PATH, and it is the opposite of what it looks like ---")
-    crit = sorted(((o, l) for l, o in defs_.items() if o > 0), reverse=True)
+    crit = sorted(((o, ln) for ln, o in defs_.items() if o > 0), reverse=True)
     if not crit:
         print("  every line is at or above the next common rung -- nothing is binding.")
     else:
@@ -401,10 +410,10 @@ def deep_report(scan: dict, rungs: list, queued_by_tag: dict, tag_to_line: dict,
         print("  The makespan is therefore set by the LARGEST deficit, and cores are worth most")
         print("  there -- finishing a cheap laggard first feels like progress and moves the")
         print("  reported result by NOTHING.  Ranked by what actually gates the result:")
-        for i, (o, l) in enumerate(crit, 1):
+        for i, (o, line_name) in enumerate(crit, 1):
             eta = o * hours_per_training / max(1.0, rate)
             print("    %d. %-26s owes %5d trainings  (%.1f h if it had the WHOLE fleet)"
-                  % (i, l, o, eta))
+                  % (i, line_name, o, eta))
     return {"common": cur, "next": nxt, "costs": costs, "deficits": defs_,
             "waste": waste, "queued": tot_q, "capacity": cap}
 
@@ -439,7 +448,7 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
         if j["state"].strip() in ("qw", "hqw"):
             qbt[j["name"].split("_", 1)[0]] = qbt.get(j["name"].split("_", 1)[0], 0) + 1
     live_cores = 8 * sum(1 for j in jobs if j["state"].strip() == "r")
-    deep_report(scan, rungs, qbt, tag_to_line, live_cores or 8, days_left=DAYS_TO_STOP)
+    deep_report(scan, rungs, qbt, tag_to_line, live_cores or 8, days_left=days_to_stop())
     print()
 
     print("=== JOB RANK GOVERNOR — floor-first value ranking of OUR pending queue ===")
@@ -640,6 +649,15 @@ def selftest() -> int:
     jobs3[0]["prior"] = 9.0
     ck("already-front promoted work needs no hold", len(build_plan(jobs3, tier_of)["hold"]), 0)
 
+    # --- days_to_stop: the case that catches a hardcoded constant ------------------------------
+    # The original was `max(0.0, (date(2026,8,27) - date(2026,8,6)).days)` — a hardcoded 21 wearing
+    # an arithmetic disguise. The SECOND assertion below is the one that matters: it fails against
+    # any implementation that ignores its argument, which is exactly what the defect did.
+    ck("days_to_stop on the day it was written", days_to_stop(_dt.date(2026, 8, 6)), 21.0)
+    ck("days_to_stop LATER (kills a hardcoded 21)", days_to_stop(_dt.date(2026, 8, 26)), 1.0)
+    ck("days_to_stop on the stop date", days_to_stop(_dt.date(2026, 8, 27)), 0.0)
+    ck("days_to_stop never goes negative", days_to_stop(_dt.date(2026, 9, 10)), 0.0)
+
     # --- parser ------------------------------------------------------------------------------
     xml = ("<job_info><queue_info>"
            "<job_list state='running'><JB_job_number>7</JB_job_number>"
@@ -657,7 +675,7 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 32 assertions incl. 6 mutation controls and 2 undecidable-input cases")
+    print("SELFTEST OK — 36 assertions incl. 7 mutation controls and 2 undecidable-input cases")
     return 0
 
 
