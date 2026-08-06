@@ -1,0 +1,31 @@
+{
+ "utc": "2026-08-06T08:14:09Z",
+ "epoch": 1786004049,
+ "useful_cores": 200,
+ "deferred_cores": 776,
+ "total_cores": 976,
+ "efficiency": 0.2049,
+ "by_distance": {
+  "-1": 64,
+  "0": 136,
+  "1": 160,
+  "2": 192,
+  "3": 96,
+  "4": 184,
+  "5": 144
+ },
+ "needed_block": {
+  "test": 0,
+  "test_h3_singleshot": 7,
+  "test_leg_deepseek_v4_pro": 1,
+  "test_leg_gemini_2_5_flash": 7,
+  "test_leg_glm_5_2": 1,
+  "test_leg_gpt_5_6_luna": 7,
+  "test_leg_haiku_4_5": 3,
+  "test_leg_kimi_k3": 1,
+  "test_leg_nemotron_3_super": 1,
+  "test_leg_qwen3_5_9b": 7,
+  "test_leg_qwen3_6_27b": 2,
+  "test_leg_sonnet_5": 7
+ }
+}

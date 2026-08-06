@@ -87,6 +87,7 @@ import json
 import re
 import subprocess
 import sys
+import time as _time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -106,6 +107,10 @@ JOURNAL = REPO / "docs" / "ops" / "watch" / "JOB_RANK_HOLDS.json"
 # release of one silently discard the record of the other — the single-file collision class that
 # `TIER1_APPROVED` already cost this campaign once (campaign.py:1927).
 TIER_JOURNAL = REPO / "docs" / "ops" / "watch" / "RUNG_ORDER_HOLDS.json"
+#: The allocative-efficiency reading, written every governor pass and RENDERED WITH ITS AGE by the
+#: status page. Kept as state rather than recomputed on the page because `line_needed_block` walks
+#: the whole archive, and the publish loop runs every couple of minutes.
+EFF_STATE = REPO / "docs" / "ops" / "watch" / "ALLOCATIVE_EFFICIENCY.json"
 SSH_TIMEOUT_SECS = 120
 
 DEPTH_FACTOR = 4          # eligible queue must stay >= 4x the running job count (backfill flow)
@@ -797,6 +802,25 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
         print("  running cores by distance: %s"
               % ", ".join("%s=%d" % ("floor/round" if k < 0 else "d%d" % k, v)
                           for k, v in sorted(eff["by_distance"].items())))
+    # ⚠ PUBLISHED WITH ITS AGE, NEVER BARE (the P311 lesson: `compute_ledger --report` printed a
+    # headline dissertation number from an 87.7 h-old snapshot with no age attached). The publish
+    # loop must NOT recompute this — the archive scan behind `line_needed_block` is O(archive) and
+    # would put a multi-minute walk inside a loop that runs every couple of minutes. So the 30-min
+    # governor pass writes it here and the page RENDERS it with `age_min`, which makes staleness
+    # visible instead of silent.
+    try:
+        EFF_STATE.parent.mkdir(parents=True, exist_ok=True)
+        EFF_STATE.write_text(json.dumps({
+            "utc": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "epoch": int(_time.time()),
+            "useful_cores": eff["useful_cores"], "deferred_cores": eff["deferred_cores"],
+            "total_cores": eff["total_cores"], "efficiency": round(eff["efficiency"], 4),
+            "by_distance": {str(k): v for k, v in sorted(eff["by_distance"].items())},
+            "needed_block": {k: v for k, v in sorted(needed.items())},
+        }, indent=1), encoding="utf-8")
+    except OSError as exc:                                      # noqa: BLE001
+        print("  (could not write %s: %r)" % (EFF_STATE.name, exc))
+
     tvp = tier_value_hold_plan(jobs, line_of_tag, needed)
     print("\n  --- THE RUNG-ORDER RESTORE (holds nothing running; the floor is never touched) ---")
     print("    ⚠ WHY THIS IS NEEDED: `campaign.PRIORITY_RUNG_BASE = 0` (the -p ladder was retired")

@@ -1825,6 +1825,58 @@ login-node cost. See P276.
 
 ---
 
+### ⭐⭐⭐ 2026-08-06 07:5xZ (RUN 25 pass 1) — **THE PACK-WIDTH QUESTION IS SETTLED, AND THE TWO PRIOR
+### RUNS CONTRADICTED EACH OTHER BECAUSE THEY MEASURED DIFFERENT HOURS OF THE SAME DAY**
+
+**RUN 22 refuted pack 4 on the JOB CAP** (`max_u_jobs 1000` at 8 cores/job permits ~8,000 cores;
+pack 4 halves that to 4,000 and turns the same queued work into ~1,640 jobs). **RUN 23 then measured
+placeable capacity by pack width and found the OPPOSITE pressure** — `pack 8 -> 1 job placeable,
+pack 4 -> 36, pack 2 -> 140` — and explicitly refused to bank a magnitude because its own number and
+the repo instrument's disagreed ~5x. **A future session inheriting both would have had to guess.**
+
+**MEASURED 2026-08-06 07:5xZ with the COMMITTED instrument on ONE simultaneous snapshot**
+(`placeable_capacity.py --pools d00a,d00b,b00a`, `qhost -F slots,memory,tmpfs` + `qstat -f`):
+
+| pack | placeable CORES |
+|---:|---:|
+| **8 (current)** | **1,544** |
+| 6 | 1,836 |
+| 4 | 1,932 |
+| 2 | 2,074 |
+| 1 | 2,150 |
+
+> ## ⇒ WE HELD **904** CORES AGAINST **1,544** ALREADY PLACEABLE AT OUR CURRENT PACK.
+> **Pack width is NOT the binding constraint — we are 640 cores BELOW the ceiling it sets.**
+> Narrowing the pack raises a ceiling we are not touching, while halving the structural core cap and
+> doubling the job count into a queue already at 931 of 1,000. **PACK 8 STAYS.**
+
+**AND THE CONTRADICTION IS EXPLAINED RATHER THAN ARBITRATED.** RUN 23's *"pack 8 places exactly one
+more job"* was taken at **01:30Z on a temporarily full cluster**. The same instrument six hours later
+reads **1,544**. ⇒ **Fragmentation is strongly TIME-VARYING, so a pack decision tuned to any single
+snapshot is wrong by the next one.** Neither prior run was careless; they sampled different hours.
+**Do not re-open pack width on a single reading — require a diurnal series.**
+
+**WHAT IS ACTUALLY LIMITING US, stated so it is not re-derived:** the dossier already says it —
+*"`placeable_capacity` measures what the CLUSTER CAN ACCEPT and is silent on what FAIR SHARE WILL
+GIVE US"*. With 818 eligible jobs, **zero unschedulable**, `Eqw` 0, `qquota` empty, and cores
+climbing 784 -> 800 -> 832 -> 888 -> 904 -> 928 inside one hour, **dispatch rate is the limiter and it
+is not ours to move.** Every mechanical lever is now measured and closed:
+
+| lever | verdict, measured this pass |
+|---|---|
+| pack width | 8 correct; we are 640 cores below its ceiling |
+| threads per training | 1 on the test flood / 8 on the serial chain is correct (R107). **Threading the test leg is FORBIDDEN** — it changes float reduction order on every scored comparison |
+| node co-tenancy | **+1.4 / +3.7 / +7.7 / +9.0 / +11.7 %** at peers 1-5 (n=1,873 sweep tasks, homogeneous work). Real, small, and **no `exclusive` complex exists**, so there is no lever |
+| failed work | `rc=1` **0.002%** of task-hours and ended 08-03; `rc=126` 22 tasks; wall-kills **1.16%** |
+| raw throughput | **97.8 rec/h against a 95 rec/h ceiling — at 100%** |
+| **ALLOCATION** | **20.7%. The entire remaining gain is here.** See R25-1. |
+
+⚠ **AND A CONFOUND I INTRODUCED AND CAUGHT IN MY OWN INSTRUMENT.** My first co-tenancy table read
+`+11.6 / +24.0 / +51.3 %` because the `"floor"` bucket in my scratch auditor grouped **8-thread
+search-chain tasks (median 4.23 h) together with 1-thread `c1_baselines` (8.31 h)** — different work
+in the same buckets. The sweep-family table above is the clean one. **Overstating a risk is as
+inaccurate as understating one**, and the corrected figure was published to Tamer within minutes.
+
 ## OPEN — every row must move to a terminal state
 
 Rows carry: `id · found · what · evidence needed · owner-action`. Work the **BLOCKING** rows first;

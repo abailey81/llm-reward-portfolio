@@ -228,6 +228,39 @@ maint_days=${maint_days:-?}
 # ⚠ AND STDERR IS KEPT (RUN 17 lesson 2). `2>/dev/null` discarded the diagnostic in precisely the
 # case where the tool had something to say -- that is how "(eta model unavailable this cycle)" sat on
 # the page for hours with the CAUSE thrown away. Capture first, judge after.
+# ★ ALLOCATIVE EFFICIENCY (RUN 25, 2026-08-06). Tamer: "I dont need a higher number if there is no
+# use to it and it doesnt speed up the eta and doesnt contribute to the records." A core is USEFUL
+# only if its job fills the assurance block that LIFTS its line's banked rung; everything else is
+# deferred and moves the reported result by ZERO. Measured 2026-08-06: 20.5% of 976 cores.
+#
+# ⚠ READ FROM STATE, NEVER RECOMPUTED HERE, AND ALWAYS RENDERED WITH ITS AGE. `line_needed_block`
+# walks the whole archive, which must not sit inside a loop that runs every couple of minutes. The
+# 30-minute governor pass writes the file; this renders it. Printing a headline number with no age
+# is the P311 defect (`compute_ledger` published an 87.7 h-old figure bare), so a missing or stale
+# reading says so LOUDLY rather than silently showing the last good value as if it were current.
+alloc="(not measured yet -- run docs/ops/job_rank_governor.py)"
+allocnote=""
+_af="docs/ops/watch/ALLOCATIVE_EFFICIENCY.json"
+if [ -f "$_af" ]; then
+    _ao=$("$PY" - "$_af" <<'PYEOF' 2>/dev/null
+import json, sys, time
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+age = (time.time() - int(d.get("epoch", 0))) / 60.0
+pct = 100.0 * float(d.get("efficiency", 0.0))
+stale = " **STALE**" if age > 90 else ""
+print("**%.1f%%** -- %d of %d cores (%d min old%s)"
+      % (pct, d.get("useful_cores", 0), d.get("total_cores", 0), age, stale))
+print("A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's "
+      "banked rung. The rest is real work whose records raise the reported result by ZERO until "
+      "every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).")
+PYEOF
+)
+    if [ -n "$_ao" ]; then
+        alloc=$(printf '%s' "$_ao" | head -1)
+        allocnote=$(printf '%s' "$_ao" | tail -n +2)
+    fi
+fi
+
 etas=$("$PY" docs/ops/stage_eta.py --page "${cores:-0}" 2>/tmp/stage_eta.err)
 eta_rc=$?
 if [ "$eta_rc" -ne 0 ] || [ -z "$etas" ]; then
@@ -285,6 +318,9 @@ back what it did.
 |---|---|
 | cluster jobs | **$jobs** ($run running, $qw queued) |
 | **cores computing** | **$cores** |
+| **cores doing RUNG-RAISING work** | $alloc |
+
+$allocnote
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
