@@ -13,7 +13,7 @@ back what it did.
 | elapsed | **T+195h17m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18512** |
+| records archived | **18516** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 5.4 h ago; none live, newest failure 22 min ago** |
@@ -24,7 +24,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **979** (67 running, 912 queued) |
+| cluster jobs | **978** (67 running, 911 queued) |
 | **cores computing** | **536** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 00:26 UTC | elapsed 8.14 d | 21.0 d to the Aug-27 stop
+generated 2026-08-06 00:27 UTC | elapsed 8.14 d | 21.0 d to the Aug-27 stop
 test tier: 16,973 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     226 records     226.0 rec/h
+    last  1 h     223 records     223.0 rec/h
     last  3 h     566 records     188.7 rec/h
     last 12 h    1921 records     160.1 rec/h
-    last 24 h    3552 records     148.0 rec/h
+    last 24 h    3551 records     148.0 rec/h
     12 h rate is 71% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 71% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       2  GATED             GATED             barrier
-      100       2,723     171  GATED             GATED             barrier>=30
-      189       6,293     225  GATED             GATED             barrier>=30
-      279      10,342     226  GATED             GATED             barrier>=30
-      340      13,087     226  GATED             GATED             barrier>=30
-      403      15,922     226  GATED             GATED             barrier>=30
-      568      23,355     226  GATED             GATED             barrier>=30
+      100       2,723     169  GATED             GATED             barrier>=30
+      189       6,293     222  GATED             GATED             barrier>=30
+      279      10,342     223  GATED             GATED             barrier>=30
+      340      13,087     223  GATED             GATED             barrier>=30
+      403      15,922     223  GATED             GATED             barrier>=30
+      568      23,355     223  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -232,12 +232,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T00:18:48Z  OK  records=18491 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.4m  drift=0  sci=OK  r115=22B  sweep=27.9s  auto-cycle
 2026-08-06T00:19:45Z  OK  records=18491 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=27.1s  auto-cycle
 2026-08-06T00:23:00Z  OK  records=18505 (+14)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.6m  drift=0  sci=OK  r115=22B  sweep=164.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T00:23:58Z  OK  records=18510 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=27.5s  auto-cycle
 2026-08-06T00:24:56Z  OK  records=18512 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.0m  drift=0  sci=OK  r115=22B  sweep=28.0s  auto-cycle
 2026-08-06T00:25:52Z  OK  records=18512 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.9m  drift=0  sci=OK  r115=22B  sweep=25.9s  auto-cycle
+2026-08-06T00:26:49Z  OK  records=18516 (+4)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=26.7s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
