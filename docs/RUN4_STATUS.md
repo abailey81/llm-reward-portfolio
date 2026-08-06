@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 16:25 UTC -- T+211h16m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 16:26 UTC -- T+211h17m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+211h16m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+211h17m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19739** |
@@ -24,9 +24,9 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **870** (51 running, 819 queued) |
-| **cores computing** | **408** |
-| **cores doing RUNG-RAISING work** | **17.0%** -- 72 of 424 cores (46 min old) |
+| cluster jobs | **?** (? running, ? queued) |
+| **cores computing** | **?** |
+| **cores doing RUNG-RAISING work** | **17.0%** -- 72 of 424 cores (47 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -147,7 +147,8 @@ line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
 `docs/ops/line_balance.py` watches exactly that, and its live verdict is:
 
 ```
-CLEAN -- every line below the deepest rung has work in flight or queued.
+UNDECIDED (cluster unreachable or tag unresolved -- NOT an alarm): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_nemotron_3_super, test_leg_qwen3_6_27b, test_leg_kimi_k3, test_leg_haiku_4_5
+UNDECIDED this pass -- reporting nothing rather than guessing.
 ```
 
 !! That line is now **read from the instrument on every publish**. It used to be the fixed sentence
@@ -185,7 +186,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 6 min ago)
+## Monitoring -- the cycle (last monitoring cycle 7 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
