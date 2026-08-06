@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+194h50m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18422** |
+| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18424** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), pull on haiku-4_5, 4.9 h ago; none live, newest failure 4.9 h ago** |
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **748** (70 running, 678 queued) |
-| **cores computing** | **560** |
+| cluster jobs | **761** (69 running, 692 queued) |
+| **cores computing** | **552** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -34,14 +34,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-05 23:59 UTC | elapsed 8.12 d | 21.0 d to the Aug-27 stop
+generated 2026-08-06 00:00 UTC | elapsed 8.12 d | 21.0 d to the Aug-27 stop
 test tier: 16,881 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h     234 records     234.0 rec/h
-    last  3 h     501 records     167.0 rec/h
-    last 12 h    1850 records     154.2 rec/h
-    last 24 h    3522 records     146.8 rec/h
+    last  1 h     233 records     233.0 rec/h
+    last  3 h     500 records     166.7 rec/h
+    last 12 h    1848 records     154.0 rec/h
+    last 24 h    3521 records     146.7 rec/h
     12 h rate is 75% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 75% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -57,11 +57,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       4  GATED             GATED             barrier
       100       2,804     118  GATED             GATED             barrier>=30
-      189       6,384     234  GATED             GATED             barrier>=30
-      279      10,434     234  GATED             GATED             barrier>=30
-      340      13,179     234  GATED             GATED             barrier>=30
-      403      16,014     234  GATED             GATED             barrier>=30
-      568      23,447     234  GATED             GATED             barrier>=30
+      189       6,384     233  GATED             GATED             barrier>=30
+      279      10,434     233  GATED             GATED             barrier>=30
+      340      13,179     233  GATED             GATED             barrier>=30
+      403      16,014     233  GATED             GATED             barrier>=30
+      568      23,447     233  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -70,14 +70,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 76% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @560 cores      @830 cores   binding
+     rung      @552 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           5.7 d           4.6 d   critical_chain
-      189           9.7 d           6.5 d   throughput
-      279          13.7 d           9.3 d   throughput
-      340          16.5 d          11.1 d   throughput
-      403          19.3 d          13.0 d   throughput
-      568          26.8 d          18.1 d   throughput
+      189           9.8 d           6.5 d   throughput
+      279          13.9 d           9.3 d   throughput
+      340          16.7 d          11.1 d   throughput
+      403          19.6 d          13.0 d   throughput
+      568          27.2 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -163,7 +163,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
 | kimi_k3 | **48** | 57 | 5 |  |
-| qwen3_6_27b | **177** | 189 | 5 |  |
+| qwen3_6_27b | **178** | 189 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
