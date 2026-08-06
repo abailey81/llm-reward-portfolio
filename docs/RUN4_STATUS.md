@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 01:35 UTC -- T+196h26m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 01:36 UTC -- T+196h27m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+196h26m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+196h27m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **18558** |
+| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **18561** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 1.5 h ago; none live, newest failure 1.5 h ago** |
@@ -38,8 +38,8 @@ generated 2026-08-06 01:36 UTC | elapsed 8.19 d | 20.9 d to the Aug-27 stop
 test tier: 17,018 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      34 records      34.0 rec/h
-    last  3 h     433 records     144.3 rec/h
+    last  1 h      33 records      33.0 rec/h
+    last  3 h     429 records     143.0 rec/h
     last 12 h    1888 records     157.3 rec/h
     last 24 h    3471 records     144.6 rec/h
     12 h rate is 69% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
@@ -56,12 +56,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
-      100       2,685      33  GATED             GATED             barrier>=30
-      189       6,249      34  GATED             GATED             barrier>=30
-      279      10,297      34  GATED             GATED             barrier>=30
-      340      13,042      34  GATED             GATED             barrier>=30
-      403      15,877      34  GATED             GATED             barrier>=30
-      568      23,310      34  GATED             GATED             barrier>=30
+      100       2,685      32  GATED             GATED             barrier>=30
+      189       6,249      33  GATED             GATED             barrier>=30
+      279      10,297      33  GATED             GATED             barrier>=30
+      340      13,042      33  GATED             GATED             barrier>=30
+      403      15,877      33  GATED             GATED             barrier>=30
+      568      23,310      33  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -162,7 +162,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
-| kimi_k3 | **74** | 79 | 5 |  |
+| kimi_k3 | **75** | 79 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
