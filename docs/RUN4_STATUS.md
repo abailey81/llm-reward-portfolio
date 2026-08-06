@@ -24,7 +24,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **835** = 102 running + **92 ELIGIBLE** + 546 held by us + 95 held only by the site |
+| cluster jobs | **835** = 102 running + **102 ELIGIBLE** + 546 held by us + 85 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **816** |
 | **cores doing RUNG-RAISING work** | **30.3%** -- 240 of 792 cores (25 min old) |
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 20:18 UTC | elapsed 8.97 d | 20.2 d to the Aug-27 stop
+generated 2026-08-06 20:19 UTC | elapsed 8.97 d | 20.2 d to the Aug-27 stop
 test tier: 18,419 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 87.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      27 records      27.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     116 records      38.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     112 records      37.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1054 records      87.8 rec/h   usable
-    last 24 h    2136 records      89.0 rec/h   usable
+    last 24 h    2135 records      89.0 rec/h   usable
     12 h rate is 87% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
