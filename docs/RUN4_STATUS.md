@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **928** (124 running, 804 queued) |
 | **cores computing** | **992** |
-| **cores doing RUNG-RAISING work** | **20.8%** -- 208 of 1000 cores (15 min old) |
+| **cores doing RUNG-RAISING work** | **20.8%** -- 208 of 1000 cores (16 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,22 +37,22 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 09:07 UTC | elapsed 8.50 d | 20.6 d to the Aug-27 stop
-test tier: 17,410 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-06 09:08 UTC | elapsed 8.50 d | 20.6 d to the Aug-27 stop
+test tier: 17,415 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 85.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      47 records      47.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     111 records      37.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1021 records      85.1 rec/h   usable
-    last 24 h    2780 records     115.8 rec/h   usable
-    12 h rate is 61% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
+    => OPERATIVE RATE 85.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      52 records      52.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     115 records      38.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1026 records      85.5 rec/h   usable
+    last 24 h    2781 records     115.9 rec/h   usable
+    12 h rate is 62% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 5% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (85 rec/h); latest excludes cells already within
+    the whole fleet (86 rec/h); latest excludes cells already within
     8 of the ceiling (81 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
@@ -61,11 +61,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,857      47  GATED             GATED             barrier>=30
-      279       9,905      47  GATED             GATED             barrier>=30
-      340      12,650      47  GATED             GATED             barrier>=30
-      403      15,485      47  GATED             GATED             barrier>=30
-      568      22,918      47  GATED             GATED             barrier>=30
+      189       5,852      52  GATED             GATED             barrier>=30
+      279       9,900      52  GATED             GATED             barrier>=30
+      340      12,645      52  GATED             GATED             barrier>=30
+      403      15,480      52  GATED             GATED             barrier>=30
+      568      22,913      52  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -181,7 +181,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | glm_5_2 | **30** | 30 | 5 |  |
 | nemotron_3_super | **30** | 30 | 5 |  |
-| kimi_k3 | **151** | 159 | 5 |  |
+| kimi_k3 | **153** | 159 | 5 |  |
 | qwen3_6_27b | **187** | 190 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
