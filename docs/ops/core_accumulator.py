@@ -40,7 +40,7 @@ THE TARGETS ARE MEASURED, NOT CHOSEN
 * **`BLEED_FRAC = 0.80`.** Below 80% of the 12 h mean, a fall is worth attributing rather than
   shrugging at.
 
-THE SEVEN INVARIANTS. Each is checkable, each names its corrective action, and A1 is the only one
+THE EIGHT INVARIANTS. Each is checkable, each names its corrective action, and A1 is the only one
 whose remedy this file will actually perform on request (releasing a hold is PROTECTIVE).
 
     A1  eligible depth >= BURST_ABSORB_JOBS        -> RELEASE HOLDS (the one safe action)
@@ -52,6 +52,8 @@ whose remedy this file will actually perform on request (releasing a hold is PRO
     A5  no hold older than its bound               -> a hold that outlives its purpose is pure loss
     A6  every line has work in flight or queued    -> a line with nothing submitted cannot absorb
     A7  cores >= 80% of the 12 h mean              -> ATTRIBUTE: avoidable (A1-A6) or fair share
+    A8  throttle debt (system-held, returning)     -> while non-zero, DO NOT hold again: a release
+                                                      drains through the site JSV at ~400 jobs/h
 
 WHAT THIS FILE WILL NOT DO
 --------------------------
@@ -129,6 +131,86 @@ def window_mean(hist: list[tuple[float, int]], hours: float, now: float) -> floa
     return (sum(vals) / len(vals)) if vals else None
 
 
+_RECS = re.compile(r"records=(\d+)")
+
+
+def parse_record_history(text: str) -> list[tuple[float, int]]:
+    """[(epoch, records)] — the cumulative record count, stamped on EVERY cycle line.
+
+    Needed for the JOINT signal below. Unlike `cores=` (which costs an ssh and is stamped rarely),
+    `records=` is on every line, so this series is dense.
+    """
+    out: list[tuple[float, int]] = []
+    for line in text.splitlines():
+        mt, mr = _TS.match(line), _RECS.search(line)
+        if not (mt and mr):
+            continue
+        try:
+            out.append((float(calendar.timegm(
+                time.strptime(mt.group(1), "%Y-%m-%dT%H:%M:%S"))), int(mr.group(1))))
+        except (ValueError, OverflowError):
+            continue
+    return out
+
+
+def record_rate(recs: list[tuple[float, int]], hours: float, now: float) -> float | None:
+    """Records per hour over the last `hours`, from the cumulative counter's endpoints."""
+    lo = now - hours * 3600.0
+    win = [(t, c) for t, c in recs if t >= lo]
+    if len(win) < 2:
+        return None
+    dt = win[-1][0] - win[0][0]
+    return None if dt <= 0 else (win[-1][1] - win[0][1]) * 3600.0 / dt
+
+
+def throughput_verdict(cores_now: float, cores_mean: float | None,
+                       rec_1h: float | None, rec_12h: float | None) -> str:
+    """THE JOINT SIGNAL — the anti-false-alarm mechanism, and it is measured, not asserted.
+
+    `RUN4_STATUS` records the exact trap: *"cores down with records up is throughput ARRIVING, not
+    leaving"* — measured at 309 -> 437 -> 469 records/h WHILE cores fell 2,320 -> 1,776. A pack-8 job
+    that exits releases 8 slots AND delivers 8 records in the same instant, so a completion wave
+    ALWAYS looks like a core loss if you read the level without the rate.
+
+    ⇒ So a core fall is only worth attributing when the RECORD RATE fell too. This is what stops the
+    accumulator from chasing its own tail during every completion wave.
+    """
+    if cores_mean is None or rec_1h is None or rec_12h is None:
+        return "UNDECIDABLE (not enough history)"
+    cores_down = cores_now < BLEED_FRAC * cores_mean
+    recs_up = rec_1h >= rec_12h
+    if cores_down and recs_up:
+        return "THROUGHPUT ARRIVING (cores down, records UP -- a completion wave, NOT a loss)"
+    if cores_down:
+        return "GENUINE SLOWDOWN (cores down AND records down) -- attribute it"
+    return "HEALTHY (cores at or above the mean)"
+
+
+def time_to_dry(eligible: int, dispatch_per_h: float | None) -> float | None:
+    """Hours until the eligible queue falls to the burst-absorb floor at the current dispatch rate.
+
+    ⭐ THIS IS THE PROACTIVE HALF, AND IT IS WHAT "DO NOT GIVE THE CORES BACK" ACTUALLY REQUIRES.
+    Every other check in this file is a post-mortem: it tells you the queue is already too shallow.
+    By then the slots are gone and cannot be reclaimed, because a core we fail to absorb goes to one
+    of the other 100 users and we only get it back by winning it again. Forecasting the crossing
+    gives the drivers time to submit BEFORE the depth is lost.
+    """
+    if not dispatch_per_h or dispatch_per_h <= 0:
+        return None
+    surplus = eligible - BURST_ABSORB_JOBS
+    return max(0.0, surplus / dispatch_per_h)
+
+
+#: The MEASURED diurnal high window (UTC). Recorded in RUN 24 §5.2 item 7: best 03:00-08:00Z
+#: (mean 1,524 cores), worst 19:00-00:00Z (mean ~950), and the 2,328 peak landed 2026-08-03 02:21Z.
+BURST_WINDOW_UTC = (3, 8)
+
+
+def in_burst_window(now: float) -> bool:
+    """True inside the measured 03:00-08:00Z window, when whole nodes empty and bursts happen."""
+    return BURST_WINDOW_UTC[0] <= time.gmtime(now).tm_hour < BURST_WINDOW_UTC[1]
+
+
 def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
     """The seven invariants plus the ATTRIBUTION. Pure, so the selftest needs no cluster.
 
@@ -184,10 +266,21 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
     avoidable = [c for c in checks[:6] if not c[1]]
     verdict = ("AVOIDABLE LOSS" if avoidable else
                "FAIR-SHARE ONLY" if not a7_ok else "ACCUMULATING")
+
+    # A8 -- THE THROTTLE DEBT. A release drains through the site JSV at ~400 jobs/h, so holding
+    # again while a previous release is still returning stacks tails and suppresses our OWN depth.
+    debt = state.get("throttle_debt", 0)
+    checks.append((
+        "A8 throttle debt", True,                          # informational: never an alarm
+        "system-held (returning through the JSV)=%d" % debt,
+        "while non-zero, DO NOT apply a new hold -- one hold per floor round"))
+
     return {"checks": checks, "avoidable": avoidable, "verdict": verdict,
             "mean_1h": window_mean(hist, 1.0, now), "mean_12h": m12,
             "mean_24h": window_mean(hist, 24.0, now),
-            "peak": max((c for _, c in hist), default=0)}
+            "peak": max((c for _, c in hist), default=0),
+            "may_hold": debt == 0,
+            "in_burst_window": in_burst_window(now)}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -196,7 +289,7 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
 def census(host: str = "myriad") -> tuple[dict, str]:
     cmd = ("qstat -u ucestes 2>/dev/null | awk 'NR>2{print $5}' | sort | uniq -c; "
            "echo ---; qstat -u ucestes -s p 2>/dev/null | awk 'NR>2 && $1 ~ /^[0-9]+$/{print $1}' "
-           "| head -1")
+           "| head -1; echo ---; qstat -u ucestes -s hs 2>/dev/null | awk 'NR>2' | wc -l")
     try:
         p = subprocess.run(["ssh", "-o", "BatchMode=yes", host, cmd],
                            capture_output=True, encoding="utf-8", errors="replace",
@@ -207,13 +300,20 @@ def census(host: str = "myriad") -> tuple[dict, str]:
         return {}, "TRANSPORT-FAILED: rc=%d" % p.returncode
     states: dict[str, int] = {}
     probe_jid = ""
-    tail = False
+    debt = 0
+    section = 0
     for line in p.stdout.splitlines():
         if line.strip() == "---":
-            tail = True
+            section += 1
             continue
-        if tail:
+        if section == 1:
             probe_jid = line.strip() or probe_jid
+            continue
+        if section == 2:
+            try:
+                debt = int(line.strip())
+            except ValueError:
+                pass
             continue
         f = line.split()
         if len(f) == 2 and f[0].isdigit():
@@ -228,6 +328,7 @@ def census(host: str = "myriad") -> tuple[dict, str]:
         "total_jobs": sum(states.values()),
         "states": states,
         "probe_jid": probe_jid,
+        "throttle_debt": debt,
     }
     return st, "OK"
 
@@ -268,6 +369,13 @@ def report(host: str = "myriad") -> int:
         except Exception:                                       # noqa: BLE001
             pass
     st["lines_without_work"] = 0                                # line_balance is the arbiter
+    # DISPATCH RATE, derived from the record rate rather than guessed: every completed training
+    # emits one record and every pack-8 job carries 8 trainings, so jobs/h = (records/h)/8 in
+    # steady state. Using the 12 h window keeps it robust to completion waves (RUN 23 fitted a rate
+    # to a 38-minute window and got double the truth).
+    _r12 = record_rate(parse_record_history(
+        CYCLE_LOG.read_text(encoding="utf-8", errors="replace")), 12.0, time.time())
+    st["dispatch_per_h"] = None if _r12 is None else _r12 / 8.0
 
     a = assess(st, hist, time.time())
     print("=== CORE ACCUMULATOR — hold what we win, absorb every burst, attribute every loss ===")
@@ -282,8 +390,42 @@ def report(host: str = "myriad") -> int:
         print("  %-4s %-22s %s" % ("OK" if ok else "FAIL", cid, finding))
         if not ok:
             print("       -> %s" % action)
+    # ---- the PROACTIVE layer: joint signal, dry-out forecast, burst window ------------------
+    recs = parse_record_history(CYCLE_LOG.read_text(encoding="utf-8", errors="replace"))
+    r1 = record_rate(recs, 1.0, time.time())
+    r12 = record_rate(recs, 12.0, time.time())
+    print()
+    print("--- THE JOINT SIGNAL (a core fall only counts if the RECORD RATE fell too) ---")
+    print("  records/h: 1h=%s  12h=%s" % ("n/a" if r1 is None else "%.0f" % r1,
+                                          "n/a" if r12 is None else "%.0f" % r12))
+    print("  => %s" % throughput_verdict(st["cores"], a["mean_12h"], r1, r12))
+
+    disp = st["dispatch_per_h"]
+    ttd = time_to_dry(st["eligible"], disp)
+    print()
+    print("--- THE FORECAST (a core we fail to absorb goes to one of the other 100 users) ---")
+    print("  dispatch rate: %s jobs/h" % ("n/a" if disp is None else "%.1f" % disp))
+    if ttd is None:
+        print("  time until eligible depth reaches the %d-job burst floor: UNKNOWN" % BURST_ABSORB_JOBS)
+    elif ttd == 0.0:
+        print("  ⚠ eligible depth is ALREADY AT OR BELOW the %d-job burst floor" % BURST_ABSORB_JOBS)
+    else:
+        print("  time until eligible depth reaches the %d-job burst floor: %.1f h"
+              % (BURST_ABSORB_JOBS, ttd))
+        if ttd < 6.0:
+            print("  ⚠ UNDER 6 H — the drivers must submit before then or we lose absorptive depth")
+
+    print()
+    print("--- THE BURST WINDOW (measured: best 03:00-08:00Z, mean 1,524 cores; peak 2,328) ---")
+    print("  now inside the high window: %s" % ("YES" if a["in_burst_window"] else "no"))
+    if a["in_burst_window"]:
+        print("  ⇒ this is when whole nodes empty and the 2,328 peak happened. Keep the eligible")
+        print("    queue DEEP and hold nothing that is not floor-critical.")
+
     print()
     print("VERDICT: %s" % a["verdict"])
+    print("HOLD ALLOWED: %s" % ("yes" if a["may_hold"] else
+                                "NO -- a previous release is still returning through the JSV"))
     if a["verdict"] == "AVOIDABLE LOSS":
         print("  ⇒ %d invariant(s) we CONTROL are failing. Work them before blaming fair share."
               % len(a["avoidable"]))
@@ -377,12 +519,56 @@ def selftest() -> int:
        assess(dict(low, eqw=1), h, now)["verdict"], "AVOIDABLE LOSS")
     ck("no history means A7 cannot fire", assess(low, [], now)["verdict"], "ACCUMULATING")
 
+    # --- A8 THROTTLE DEBT: informational, but it must gate the HOLD decision -------------------
+    ck("no throttle debt => holding is allowed", assess(good, h, now)["may_hold"], True)
+    ck("a throttle debt FORBIDS a new hold",
+       assess(dict(good, throttle_debt=230), h, now)["may_hold"], False)
+    ck("a throttle debt is NOT an avoidable-loss alarm",
+       assess(dict(good, throttle_debt=230), h, now)["verdict"], "ACCUMULATING")
+
+    # --- THE JOINT SIGNAL: the anti-false-alarm mechanism ---------------------------------------
+    # cores DOWN + records UP is a completion wave, and calling it a loss is the documented trap.
+    ck("cores down + records UP is throughput ARRIVING",
+       throughput_verdict(500, 1000.0, 469.0, 309.0).startswith("THROUGHPUT ARRIVING"), True)
+    ck("cores down + records DOWN is a genuine slowdown",
+       throughput_verdict(500, 1000.0, 200.0, 400.0).startswith("GENUINE SLOWDOWN"), True)
+    ck("cores at the mean is HEALTHY whatever the records do",
+       throughput_verdict(1000, 1000.0, 1.0, 999.0).startswith("HEALTHY"), True)
+    ck("missing history is UNDECIDABLE, never a verdict",
+       throughput_verdict(500, None, None, None).startswith("UNDECIDABLE"), True)
+
+    # --- record_rate + the dry-out forecast -----------------------------------------------------
+    rl = ("2026-08-06T00:00:00Z records=1000 cores=1\n"
+          "2026-08-06T02:00:00Z records=1200 cores=1\n")
+    rr = parse_record_history(rl)
+    rnow = rr[-1][0] + 1.0
+    ck("record_rate is 100/h over a 2h span with +200 records",
+       round(record_rate(rr, 12.0, rnow)), 100)
+    ck("record_rate needs TWO samples", record_rate(rr[:1], 12.0, rnow), None)
+    ck("dry-out forecast: 391 eligible at 10 jobs/h is 10.0 h to the floor",
+       time_to_dry(BURST_ABSORB_JOBS + 100, 10.0), 10.0)
+    ck("already at the floor forecasts 0.0 h", time_to_dry(BURST_ABSORB_JOBS, 10.0), 0.0)
+    ck("below the floor never goes negative", time_to_dry(10, 10.0), 0.0)
+    ck("no dispatch rate means no forecast", time_to_dry(400, None), None)
+    ck("a zero dispatch rate means no forecast (no division by zero)", time_to_dry(400, 0.0), None)
+
+    # --- the burst window, from the MEASURED diurnal shape --------------------------------------
+    ck("05:00Z is inside the 03:00-08:00Z burst window",
+       in_burst_window(float(calendar.timegm(time.strptime(
+           "2026-08-06T05:00:00", "%Y-%m-%dT%H:%M:%S")))), True)
+    ck("20:00Z is OUTSIDE it (measured worst window)",
+       in_burst_window(float(calendar.timegm(time.strptime(
+           "2026-08-06T20:00:00", "%Y-%m-%dT%H:%M:%S")))), False)
+    ck("08:00Z is the exclusive upper bound",
+       in_burst_window(float(calendar.timegm(time.strptime(
+           "2026-08-06T08:00:00", "%Y-%m-%dT%H:%M:%S")))), False)
+
     if fails:
         print("SELFTEST FAILED (%d)" % len(fails))
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 25 assertions, incl. the attribution precedence and an at-threshold case")
+    print("SELFTEST OK — 46 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
     return 0
 
 
