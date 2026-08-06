@@ -16,7 +16,7 @@ back what it did.
 | records archived | **19177** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=21; worst streak 2/240 (0.8% to fatal), ops on kimi-k3, 19 min ago; none live, newest failure 19 min ago** |
+| transport health | **timeouts 6h=21; worst streak 2/240 (0.8% to fatal), ops on kimi-k3, 20 min ago; none live, newest failure 20 min ago** |
 | transport timeouts (cumulative, ever) | 207 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **895** (101 running, 794 queued) |
 | **cores computing** | **808** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (16 min old) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (17 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,7 +37,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 13:00 UTC | elapsed 8.66 d | 20.5 d to the Aug-27 stop
+generated 2026-08-06 13:01 UTC | elapsed 8.66 d | 20.5 d to the Aug-27 stop
 test tier: 17,634 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -45,7 +45,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      27 records      27.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     110 records      36.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     636 records      53.0 rec/h   usable
-    last 24 h    2550 records     106.2 rec/h   usable
+    last 24 h    2548 records     106.2 rec/h   usable
     12 h rate is 100% from ONE line (test_leg_kimi_k3); 1 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -233,7 +233,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
