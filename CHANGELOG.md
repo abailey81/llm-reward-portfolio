@@ -209,6 +209,18 @@ average** — so the average is falling precisely because newly-won capacity lan
 cannot lift a rung. And `kimi`'s share went **85% -> 86%** (848 of 984) while still owing the LEAST
 (254 against deepseek/glm/nemotron's 350 each). **The concentration is WORSENING, not stable.**
 
+> ### ⛔ RETRACTED IN PASS 4 (08-06 09:2xZ) — "WORSENING" DOES NOT SURVIVE ITS OWN NEXT MEASUREMENT.
+> **The 15.4% was a FOUR-READING WINDOW SPANNING ELEVEN MINUTES.** Two further readings took the
+> same quantity to **cores +80, useful +16 = 20.0% marginal against a 20.7% average** — i.e.
+> **STABLE, not deteriorating.** Every reading, from the recorded file: `888/184 · 976/200 ·
+> 984/200 · 992/200 · 1000/208 · 1000/208 · 968/200`. **The paragraph above is left standing
+> because deleting a refuted claim is worse than carrying its correction**, and because the guard
+> that caught it was built one pass earlier for exactly this failure mode.
+> ⚠ **WHAT IS UNCHANGED, and it is the whole substance:** ~79% of held cores still do work that
+> cannot raise a rung, four binding lines are still starved, and `kimi` still holds ~86% while
+> owing the least. **What was wrong was the DERIVATIVE, not the LEVEL.** Overstating a risk is as
+> inaccurate as understating one.
+
 ⇒ **THIS IS THE DIRECT ANSWER TO TAMER'S STANDING QUESTION** — *"make sure the accumulated cores
 speed up the campaign and are very efficient and not just there."* Measured: **they are not.**
 
@@ -292,6 +304,54 @@ condition genuinely holds.** What blocks them is not analysis: `qhold` and a liv
 **CLASSIFIER-BLOCKED for the agent** (three refusals under explicit ratification in RUN 24). **They
 need Tamer's hand and nothing else.** Job-cap headroom is **71 of 1,000** against the 1,347 jobs
 `c1` will try to submit in roughly fifteen hours.
+
+### ⓾ PASS 4 (09:19-09:3xZ) — **I RETRACTED MY OWN PASS-2 FINDING, AND THEN FOUND MY TEST SUITE COULD NOT KILL ONE OF MY OWN GUARDS**
+
+**Board GREEN.** cores **968** (121 jobs), accumulator 8/8, `ACCUMULATING`, **GROWING +184 over
+2.6 h**, drift 0, `sci OK`, `Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, `line_balance` CLEAN, ssh
+OK, inbox empty. **Records fully recovered: 18,929 -> 18,975, and `records/h` 1 h = 75 against a
+12 h of 87.** The joint signal reads correctly: cores fell 1,000 -> 968 while the record rate ROSE
+28 -> 75, which is throughput ARRIVING, not capacity leaving.
+
+**⛔ THE RETRACTION, and it is of my own pass-2 headline.** I reported *"marginal useful fraction
+15.4%, BELOW the 20.2% average"* — that accumulated cores were making the allocation actively
+WORSE. **It was a four-reading window spanning ELEVEN MINUTES.** With two further readings the same
+quantity reads **cores +80, useful +16 = 20.0% marginal against a 20.7% average: STABLE.** The
+retraction is written into the pass-2 section above rather than replacing it. **The level is
+unchanged and still severe (~79% of cores cannot raise a rung, four binding lines starved, `kimi`
+at ~86% while owing the least). What was wrong was the DERIVATIVE.**
+
+**⇒ ROOT CAUSE: endpoint-differencing over a time base far shorter than the process.** The fleet
+re-shapes over ~ONE JOB DURATION (9.14 h measured this pass), so a trend read over minutes samples
+arrival jitter. **TWO fixes, both mutation-proven:**
+* **`MIN_TREND_SPAN_S = 3600`** — a window may not be priced at all until it spans an hour.
+  **MUTANT A (guard removed) prices the walked-back window at 0.164** — the very number that was
+  published — and fails T2b + T7.
+* **OLS slope replaces endpoint differencing**, so every interior reading counts instead of two
+  possibly-noisy ends. T8 pins the discriminating case: an oscillation returning to its start has
+  endpoint delta **ZERO** while OLS still prices the relationship from the interior.
+
+**⚠⚠ AND THE PART THAT MATTERS MORE THAN EITHER FIX: THE MUTATION RUN FOUND MY OWN SUITE COULD NOT
+KILL `MIN_TREND_CORE_DELTA`.** Removing the spread guard entirely left the selftest **GREEN** —
+every fixture was already caught by the time guard or the three-reading guard, so the mutant
+SURVIVED. **A guard whose removal no test detects is either redundant or untested.** It is not
+redundant: a FLAT fleet observed for hours has all the time in the world and no signal, and OLS
+fits its jitter happily — measured, **a slope of 5.0, i.e. 500%**. **T9 was added as the
+discriminating case (flat fleet, 2.5 h, spread 6 cores), and it explicitly asserts that neither the
+time guard nor the reading-count guard would have caught it.** All three guards are now
+individually load-bearing under mutation.
+
+**STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
+**RUNG 30 re-derived: `2026-08-07 00:04Z`** (median wall re-measured 9.14 h, n=358).
+**01:00Z -> 00:07Z -> 00:06Z -> 00:04Z across four passes — it tracks its inputs, so it is live.**
+
+**STEP 5.** Placeable **1,592 cores at pack 8 against 968 held — 624 of headroom.** Allocative
+**20.7%** (200 of 968). `kimi` **832 cores owing 235, the LEAST**; `test`/`c1` **64 against a 525
+target**; deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES STARVED, unchanged.**
+
+**ESCALATIONS UNCHANGED (pass 4).** R25-1/2/3 remain Tamer's: `qhold` and a live driver restart are
+classifier-blocked for the agent. Job-cap headroom **77 of 1,000** against the **1,347 jobs `c1`
+will submit in roughly fourteen hours.**
 
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 

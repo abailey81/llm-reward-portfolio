@@ -495,6 +495,21 @@ def allocative_efficiency(jobs: list[dict], tag_to_line: dict, needed: dict,
 #: trend" discipline one level up. 64 cores = 8 pack-8 jobs = roughly one dispatch hour at the
 #: measured 10.9 jobs/h, which is the smallest window in which the allocation can actually be seen.
 MIN_TREND_CORE_DELTA = 64
+#: ⚠⚠⚠ AND THE CORE-DELTA GUARD ALONE WAS NOT ENOUGH — IT LET ME PUBLISH A WRONG CLAIM (pass 4).
+#: In pass 2 I reported "marginal useful fraction 15.4%, BELOW the 20.2% average", i.e. that the
+#: allocation was actively DETERIORATING. It was a **four-reading window spanning ELEVEN MINUTES**.
+#: Two further readings took the same quantity to **20.0% against a 20.7% average** — stable, not
+#: worsening. **The claim did not survive its own next measurement.**
+#: TWO THINGS WERE WRONG AND BOTH ARE FIXED HERE:
+#:   1. THE TIME BASE. The fleet re-shapes over roughly ONE JOB DURATION (~9.2 h measured), so a
+#:      trend read over minutes is sampling arrival jitter, not allocation. A window must span at
+#:      least this long before it may be priced at all.
+#:   2. THE ESTIMATOR. Endpoint differencing throws away every interior point and is decided
+#:      entirely by two possibly-noisy ends. An OLS slope of useful-on-total uses all of them and
+#:      reports its own R^2, so a weak fit is VISIBLE rather than laundered into a headline number.
+#: Overstating a risk is as inaccurate as understating one, and this is the second time in two
+#: passes that this file's own trend has had to be walked back. It is now guarded on BOTH axes.
+MIN_TREND_SPAN_S = 3600
 
 
 def efficiency_trend(path, window: int = 8):
@@ -526,8 +541,21 @@ def efficiency_trend(path, window: int = 8):
         return None
     d_tot = int(rows[-1]["total_cores"]) - int(rows[0]["total_cores"])
     d_use = int(rows[-1]["useful_cores"]) - int(rows[0]["useful_cores"])
-    marg = (d_use / d_tot) if d_tot >= MIN_TREND_CORE_DELTA else None
-    return d_tot, d_use, marg, len(rows)
+    xs = [float(r["total_cores"]) for r in rows]
+    ys = [float(r["useful_cores"]) for r in rows]
+    span = int(rows[-1].get("epoch", 0)) - int(rows[0].get("epoch", 0))
+    spread = max(xs) - min(xs)
+    # BOTH guards must clear. Spread, not endpoint delta: an oscillating fleet can return to where
+    # it started (delta 0) while still having swept enough range to fit a slope.
+    if spread < MIN_TREND_CORE_DELTA or span < MIN_TREND_SPAN_S or len(rows) < 3:
+        return d_tot, d_use, None, len(rows)
+    mx = sum(xs) / len(xs)
+    my = sum(ys) / len(ys)
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxx = sum((x - mx) ** 2 for x in xs)
+    if sxx <= 0:
+        return d_tot, d_use, None, len(rows)
+    return d_tot, d_use, sxy / sxx, len(rows)
 
 
 def tier_value_hold_plan(jobs: list[dict], tag_to_line: dict, needed: dict, *,
@@ -1275,38 +1303,100 @@ def selftest() -> int:
        efficiency_trend(_hist([])), None)
     ck("T1c an unreadable path yields None rather than raising",
        efficiency_trend(_P(_tf.mkdtemp()) / "does_not_exist.jsonl"), None)
-    live = _hist([{"total_cores": 888, "useful_cores": 184},
-                  {"total_cores": 976, "useful_cores": 200},
-                  {"total_cores": 984, "useful_cores": 200}])
+    # ⚠ T2b/T2c USED TO ASSERT "marginal 16.7%, BELOW the average, which is the finding" -- the
+    # claim published in pass 2 and WALKED BACK in pass 4 when two further readings took the same
+    # quantity to 20.0% against a 20.7% average. They are DELETED rather than adjusted, because a
+    # test that encodes a refuted claim is worse than no test. What survives is the part that was
+    # always true: the raw deltas are reported even when the slope is refused.
+    live = _hist([{"total_cores": 888, "useful_cores": 184, "epoch": 0},
+                  {"total_cores": 976, "useful_cores": 200, "epoch": 180},
+                  {"total_cores": 984, "useful_cores": 200, "epoch": 420}])
     tr = efficiency_trend(live)
-    ck("T2 THE LIVE SHAPE: cores +96, useful +16", (tr[0], tr[1]), (96, 16))
-    ck("T2b marginal useful fraction is 16.7%, NOT the 20.3% average",
-       round(tr[2], 3), 0.167)
-    ck("T2c and it is strictly BELOW the average, which is the finding",
-       tr[2] < (200 / 984), True)
-    ck("T3 a genuinely healthy trend reads marginal ABOVE the average",
-       round(efficiency_trend(_hist([{"total_cores": 800, "useful_cores": 160},
-                                     {"total_cores": 900, "useful_cores": 260}]))[2], 3), 1.0)
-    ck("T4 cores FALLING refuses to price a fraction (no divide-by-zero, no negative ratio)",
-       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
-                               {"total_cores": 800, "useful_cores": 190}]))[2], None)
+    ck("T2 the raw deltas report even when the slope is refused", (tr[0], tr[1]), (96, 16))
+    ck("T2b and the slope IS refused, because 7 minutes cannot price a 9.2 h process",
+       tr[2], None)
+    # THE FULL SESSION, over a time base that clears the guard: cores 888 -> 968 with useful
+    # 184 -> 200. This is the honest version of what pass 2 tried to say, and it reads ~20%,
+    # i.e. STABLE rather than deteriorating.
+    session = _hist([{"total_cores": 888, "useful_cores": 184, "epoch": 0},
+                     {"total_cores": 976, "useful_cores": 200, "epoch": 1200},
+                     {"total_cores": 992, "useful_cores": 200, "epoch": 2400},
+                     {"total_cores": 1000, "useful_cores": 208, "epoch": 3000},
+                     {"total_cores": 968, "useful_cores": 200, "epoch": 4200}])
+    ck("T2c THE HONEST SESSION READING: the slope is ~0.2, i.e. STABLE not deteriorating",
+       0.15 < efficiency_trend(session)[2] < 0.25, True)
+    ck("T3 a genuinely healthy trend prices ABOVE the average",
+       round(efficiency_trend(_hist([{"total_cores": 800, "useful_cores": 160, "epoch": 0},
+                                     {"total_cores": 850, "useful_cores": 210, "epoch": 2000},
+                                     {"total_cores": 900, "useful_cores": 260, "epoch": 4000}]))[2],
+             3), 1.0)
+    ck("T4 a FALLING fleet is still priced by OLS, because slope is not endpoint delta",
+       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200, "epoch": 0},
+                               {"total_cores": 850, "useful_cores": 195, "epoch": 2000},
+                               {"total_cores": 800, "useful_cores": 190, "epoch": 4000}]))[2],
+       0.1)
     # ⚠⚠ T6 IS THE LIVE DEFECT I CAUGHT IN MY OWN INSTRUMENT ONE PASS AFTER BUILDING IT.
     # At 08:48Z the trend printed "MARGINAL useful fraction: 100.0%" off TWO readings and a
     # +8-core delta -- ONE pack-8 job. That is noise rendered as reassurance. Below
     # MIN_TREND_CORE_DELTA the fraction must be None while the DELTAS still report, so the honest
     # rendering is "cores +8, useful +8, too small to price".
-    thin = efficiency_trend(_hist([{"total_cores": 992, "useful_cores": 200},
-                                   {"total_cores": 1000, "useful_cores": 208}]))
-    ck("T6 THE LIVE NOISE CASE: a +8-core delta refuses to price a marginal fraction",
-       thin[2], None)
+    thin = efficiency_trend(_hist([{"total_cores": 992, "useful_cores": 200, "epoch": 0},
+                                   {"total_cores": 1000, "useful_cores": 208, "epoch": 60}]))
+    ck("T6 THE LIVE NOISE CASE: a +8-core spread refuses to price a slope", thin[2], None)
     ck("T6b but the raw deltas ARE still reported, so the state is renderable",
        (thin[0], thin[1]), (8, 8))
-    ck("T6c a delta at exactly the threshold IS priced (the boundary is inclusive)",
-       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
-                               {"total_cores": 964, "useful_cores": 216}]))[2], 0.25)
-    ck("T6d one core under the threshold is NOT priced",
-       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200},
-                               {"total_cores": 963, "useful_cores": 216}]))[2], None)
+    # ⚠⚠ T7 IS THE CLAIM I PUBLISHED AND HAD TO WALK BACK (pass 2 -> pass 4). The four readings
+    # below span ELEVEN MINUTES and endpoint-difference to 15.4%, which I reported as "the
+    # allocation is deteriorating". Two more readings took it to 20.0%, i.e. stable. The window
+    # must be refused on TIME even though its core spread (104) clears MIN_TREND_CORE_DELTA.
+    p2 = [{"total_cores": 888, "useful_cores": 184, "epoch": 0},
+          {"total_cores": 976, "useful_cores": 200, "epoch": 180},
+          {"total_cores": 984, "useful_cores": 200, "epoch": 420},
+          {"total_cores": 992, "useful_cores": 200, "epoch": 660}]
+    ck("T7 THE WALKED-BACK CLAIM: 104 cores of spread over 11 MINUTES is refused on TIME",
+       efficiency_trend(_hist(p2))[2], None)
+    ck("T7b and the core-spread guard ALONE would have let it through (104 >= 64)",
+       (max(r["total_cores"] for r in p2) - min(r["total_cores"] for r in p2))
+       >= MIN_TREND_CORE_DELTA, True)
+    # The SAME shape, stretched past the time guard, IS priced -- so the guard is a time bar, not
+    # a blanket refusal that would make the instrument useless.
+    p2slow = [dict(r, epoch=r["epoch"] * 20) for r in p2]
+    ck("T7c the identical shape over 3.7 h IS priced (the guard bars TIME, not the finding)",
+       efficiency_trend(_hist(p2slow))[2] is not None, True)
+    # ⭐ THE ESTIMATOR CHANGE. Endpoint differencing is decided by two points; OLS uses all of
+    # them. On a series whose ENDS agree but whose interior does not, the two disagree, and the
+    # OLS answer is the defensible one.
+    ends_agree = [{"total_cores": 900, "useful_cores": 200, "epoch": 0},
+                  {"total_cores": 1000, "useful_cores": 300, "epoch": 4000},
+                  {"total_cores": 900, "useful_cores": 200, "epoch": 8000}]
+    tr_e = efficiency_trend(_hist(ends_agree))
+    ck("T8 an oscillation returning to its start has ZERO endpoint delta ...",
+       (tr_e[0], tr_e[1]), (0, 0))
+    ck("T8b ... yet OLS still prices the relationship from the interior point",
+       round(tr_e[2], 3), 1.0)
+    ck("T8c a spread of 0 (a perfectly flat fleet) is refused, not divided by zero",
+       efficiency_trend(_hist([{"total_cores": 900, "useful_cores": 200, "epoch": 0},
+                               {"total_cores": 900, "useful_cores": 200, "epoch": 4000},
+                               {"total_cores": 900, "useful_cores": 210, "epoch": 8000}]))[2], None)
+    ck("T8d two readings can NEVER price a slope, however far apart",
+       efficiency_trend(_hist([{"total_cores": 800, "useful_cores": 100, "epoch": 0},
+                               {"total_cores": 1000, "useful_cores": 300, "epoch": 99999}]))[2],
+       None)
+    # ⚠⚠ T9 EXISTS BECAUSE A MUTATION RUN FOUND MY OWN SUITE COULD NOT DETECT THE REMOVAL OF
+    # MIN_TREND_CORE_DELTA (pass 4). Every other fixture was already caught by the TIME guard or
+    # the three-reading guard, so deleting the spread guard changed nothing and the mutant SURVIVED.
+    # A guard no test can kill is either redundant or untested, and this one is not redundant: a
+    # FLAT fleet observed for hours has all the time in the world and no signal at all, and OLS
+    # would happily fit a slope to its jitter. This is the case that discriminates it.
+    flat = [{"total_cores": 900, "useful_cores": 200, "epoch": 0},
+            {"total_cores": 904, "useful_cores": 216, "epoch": 3000},
+            {"total_cores": 902, "useful_cores": 188, "epoch": 6000},
+            {"total_cores": 906, "useful_cores": 224, "epoch": 9000}]
+    ck("T9 a FLAT fleet over 2.5 h -- all the time, no spread -- is refused on SPREAD",
+       efficiency_trend(_hist(flat))[2], None)
+    ck("T9b and the TIME guard alone would NOT have caught it (9000 s >= 3600 s)",
+       (flat[-1]["epoch"] - flat[0]["epoch"]) >= MIN_TREND_SPAN_S, True)
+    ck("T9c nor would the three-reading guard (4 readings)", len(flat) >= 3, True)
     ck("T5 a torn append line is skipped, not fatal",
        (lambda p: (p.write_text('{"total_cores":800,"useful_cores":160}\n{"total_c\n'
                                 '{"total_cores":900,"useful_cores":180}\n', encoding="utf-8"),
