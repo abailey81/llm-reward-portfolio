@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-06"
-  head: "d3c22dac"
+  head: "45ba45b1"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "governor selftest 32/32 + 4 independent falsifications; freeze MATCHES; drift 0"
+  suite_status: "governor 46/46 + accumulator 64/64, 9 independent falsifications; freeze MATCHES; drift 0"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```
