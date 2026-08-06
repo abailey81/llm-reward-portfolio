@@ -3,6 +3,109 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06i] ★★★★★ RUN 28 (OPS), pass 2 — **AN ALARM SAID THE ONLY PROPERTY PROTECTING THE HEADLINE HYPOTHESIS HAD COLLAPSED. IT HAD NOT — THE ESTIMATOR WAS COUNTING 568 REPLICATIONS OF ONE FROZEN PROGRAM AS 568 INDEPENDENT OBSERVATIONS** · and the general form of that mistake threatens every record-level statistic the campaign will report
+
+**WHERE WE WERE.** Pass 1 restored the blind login-node guard, made the promotion hold value-aware,
+fixed `floor_hold.sh`'s phantom id list, and gave `line_balance` the ability to see a line held to a
+standstill. Cores 848 across 106 running jobs, the floor at `0/60` with all eight `c1_h2_pair_test`
+jobs running, freeze MATCHING, drift 0.
+
+**THE PASS THEN DID WHAT THE BRIEF ASKS AND RE-RAN A REGISTERED RE-TRIAGE TRIGGER**, on the principle
+that *a trigger nobody re-runs is decoration*. It fired.
+
+### 1. ⛔⛔⛔ THE ALARM: H2's REWARD-SCALE PROTECTION APPEARED TO HAVE COLLAPSED
+
+`docs/ops/acknowledged_alarms.txt`'s ack for `reward_scale:WARN` records that the one property
+shielding **H2** — the registered headline hypothesis — from a reward-scale confound is that PopArt
+engagement is **ARM-SYMMETRIC** across the five LLM arms. Measured 2026-07-30 (record s.44.4,
+n = 1,024): **65.5 / 65.2 / 67.1 / 67.4 / 62.1 %**, a **5.3 pp** spread. The tool's own header states
+the stake: *"If it stopped being uniform, H2 could be confounded."*
+
+Re-run this pass: **44.3 / 76.7 / 29.7 / 34.9 / 48.0 % — a 46.9 pp spread**, printing
+`*** ASYMMETRIC -- RE-TRIAGE ***`.
+
+**NOTHING WAS CONCLUDED FROM THAT READING.** Three independent routes were taken first, because a
+claim of this size on one number would be exactly the failure this project keeps paying for.
+
+**(A) MECHANISM.** `sigma_max = max(popart_min_scale, rms(value targets))`, and the value-target
+scale is set by the **reward program's magnitude**. A `(line, arm)` sealed-test cell holds **ONE
+frozen winning program retrained across up to 568 seeds**, so every seed inherits the same answer.
+Measured: **50 of 54 test cells are perfectly degenerate, median cell size 334 seeds.** Counting
+RECORDS therefore inflates the sample by roughly the seed count.
+
+**(B) THE CORRECT UNIT.** One value per cell: **58.2 / 66.3 / 48.6 / 55.9 / 62.1 %**, a **17.8 pp**
+spread at 21–23 cells per arm against an **SE of a difference of 15.2 pp — ratio 1.17**, with all
+five 95 % CIs overlapping. **NOT ESTABLISHED.**
+
+**(C) LIKE-FOR-LIKE.** On the **search-stage** population the ack actually measured — 175 distinct
+candidate programs, genuinely distinct draws — the arms remain symmetric at **7.0 pp against the
+recorded 5.3 pp**.
+
+⭐ **AND THE DEGENERACY PATTERN IS ITS OWN CONSISTENCY CHECK**: search cells (many programs, one seed
+each) are NOT degenerate, while test cells are. That is precisely what mechanism (A) predicts, and it
+was not assumed in order to reach the conclusion.
+
+**⇒ THE ARM-SYMMETRIC PROTECTION FOR H2 SURVIVES.** And this is the **fourth** instance of this
+project's recurring error class (R25-2, R25-3, R26-13): *a comparison is evidence only if both sides
+are the same population at the same point of their lifecycle.*
+
+### 2. ⚠⚠ THE GENERAL HAZARD IS LARGER THAN THIS ONE ALARM, AND IT IS A WRITE-UP OBLIGATION
+
+The seed ladder replicates **one frozen program up to 568 times**. So **any record-level statistic
+computed over sealed-test cells is overconfident by roughly the seed count** — not only this alarm.
+Anything the write-up reports per-record over C4 cells needs its effective sample size stated at the
+CELL, with its uncertainty. Registered as an analysis-time obligation rather than left as an ops fix.
+
+### 3. THE FIX, AND ONE DEFECT I SHIPPED WHILE MAKING IT
+
+`retriage_alarms.engagement_by_arm()` now measures at the **cell**; labels the record count
+`[descriptive]`; weights a **mixed** cell by its fraction rather than a hard vote (4 of 54 cells are
+genuinely mixed, `haiku/placebo` at 278 of 566 the largest, and collapsing them would discard real
+information); **excludes** a null `sigma_max` instead of counting it as pinned (a missing field is
+unknown, not evidence); **omits** an arm with no records rather than reporting 0.0 % (**zero is not
+clean**, P213); and prints the **SE of a difference beside the spread**, so a verdict can never again
+rest on an inflated denominator.
+
+`tests/test_popart_engagement_unit.py`: **6 tests, proven to fail against the pre-fix file**; **four
+mutations each caught by the right assertion** — reverting to record-level counting, collapsing mixed
+cells to a hard vote, counting nulls as pinned, and reporting 0.0 % for an empty arm.
+
+⚠ **AND I COMMITTED THE RUN 27 DEFECT WHILE FIXING THIS ONE.** Two `⚠` glyphs went into `print()`
+strings destined for an ASCII-only cp1251 console. **My own byte-walk check crashed on them** —
+`UnicodeEncodeError: 'charmap' codec can't encode character '⚠'` — which is the check catching
+the check. Replaced with `!!`; byte walk clean, live run `RETRIAGE_RC=0`.
+
+**The ack STANDS rather than closing**, with a sharpened trigger (re-fire if the cell-level spread
+exceeds 2.0 × its SE, or if the degenerate fraction of test cells falls materially, which would break
+the mechanism the correction rests on) and a sharpened obligation: report engagement beside the H1
+family comparison **at the cell level with its uncertainty, never per record**. ⚠ **"Not established"
+is not "zero": scalar at 66.3 % against scalar_cvar5 at 48.6 % is a gap ~22 cells cannot resolve.**
+
+### 4. THE REST OF THE STEP CONTRACT
+
+**FLOOR** `0/60`, all 8 jobs running, driver polling live, tracking ~02:00–04:00Z. Untouched.
+**CORES** 848 across 106 running; 24-spec flat at 10, which is CORRECT — the eligible 24-spec work is
+`leg3` block `t6`, four blocks deferred on an over-served line, and the promotion dry-run would have
+held 64 binding-line `t2` jobs while buying no ordering, so it was **not run**.
+**RECORDS** The flat reading was sampling inside the arrival quantum, and this was settled by
+measurement rather than by quoting the caveat: the current gap of **32.7 min** sits inside the 24 h
+distribution — **3 of 27 gaps (11 %) were at least that long**, p90 35.5 min, max 67.7 min. Burst
+sizes are median 6 but mean 72.8 and max 675, so no short window can price anything. **PROVEN-BENIGN.**
+**ALLOCATION** efficiency **29.4 % → 32.1 %**, with the governor's own trend reporting a **marginal
+useful fraction of 40.0 % against a 32.1 % average while the fleet grows** — the released cores are
+going to better work than the average. `V1 HOLE-REPAIR` shows **1 job** for the first time: haiku's
+repair, visible only because it is no longer held. deepseek remains 4th by ticket because glm's ids
+are ~3,000 older; glm has just **14 eligible** left, so this self-resolves and **no hold was placed**.
+**STANDING CHECKS** guard `OK node=login12` rc 0 (the pass-1 fix holding); login13 still `RESET` at
+21:27:56Z so `Host myriad` stays on login12; freeze **MATCHES**; drift **0**; `stage_eta` renders with
+**zero** traceback lines; `loader_collision_watch` rc 1 as expected — D49–D51 lives in `scripts/**`,
+drift-fenced while the campaign runs, so it stays correctly deferred rather than patched.
+
+**VERIFIED.** Full suite **3,062 passed / 3 skipped / 0 failed**, `SUITE_RC=0`, zero `FAILED`/`ERROR`
+lines. The count chains exactly: RUN 26's 3,044 **+ 4** (guard target) **+ 8** (line_balance held-out)
+**+ 6** (popart unit) = **3,062**. Commits `8e9240ae`, `c25a71d5`, `db4c5800`, `71bac246`; no fenced
+file touched; nothing left staged.
+
 ## [2026-08-06h] ★★★★★ RUN 28 (OPS), pass 1 — **THE LOGIN-NODE PENALTY GUARD HAD BEEN BLIND FOR 3 h 40 m BECAUSE RUN 27's OWN OUTAGE FIX REPOINTED THE CAMPAIGN AWAY FROM THE NODE IT WATCHES** · a BINDING line was completely asleep with all 165 of its jobs held · the ladder's single highest-value job (+379 rungs on five arms for ~8 trainings) was held · and the cadence this brief prescribes for the promotion hold is measured to STARVE the fleet
 
 **WHERE WE WERE.** RUN 27 handed over at T+214 h with the floor unblocked and running (all eight
