@@ -565,6 +565,113 @@ About **81% of the last 12 h of production landed above the common rung.** That 
 answered with its number, and it is NOT actionable from here: steering which line SGE runs would
 need a `qdel` or a held-back submission, and both are standing prohibitions.
 
+### ⛔⛔⛔⛔ 2026-08-06 01:30-02:10 UTC (RUN 23, TAMER-DIRECTED CORES INVESTIGATION) — **THE LOOPS ARE
+### STOPPED. §6's PACK-WIDTH REFUTATION RESTS ON A MEASUREMENT THAT NO LONGER DESCRIBES THE CLUSTER.**
+
+**Tamer: *"there is a huge fucking issue with the cores and records per hour and speed, and you are
+ignoring it."* He is right that I kept citing §6 instead of re-measuring it. The 30-minute cron is
+CANCELLED. What follows is measured from the scheduler, and it includes TWO ERRORS OF MY OWN that I
+caught and corrected mid-investigation.**
+
+#### ⚠ FIRST, THE TWO THINGS I GOT WRONG TONIGHT, BECAUSE EVERYTHING ELSE DEPENDS ON THEM
+
+1. ⛔ **I REPORTED 12,044 FREE CORES ON 518 NODES, THEN 10,499 ON 296, THEN 8,863 ON 255. ALL THREE
+   ARE WRONG AND ARE RETRACTED.** `qstat -f` TRUNCATES the queue-instance name, so one host appears
+   as both `node-d00a-005` and `node-d00a-005.myria`; my `sub(/\.myriad.*/,"",h)` did not match the
+   truncated form and every host was counted twice. **Corrected: 259 distinct d00 hosts, capacity
+   9,324 cores, 6,614 used — the pool is 71% BUSY, not 35%.**
+2. ⛔ **I nearly published "10,499 free cores are sitting idle" WITHOUT APPLYING ACCESS CONTROL.**
+   This repository has already withdrawn that exact claim twice — **M203** (*"Myriad is 100 percent
+   full"* — wrong) and **M239** (*"d97a/d97b are 100% @PAID_Economics and CANNOT receive our jobs"*).
+   Applying the PAID/private host groups: of the **56** clear hosts with ≥8 free cores, **47 are
+   PAID/private and only 9 are open to us.**
+
+#### THE CORRECTED PICTURE, AND IT IS NOT "FAIR SHARE IS TAKING OUR CORES"
+
+```
+d00 pool          259 hosts · 9,324 cores · 6,614 used (71%)
+clear hosts       243 · 2,134 free cores          unavailable (a/d/u): 16 hosts
+clear AND >=8 free 56 hosts · 1,781 cores   ->    47 PAID/private, ONLY 9 OPEN TO US
+of those 9 open   9 have tmpfs >= 1G  ·  only 3 have the 16 GB our job asks for
+```
+⇒ **THE FREE CAPACITY IS REAL BUT FRAGMENTED, AND OUR JOB SHAPE DOES NOT FIT IT.** Across the 194
+open+clear D-pool hosts: **92 have ≥16 GB free memory but only 9 have 8 contiguous free cores.**
+**CORES ARE THE BINDING DIMENSION, AND THEY ARE FRAGMENTED.**
+
+#### ⭐⭐⭐ THE MEASUREMENT THAT MATTERS — PLACEABLE CAPACITY BY PACK WIDTH
+
+Honouring BOTH free cores and 2 GB/slot memory, on the 194 open+clear D hosts, right now:
+```
+pack 8 (CURRENT)      1 job placeable        8 slots
+pack 6               15 jobs                90 slots
+pack 4               36 jobs               144 slots
+pack 2              140 jobs               280 slots
+```
+**AT OUR CURRENT PACK WIDTH WE CAN PLACE EXACTLY ONE MORE JOB.**
+
+⚠ **CROSS-CHECKED AGAINST THE REPO'S OWN INSTRUMENT, AND THE TWO DISAGREE ON MAGNITUDE, SO NEITHER IS
+BANKED.** `docs/ops/placeable_capacity.py` (all pools, `qhost -F` free slots) gives
+**pack 8 → 576 cores · pack 6 → 684 · pack 4 → 792 · pack 2 → 968.** **Both agree on the DIRECTION —
+narrower packs place more — and differ ~5x on the size.** Mine is D-pool-only (correct: our
+`granted_pe` is `smp-D`) and reads `qstat -f`; the repo's reads `qhost -F` across all pools.
+**I am not able to give a reliable magnitude, and I will not pretend otherwise.**
+
+#### THE OBSERVATION THAT STARTED THIS, AND IT IS NOT EXPLAINED BY FAIR SHARE ALONE
+```
+01:33:53Z  free_cores(open,clear,>=8) ...  our_running_jobs=68  our_slots=544
+01:36:49Z                                  our_running_jobs=68  our_slots=544
+01:39:45Z                                  our_running_jobs=68  our_slots=544
+01:42:41Z                                  our_running_jobs=68  our_slots=544
+```
+**Frozen across a full 10-minute `schedule_interval`, with 903 pending jobs that `qalter -w p`
+verifies as placeable, `Eqw`/`hqw` 0 and `qquota` empty.** At pack 8 that is exactly what the
+placement table predicts: there was **one** slot-shaped hole in the whole open pool.
+
+#### ⭐⭐ THE SCHEDULER POLICY — WHY OUR SHARE FALLS AND WILL KEEP FALLING
+`qconf -ssconf`, read first-hand:
+```
+weight_tickets_functional  500000000      weight_tickets_share  10000     <- functional dominates 50,000:1
+halftime                   604800  = 7 DAYS                               <- usage decay half-life
+schedule_interval          0:10:0         max_reservation  20
+weight_priority  4.0   weight_ticket  1.5   weight_waiting_time  1.0      <- POSIX priority is the STRONGEST term
+```
+**We have run 8.2 days continuously against a 7-day usage half-life.** Our functional tickets are
+suppressed by our OWN accumulated usage and barely decay while we keep running. ⇒ **The decline
+19.0% → 11.1% → 6.5% is not "other users arrived and it will come back"; it is structural and it
+gets worse the longer we run.** §6 says the mechanism is "working as designed" — true — but it also
+implies recovery, and on this policy there is none.
+
+#### LEVERS, EACH MEASURED, INCLUDING THE ONES THAT DIED
+* ⛔ **`h_rt` reduction — REFUTED.** Measured over **3,987 per-task epilogues**: median 8.64 h,
+  p90 10.00 h, p99 11.71 h, **p999 and MAX both 15.01 h — already AT the 54,000 s wall.** There is
+  no slack to give back; cutting it would kill the slowest tasks.
+* ⛔ **`snx` — REFUTED.** Capacity ~9,990 per host. Not a throttle.
+* ⛔ **A per-user slot RQS — REFUTED.** The only rule set (`slowemdown`) is DISABLED and targets a
+  different user.
+* ⚠ **Memory over-request — REAL BUT MINOR.** `qacct` on our own completed pack-8 jobs:
+  **maxvmem 11.34, 11.76, 11.90, 11.49 GB against a 16 GB request (2 GB x 8)** — we over-ask by
+  ~26%. Trimming 16 GB → 13 GB unlocks **92 → 106 hosts** on memory. **But memory is not the binding
+  dimension (92 hosts already qualify on memory; only 9 on cores), so this is worth little on its
+  own** and leaves only ~1.1 GB of headroom over the measured peak.
+* ⭐⭐⭐ **PACK WIDTH — THE ONE LIVE LEVER, AND §6's REFUTATION IS NOW PARTLY STALE.** §6 killed
+  pack-4 on three grounds. Re-examined: **(1) the `max_u_jobs=1000` cap is STILL REAL** — we sit at
+  971 jobs and pack 4 doubles the job count for the same work; **(2) `lanes.py:290`'s "pack 4 halves
+  the structural ceiling from 8,000 to 4,000 cores" is TRUE AND IRRELEVANT — we hold 544, which is
+  6.8% of the ceiling being defended; (3) "we cannot take the cores we already have, so recovering
+  more buys nothing" IS REFUTED BY TONIGHT'S MEASUREMENT — we cannot take them BECAUSE the 8-slot
+  shape does not fit the fragmentation.** §6 measured *"placeable in smp-D at pack 8 .. 1,552 FREE"*
+  on 2026-08-04; the same quantity today is **8 slots**.
+  ⚠ **Pack is a SUPERVISOR LAUNCH ARGUMENT (`--pack`), not a fenced code edit, and it was already
+  changed 5 → 8 mid-campaign on 2026-07-31 — so precedent exists and no drift-fenced file is
+  touched.** It does not alter arithmetic: each task is still one training process.
+  ⛔ **NOT ROLLED. It needs Tamer's decision**, because it is a rolling supervisor restart on a live
+  campaign, the job-cap objection is genuine, and the two capacity instruments disagree 5x on the
+  size of the gain.
+
+⇒ **ESCALATED TO TAMER WITH TWO ASKS: (a) pack width 8 → 4, and (b) the RC allocation request, which
+is materially better justified than when it was declined — we then held 1,184-1,608 cores with rung
+568 dated to ~13 August; we now hold 544 with the common rung at 0.**
+
 ### ⛔⭐ 2026-08-05 22:12 UTC (RUN 23 pass 5) — **SWEEP-1 DID NOT CLOSE THE FALSE-DEAD CONDITION. I
 ### CAUGHT IT LIVE, FOUND THE THIRD WALKER, AND FIXED IT — W6 IS NOW CLOSED WITH A PROOF.**
 
