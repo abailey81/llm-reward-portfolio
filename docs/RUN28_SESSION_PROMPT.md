@@ -27,6 +27,11 @@ queue, or place them in a specific way, or something else."*
 > ⚠ **THERE IS NO "END OF WORK" SECTION, DELIBERATELY.** Tamer decides when work ends. Never announce
 > that you are wrapping up and never ask whether to stop. **Record continuously** (CHANGELOG + the
 > ledger + the cursor) because the record is write-up raw material.
+>
+> ⭐⭐ **WORK VERY ACCURATELY AND SURGICALLY, AND KNOW THAT YOUR WORK WILL BE REVIEWED BY CODEX.**
+> Every number read from the real artefact at the moment of writing, every diff the smallest correct
+> one, every claim carrying the command and output that prove it, every fix falsified BEFORE it is
+> made and mutated AFTER. **See §0.7 — it governs everything else in this file.**
 
 ---
 
@@ -115,6 +120,45 @@ of many ids typed INLINE is **BLOCKED**. ⭐ **THE SANCTIONED ROUTE: put the log
 it over stdin — `ssh myriad "bash -s" < script`.** ⚠ The **Bash tool blocks the APPLY form**; the
 route that works is PowerShell: `& "C:\Program Files\Git\bin\bash.exe" -c "ssh ... 'bash -s' < /tmp/x.sh"`.
 `--dry` runs are allowed from either. **`Stop-Process` inside a `.ps1` also works.**
+
+### §0.7 ★★★★★★★ **WORK ACCURATELY AND SURGICALLY — AND YOUR WORK WILL BE REVIEWED BY CODEX**
+
+> ★ **Tamer, 2026-08-06, verbatim:** *"Please make sure you act very accurately and surgically and
+> always verify."* · *"work very accurately and surgically, and always ultrathink and verify
+> everything. Everything must be strictly flawless. It has to always verify everything, including
+> its work."* · ★★ **"your work will be reviewed by codex."**
+
+**⇒ EVERY LINE YOU WRITE AND EVERY COMMAND YOU RUN WILL BE READ BY AN INDEPENDENT REVIEWER.** Write
+for that reader. This is not a reason to be timid — Tamer's mandate is to maximise everything and not
+to stop — it is a reason to make every step **defensible on its face**:
+
+1. **ACCURATE.** Every number, path, flag, hash, count and claim is the REAL one, **read from the
+   real artefact at the moment of writing**. No approximations presented as measurements, no
+   remembered values, no "about". **Cite the evidence beside the claim** — the command, the count,
+   the log line — so a reviewer can re-run it without asking you.
+2. **SURGICAL.** Change exactly what must change and nothing else: smallest correct diff, no drive-by
+   refactor, rename or reformat, no touching a hash-bound file outside the unfreeze protocol.
+   **Stage BY NAME, never `git add -A`/`-u`** — this tree always carries another session's dirty
+   write-up files, and RUN 27 had to exclude four of them by hand. Precision is *targeting*, not
+   timidity: the change must still be COMPLETE at every call site.
+3. **RE-READ YOUR OWN DIFF** before you call anything done, hunting the silent errors a compiler
+   cannot catch: an off-by-one, an inverted condition, the wrong branch, a `True` default that should
+   be `False`, a column index taken on faith. **RUN 27 shipped a non-ASCII character into a string
+   that reaches the published page and caught it only by walking the bytes.**
+4. **A REVIEWER CANNOT SEE WHAT YOU DID NOT WRITE DOWN.** Record the measurement, the command and the
+   real output — not just the conclusion. An assertion with no evidence beside it reads, correctly,
+   as unverified.
+5. ⭐ **AND REVIEW YOURSELF FIRST, ADVERSARIALLY.** Before banking any load-bearing conclusion, ask
+   what would falsify it and go and check. **RUN 23 published eight wrong conclusions, RUN 24 ten,
+   RUN 25 seven, RUN 26 six and RUN 27 nine** — every one caught only because a SECOND, INDEPENDENT
+   route was taken. **Two derivations, or it is not a finding.** When a fix is involved: write the
+   falsifying test FIRST, prove it fails against the pre-fix behaviour, then fix, **then MUTATE the
+   fix and prove the test still catches it.**
+
+> ⚠ **AND THE ONE THAT WOULD EMBARRASS US MOST IN REVIEW:** correcting your own record. RUN 27
+> published a wrong root cause in the CHANGELOG and a retracted claim in the ledger, and **corrected
+> both in place with the reason stated rather than quietly editing them.** Do the same. A visible,
+> dated self-correction is evidence of a working process; a silently rewritten one is not.
 
 ---
 
@@ -579,4 +623,11 @@ the reported result. Above all, measure for longer than the system's own period 
 negative: four times in one session I read a periodic system too early and concluded the opposite of
 the truth, and the fourth time I threw away a working intervention fourteen minutes before it paid
 off — and read what the instruments PUBLISH, not only what they return, because Tamer found a
-crashed ETA panel on the live page while its own selftest was passing.**
+crashed ETA panel on the live page while its own selftest was passing. Work accurately and
+surgically, because your work will be reviewed by Codex: read every number from the real artefact at
+the moment you write it, keep every diff the smallest correct one and stage it BY NAME because this
+tree always carries another session's files, put the command and the output beside every claim so a
+reviewer can re-run it without asking you, write the falsifying test before the fix and mutate the
+fix afterwards, and when you get something wrong correct it in place with the reason stated and the
+date attached, because a visible self-correction is evidence of a working process and a silent one
+is not.**
