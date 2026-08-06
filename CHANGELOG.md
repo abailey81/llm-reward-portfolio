@@ -3,6 +3,237 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-06d] ★★★★★ RUN 26 (OPS), pass 1 — **RC DID NOT PENALISE US, AND THE ANSWER CAME WITHIN ONE COLUMN OF BEING WRONG** · waiting time contributes EXACTLY ZERO to job priority on this cluster, which refutes the stated premise of D73's own diagnosis · the LADDER LOCK went live by Tamer's hand and handed us a controlled experiment on the ticket mechanism
+
+**WHERE WE WERE.** RUN 25 closed having registered **D73** (the C4 ladder has no ordering mechanism),
+built the **LADDER LOCK** in `job_rank_governor.py`, and closed the mechanical-efficiency question
+exhaustively: the fleet runs at 100% mechanical and ~21% allocative efficiency, so every remaining
+gain is in *which* work the cores do. It handed over one item above all others. Tamer had received an
+email from RC saying many MSc students had asked for priority raises and all were denied, and he
+asked to be told whether **we** had been quietly downgraded, because cores had gone 1,642 -> 824 in a
+day. RUN 25 answered "no penalty" and left the **mechanism** of the dispatch-rate halving open.
+
+**WHAT THIS PASS DID.**
+
+**1. ⭐⭐⭐ THE PENALTY QUESTION IS ANSWERED, AND THE FIRST ANSWER I PRODUCED WAS WRONG.** Four checks,
+all re-run first-hand rather than inherited:
+
+| check | result |
+|---|---|
+| POSIX priority | **`ppri = 0` on every job**, a single distinct value |
+| resource quota | the cluster's only RQS is `slowemdown`: **`enabled FALSE`**, limiting **`ucapsy0`**, not us |
+| our user object | `oticket 0, fshare 1` |
+| every heavy user | **identical `fshare 1`** — no account on the cluster is configured above ours |
+
+⚠ **AND THE NEAR-MISS IS THE PART WORTH KEEPING.** My first read printed **column 2** of
+`qstat -pri` and returned values like `2.00135`. That is the `prior` column. **`ppri` is column 6.**
+Had I reported column 2 I would have handed Tamer a fabricated non-zero priority on the single
+question he most wanted answered. This is the *exact* failure RUN 25 recorded when its own `-ext`
+column index returned zeros for everyone, one session earlier, and I repeated the shape of it inside
+an hour. **Read the header. Prove the column with a known-good row.** The `qstat -u "*" -s r` slot sum
+was validated the same way: it returns `ucestes 824`, which matches `core_accumulator` exactly.
+
+**Corroboration that no configuration disfavours us:** on our own pool we hold **824 slots, second
+only to `ucecgwh` at 919** — and their 919 slots are **919 single-core tasks**, which makes them a
+fragmentation source rather than a privileged account.
+
+**2. ⭐⭐⭐ WAITING TIME CONTRIBUTES EXACTLY ZERO TO PRIORITY, AND THIS CORRECTS D73's OWN DIAGNOSIS.**
+`qconf -ssconf` read first-hand: `weight_priority 4.0`, `weight_ticket 1.5`, `weight_urgency 0`,
+`weight_waiting_time 1.0`. Confirmed arithmetically against live job 90990:
+
+```
+prior 2.01456  =  4.0 x npprior 0.50000  +  1.5 x ntckts 0.00971   (exact to 5 dp)
+```
+
+The urgency term contributes **nothing**, and `weight_waiting_time` only bites *through* the urgency
+policy. ⇒ **`docs/RUN26_SESSION_PROMPT.md` §6.1 blames the `ThreadPoolExecutor` at
+`campaign.py:2016-2017` for defeating the age-ordering that `campaign.py:2006-2007` relies on. The
+ThreadPoolExecutor is a red herring.** Even had the six blocks been submitted a day apart, age would
+have ordered nothing, because `weight_urgency = 0` on this cluster. **Dispatch order is decided
+ENTIRELY by `ntckts`.** The practical consequence strengthens rather than weakens the plan of record:
+the LADDER LOCK is not merely the best available ordering mechanism, it is the **only** one, since
+`-p` is correctly retired and age is inert.
+
+**3. CAPACITY IS NOT THE CONSTRAINT.** `docs/ops/placeable_capacity.py` on one simultaneous
+`qhost -F slots,memory,tmpfs` + `qstat -f` snapshot: **d00a 1,288 + d00b 224 + b00a 32 = 1,544
+placeable cores at pack 8, against 824 held.** Unchanged from RUN 25's reading hours earlier, so
+fragmentation has not moved and hypothesis 3 of §6.5 is refuted for this window. ⚠ Reported as an
+**upper bound**: the tool exited 2 with `PARTIAL INPUT (D33)` because 28 hosts carried no
+memory/tmpfs complex in the capture.
+
+⚠ **AND ONE AD-HOC FIGURE I DISCARDED BEFORE USING IT.** Summing `qstat -f -q Bran` gave
+"2,126 free slots on healthy hosts", which would have been a striking finding. It is **wrong**: a
+queue-instance `used` count sees only jobs *in that queue*, and other queues share the same host's
+slots. The audited instrument exists precisely for this, the ledger already records an ad-hoc `qhost`
+sum inflating a cores figure four times this campaign, and it was not going to be five.
+
+**4. OUR TICKET POSITION, MEASURED.** Our pending jobs carry median `ntckts` **0.00158**; the cluster
+pending distribution reads median 0.00119, **p95 0.07177**, max 0.99057 over 3,842 jobs. We are
+mid-pack, not bottom, but the top 5% carry ~45x our median and take free slots first.
+
+**5. THE LEADING MECHANISM, EXPLICITLY NOT BANKED.** `share_functional_shares TRUE` (with
+`weight_tickets_functional 5e8`, `max_functional_jobs_to_schedule 5000`) divides a user's ticket pool
+among their jobs. Across users, per-job tickets fall hard with job count: ours **897 jobs ->
+14,757/job**; `ucaphge` **173 jobs -> 400,379/job (27x)**; `ucjvddm` **63 jobs -> 442,628/job (30x)**.
+And our own submission history overlays the collapse: reconstructed from `qstat` submit stamps,
+**246 jobs entered at 00:00Z on 08-06 — the exact hour cores bottomed at 533.** ~486 -> 897 jobs is
+1.85x dilution against a 12.6 -> 6.8 jobs/h dispatch fall, also 1.85x.
+
+⛔ **NOT BANKED, FOR TWO REASONS, AND BOTH ARE RECORDED SO THE NEXT PASS DOES NOT RE-DERIVE THEM.**
+(i) Cross-user ticket **totals** vary 29x (2.4M for `ucbtjji` to 69.3M for `ucaphge`), which pure 1/N
+dilution cannot produce, so the formula is not yet understood. (ii) Its first prediction **failed its
+first test** — see item 6. This is a hypothesis with a good fit and an unexplained residual, and it is
+being reported as exactly that.
+
+**6. ⭐⭐ THE LADDER LOCK WENT LIVE, AND IT IS ALSO A CONTROLLED EXPERIMENT.** Between 12:26Z (board
+read `held=0`) and 12:40Z, **382 jobs entered `hqw`**. Hold-type census: **382 user holds, 0 system,
+0 operator** — so this is not the §7 JSV throttle. Composition matches `ladder_lock_plan` exactly:
+nemotron 114, kimi 99, deepseek 85, glm 84, with **no `c1` job, no haiku repair, nothing running**.
+⇒ Tamer applied the plan. Governor this pass: **TO HOLD 4 more (`99233 99245 99258 99268`) · TO
+RELEASE 0 · eligible 408 against a guard of 408 · allocative efficiency 22.5%**, up from ~21%.
+
+**That hold is a free natural experiment on item 5**, and it has now RETURNED. If queue depth dilutes
+tickets, removing 382 jobs from contention must concentrate tickets on the remaining 412.
+
+*First measurement, taken shortly after the hold was observed:* median `ntckts` 0.00158 ->
+**0.00168**, total tickets 13,236,719 -> **13,123,452**. Essentially unchanged — **the prediction
+appeared to fail.** ⚠ But `schedule_interval` is `0:10:0`, so this was **PREMATURE, not negative**,
+and it was reported as such rather than banked.
+
+*Second measurement, after a scheduler recompute, by ticket SUM per state rather than by median:*
+
+| state | n | sum tickets | per job |
+|---|---:|---:|---:|
+| `hqw` | 382 | **0** | **0.0** |
+| `qw` | 412 | 5,975,112 | 14,502.7 |
+| `r` | 102 | 5,053,422 | 49,543.4 |
+
+⭐ **BANKED, BY TWO INDEPENDENT ROUTES AND NO ESTIMATE: A HELD JOB CARRIES EXACTLY ZERO TICKETS.**
+The sum over all 382 is 0, and independently their median and max both read 0.00000. Our total ticket
+mass fell 13,236,719 -> **11,028,534 (-16.7%)**.
+
+⛔ **NOT BANKED: the concentration figure.** Netting the running jobs out gives pre-hold pending
+~10,250/job against a post-hold 14,503/job, i.e. **+41%** — but that rests on an *estimate* of the
+pre-hold running/pending split, and worse, it carries a **selection confound**: if the 382 held jobs
+happened to hold below-average tickets already, the remaining 412's average rises with no
+redistribution at all. There is no obvious mechanism for that (every one of our jobs carries `ppri 0`
+and an identical resource request), but "no obvious mechanism" is not a measurement.
+
+⇒ **THE CLEAN, CONFOUND-FREE TEST IS THE OUTCOME, AND IT IS ALREADY RUNNING.** Pre-hold dispatch was
+**6.8 jobs/h**. If concentration is real and material, dispatch on the eligible set rises; if the
+16.7% loss of total mass dominates, it falls. Registered as STEP 5b of the 2-hourly cron.
+
+⇒ **AND THIS REPRICES THE LADDER LOCK.** It was designed purely as an ORDERING device. The
+measurement says it is also a candidate **dispatch-rate lever for exactly the work that matters**,
+because the jobs left eligible are the rung-lifting ones. That was invisible until Tamer applied the
+hold. ⚠ It also puts a real cost on over-holding: total mass fell 16.7%, so the depth guard is
+protecting more than fleet decay.
+
+**7. TWENTY HOSTS DISABLED OR UNREACHABLE ON OUR POOL, AND IT IS NOT A NEW DEGRADATION.** 17 `adu`
+plus 3 `d`, all at 0 used, ~720 slots; four confirmed genuinely unreachable in `qhost` (load `-`).
+⚠ **Explicitly NOT offered as the cause of the collapse**: ledger row R24-3 recorded **57 blocked
+d00a hosts** earlier in this campaign, so 20 is an improvement. *Overstating a risk is as inaccurate
+as understating one.*
+
+**8. TRANSPORT WOBBLE, DIAGNOSED AND CLEARED.** `arm_jobs.py` exited 2 with
+`TimeoutExpired(qstat -u ucestes -xml, 120)`, and `qconf -sstree` hung past 120 s. Both were
+transients under my own scan load: timed directly afterwards, `qstat -xml` = 4 s, `qhost` = 2 s,
+plain `qstat` = 19 s. The qmaster is variable under contention, not degraded. ⚠ My SSH load pushed
+the campaign cycle sweep **30 s -> 289.9 s** against the 900 s cap — RUN 25's two-point control
+(29.6 s idle, 638.3 s during instrument runs) reproduced exactly, and remote calls were throttled for
+the rest of the pass.
+
+**8b. ⚠⚠ THE SEVEN-LAYER SWEEP AND AN ACTIVE SSH SESSION MUST NOT RUN CONCURRENTLY — MEASURED, AND
+IT NEARLY BREACHED THE CAP.** RUN 25 measured the layers ALONE peaking the cycle sweep at **286.8 s**
+against the 900 s false-DEAD cap and concluded the risk warning was overstated, which is correct *as
+measured*. Run concurrently with an interactive SSH investigation, the same sweep reached
+**814.4 s and the cycle went `ATTN`** — 90% of the cap. ⇒ The layers were **killed at L1** (`kill -9`
+on the wrapper `363542` and its live child `record_provenance_seal.py` `364179`, both throwaway
+analysis processes and neither a campaign process), and `cycle.py` (`363418`) verified alive
+afterwards. **The two loads are additive and the safe figure is only safe in isolation.** Re-run the
+layers in a quiet window with no concurrent remote calls. ⚠ Incidentally confirmed the known `ps -ef`
+rendering artefact the brief warns about: `crash_watchdog.py` renders as `--quiet mpaigna`, a
+fragment that does not exist in any real command line.
+
+**9. THE FLOOR, RE-DERIVED FROM LIVE DATA RATHER THAN CARRIED FORWARD.** `c1` round 1 is **8/8
+running** (`bayes_opt` x4, `tpe` x4), last start **05:46:56Z** (`qstat` prints host-local +0100; the
+brief's 04:58-05:46Z window is confirmed correct). `arm_jobs` shows `distributional` and `scalar`
+with **no covering job**, which is correct — round 2 is not submitted, and every line tests its
+`h2_pair` last. At the 9.12 h median successful wall, round 1 drains ~14:53Z and **rung 30 lands
+~00:0xZ on 7 August**, unchanged.
+
+**10. BOARD.** 824 cores / 103 jobs · accumulator **8/8 invariants OK, verdict ACCUMULATING** ·
+records 19,164 · spend $45.5019 · drift 0 · freeze MATCHES · `Eqw` 0 · unschedulable 0 · permanent-leak
+0 · `record_seed_completeness` reports the expected C6 state (`c1`'s four arms at rung 0) ·
+`loginnode_guard` comfortable · `remote_inbox` nothing pending.
+
+**11. THE 30-MINUTE CRON IS NOW 2-HOURLY, BY TAMER'S DECISION.** He cancelled the `7,37 * * * *`
+cron mid-pass on 2026-08-06 and, asked whether to re-arm it, chose **every 2 hours**. Armed at
+`7 */2 * * *` carrying the full §9 STEP contract plus a new **STEP 5b** that names what is ESTABLISHED
+about the dispatch question (so it is never re-derived) and what remains OPEN with its exact
+falsifying measurement. ⚠ Session-only and auto-expires after 7 days; both disclosed to Tamer.
+
+**12. ⭐⭐⭐ A5's 90-MINUTE HOLD BOUND WOULD HAVE DECLARED THE WORKING LADDER LOCK A FAULT FOR ITS
+ENTIRE LIFE. AMENDED ON TAMER'S RATIFICATION, 11 MUTANTS KILLED.** Within minutes of the hold going
+live, `core_accumulator` A5 read *"oldest hold 8 min (bound 90 min)"*. `HOLD_BOUND_SECS = 5400.0`
+(`core_accumulator.py:92`) and the file's own selftest pins that an over-age hold drives the verdict
+to **`AVOIDABLE LOSS`** — the verdict asserting we are losing cores through our own fault. At ~14:20Z
+the board would have started asserting a fault that does not exist and kept asserting it for days.
+**That is the always-on-alarm pathology this ledger already records** (`guards=2` hid P202 for 31 h),
+and R25-4 names the identical shape for A3.
+
+⚠ **AND THE RULE WAS ALREADY BROKEN IN A SECOND WAY NOBODY HAD NOTICED.** `hold_age_secs()` measures
+the **mtime of `JOB_RANK_HOLDS.json`**, which the governor rewrites on every run. With the cron now
+2-hourly, that age reaches 120 min between runs, so **A5 would have failed on governor staleness
+alone, with no real hold involved.**
+
+**THE AMENDMENT (Tamer chose "predicate, not clock, for strategic holds"):** the rule was not wrong,
+it was scoped to the wrong object. A **TACTICAL** promotion hold serves its purpose inside one
+dispatch cycle, so 90 minutes is right. A **STRATEGIC** ladder-lock hold serves its purpose when the
+blocks below it drain, which is **days by design**. What retires a strategic hold is the governor's
+RELEASE rule, so the honest test is whether that rule has fired and been **ignored**: a live hold
+absent from a FRESH `LADDER_LOCK.json` is one that should already have been released, and that is
+true at one minute as much as at one week.
+
+**Implementation, all in the unfenced `docs/ops/core_accumulator.py`:** `STRATEGIC_JOURNAL` +
+`STRATEGIC_FRESH_SECS` (3 h, above the 2-hourly cadence) · `strategic_plan()` · `tactical_held()` ·
+a fourth section in the census's **existing** SSH command returning held job ids (⚠ deliberately no
+extra round trip — SSH load is measured to push the cycle sweep toward its cap) · A5 rewritten to
+partition live holds against the plan. **Live: `382 STRATEGIC (ladder lock -- no clock ...) + 0
+out-of-plan, oldest 20 min`, verdict ACCUMULATING.**
+
+**⭐ THE VERIFICATION IS THE PART WORTH KEEPING, BECAUSE MY FIRST TESTS WERE TOO WEAK TWICE.**
+Three assertions were written FIRST and shown RED against the pre-fix code. Then an 11-mutant sweep:
+
+* **M3 SURVIVED** — deleting the fail-closed "ids unreadable" branch changed no verdict, because the
+  out-of-plan clock catches the same case identically. The branch's real value is the **diagnosis**
+  (*"ids UNREADABLE"* sends the reader to the transport; *"N out-of-plan holds"* sends them to the
+  governor). Killed by asserting the **message**, not the verdict.
+* **M5 SURVIVED** — counting out-of-plan holds by subtracting an ID count from a TASK count survived
+  because no fixture had an array job with more than one held task. On a real one it would report
+  **418 phantom out-of-plan holds on a fleet whose every held job is in the plan.** Killed by a
+  fixture where the two counts diverge (`held=800`, 382 ids).
+* **M7 SURVIVED** — zeroing the strategic count changed only the printed line, which is exactly the
+  line read on every pass. A board saying *"0 STRATEGIC"* while 382 are held is a false reading.
+  Killed by asserting the rendered count.
+* **M10 died for the WRONG REASON** — an absurd 1e18 window died by an `OSError` from an invalid
+  timestamp rather than by any assertion. Rewritten to **bracket** the window (a day-old plan must be
+  stale, a minute-old plan must be fresh) instead of offsetting by the constant itself, which would
+  have passed for any value. Now killed semantically in **both** directions.
+
+**FINAL: 76 assertions, 11/11 mutants killed, AST clean, live-verified.**
+
+**13. ⚠ AND THE SELFTEST BANNER WAS ASSERTING A HARDCODED NUMBER.** `SELFTEST OK — 64 assertions`
+was a **string literal**; it did not move when nine assertions were added. A green banner was stating
+a false count — the same defect class as the *"35 registered keys"* this project carried for months
+until an AST walk said 39. Now computed from a counter incremented inside `ck()`, and it reads **76**.
+Found incidentally while mutation-testing something else, and fixed on sight per the zero-defect rule.
+
+**WHAT IS NEXT.** Re-measure the ticket experiment past a scheduler recompute. Re-run the governor on
+the 2-hourly cadence so the LADDER LOCK's release rule fires as blocks complete — *that cadence is the
+system*. Be present for `c1`'s C4 moment at ~00:0xZ on 7 August, when it tries 1,347 jobs into ~100
+slots of cap headroom, and settle `--pipeline-rungs` with Tamer before it happens.
+
 ## [2026-08-06c] ★★★★★ RUN 25 (OPS), pass 1 — **THE LADDER HAS NO ORDERING MECHANISM AT ALL, AND NOBODY NOTICED BECAUSE THE VALUE MODEL IS STRUCTURALLY BLIND TO IT** · 79.3% of 888 held cores are producing records that cannot raise any banked rung · the binding line walks into a job-cap wall in ~17 h · **and a tool that had already recorded why a 1 h throughput window is meaningless printed it first anyway, and misled Tamer with it for the second time**
 
 **WHERE WE WERE.** RUN 24 closed having taken cores 544 -> 800, executed the queue reorder that put

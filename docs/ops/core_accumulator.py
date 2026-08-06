@@ -81,6 +81,10 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 REPO = Path(__file__).resolve().parents[2]
 CYCLE_LOG = REPO / "docs" / "ops" / "watch" / "CYCLE_LOG.md"
 HOLD_JOURNAL = REPO / "docs" / "ops" / "watch" / "JOB_RANK_HOLDS.json"
+#: The LADDER LOCK's plan: {job_id: rung_distance} for every job that SHOULD be held right now.
+#: It is rewritten in full on every governor run, so a live hold absent from it is a hold the
+#: current plan no longer endorses.
+STRATEGIC_JOURNAL = REPO / "docs" / "ops" / "watch" / "LADDER_LOCK.json"
 SSH_TIMEOUT_SECS = 120
 
 #: 2,328 cores is the MEASURED historical peak (max of 304 `cores=` stamps). 2,328/8 = 291 jobs.
@@ -90,6 +94,9 @@ MAX_U_JOBS = 1000
 CAP_HEADROOM_FRAC = 0.95
 BLEED_FRAC = 0.80
 HOLD_BOUND_SECS = 5400.0            # 90 minutes, the bound the governor commits to
+#: A ladder-lock plan older than this is not evidence about what SHOULD be held now, so it may not
+#: be used to condemn a live hold as an orphan. Sized above the 2-hourly governor cadence.
+STRATEGIC_FRESH_SECS = 3.0 * 3600.0
 
 _TS = re.compile(r"^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)Z")
 _CORES = re.compile(r"cores=(\d+)")
@@ -369,11 +376,52 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
     age = state.get("hold_age_secs")
     if not state.get("held", 0) and not state.get("throttle_debt", 0):
         age = None
+
+    # ⭐⭐ TWO HOLD CLASSES, TWO DIFFERENT TESTS (Tamer ratified 2026-08-06).
+    # A TACTICAL promotion hold serves its purpose inside one dispatch cycle, so a 90-minute clock is
+    # the right instrument. A STRATEGIC hold -- the LADDER LOCK -- serves its purpose when the blocks
+    # BELOW it drain, which is DAYS by design. Clocking it would have driven the headline verdict to
+    # AVOIDABLE LOSS for the entire life of a correctly-working lock, which is the always-on-alarm
+    # pathology this campaign has already paid for once. What retires a strategic hold is the
+    # governor's RELEASE rule, so the honest test is whether that rule has fired and been IGNORED:
+    # a live hold missing from the current plan is a hold that should already have been released.
+    held_ids = state.get("held_ids")
+    strat_ids = set(state.get("strategic_ids") or ())
+    classified = held_ids is not None
+    n_strat = orphans = 0
+    if classified:
+        live = set(held_ids)
+        n_strat = len(live & strat_ids)
+        # ⚠ ONLY when the tactical journal claims NOTHING can an out-of-plan hold be attributed to a
+        # failed release: a genuine tactical hold is also absent from the ladder plan, and condemning
+        # it would be a false positive. Otherwise the strict clock takes over -- later, never wrong.
+        if strat_ids and state.get("strategic_fresh") and not state.get("tactical_held", 0):
+            orphans = len(live - strat_ids)
+    # ⚠ COUNT FROM THE IDS WHEN WE HAVE THEM. `held` is a TASK count and `n_strat` an ID count, so
+    # subtracting one from the other would mis-count the moment an array job carries >1 held task.
+    n_other = len(live - strat_ids) if classified else max(0, state.get("held", 0) - n_strat)
+
+    if age is None:
+        a5_ok, a5_why = True, "no hold"
+    elif orphans:
+        a5_ok = False
+        a5_why = ("%d live hold(s) the CURRENT ladder-lock plan no longer endorses -- they should "
+                  "already have been released, and that is true at any age" % orphans)
+    elif not classified and age > HOLD_BOUND_SECS:
+        a5_ok = False
+        a5_why = ("hold ids UNREADABLE so the class is unknown; falling back to the STRICT clock: "
+                  "oldest %.0f min (bound %.0f min)" % (age / 60.0, HOLD_BOUND_SECS / 60.0))
+    elif n_other and age > HOLD_BOUND_SECS:
+        a5_ok = False
+        a5_why = ("%d out-of-plan hold(s), oldest %.0f min (bound %.0f min)"
+                  % (n_other, age / 60.0, HOLD_BOUND_SECS / 60.0))
+    else:
+        a5_ok = True
+        a5_why = ("%d STRATEGIC (ladder lock -- no clock, it lasts until the blocks below drain) "
+                  "+ %d out-of-plan, oldest %.0f min" % (n_strat, n_other, age / 60.0))
     checks.append((
-        "A5 hold within bound", age is None or age <= HOLD_BOUND_SECS,
-        "no hold" if age is None else "oldest hold %.0f min (bound %.0f min)"
-        % (age / 60.0, HOLD_BOUND_SECS / 60.0),
-        "release immediately: a hold past its bound is pure loss, not caution. "
+        "A5 hold within bound", a5_ok, a5_why,
+        "release the named jobs: a hold whose purpose is served is pure loss, not caution. "
         "NOTE: the RETURN is throttled by the site JSV (~400 jobs/h), so a released hold "
         "drains over ~1h and a non-zero  during that window is NORMAL."))
 
@@ -414,9 +462,13 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
 # the live census
 # ---------------------------------------------------------------------------------------------
 def census(host: str = "myriad") -> tuple[dict, str]:
+    # ⚠ ONE round trip. Section 3 (the held ids) is what lets A5 tell a STRATEGIC ladder-lock hold
+    # from a tactical one; fetching it separately would add SSH load, and SSH load is measured to
+    # push the campaign's own cycle sweep toward its 900 s cap.
     cmd = ("qstat -u ucestes 2>/dev/null | awk 'NR>2{print $5}' | sort | uniq -c; "
            "echo ---; qstat -u ucestes -s p 2>/dev/null | awk 'NR>2 && $1 ~ /^[0-9]+$/{print $1}' "
-           "| head -1; echo ---; qstat -u ucestes -s hs 2>/dev/null | awk 'NR>2' | wc -l")
+           "| head -1; echo ---; qstat -u ucestes -s hs 2>/dev/null | awk 'NR>2' | wc -l; "
+           "echo ---; qstat -u ucestes -s h 2>/dev/null | awk 'NR>2 && $1 ~ /^[0-9]+$/{print $1}'")
     try:
         p = subprocess.run(["ssh", "-o", "BatchMode=yes", host, cmd],
                            capture_output=True, encoding="utf-8", errors="replace",
@@ -428,6 +480,7 @@ def census(host: str = "myriad") -> tuple[dict, str]:
     states: dict[str, int] = {}
     probe_jid = ""
     debt = 0
+    held_ids: set[str] = set()
     section = 0
     for line in p.stdout.splitlines():
         if line.strip() == "---":
@@ -441,6 +494,10 @@ def census(host: str = "myriad") -> tuple[dict, str]:
                 debt = int(line.strip())
             except ValueError:
                 pass
+            continue
+        if section == 3:
+            if line.strip().isdigit():
+                held_ids.add(line.strip())      # a set: an array job repeats its id per task
             continue
         f = line.split()
         if len(f) == 2 and f[0].isdigit():
@@ -456,6 +513,10 @@ def census(host: str = "myriad") -> tuple[dict, str]:
         "states": states,
         "probe_jid": probe_jid,
         "throttle_debt": debt,
+        # ⚠ None, not an empty set, when nothing is held: A5 must be able to tell "no hold" from
+        # "ids unreadable", because the second falls back to the STRICT clock and the first does not.
+        "held_ids": held_ids if held_ids else (set() if not any(
+            k.startswith("h") for k in states) else None),
     }
     return st, "OK"
 
@@ -472,6 +533,36 @@ def hold_age_secs() -> float | None:
     return max(0.0, time.time() - HOLD_JOURNAL.stat().st_mtime)
 
 
+def strategic_plan() -> tuple[set[str], bool]:
+    """(job ids the LADDER LOCK says should be held right now, is that plan FRESH?).
+
+    The governor rewrites this journal in full on every run, so it is the current plan rather than a
+    log. A live hold absent from a FRESH plan is a hold the release rule should already have lifted.
+    A STALE plan is not evidence about what should be held now and may not condemn anything.
+    """
+    if not STRATEGIC_JOURNAL.is_file():
+        return set(), False
+    try:
+        held = json.loads(STRATEGIC_JOURNAL.read_text(encoding="utf-8")).get("held") or {}
+    except Exception:                                           # noqa: BLE001
+        return set(), False
+    ids = set(held) if isinstance(held, dict) else set(map(str, held or ()))
+    fresh = (time.time() - STRATEGIC_JOURNAL.stat().st_mtime) <= STRATEGIC_FRESH_SECS
+    return ids, fresh
+
+
+def tactical_held() -> int:
+    """How many holds the TACTICAL (promotion) journal claims. Its schema records a COUNT, not ids,
+    so it cannot exempt a specific job -- only tell us that an out-of-plan hold may be legitimate."""
+    if not HOLD_JOURNAL.is_file():
+        return 0
+    try:
+        held = json.loads(HOLD_JOURNAL.read_text(encoding="utf-8")).get("held") or 0
+    except Exception:                                           # noqa: BLE001
+        return 0
+    return len(held) if isinstance(held, (dict, list)) else int(held)
+
+
 def report(host: str = "myriad") -> int:
     st, status = census(host)
     if status != "OK":
@@ -482,6 +573,8 @@ def report(host: str = "myriad") -> int:
         return 2
     hist = parse_core_history(CYCLE_LOG.read_text(encoding="utf-8", errors="replace"))
     st["hold_age_secs"] = hold_age_secs()
+    st["strategic_ids"], st["strategic_fresh"] = strategic_plan()
+    st["tactical_held"] = tactical_held()
 
     # A3/A6 need extra reads; keep them CHEAP and honest about being samples.
     st["unschedulable"] = 0
@@ -582,8 +675,14 @@ def report(host: str = "myriad") -> int:
 # ---------------------------------------------------------------------------------------------
 def selftest() -> int:
     fails = []
+    ran = [0]
 
+    # ⚠ COUNT THE ASSERTIONS, NEVER QUOTE THEM. The pass banner carried a HARDCODED "64 assertions"
+    # until 2026-08-06 and did not move when nine were added, so a green banner was asserting a
+    # number that was false. A count nobody recomputes is a claim, not a measurement -- the same
+    # defect class as the "35 registered keys" this project carried for months.
     def ck(name, got, want):
+        ran[0] += 1
         if got != want:
             fails.append("%s: got %r want %r" % (name, got, want))
 
@@ -657,6 +756,114 @@ def selftest() -> int:
     ck("held>0 with a past-bound age is STILL an avoidable loss",
        assess(dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS + 1), h, now)["verdict"],
        "AVOIDABLE LOSS")
+    # ⭐⭐ A5 IS TWO DIFFERENT CHECKS ON TWO DIFFERENT HOLD CLASSES (Tamer ratified 2026-08-06).
+    # A TACTICAL hold (promotion) serves its purpose inside one dispatch cycle, so 90 minutes is the
+    # right bound. A STRATEGIC hold (the LADDER LOCK) serves its purpose when the blocks BELOW it
+    # drain, which is DAYS by design -- so a clock measures the wrong quantity and would have flagged
+    # a correctly-working lock as AVOIDABLE LOSS for its entire life. What retires a strategic hold is
+    # the governor's RELEASE rule, so the honest test is whether that rule has fired and been ignored.
+    # Every assertion below FAILS against the pre-fix single-clock implementation or pins the part of
+    # it that must NOT change.
+    _strat = {str(90000 + i) for i in range(382)}
+    strategic_over_age = dict(good, held=len(_strat), hold_age_secs=HOLD_BOUND_SECS * 100,
+                              held_ids=set(_strat), strategic_ids=set(_strat),
+                              strategic_fresh=True)
+    ck("a STRATEGIC hold is NOT bounded by the clock, at ANY age",
+       assess(strategic_over_age, h, now)["verdict"], "ACCUMULATING")
+    # ⚠ AND THE BOARD MUST REPORT THE CLASS SPLIT HONESTLY. This is the line read on every pass, so a
+    # message saying "0 STRATEGIC" while 382 are held would be a false board reading -- the exact
+    # defect class this ledger keeps recording. A verdict-only assertion cannot catch it.
+    ck("...and the A5 line reports the strategic count, not zero",
+       "382 STRATEGIC" in [c[2] for c in assess(strategic_over_age, h, now)["checks"]
+                           if c[0] == "A5 hold within bound"][0], True)
+    # the tactical clock must survive intact -- this is the half that is NOT being relaxed
+    ck("a TACTICAL hold past its bound is STILL avoidable",
+       assess(dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS + 1,
+                   held_ids={str(i) for i in range(12)}, strategic_ids=set(),
+                   strategic_fresh=True), h, now)["verdict"], "AVOIDABLE LOSS")
+    # THE REPLACEMENT PREDICATE: a live hold the CURRENT plan no longer endorses has outlived its
+    # purpose, and that is true at one minute as much as at one week.
+    orphan = dict(good, held=5, hold_age_secs=60.0,
+                  held_ids={"1", "2", "3", "4", "9"}, strategic_ids={"1", "2", "3", "4"},
+                  strategic_fresh=True)
+    ck("a live hold the current plan does NOT endorse is avoidable at any age",
+       assess(orphan, h, now)["verdict"], "AVOIDABLE LOSS")
+    ck("...and A5 is the failing check",
+       [c[0] for c in assess(orphan, h, now)["avoidable"]], ["A5 hold within bound"])
+    # ⚠ A STALE PLAN MUST NOT CONDEMN. If the governor has not run recently its id list is not
+    # evidence about what SHOULD be held, so the orphan test must go quiet rather than alarm.
+    ck("a STALE strategic plan cannot condemn an orphan",
+       assess(dict(orphan, strategic_fresh=False), h, now)["verdict"], "ACCUMULATING")
+    # ⚠ FAIL-CLOSED. If the ids could not be read we cannot classify, and an unclassifiable hold
+    # falls back to the STRICT clock. Never weaken a check to make it pass.
+    _unread = dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS + 1, held_ids=None,
+                   strategic_ids=set(_strat), strategic_fresh=True)
+    ck("an unclassifiable hold falls back to the strict clock",
+       assess(_unread, h, now)["verdict"], "AVOIDABLE LOSS")
+    # ⚠ AND IT MUST SAY SO. Mutation-testing on 2026-08-06 showed a verdict-only assertion CANNOT
+    # kill a mutant that deletes this branch, because the out-of-plan clock catches the same case and
+    # returns the same verdict. What the branch uniquely provides is the DIAGNOSIS: "ids unreadable"
+    # sends the reader to the transport, "N out-of-plan holds" sends them to the governor. Those are
+    # different faults and a board that confuses them wastes the reader's next hour.
+    ck("...and names the transport, not the governor, as the thing to look at",
+       "UNREADABLE" in [c[2] for c in assess(_unread, h, now)["checks"]
+                        if c[0] == "A5 hold within bound"][0], True)
+    # ⚠ AN ARRAY JOB REPEATS ITS ID PER TASK, so the TASK count and the ID count diverge. This
+    # fixture is the only one where they do, and without it a mutant that counts out-of-plan holds by
+    # subtracting an id count from a task count survives -- it would report 418 phantom out-of-plan
+    # holds on a fleet whose every held job is in the plan, and fail A5 on a correct ladder lock.
+    ck("out-of-plan holds are counted from IDS, not by subtracting from a task count",
+       assess(dict(good, held=800, hold_age_secs=HOLD_BOUND_SECS + 1,
+                   held_ids=set(_strat), strategic_ids=set(_strat), strategic_fresh=True),
+              h, now)["verdict"], "ACCUMULATING")
+    # a MIXED hold set: the strategic half is exempt, the tactical half is not
+    ck("a mixed hold set still fails on its OUT-OF-PLAN half",
+       assess(dict(good, held=384, hold_age_secs=HOLD_BOUND_SECS + 1,
+                   held_ids=set(_strat) | {"1", "2"}, strategic_ids=set(_strat),
+                   strategic_fresh=True), h, now)["verdict"], "AVOIDABLE LOSS")
+    # ⚠ THE ONE FALSE POSITIVE THE ORPHAN CLAUSE COULD PRODUCE, AND WHY IT CANNOT. A genuine
+    # TACTICAL promotion hold is also absent from the ladder-lock plan, so "not in the plan" alone
+    # would condemn it. It is only an ORPHAN when the tactical journal records NO holds of its own,
+    # i.e. when nothing else can account for it. When the tactical journal DOES claim holds we cannot
+    # attribute them by id, so the strict clock takes over -- later than ideal, never wrong.
+    ck("a hold the TACTICAL journal accounts for is not an orphan",
+       assess(dict(orphan, tactical_held=1), h, now)["verdict"], "ACCUMULATING")
+    ck("...but it is still bound by the tactical clock",
+       assess(dict(orphan, tactical_held=1, hold_age_secs=HOLD_BOUND_SECS + 1),
+              h, now)["verdict"], "AVOIDABLE LOSS")
+
+    # ⚠ THE FRESHNESS THRESHOLD ITSELF, not just the guard that consults it. Mutation-testing showed
+    # that setting STRATEGIC_FRESH_SECS to 1e18 survived every assertion above, because those inject
+    # `strategic_fresh` as a boolean and never exercise `strategic_plan()`. An unbounded window would
+    # let a plan from days ago condemn today's holds. These four cases read a real file.
+    global STRATEGIC_JOURNAL                                            # noqa: PLW0603
+    _saved = STRATEGIC_JOURNAL
+    try:
+        import tempfile
+        _tmp = Path(tempfile.mkdtemp()) / "LADDER_LOCK.json"
+        STRATEGIC_JOURNAL = _tmp
+        ck("a missing plan is empty and NOT fresh", strategic_plan(), (set(), False))
+        _tmp.write_text(json.dumps({"held": {"91078": 6, "91086": 5}}), encoding="utf-8")
+        ck("a plan written now is fresh, with its ids", strategic_plan(),
+           ({"91078", "91086"}, True))
+        # ⚠ BRACKET THE WINDOW, do not re-quote the constant. Offsetting by the constant itself
+        # would make the test pass for ANY value including an absurd one, and an absurd one (1e18)
+        # only died by an OSError from an invalid timestamp -- a kill for the wrong reason. A day-old
+        # plan must be stale and a minute-old plan must be fresh; that brackets the window into the
+        # only band that is operationally sane, without hardcoding the same magic number twice.
+        import os
+        _day = time.time() - 24.0 * 3600.0
+        os.utime(_tmp, (_day, _day))
+        ck("a DAY-old plan is STALE", strategic_plan()[1], False)
+        _min = time.time() - 60.0
+        os.utime(_tmp, (_min, _min))
+        ck("a MINUTE-old plan is FRESH", strategic_plan()[1], True)
+        os.utime(_tmp, (_day, _day))
+        ck("...and a stale plan still yields its ids, so nothing is silently lost",
+           strategic_plan()[0], {"91078", "91086"})
+    finally:
+        STRATEGIC_JOURNAL = _saved
+
     ck("a line with no work is AVOIDABLE",
        assess(dict(good, lines_without_work=1), h, now)["verdict"], "AVOIDABLE LOSS")
 
@@ -768,7 +975,8 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 64 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
+    print("SELFTEST OK — %d assertions: attribution precedence, the joint signal, the dry-out "
+          "forecast, the burst window, the throttle-debt gate and the two hold classes" % ran[0])
     return 0
 
 
