@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 09:45 UTC -- T+204h36m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 09:46 UTC -- T+204h37m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+204h36m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+204h37m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19058** |
@@ -24,9 +24,9 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **912** (114 running, 798 queued) |
-| **cores computing** | **912** |
-| **cores doing RUNG-RAISING work** | **20.7%** -- 200 of 968 cores (26 min old) |
+| cluster jobs | **911** (113 running, 798 queued) |
+| **cores computing** | **904** |
+| **cores doing RUNG-RAISING work** | **20.7%** -- 200 of 968 cores (27 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -38,14 +38,14 @@ showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)
 
 ```
 generated 2026-08-06 09:46 UTC | elapsed 8.53 d | 20.6 d to the Aug-27 stop
-test tier: 17,515 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+test tier: 17,516 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 90.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 90.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h     127 records     127.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     156 records      52.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1083 records      90.2 rec/h   usable
-    last 24 h    2803 records     116.8 rec/h   usable
+    last  3 h     157 records      52.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1081 records      90.1 rec/h   usable
+    last 24 h    2804 records     116.8 rec/h   usable
     12 h rate is 68% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 2% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -61,11 +61,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,752     127  GATED             GATED             barrier>=30
-      279       9,800     127  GATED             GATED             barrier>=30
-      340      12,545     127  GATED             GATED             barrier>=30
-      403      15,380     127  GATED             GATED             barrier>=30
-      568      22,813     127  GATED             GATED             barrier>=30
+      189       5,751     127  GATED             GATED             barrier>=30
+      279       9,799     127  GATED             GATED             barrier>=30
+      340      12,544     127  GATED             GATED             barrier>=30
+      403      15,379     127  GATED             GATED             barrier>=30
+      568      22,812     127  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -74,14 +74,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 78% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @912 cores      @830 cores   binding
+     rung      @904 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
-      189           5.9 d           6.5 d   throughput
-      279           8.4 d           9.3 d   throughput
-      340          10.1 d          11.1 d   throughput
-      403          11.9 d          13.0 d   throughput
-      568          16.5 d          18.1 d   throughput
+      189           6.0 d           6.5 d   throughput
+      279           8.5 d           9.3 d   throughput
+      340          10.2 d          11.1 d   throughput
+      403          12.0 d          13.0 d   throughput
+      568          16.6 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
