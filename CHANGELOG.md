@@ -512,6 +512,46 @@ reads `cores -104, USEFUL -16, marginal 20.7% vs a 21.4% average, SHRINKING -> n
 **ESCALATIONS UNCHANGED (pass 7).** R25-1/2/3 remain Tamer's. Job-cap headroom **93 of 1,000**
 against the **1,347 jobs `c1` will submit in roughly thirteen hours.**
 
+### ⑭ PASS 8 (11:21-11:3xZ) — **THE DISPATCH RATE HAS COLLAPSED 6.7x AND IT IS THE MEASURED DIURNAL SHAPE, NOT A FAULT — AND THE PASS-5 FIX PREVENTED A LIVE FALSE ALARM**
+
+**Board GREEN.** cores **848** (106 jobs), accumulator 8/8, `ACCUMULATING`, drift 0, `sci OK`,
+`Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, `line_balance` CLEAN, inbox empty, ssh OK. Records
+**19,134**; cluster-side production 60 in the last 60 min. **No new defect.**
+
+**PROVEN-BENIGN — THE DISPATCH COLLAPSE, WITH THREE INDEPENDENT DERIVATIONS.** Across passes the
+accumulator's dispatch rate fell **12.6 -> 11.2 -> 10.9 -> 10.3 -> 9.1 jobs/h** and cores drifted
+**1,000 -> 968 -> 904 -> 896 -> 848**. Derived independently from the START TIMES of the live fleet:
+`06Z 40 jobs · 07Z 16 · 08Z 11 · 09Z 4 · 10Z 3 · 11Z 1`, i.e. **24 jobs in the last 4 h = 6.0
+jobs/h against 40/h at the 06Z peak — a 6.7x collapse.** ⚠ **AND IT IS EXACTLY THE DOSSIER'S
+MEASURED DIURNAL PROFILE** (*"best 03:00-08:00Z, mean 1,524 cores; worst 19:00-00:00Z"*). **We
+CAPTURED that window** — cores went 784 -> 1,000 across it — and are in the expected post-peak
+decline; the accumulator's own burst line agrees (`now inside the high window: no`), eligible depth
+is **794 against the 291 burst floor**, so this is **not a missed burst.** ⭐ Note the censoring
+correction applied to the derivation: only the last 4 h is unbiased, because at a 9.1 h job wall the
+4-8 h window contains jobs that have already finished and therefore under-counts by construction.
+**Reading that window as a rate would have manufactured a much worse-looking number.**
+
+**⭐ FAVOURABLE FORWARD OBSERVATION THAT FALLS OUT OF IT: `c1`'s C4 opens at ~00:01Z, immediately
+BEFORE the 03:00-08:00Z high window.** Its 1,347 jobs would enter the queue exactly as the cluster
+begins emptying — the best available timing for the worst-positioned submission.
+
+**⭐⭐ AND THE PASS-5 DIRECTION-AWARE FIX PREVENTED A FALSE ALARM ON LIVE DATA THIS PASS.** The trend
+reads `cores -152, USEFUL -16, marginal 13.3% against a 22.6% average, SHRINKING`. **136 of the 152
+lost cores were DEFERRED work**, which is why allocative efficiency ROSE **21.4% -> 22.6%**. The
+pre-fix logic (`GAIN_WASTED if marginal < average`) would have fired **GAIN-WASTED** on exactly this
+state. **On a shrinking fleet a LOW marginal is good news, and the instrument now says so.**
+
+**STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
+**Round 1 completes ~14:54Z — 3.5 h out. RUNG 30 = `2026-08-07 00:01Z`** (wall unchanged at
+9.121 h, so the date is unchanged — one pass, not three).
+
+**STEP 5.** Placeable **1,544 against 848 held — 696 of headroom.** Allocative **22.6%**, the best
+reading of the session. `kimi` **712 cores owing 222, the LEAST**; `c1` **64 against a 462 target**;
+deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES STARVED, unchanged.**
+
+**ESCALATIONS UNCHANGED (pass 8).** R25-1/2/3 remain Tamer's. Job-cap headroom **100 of 1,000**
+against the **1,347 jobs `c1` will submit in roughly twelve and a half hours.**
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a
