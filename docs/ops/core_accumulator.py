@@ -84,7 +84,18 @@ HOLD_JOURNAL = REPO / "docs" / "ops" / "watch" / "JOB_RANK_HOLDS.json"
 #: The LADDER LOCK's plan: {job_id: rung_distance} for every job that SHOULD be held right now.
 #: It is rewritten in full on every governor run, so a live hold absent from it is a hold the
 #: current plan no longer endorses.
-STRATEGIC_JOURNAL = REPO / "docs" / "ops" / "watch" / "LADDER_LOCK.json"
+#: A hold is STRATEGIC when what retires it is a PREDICATE, not a clock. Two exist:
+#:   LADDER_LOCK  — released when the blocks below a held one drain (days).
+#:   FLOOR_HOLD   — released when c1's round-2 jobs are RUNNING, or if cores fall below 400 while
+#:                  eligible is 0. Placed 2026-08-06 to concentrate our whole functional-ticket
+#:                  allocation onto the rung-30 floor, worth a measured ~31 h on that floor.
+#: Both carry {job_id: _} under "held". Anything held and in NEITHER is out-of-plan and keeps the
+#: 90-minute clock — which is the correct default, because an unexplained hold is a suspect one.
+STRATEGIC_JOURNALS = (
+    REPO / "docs" / "ops" / "watch" / "LADDER_LOCK.json",
+    REPO / "docs" / "ops" / "watch" / "FLOOR_HOLD.json",
+)
+STRATEGIC_JOURNAL = STRATEGIC_JOURNALS[0]      # kept for the selftest's monkeypatch seam
 SSH_TIMEOUT_SECS = 120
 
 #: 2,328 cores is the MEASURED historical peak (max of 304 `cores=` stamps). 2,328/8 = 291 jobs.
@@ -477,12 +488,17 @@ def census(host: str = "myriad") -> tuple[dict, str]:
         return {}, "TRANSPORT-FAILED: %s" % repr(exc)[:80]
     if p.returncode not in (0, 1):
         return {}, "TRANSPORT-FAILED: rc=%d" % p.returncode
+    return parse_census(p.stdout)
+
+
+def parse_census(stdout: str) -> tuple[dict, str]:
+    """The census PARSE, split out so the empty-read guard below is testable without a cluster."""
     states: dict[str, int] = {}
     probe_jid = ""
     debt = 0
     held_ids: set[str] = set()
     section = 0
-    for line in p.stdout.splitlines():
+    for line in stdout.splitlines():
         if line.strip() == "---":
             section += 1
             continue
@@ -502,6 +518,28 @@ def census(host: str = "myriad") -> tuple[dict, str]:
         f = line.split()
         if len(f) == 2 and f[0].isdigit():
             states[f[1]] = int(f[0])
+
+    # ⚠⚠ AN EMPTY qstat IS NOT A MEASUREMENT OF ZERO, AND THIS INSTRUMENT DRIVES THE HEADLINE
+    # VERDICT. Observed live 2026-08-06: `qstat -u ucestes` intermittently returns NOTHING with
+    # rc=0 under qmaster load. One read that afternoon was internally CONTRADICTORY in a single
+    # response — `c1 running: 8` beside `total running: 0` and `held: 0` — and a watch that took
+    # the zeros at face value raised a false "the campaign is dead" alarm within the hour, while
+    # the cycle log was still banking records (+3, +5) from those very jobs.
+    #
+    # Left unguarded, an empty read gives running=0 → cores=0 and eligible=0, so A1 FAILS and the
+    # verdict becomes AVOIDABLE LOSS: the instrument would assert we are losing cores through our
+    # own fault, on the strength of a query that never returned. A live campaign holding zero jobs
+    # in EVERY state is either a catastrophe or an unread queue, and in both cases the honest
+    # output is CANNOT DECIDE rather than a verdict computed from zeros. `arm_jobs.py` already
+    # carries exactly this guard — *"an empty job list from a failed transport is indistinguishable
+    # from an empty queue"* — and this file should have had it from the start.
+    #
+    # ⚠ CONSEQUENCE, stated rather than discovered later: when the campaign genuinely finishes and
+    # holds no jobs, this reports CANNOT DECIDE forever. That is correct — accumulation is not a
+    # question a finished campaign has — but it means this file must not be used as a done-detector.
+    if not states:
+        return {}, "EMPTY-OR-UNREAD: qstat returned no job in ANY state"
+
     running = states.get("r", 0)
     st = {
         "cores": 8 * running,
@@ -534,21 +572,32 @@ def hold_age_secs() -> float | None:
 
 
 def strategic_plan() -> tuple[set[str], bool]:
-    """(job ids the LADDER LOCK says should be held right now, is that plan FRESH?).
+    """(job ids a STRATEGIC hold says should be held right now, is that evidence FRESH?).
 
-    The governor rewrites this journal in full on every run, so it is the current plan rather than a
-    log. A live hold absent from a FRESH plan is a hold the release rule should already have lifted.
-    A STALE plan is not evidence about what should be held now and may not condemn anything.
+    The union over every strategic journal. The governor rewrites LADDER_LOCK in full on each run,
+    so it is the CURRENT plan rather than a log, and a live hold absent from a fresh plan is one
+    the release rule should already have lifted.
+
+    ⚠ FRESHNESS IS ``all()``, NOT ``any()``, AND THE ASYMMETRY IS DELIBERATE. Freshness is only ever
+    used to decide whether we may CONDEMN an out-of-plan hold as an orphan. If even one journal is
+    stale we do not know the full intended hold set, so condemning on the remainder would fire on
+    holds the stale journal legitimately explains. Ids union; the licence to accuse does not.
     """
-    if not STRATEGIC_JOURNAL.is_file():
-        return set(), False
-    try:
-        held = json.loads(STRATEGIC_JOURNAL.read_text(encoding="utf-8")).get("held") or {}
-    except Exception:                                           # noqa: BLE001
-        return set(), False
-    ids = set(held) if isinstance(held, dict) else set(map(str, held or ()))
-    fresh = (time.time() - STRATEGIC_JOURNAL.stat().st_mtime) <= STRATEGIC_FRESH_SECS
-    return ids, fresh
+    ids: set[str] = set()
+    fresh = True
+    seen_any = False
+    for path in STRATEGIC_JOURNALS:
+        if not path.is_file():
+            continue
+        try:
+            held = json.loads(path.read_text(encoding="utf-8")).get("held") or {}
+        except Exception:                                       # noqa: BLE001
+            return set(), False        # an unreadable journal is not evidence of anything
+        seen_any = True
+        ids |= set(held) if isinstance(held, dict) else set(map(str, held or ()))
+        if (time.time() - path.stat().st_mtime) > STRATEGIC_FRESH_SECS:
+            fresh = False
+    return ids, (fresh and seen_any)
 
 
 def tactical_held() -> int:
@@ -836,16 +885,33 @@ def selftest() -> int:
     # that setting STRATEGIC_FRESH_SECS to 1e18 survived every assertion above, because those inject
     # `strategic_fresh` as a boolean and never exercise `strategic_plan()`. An unbounded window would
     # let a plan from days ago condemn today's holds. These four cases read a real file.
-    global STRATEGIC_JOURNAL                                            # noqa: PLW0603
-    _saved = STRATEGIC_JOURNAL
+    global STRATEGIC_JOURNALS                                           # noqa: PLW0603
+    _saved = STRATEGIC_JOURNALS
     try:
         import tempfile
-        _tmp = Path(tempfile.mkdtemp()) / "LADDER_LOCK.json"
-        STRATEGIC_JOURNAL = _tmp
-        ck("a missing plan is empty and NOT fresh", strategic_plan(), (set(), False))
+        _dir = Path(tempfile.mkdtemp())
+        _tmp = _dir / "LADDER_LOCK.json"
+        _tmp2 = _dir / "FLOOR_HOLD.json"
+        STRATEGIC_JOURNALS = (_tmp, _tmp2)
+        ck("no journal at all is empty and NOT fresh", strategic_plan(), (set(), False))
         _tmp.write_text(json.dumps({"held": {"91078": 6, "91086": 5}}), encoding="utf-8")
         ck("a plan written now is fresh, with its ids", strategic_plan(),
            ({"91078", "91086"}, True))
+        # ⚠ TWO STRATEGIC JOURNALS: the ladder lock and the floor hold are both released by a
+        # PREDICATE rather than a clock, so their ids UNION. A hold explained by either is in-plan.
+        _tmp2.write_text(json.dumps({"held": {"99001": 0}}), encoding="utf-8")
+        ck("a second journal's ids UNION into the plan", strategic_plan()[0],
+           {"91078", "91086", "99001"})
+        # ⚠ AND FRESHNESS IS all(), NOT any(). If ANY journal is stale we do not know the full
+        # intended hold set, so we may not condemn an out-of-plan hold as an orphan — the stale one
+        # might be exactly what explains it. Ids union; the licence to accuse does not.
+        import os as _os
+        _stale = time.time() - STRATEGIC_FRESH_SECS - 3600.0
+        _os.utime(_tmp2, (_stale, _stale))
+        ck("ONE stale journal makes the whole plan un-condemning", strategic_plan()[1], False)
+        ck("...but its ids are still counted, so nothing is falsely orphaned",
+           strategic_plan()[0], {"91078", "91086", "99001"})
+        _os.utime(_tmp2, (time.time(), time.time()))
         # ⚠ BRACKET THE WINDOW, do not re-quote the constant. Offsetting by the constant itself
         # would make the test pass for ANY value including an absurd one, and an absurd one (1e18)
         # only died by an OSError from an invalid timestamp -- a kill for the wrong reason. A day-old
@@ -859,10 +925,41 @@ def selftest() -> int:
         os.utime(_tmp, (_min, _min))
         ck("a MINUTE-old plan is FRESH", strategic_plan()[1], True)
         os.utime(_tmp, (_day, _day))
-        ck("...and a stale plan still yields its ids, so nothing is silently lost",
-           strategic_plan()[0], {"91078", "91086"})
+        ck("...and a stale plan still yields EVERY journal's ids, so nothing is silently lost",
+           strategic_plan()[0], {"91078", "91086", "99001"})
+        # ⚠ A CORRUPT JOURNAL IS FAIL-CLOSED, and this is a real case rather than a hypothetical:
+        # the governor rewrites LADDER_LOCK.json in full on every run, so a read that lands
+        # mid-write sees truncated JSON. Skipping it would leave us CONDEMNING every hold that
+        # journal explained; returning its ids from a half-parse would be worse still. We know
+        # nothing, so we claim nothing: no ids, not fresh.
+        _tmp2.write_text('{"held": {"99001": 0', encoding="utf-8")   # truncated mid-write
+        ck("a CORRUPT journal yields no ids and no licence to condemn",
+           strategic_plan(), (set(), False))
+        _tmp2.write_text(json.dumps({"held": {"99001": 0}}), encoding="utf-8")
     finally:
-        STRATEGIC_JOURNAL = _saved
+        STRATEGIC_JOURNALS = _saved
+
+    # ⚠⚠ THE EMPTY READ. Live 2026-08-06: `qstat -u ucestes` returned NOTHING with rc=0 under
+    # qmaster load, and a watch that read the zeros at face value cried "the campaign is dead"
+    # while the cycle log was still banking records from the very jobs it claimed were gone.
+    # Unguarded, an empty parse gives cores=0 and eligible=0, so A1 fails and this instrument
+    # asserts AVOIDABLE LOSS — we are losing cores through our own fault — on a query that never
+    # returned. These four cases fail against any parse that treats empty as zero.
+    _sec = "---"
+    ck("an EMPTY qstat is UNDECIDED, never a measurement of zero",
+       parse_census("\n%s\n\n%s\n0\n%s\n" % (_sec, _sec, _sec))[1].startswith("EMPTY-OR-UNREAD"),
+       True)
+    ck("...and it returns NO state, so no caller can read a zero out of it",
+       parse_census("\n%s\n\n%s\n0\n%s\n" % (_sec, _sec, _sec))[0], {})
+    ck("a populated qstat still parses to OK",
+       parse_census("     97 r\n    794 hqw\n%s\n91078\n%s\n0\n%s\n91078\n" % (_sec, _sec, _sec))[1],
+       "OK")
+    _st = parse_census("     97 r\n    794 hqw\n%s\n91078\n%s\n0\n%s\n91078\n"
+                       % (_sec, _sec, _sec))[0]
+    ck("...with the live 2026-08-06 shape: 97 running -> 776 cores",
+       (_st["running"], _st["cores"], _st["held"]), (97, 776, 794))
+    ck("...and the held ids come back as a SET, not None",
+       _st["held_ids"], {"91078"})
 
     ck("a line with no work is AVOIDABLE",
        assess(dict(good, lines_without_work=1), h, now)["verdict"], "AVOIDABLE LOSS")

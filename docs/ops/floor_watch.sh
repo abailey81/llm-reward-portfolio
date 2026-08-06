@@ -14,6 +14,21 @@ while true; do
     set -- $out
     c1r="${1:-}"; c1p="${2:-}"; elig="${3:-}"; run="${4:-}"
     if [ -z "$c1r" ]; then sleep 120; continue; fi
+    # ⚠⚠ AN EMPTY qstat IS NOT A MEASUREMENT OF ZERO, AND THIS SCRIPT LEARNED IT THE EXPENSIVE WAY.
+    # 2026-08-06 14:07Z: `qstat -u ucestes` returned NOTHING with rc=0 under qmaster load, every
+    # `wc -l` and `grep -c` above returned 0, and the -z guard did not fire because "0" is not
+    # empty. This watch then announced "cores=0 -- the campaign is dead" while the cycle log was
+    # banking +3 and +5 records from the very jobs it had just written off. A read from the SAME
+    # response was internally contradictory: `c1 running: 8` beside `total running: 0`.
+    #
+    # THE DISCRIMINATOR: we always hold 794 jobs, so a response claiming ZERO jobs in EVERY state
+    # is an unread queue, not an empty one. `arm_jobs.py` has carried this guard all along and
+    # core_accumulator.py has now been given it too.
+    if [ "$run" -eq 0 ] && [ "$elig" -eq 0 ] && [ "$c1r" -eq 0 ] && [ "$c1p" -eq 0 ]; then
+        echo "qstat returned zero jobs in EVERY state -- treating as UNREAD, not empty. Skipping."
+        sleep 120
+        continue
+    fi
     cores=$(( run * 8 ))
     key="$c1r/$c1p"
     if [ "$key" != "$prev" ]; then
