@@ -16,7 +16,7 @@ back what it did.
 | records archived | **19134** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 11.1 h ago** |
+| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 11.2 h ago** |
 | transport timeouts (cumulative, ever) | 186 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -37,14 +37,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 11:13 UTC | elapsed 8.59 d | 20.5 d to the Aug-27 stop
+generated 2026-08-06 11:14 UTC | elapsed 8.59 d | 20.5 d to the Aug-27 stop
 test tier: 17,591 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 74.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 74.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      62 records      62.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     228 records      76.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     894 records      74.5 rec/h   usable
+    last 12 h     890 records      74.2 rec/h   usable
     last 24 h    2664 records     111.0 rec/h   usable
     12 h rate is 89% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -250,12 +250,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T11:00:44Z  OK  records=19122 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.8m  drift=0  sci=OK  r115=22B  sweep=30.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:01:42Z  OK  records=19122 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=28.2s  auto-cycle
 2026-08-06T11:05:33Z  OK  records=19131 (+9)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=200.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:10:50Z  OK  records=19134 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=286.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:11:49Z  OK  records=19134 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=29.4s  auto-cycle
 2026-08-06T11:13:00Z  OK  records=19134 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.3m  drift=0  sci=OK  r115=22B  cores=848  sweep=40.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T11:13:59Z  OK  records=19134 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=28.5s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
