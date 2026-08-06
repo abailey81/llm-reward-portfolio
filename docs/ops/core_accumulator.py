@@ -241,7 +241,15 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
         "jobs=%d of max_u_jobs %d" % (state["total_jobs"], MAX_U_JOBS),
         "a saturated queue means qsub refusals, so we cannot grow into a burst"))
 
+    # ⚠ THE LIVE QUEUE IS THE AUTHORITY; THE JOURNAL IS ONLY A RECOVERY AID. `hold_age_secs()` reads
+    # the journal's mtime, and the journal keeps its id list after those jobs are released -- so on
+    # 2026-08-06 A5 reported "oldest hold 74 min" while the live census said held=0 and
+    # throttle_debt=0. Sixteen minutes later it would have raised a FALSE "hold past its bound" and
+    # instructed a release of something that no longer existed. A hold that the QUEUE does not show
+    # is not a hold, whatever any file on disk says.
     age = state.get("hold_age_secs")
+    if not state.get("held", 0) and not state.get("throttle_debt", 0):
+        age = None
     checks.append((
         "A5 hold within bound", age is None or age <= HOLD_BOUND_SECS,
         "no hold" if age is None else "oldest hold %.0f min (bound %.0f min)"
@@ -500,10 +508,28 @@ def selftest() -> int:
        assess(dict(good, unschedulable=1), h, now)["verdict"], "AVOIDABLE LOSS")
     ck("a saturated job cap is AVOIDABLE",
        assess(dict(good, total_jobs=960), h, now)["verdict"], "AVOIDABLE LOSS")
+    # ⚠ THESE TWO FIXTURES CARRIED AN IMPOSSIBLE STATE UNTIL 2026-08-06: they set a hold AGE while
+    # leaving held=0, i.e. "a hold exists and also does not". They passed only because A5 trusted the
+    # journal, so fixing A5 to read the live queue exposed them. `held=12` makes them physically
+    # coherent -- correcting a fixture that could not occur, not weakening the assertion.
     ck("a hold past its bound is AVOIDABLE",
-       assess(dict(good, hold_age_secs=HOLD_BOUND_SECS + 1), h, now)["verdict"], "AVOIDABLE LOSS")
+       assess(dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS + 1), h, now)["verdict"],
+       "AVOIDABLE LOSS")
     ck("a hold INSIDE its bound is fine",
-       assess(dict(good, hold_age_secs=HOLD_BOUND_SECS - 1), h, now)["verdict"], "ACCUMULATING")
+       assess(dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS - 1), h, now)["verdict"],
+       "ACCUMULATING")
+    # ⭐ A STALE JOURNAL MUST NOT INVENT A HOLD. Found live 2026-08-06: A5 reported "oldest hold
+    # 74 min" while the live census said held=0 and throttle_debt=0 -- because `hold_age_secs()`
+    # reads the JOURNAL's mtime and the journal still listed 395 ids that had already been released.
+    # Left alone it would have fired a FALSE "hold past its bound" 16 minutes later and told the
+    # reader to release something that does not exist. The LIVE QUEUE is the authority; the journal
+    # is a recovery aid. These two cases fail against any implementation that trusts the journal.
+    ck("held=0 makes a past-bound journal age IRRELEVANT",
+       assess(dict(good, held=0, hold_age_secs=HOLD_BOUND_SECS + 9999), h, now)["verdict"],
+       "ACCUMULATING")
+    ck("held>0 with a past-bound age is STILL an avoidable loss",
+       assess(dict(good, held=12, hold_age_secs=HOLD_BOUND_SECS + 1), h, now)["verdict"],
+       "AVOIDABLE LOSS")
     ck("a line with no work is AVOIDABLE",
        assess(dict(good, lines_without_work=1), h, now)["verdict"], "AVOIDABLE LOSS")
 
@@ -568,7 +594,7 @@ def selftest() -> int:
         for f in fails:
             print("  " + f)
         return 1
-    print("SELFTEST OK — 46 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
+    print("SELFTEST OK — 48 assertions: attribution precedence, the joint signal, the dry-out forecast, the burst window and the throttle-debt gate")
     return 0
 
 
