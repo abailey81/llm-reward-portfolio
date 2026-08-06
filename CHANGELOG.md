@@ -329,6 +329,66 @@ the same wall-kill margin. ⚠ **Kept in the SCRATCHPAD, not the live tree**, be
 re-bases `RUNNING_SHA` in one move, which is the sanctioned exit for a fenced change that is
 genuinely reachable from the driver.
 
+---
+
+### PASS 3 — TAMER: *"the cores number decreased, you are going opposite of our priorities"*
+
+**19. HE WAS RIGHT, AND THE ACCOUNTING IS OWED BEFORE THE DEFENCE.** Cores fell 792 -> 696 while the
+floor hold was on. Measured cause, by start hour of our 88 running jobs (host-local):
+`05:00 x1 · 06:00 x13 · **07:00 x39** · 08:00 x16 · 09:00 x11 · 10:00 x4 · 11:00 x3 · 12:00 x1`.
+**Thirty-nine jobs started in ONE hour** — the 06:00Z burst dispatched when the cluster emptied — and
+at a 9.12 h wall they all finish together around 15:07Z. **That drain is structural and happens with
+or without the hold.** What the hold costs is the ability to REPLACE them, and at the measured
+MIDDAY dispatch rate (**0-3 jobs/h**, not the 6.6/h long-window average) that is **8-24 cores**.
+
+⭐ **AND THE TIMING TURNS OUT TO BE FAVOURABLE RATHER THAN CONFLICTING.** Round 1 drains ~14:53Z and
+round 2 submits; our own 39 jobs then free **312 slots** at ~15:07Z; round 2 needs **64** of them and,
+with our entire allocation concentrated on 8 jobs, is our highest-ranked work at exactly the moment
+our own capacity is vacated. **The floor dispatches into slots we ourselves freed.** Priced against
+`c1` round 1's actual **30.6 h** queue wait, the trade is 8-24 cores for up to ~31 hours on the rung
+Tamer named the absolute priority. **Put to him with both options and the numbers; he chose to hold.**
+
+**20. ⭐⭐ THE RELEASE IS NOW AUTOMATIC, BECAUSE HUMAN LATENCY ON THAT TRANSITION IS ITSELF A COST.**
+`floor_hold.sh --release-when-ready` is a **safe no-op** until one of two conditions holds: an
+`h2_pair` job is RUNNING (purpose served), or cores < 400 while eligible is 0 (the hold now costs
+more than it can buy). It deliberately does NOT release on round 2 merely being SUBMITTED —
+submitted-and-queued is the exact state the concentration exists to get through. It carries the
+empty-`qstat` guard learned at 14:07Z, and it is polled on a loop so the hold lifts itself the
+instant it has done its job.
+
+**21. ⛔⛔ AND THE STATUS PAGE WAS ACTIVELY MISLEADING TAMER ABOUT THE FLOOR** — see ledger **R26-9**.
+`stage_eta --page` printed rung 30 landing **in ~90 minutes**, from 89 remaining ÷ a 55.3 rec/h
+fleet rate, when 60 of those 89 belonged to two units with **zero records and zero jobs**. The
+pre-existing gate asked whether ANY owing cell was producing and two other `c1` arms were. **My first
+fix did not fire either**, because those units have no directory and are absent from `cells` — while
+`backlog()` had always returned their count and the loop threw it away, and the page printed a
+footnote naming them. **Third instrument in one session to hold the disqualifying fact, say it in
+prose, and print the number anyway.** Now `GATED / unstarted:2-unit(s)-absent`. **67/67, 3/3 mutants,
+page ASCII-clean.**
+
+**22. ⚠ A DEFECT CAUGHT BEFORE IT COULD CONFOUND THE CANARY** — ledger **R26-10**.
+`watchdog_fenced.ps1:231` revives a dead line **without** `-SpecsPerTask`, on a 300 s interval, so a
+crash would silently turn the canary back into an ordinary 8-spec line mid-measurement. The irony is
+the argument: that file exists **because** the repo watchdog omitted `-ExcludeHosts` and would
+*"SILENTLY UNDO the substrate fence"*. Deferred deliberately (detect-and-re-apply for the canary;
+proper per-line DATA before any roll-out) rather than spending one of Tamer's restarts during the
+floor handover.
+
+**23. THE PLAN OF RECORD WAS CORRECTED IN PLACE.** `RUN26_SESSION_PROMPT.md` §4 and §5 now carry
+prepended correction blocks — the ~32 h queue term, and the cores diagnosis **including my own wrong
+first answer** (a fair-share ceiling; our total allocation is in fact the cluster MEDIAN, so we are
+not penalised, we dilute across 897 jobs). Prepended rather than rewritten so the original reasoning
+stays visible and the next session can see why it was wrong.
+
+**24. ⚠ SSH LOAD DISCIPLINE, RE-LEARNED.** Two SSH monitors plus my own commands pushed the cycle
+sweep to **801.2 s against the 900 s cap** — 89%. Killed the redundant watcher (the auto-release
+monitor already reports everything it did) and found **two orphaned `floor_watch` bash children still
+alive**, including the ORIGINAL UNGUARDED one that had raised the false "cores=0" alarm: `TaskStop`
+kills the wrapper, not the child. ⚠ **AND `ps -ef | grep -c` THEN REPORTED ONLY 2 CAMPAIGN
+PROCESSES**, which read like I had killed something. `Win32_Process` showed **7 supervisors, 15
+driver processes, cycle, watchdog, sentinel and backup all alive** — `ps -ef` truncation again, the
+brief's standing warning, and the reason to verify before reacting.
+
 **WHAT IS NEXT.** Re-measure the ticket experiment past a scheduler recompute. Re-run the governor on
 the 2-hourly cadence so the LADDER LOCK's release rule fires as blocks complete — *that cadence is the
 system*. Be present for `c1`'s C4 moment at ~00:0xZ on 7 August, when it tries 1,347 jobs into ~100
