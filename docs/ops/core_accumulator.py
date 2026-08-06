@@ -164,7 +164,9 @@ def assess(state: dict, hist: list[tuple[float, int]], now: float) -> dict:
         "A5 hold within bound", age is None or age <= HOLD_BOUND_SECS,
         "no hold" if age is None else "oldest hold %.0f min (bound %.0f min)"
         % (age / 60.0, HOLD_BOUND_SECS / 60.0),
-        "release immediately: a hold past its bound is pure loss, not caution"))
+        "release immediately: a hold past its bound is pure loss, not caution. "
+        "NOTE: the RETURN is throttled by the site JSV (~400 jobs/h), so a released hold "
+        "drains over ~1h and a non-zero  during that window is NORMAL."))
 
     checks.append((
         "A6 every line has work", state["lines_without_work"] == 0,

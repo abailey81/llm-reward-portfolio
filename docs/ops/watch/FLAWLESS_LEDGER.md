@@ -183,8 +183,20 @@ re-application re-measures instead of assuming.
 
 **SO, EVERY PASS, WHILE ANY V0 JOB IS STILL `qw`:**
 1. `python docs/ops/job_rank_governor.py` — it recomputes the plan from the live queue.
-2. If it reports `TO HOLD > 0`, apply the emitted `qhold` and re-arm a bounded release.
-3. If it reports `TO HOLD = 0`, do nothing: the floor work is already at the front (or running).
+2. ⚠ **FIRST CHECK `qstat -u ucestes -s hs | wc -l`. IF IT IS NON-ZERO, A PREVIOUS RELEASE IS STILL
+   DRAINING THROUGH THE SITE JSV THROTTLE — WAIT, DO NOT HOLD AGAIN.** Each release carries a
+   site-controlled tail of roughly an hour (measured ~400 jobs/h), so cycling holds rapidly stacks
+   those tails and needlessly suppresses our own eligible depth. **One hold per floor round.**
+3. If `-s hs` is 0 and the governor reports `TO HOLD > 0`, apply the emitted `qhold` and re-arm a
+   bounded release.
+4. If it reports `TO HOLD = 0`, do nothing: the floor work is already at the front (or running).
+
+⚠ **AND THE FIRST APPLICATION IS WORTH FAR MORE THAN ANY LATER ONE, WHICH IS WHY ONE IS USUALLY
+ENOUGH.** Measured 2026-08-06: a single application took `c1` from ranks 234-411 of 891 to ranks 1-8
+of 489 and got **all 8 floor jobs dispatched in 43 minutes** against a queue position worth ~60 h.
+The marginal value of a second application is the remaining dispatch minutes, which the arithmetic in
+RESOLVED row R24-8 shows is a few percent of the floor path. **Do not trade a throttle tail, or any
+campaign risk, for it.**
 
 **Tamer's 2026-08-06 authorisation covers the floor**, and the envelope is unchanged: `qhold`/`qrls`
 only, running jobs never touched, `min_eligible` enforced, a 90-minute bound per application, two
