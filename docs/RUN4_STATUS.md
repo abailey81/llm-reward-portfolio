@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 12:41 UTC -- T+207h32m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 12:42 UTC -- T+207h33m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+207h32m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+207h33m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19168** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **896** (102 running, 794 queued) |
 | **cores computing** | **816** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (0 min old) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (1 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -44,9 +44,9 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 53.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      26 records      26.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     113 records      37.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     639 records      53.2 rec/h   usable
+    last 12 h     638 records      53.2 rec/h   usable
     last 24 h    2563 records     106.8 rec/h   usable
-    12 h rate is 100% from ONE line (test_leg_kimi_k3); 2 line(s) contributed at all
+    12 h rate is 100% from ONE line (test_leg_kimi_k3); 1 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
@@ -70,7 +70,7 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
     !! those 2 unit(s) are NOT in the rate's denominator and CANNOT be -- they have produced nothing at all, so no window contains them.
        Both columns are OPTIMISTIC by that share until those units start.
-    !! 90% of the rung-568 backlog (20,475 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
+    !! 92% of the rung-568 backlog (20,855 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
      rung      @816 cores      @830 cores   binding
@@ -233,7 +233,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (**last monitoring cycle was 12 min ago -- the loop has lapsed**)
+## Monitoring -- the cycle (**last monitoring cycle was 13 min ago -- the loop has lapsed**)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
