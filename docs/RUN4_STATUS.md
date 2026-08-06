@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 04:11 UTC | elapsed 8.29 d | 20.8 d to the Aug-27 stop
+generated 2026-08-06 04:12 UTC | elapsed 8.29 d | 20.8 d to the Aug-27 stop
 test tier: 17,098 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      19 records      19.0 rec/h
-    last  3 h      97 records      32.3 rec/h
-    last 12 h    1463 records     121.9 rec/h
+    last  3 h      96 records      32.0 rec/h
+    last 12 h    1462 records     121.8 rec/h
     last 24 h    3494 records     145.6 rec/h
     12 h rate is 54% from ONE line (test_leg_haiku_4_5); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
