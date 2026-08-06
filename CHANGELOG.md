@@ -552,6 +552,69 @@ deepseek/glm/nemotron **0 cores owing 350 each**. **4 BINDING LINES STARVED, unc
 **ESCALATIONS UNCHANGED (pass 8).** R25-1/2/3 remain Tamer's. Job-cap headroom **100 of 1,000**
 against the **1,347 jobs `c1` will submit in roughly twelve and a half hours.**
 
+### ⑮ RUN 25 CLOSE (12:00-12:2xZ) — **THE LADDER LOCK, TAMER'S CASCADING-PRIORITY PRINCIPLE, AND THE HANDOVER**
+
+**★★★ THE NEW STANDING PRINCIPLE, TAMER 2026-08-06, VERBATIM — it changes how every future
+allocation decision must be framed:**
+
+> *"work in the priority systems, not the blockers strictly, **nothing should be blocked** please, we
+> must accumulate cores, not let them to anyone else strictly, and use absolutely all of them to do
+> our work and help us to progress. **For example if stage 1 only requires 64 cores, nothing more, it
+> doesn't mean that we should put the next stage on pause**, and so on, there should be a very very
+> very very smart priority system in place."*
+
+**Formalised:** rank every unit of work by its marginal value to the COMMON RUNG; feed the highest
+tier until saturated, then the next, then the next. **A tier that cannot absorb more capacity NEVER
+parks it — it passes it down. No core is ever idle and none is ever surrendered.**
+
+⚠ **AND THE MEASUREMENT PROVES WHY THE LITERAL RULE WOULD HARM US.** At common rung 30, **`c1` is
+the ONLY line that owes anything (120 trainings); every other line owes ZERO.** `c1` holds 8 jobs
+(64 cores), has nothing queued, and its two floor rounds are **SERIAL by design**. A literal *"all
+cores on rung 30"* would idle **~780 cores**, hand them to the other ~100 users, and buy **nothing**,
+because the constraint is a serial barrier and not a core shortage.
+
+### ⭐⭐⭐ THE LADDER LOCK — BUILT, MUTATION-PROVEN, AWAITING ONE `qhold`
+
+`job_rank_governor.ladder_lock_plan` implements R101's registered lockstep in the only place still
+available — **which jobs are ELIGIBLE**. Every line works its **LOWEST incomplete block and nothing
+above it**; a line that already holds the common rung is **not idled**, it advances its OWN lowest
+gap, which is exactly what the next common rung needs. It never touches `-p`, never touches a
+running job, never holds a distance-0 job, and never holds a `c1` floor job — all four asserted.
+
+**THE RELEASE RULE is what makes it a system rather than a one-off hold**: every pass recomputes each
+line's needed block and releases any held job that has become needed. **Mutation-proven — strip it
+and the selftest goes red, because without it a hold is a starvation device.**
+
+⚠⚠ **AND A DEFECT I SHIPPED AND CAUGHT WITHIN THE HOUR, IN THE FILE I HAD JUST WRITTEN.** The journal
+recorded **INTENT**, not reality. After a pass whose commands nobody ran, it believed 378 jobs were
+held, reported `TO HOLD: 0`, and **silently stopped proposing the plan**. **The live queue is the
+authority; a job counts as held only if `qstat` says `hqw`.** This repository had already paid for
+that exact lesson once. ⚠ **AND MY FIRST TEST FOR THE FIX WAS TOO WEAK TO KILL THE MUTANT** — it
+asserted `hold > 0`, which other fixture jobs satisfied regardless; narrowed to name the specific
+jobs that must be re-proposed. **A test that cannot fail verifies nothing.** Live proof of recovery:
+`TO HOLD` went 0 -> **378** once the live-queue check landed.
+
+**LIVE PLAN AT HANDOVER:** `jobs above their line's needed block 669 · TO HOLD 378 · TO RELEASE 0 ·
+eligible after 416 (guard 416)`, composition verified — **t4/t5/t6 on kimi/deepseek/glm/nemotron
+only.** `qhold`/`qrls` are CLASSIFIER-BLOCKED for the agent; commands are printed and journalled to
+`docs/ops/watch/LADDER_LOCK.json`. **THE PLAN GOES TO TAMER.**
+
+### THE HANDOVER
+
+**`docs/RUN26_SESSION_PROMPT.md` WRITTEN** — the complete brief, carrying Tamer's standing mandate
+verbatim (flawlessness · cores back to 2k · ETA to its minimum · speed and efficiency maximised ·
+floor first · the new cascading-priority principle · zero gaps in knowledge · preserve the loops but
+go deeper), the settled-vs-open cores map, D73, the LADDER LOCK, the `c1` C4 risk at ~00:01Z, the
+three execution rules RUN 25 paid for, and **all seven of RUN 25's own mistakes**.
+
+⚠ **THE 30-MINUTE CRON WAS CANCELLED BY TAMER MID-PASS** (*"stop these checks, cancel them"*, 11:5xZ)
+and is recorded as such — RUN 26 must **ASK before re-arming**.
+
+**STATE AT HANDOVER:** `records 19,152 · spend $45.5019 · drift 0 · freeze MATCHES · sci OK · Eqw 0 ·
+leak 0 · cores 824 (103 jobs) · eligible 794 · jobs 897/1000 · COMMON RUNG 0 · pytest 3,044 passed /
+3 skipped / 0 failed · seven layers ALL RC=0 · preflight 15 OK / 2 ATTN · HEAD 96d1e7e9 ·
+origin/backup-2026-08-06 pushed.` **Rung 30 ~2026-08-07 00:01Z.**
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a
