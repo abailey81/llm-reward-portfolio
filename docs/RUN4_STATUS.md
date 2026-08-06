@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 13:31 UTC -- T+208h22m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 13:32 UTC -- T+208h23m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+208h22m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+208h23m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19188** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **894** (100 running, 794 queued) |
 | **cores computing** | **800** |
-| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (47 min old) |
+| **cores doing RUNG-RAISING work** | **22.6%** -- 184 of 816 cores (48 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -43,7 +43,7 @@ test tier: 17,645 records over 69 of the 71 registered units (lanes.py _TEST_UNI
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 52.7 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      23 records      23.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     105 records      35.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     103 records      34.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     632 records      52.7 rec/h   usable
     last 24 h    2519 records     105.0 rec/h   usable
     12 h rate is 100% from ONE line (test_leg_kimi_k3); 2 line(s) contributed at all
@@ -59,11 +59,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         117       3  2026-08-06 15:45  2026-08-06 15:45  yes
-      100       2,567       3  2026-08-08 14:16  2026-08-08 14:16  yes
-      189       5,686       3  2026-08-11 01:29  2026-08-11 01:29  yes
-      279       9,670      23  2026-08-14 05:08  2026-08-14 05:08  yes
-      340      12,415      23  2026-08-16 09:15  2026-08-16 09:15  yes
-      403      15,250      23  2026-08-18 15:05  2026-08-18 15:05  yes
+      100       2,567       3  2026-08-08 14:17  2026-08-08 14:17  yes
+      189       5,686       3  2026-08-11 01:30  2026-08-11 01:30  yes
+      279       9,670      23  2026-08-14 05:09  2026-08-14 05:09  yes
+      340      12,415      23  2026-08-16 09:16  2026-08-16 09:16  yes
+      403      15,250      23  2026-08-18 15:06  2026-08-18 15:06  yes
       568      22,683      23  2026-08-24 12:13  2026-08-24 12:13  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
