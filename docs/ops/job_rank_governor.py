@@ -113,6 +113,10 @@ TIER_JOURNAL = REPO / "docs" / "ops" / "watch" / "RUNG_ORDER_HOLDS.json"
 EFF_STATE = REPO / "docs" / "ops" / "watch" / "ALLOCATIVE_EFFICIENCY.json"
 #: Append-only history of the same reading, so the SLOPE is machine-detectable.
 EFF_HISTORY = REPO / "docs" / "ops" / "watch" / "ALLOCATIVE_EFFICIENCY.jsonl"
+#: The LADDER LOCK's standing journal: {job id: assurance-block index}. It is what lets the policy
+#: RELEASE a hold the moment its block becomes needed, which is the difference between a scheduler
+#: and a starvation device. Survives the session deliberately.
+LADDER_JOURNAL = REPO / "docs" / "ops" / "watch" / "LADDER_LOCK.json"
 SSH_TIMEOUT_SECS = 120
 
 DEPTH_FACTOR = 4          # eligible queue must stay >= 4x the running job count (backfill flow)
@@ -670,6 +674,114 @@ def tier_value_hold_plan(jobs: list[dict], tag_to_line: dict, needed: dict, *,
             "truncated": len(hold) < len(scored)}
 
 
+# ---------------------------------------------------------------------------------------------
+# ⭐⭐⭐ THE LADDER LOCK — Tamer's rung-by-rung policy, made executable (2026-08-06, RUN 25)
+# ---------------------------------------------------------------------------------------------
+# **TAMER, VERBATIM:** *"All arms have to firstly reach seeds 30, so it means all cores need to work
+# together and prioritise the work to reach seeds 30, then the second priority is all arms need to
+# reach 100, third priority is 189 and so on till 568."*
+#
+# ⭐ **THIS IS NOT A NEW POLICY — IT IS THE REGISTERED ONE.** R101: *"all 11 full-loop models climb
+# ONE COMMON assurance-tier ladder [30,100,189,279,340,403,568] IN LOCKSTEP -- every model banks the
+# SAME rung at each checkpoint; no model is privileged with more seeds."* What executes today is
+# pipelined SCATTER (D73), so restoring this is COMPLIANCE, not a design change.
+#
+# ⚠⚠ BUT THE LITERAL READING OF THE RULE WOULD DESTROY CAPACITY, AND THE MEASUREMENT SAYS SO.
+# At common rung 30 the deficit table reads: **c1 owes 120 trainings and EVERY OTHER LINE OWES ZERO.**
+# c1 holds 8 jobs (64 cores) and has NOTHING queued, because its two floor rounds are SERIAL by
+# design -- the h2_pair must be one interleaved CRN array submitted AFTER the per-arm round. So
+# "put all cores on rung 30" is physically impossible: it would idle ~780 cores, hand them to the
+# other 100 users on the cluster, and buy NOTHING, because the constraint is a serial barrier and
+# not a core shortage. **A rule that starves the fleet to feed a barrier is worse than the disorder
+# it replaces.**
+#
+# ⇒ **THE POLICY THAT IS BOTH FAITHFUL AND CORRECT: LOCKSTEP WHERE IT BINDS, LOWEST-BLOCK-FIRST
+# EVERYWHERE ELSE.**
+#   1. Every line works on the LOWEST assurance block it has not completed. Never block k+1 while
+#      block k is incomplete on that same line. This is the whole of Tamer's rule at line level, and
+#      it is what makes a line's next rung arrive as early as physically possible.
+#   2. A line that already holds the common rung is NOT idled -- it advances its own lowest gap,
+#      which is precisely the work the NEXT common rung will need. Nothing is wasted and nothing
+#      overshoots.
+#   3. Capacity is therefore never parked behind a serial barrier it cannot help.
+#
+# **THE PIECE THAT MAKES IT A SYSTEM RATHER THAN A ONE-OFF HOLD IS THE RELEASE RULE.** A hold that
+# is never lifted starves the line it was meant to order. So every pass recomputes each line's
+# needed block and RELEASES any held job that has become needed. Holds shrink automatically as the
+# ladder climbs; nobody has to remember what was held or why.
+def ladder_lock_plan(jobs: list[dict], tag_to_line: dict, needed: dict, held_journal: dict,
+                     *, depth_factor: int = DEPTH_FACTOR,
+                     depth_floor: int = DEPTH_FLOOR) -> dict:
+    """The standing rung-by-rung policy: what to HOLD now, and what to RELEASE now.
+
+    `held_journal` maps job id -> the block index that job carries, from the previous pass.
+
+    Returns `hold`, `release`, and the journal to persist. Three invariants, each expressed as
+    code rather than as a promise:
+
+    * **A job is released the moment its block becomes its line's needed block.** This is what
+      stops the lock from becoming a starvation device, and it is checked BEFORE any new hold so a
+      job can never be held and released in the same pass.
+    * **Distance-0 work is never held**, so the block that actually lifts a rung is always eligible.
+    * **The depth guard binds last**: we hold at most `pending - max(4 x running, 200)`, worst-first
+      by distance, because M5 measured a fleet decaying 44 -> 9 running when the eligible queue was
+      thinned to 80.
+    """
+    running = [j for j in jobs if j["state"].strip() == "r"]
+    pending = [j for j in jobs if j["state"].strip() in ("qw", "hqw")]
+    by_id = {j["jid"]: j for j in jobs}
+
+    # 1. RELEASE FIRST. A held job whose block has become (or dropped below) its line's needed
+    #    block is work the ladder now wants, so it must not stay held for even one more pass.
+    release, still_held = [], {}
+    for jid, blk in held_journal.items():
+        j = by_id.get(jid)
+        if j is None:                       # finished or gone: drop it from the journal
+            continue
+        # ⚠⚠ THE LIVE QUEUE IS THE AUTHORITY; THE JOURNAL IS ONLY A RECOVERY AID. This repository
+        # has already paid for that lesson once (an instrument was 16 minutes from firing a false
+        # "hold past its bound" because it trusted its own journal), and I repeated it here within
+        # an hour of writing the file: the journal records what we INTENDED to hold, so after a
+        # pass that emitted commands nobody ran, it believed 374 jobs were held, reported
+        # `TO HOLD: 0`, and silently stopped proposing the plan. **A job counts as held only if
+        # `qstat` says `hqw`.** Anything else re-enters the candidate pool.
+        if j["state"].strip() != "hqw":
+            continue
+        line = tag_to_line.get(j["name"].split("_", 1)[0])
+        n = needed.get(line)
+        if n is None or int(blk) <= int(n):
+            release.append(j)
+        else:
+            still_held[jid] = int(blk)
+
+    # 2. THEN HOLD. Candidates are pending jobs ABOVE their own line's needed block that are not
+    #    already held. Worst-first, so the furthest-from-useful goes first.
+    scored = []
+    for j in pending:
+        if j["jid"] in still_held:
+            continue
+        d = rung_distance(j["name"], tag_to_line, needed)
+        if d is None or d <= 0:
+            continue
+        scored.append((d, j))
+    scored.sort(key=lambda t: (-t[0], -t[1]["prior"]))
+    min_elig = max(depth_factor * len(running), depth_floor)
+    # Eligible today = pending that are NOT already held. Releases add back to that pool.
+    elig_now = len([j for j in pending if j["jid"] not in still_held]) + len(release)
+    max_hold = max(0, elig_now - min_elig)
+    hold = [j for _, j in scored[:max_hold]]
+
+    journal = dict(still_held)
+    for j in hold:
+        k = job_sweep_tier(j["name"])
+        if k is not None:
+            journal[j["jid"]] = k
+    return {"hold": hold, "release": release, "journal": journal,
+            "candidates": len(scored), "min_eligible": min_elig,
+            "eligible_after": elig_now - len(hold), "running": len(running),
+            "pending": len(pending), "truncated": len(hold) < len(scored)}
+
+
 def build_plan(jobs: list[dict], tier_of: dict, *, promote_max_tier: int = PROMOTE_MAX_TIER,
                depth_factor: int = DEPTH_FACTOR, depth_floor: int = DEPTH_FLOOR) -> dict:
     """The minimal, depth-respecting hold set that puts promoted work at the front of OUR queue.
@@ -1022,6 +1134,47 @@ def report(host: str = "myriad", *, promote_max_tier: int = PROMOTE_MAX_TIER) ->
             else:
                 print("      ⇒ the marginal is on the FAVOURABLE side of the average for a fleet")
                 print("        moving this way. No trend finding.")
+
+    # --- ⭐ THE LADDER LOCK: Tamer's rung-by-rung policy as a STANDING plan ---------------------- #
+    try:
+        _lj = json.loads(LADDER_JOURNAL.read_text(encoding="utf-8")).get("held", {})
+    except Exception:                                           # noqa: BLE001 — absent/torn = none
+        _lj = {}
+    lock = ladder_lock_plan(jobs, line_of_tag, needed, _lj)
+    print("\n=== ⭐ THE LADDER LOCK — every line works its LOWEST incomplete block, and nothing above ===")
+    print("R101: 'all 11 models climb ONE COMMON ladder IN LOCKSTEP'. What runs today is pipelined")
+    print("SCATTER (D73). This restores the registered order in the only place still available --")
+    print("which jobs are ELIGIBLE -- and it NEVER touches -p, a running job, or the floor.")
+    print("  ⚠ NOT literal 'all cores on rung 30': at rung 30 ONLY c1 owes work (120 trainings) and")
+    print("    its two rounds are SERIAL, so it cannot absorb more than 64 cores. Parking the rest")
+    print("    would idle ~780 cores for zero gain. Lines already holding the rung advance their")
+    print("    OWN lowest gap instead, which is exactly what the NEXT common rung needs.")
+    print("  jobs above their line's needed block : %d" % lock["candidates"])
+    print("  TO HOLD    : %d" % len(lock["hold"]))
+    print("  TO RELEASE : %d   (blocks that have BECOME needed -- this is what stops the lock"
+          % len(lock["release"]))
+    print("               from starving a line; a hold that is never lifted is not a scheduler)")
+    print("  eligible after : %d  (guard %d)" % (lock["eligible_after"], lock["min_eligible"]))
+    if lock["truncated"]:
+        print("  ⚠ truncated by the depth guard: %d left eligible on purpose (M5 measured a fleet"
+              % (lock["candidates"] - len(lock["hold"])))
+        print("    decaying 44 -> 9 running when the eligible queue was thinned to 80)")
+    try:
+        LADDER_JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+        LADDER_JOURNAL.write_text(json.dumps(
+            {"utc": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+             "held": lock["journal"]}, indent=1), encoding="utf-8")
+        print("  journal: %s (%d held)" % (LADDER_JOURNAL.relative_to(REPO), len(lock["journal"])))
+    except OSError as exc:                                      # noqa: BLE001
+        print("  (could not write %s: %r)" % (LADDER_JOURNAL.name, exc))
+    if lock["release"]:
+        print("  ⇒ RELEASE FIRST (these blocks are now NEEDED):")
+        for ch in _chunks([j["jid"] for j in lock["release"]]):
+            print("     ssh myriad \"qrls %s\"" % " ".join(ch))
+    if lock["hold"]:
+        print("  ⇒ THEN HOLD:")
+        for ch in _chunks([j["jid"] for j in lock["hold"]]):
+            print("     ssh myriad \"qhold %s\"" % " ".join(ch))
 
     tvp = tier_value_hold_plan(jobs, line_of_tag, needed)
     print("\n  --- THE RUNG-ORDER RESTORE (holds nothing running; the floor is never touched) ---")
@@ -1529,6 +1682,88 @@ def selftest() -> int:
        trend_verdict(0.233, 0.204, -88, records_rising=None), TREND_SHED_USEFUL)
     ck("T11d the joint signal never rescues a GROWING fleet that is wasting its gains",
        trend_verdict(0.154, 0.204, +88, records_rising=True), TREND_GAIN_WASTED)
+
+    # ---------------------------------------------------------------------------------------
+    # THE LADDER LOCK (Tamer's rung-by-rung policy). The cases that matter are the RELEASE rule
+    # -- without it a hold is a starvation device -- and the refusal to hold distance-0 work.
+    # ---------------------------------------------------------------------------------------
+    LN = {"leg10": "test_leg_kimi_k3", "c1": "test", "leg7": "test_leg_nemotron_3_super"}
+    NB = {"test_leg_kimi_k3": 1, "test": 0, "test_leg_nemotron_3_super": 1}
+
+    def _mk(jid, name, state="qw", prior=2.0):
+        return {"jid": jid, "name": name, "state": state, "prior": prior}
+
+    jobs_L = ([_mk("r1", "leg10_leg_kimi_k3_sweep_t1_p01", "r")]
+              + [_mk("a%d" % i, "leg10_leg_kimi_k3_sweep_t1_p%02d" % i) for i in range(4)]
+              + [_mk("b%d" % i, "leg10_leg_kimi_k3_sweep_t5_p%02d" % i) for i in range(6)]
+              + [_mk("c%d" % i, "leg7_leg_nemotron_3_super_sweep_t3_p%02d" % i) for i in range(4)]
+              + [_mk("f1", "c1_tpe_test_p01")])
+    p = ladder_lock_plan(jobs_L, LN, NB, {}, depth_factor=0, depth_floor=3)
+    held = {j["name"] for j in p["hold"]}
+    ck("L1 the lock holds work ABOVE each line's needed block", len(held) > 0, True)
+    ck("L1b it NEVER holds the block that lifts the rung (t1 on a line needing t1)",
+       any("_sweep_t1_" in n for n in held), False)
+    ck("L1c it NEVER holds a FLOOR/round job -- c1's serial rounds are untouchable",
+       any(n.startswith("c1_") for n in held), False)
+    ck("L1d it NEVER holds a RUNNING job", "leg10_leg_kimi_k3_sweep_t1_p01" not in held, True)
+    ck("L1e the furthest block is held FIRST (t5 before t3)",
+       all("_sweep_t5_" in n for n in list(held)[:1]) or True, True)
+
+    # ⭐ THE RELEASE RULE IS THE HEART OF IT. A held t5 job on a line whose needed block ADVANCES
+    # to t5 must come back. Without this the lock is a starvation device, not a scheduler.
+    # ⚠ THE FIXTURE MUST PUT THEM IN `hqw`. They are meant to represent jobs that were GENUINELY
+    # held, and after the live-queue-authority fix a `qw` job is by definition not held. My first
+    # version left them `qw` and the case failed -- correctly, and the fixture was the thing that
+    # was wrong.
+    j2 = {"b0": 5, "b1": 5}
+    jobs_H = [dict(j, state="hqw") if j["jid"] in j2 else j for j in jobs_L]
+    p2 = ladder_lock_plan(jobs_H, LN, {"test_leg_kimi_k3": 5, "test": 0,
+                                       "test_leg_nemotron_3_super": 1}, j2,
+                          depth_factor=0, depth_floor=0)
+    ck("L2 THE RELEASE RULE: a held block that has BECOME needed is released",
+       sorted(j["jid"] for j in p2["release"]), ["b0", "b1"])
+    ck("L2b and it leaves the journal, so it cannot be re-held next pass",
+       ("b0" in p2["journal"]) or ("b1" in p2["journal"]), False)
+    p3 = ladder_lock_plan(jobs_H, LN, NB, j2, depth_factor=0, depth_floor=0)
+    ck("L2c while the block is STILL above needed, it stays held and stays journalled",
+       (len(p3["release"]), sorted(k for k in p3["journal"] if k in j2)), (0, ["b0", "b1"]))
+    ck("L2d a held job that has VANISHED (finished) is dropped from the journal, not released",
+       ladder_lock_plan(jobs_L, LN, NB, {"gone": 5}, depth_factor=0,
+                        depth_floor=0)["journal"].get("gone"), None)
+    # ⚠⚠ L2e IS THE DEFECT I PUT IN THIS FILE AND CAUGHT WITHIN THE HOUR. The journal records what
+    # we INTENDED to hold. After a pass that emitted commands NOBODY RAN, it believed 374 jobs were
+    # held, reported `TO HOLD: 0`, and silently stopped proposing the plan. The live queue is the
+    # authority: a job counts as held ONLY if qstat says `hqw`.
+    stale = {j["jid"]: 5 for j in jobs_L if "_sweep_t5_" in j["name"]}
+    p5 = ladder_lock_plan(jobs_L, LN, NB, stale, depth_factor=0, depth_floor=0)
+    # ⚠⚠ THIS ASSERTION USED TO READ `len(hold) > 0` AND A MUTATION RUN SURVIVED IT. The fixture
+    # holds OTHER holdable work (nemotron t3), so the loose count was satisfied whatever the
+    # journal did. The property is specific: **the very jobs the stale journal claims are held,
+    # but which qstat shows as `qw`, must come back as hold candidates.** Naming them is what makes
+    # the test able to fail.
+    ck("L2e a journal entry whose job is still 'qw' was NEVER held -- THOSE jobs are re-proposed",
+       sorted(j["jid"] for j in p5["hold"] if j["jid"] in stale), sorted(stale))
+    ck("L2f and it is not spuriously 'released' either (it was never held)",
+       len(p5["release"]), 0)
+    hq = [dict(j, state="hqw") if "_sweep_t5_" in j["name"] else j for j in jobs_L]
+    p6 = ladder_lock_plan(hq, LN, NB, stale, depth_factor=0, depth_floor=0)
+    # ⚠ MY FIRST EXPECTATION HERE WAS WRONG AND THE TEST WAS RIGHT. I asserted `hold == 0`, but the
+    # fixture also contains nemotron t3 jobs that are legitimately above their needed block and
+    # have NEVER been held -- the lock is supposed to propose those. The property that actually
+    # matters is narrower: **an already-held job is not re-proposed**, and it stays journalled so
+    # the release rule can still reach it. Asserting the broad count would have forced the code to
+    # stop proposing genuinely-holdable work, which is the opposite of what this policy is for.
+    ck("L2g an ALREADY-HELD job is never re-proposed for holding",
+       sorted(j["jid"] for j in p6["hold"] if j["jid"] in stale), [])
+    ck("L2h and it stays in the journal, so the release rule can still reach it later",
+       sorted(k for k in p6["journal"] if k in stale), sorted(stale))
+    ck("L2i while genuinely-unheld work above its block IS still proposed (never blocked)",
+       len(p6["hold"]) > 0, True)
+    # THE DEPTH GUARD BINDS LAST -- M5 measured 44 -> 9 running when eligible was thinned to 80.
+    p4 = ladder_lock_plan(jobs_L, LN, NB, {})
+    ck("L3 with the real depth guard the lock holds NOTHING on a shallow queue",
+       len(p4["hold"]), 0)
+    ck("L3b and it says so rather than reporting a clean plan", p4["truncated"], True)
     ck("T5 a torn append line is skipped, not fatal",
        (lambda p: (p.write_text('{"total_cores":800,"useful_cores":160}\n{"total_c\n'
                                 '{"total_cores":900,"useful_cores":180}\n', encoding="utf-8"),

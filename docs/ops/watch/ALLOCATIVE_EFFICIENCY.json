@@ -1,18 +1,18 @@
 {
- "utc": "2026-08-06T11:22:42Z",
- "epoch": 1786015362,
- "useful_cores": 192,
- "deferred_cores": 656,
- "total_cores": 848,
- "efficiency": 0.2264,
+ "utc": "2026-08-06T12:13:07Z",
+ "epoch": 1786018387,
+ "useful_cores": 184,
+ "deferred_cores": 648,
+ "total_cores": 832,
+ "efficiency": 0.2212,
  "by_distance": {
   "-1": 64,
-  "0": 128,
+  "0": 120,
   "1": 144,
   "2": 160,
   "3": 80,
   "4": 152,
-  "5": 120
+  "5": 112
  },
  "needed_block": {
   "test": 0,
