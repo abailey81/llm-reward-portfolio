@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+201h57m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **18902** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 6.0 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -24,8 +24,8 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **931** (105 running, 826 queued) |
-| **cores computing** | **840** |
+| cluster jobs | **931** (106 running, 825 queued) |
+| **cores computing** | **848** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
 we are actually achieving, anchored at the moment this page was generated. The registered model is
@@ -34,13 +34,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 07:06 UTC | elapsed 8.42 d | 20.7 d to the Aug-27 stop
+generated 2026-08-06 07:07 UTC | elapsed 8.42 d | 20.7 d to the Aug-27 stop
 test tier: 17,359 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      61 records      61.0 rec/h
-    last  3 h     263 records      87.7 rec/h
-    last 12 h    1196 records      99.7 rec/h
+    last  1 h      60 records      60.0 rec/h
+    last  3 h     262 records      87.3 rec/h
+    last 12 h    1195 records      99.6 rec/h
     last 24 h    3246 records     135.2 rec/h
     12 h rate is 48% from ONE line (test_leg_kimi_k3); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -57,11 +57,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30         120       0  GATED             GATED             barrier
       100       2,570       0  GATED             GATED             barrier>=30
-      189       5,908      61  GATED             GATED             barrier>=30
-      279       9,956      61  GATED             GATED             barrier>=30
-      340      12,701      61  GATED             GATED             barrier>=30
-      403      15,536      61  GATED             GATED             barrier>=30
-      568      22,969      61  GATED             GATED             barrier>=30
+      189       5,908      60  GATED             GATED             barrier>=30
+      279       9,956      60  GATED             GATED             barrier>=30
+      340      12,701      60  GATED             GATED             barrier>=30
+      403      15,536      60  GATED             GATED             barrier>=30
+      568      22,969      60  GATED             GATED             barrier>=30
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     (+2 registered unit(s) have no directory yet; each owes a FULL rung and is counted in 'remaining' above)
@@ -70,14 +70,14 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     !! 78% of the rung-568 backlog (17,874 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @840 cores      @830 cores   binding
+     rung      @848 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
-      189           6.5 d           6.5 d   throughput
-      279           9.2 d           9.3 d   throughput
-      340          11.0 d          11.1 d   throughput
-      403          12.9 d          13.0 d   throughput
-      568          17.9 d          18.1 d   throughput
+      189           6.4 d           6.5 d   throughput
+      279           9.1 d           9.3 d   throughput
+      340          10.9 d          11.1 d   throughput
+      403          12.8 d          13.0 d   throughput
+      568          17.7 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -230,7 +230,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
