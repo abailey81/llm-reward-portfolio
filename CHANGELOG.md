@@ -455,6 +455,43 @@ instrument that stopped reading; this one is reading.
 **ESCALATIONS UNCHANGED (pass 6).** R25-1/2/3 remain Tamer's. Job-cap headroom **92 of 1,000**
 against the **1,347 jobs `c1` will submit in roughly thirteen and a half hours.**
 
+### ⑬ PASS 7 (10:49-11:0xZ) — **THE SEVEN RECORD LAYERS RUN AFTER 9.4 HOURS, ON A COST ARGUMENT THAT TURNED OUT TO BE WRONG IN OUR FAVOUR**
+
+**Board GREEN.** cores **896** (112 jobs), accumulator 8/8, `ACCUMULATING`, GROWING +112 over 4.1 h,
+drift 0, `sci OK`, `Eqw` 0, permanent-leak 0, C4 NONE, C5 NONE, `line_balance` CLEAN, inbox empty,
+ssh OK. Records **19,093**. **No new defect.**
+
+**⭐ THE DEFERRAL IS DISCHARGED, AND THE REASON I HAD BEEN DEFERRING IT WAS A MISREADING OF THE COST
+PROFILE.** `run_record_layers.sh` last certified **ALL RC=0 at 01:26Z — 9.4 hours earlier** — and I
+deferred it in pass 2 on the measured grounds that the sweep was at 638 s against a 900 s false-DEAD
+cap. **Deferring a third time would have been a row aging, so I read the script instead of the
+brief.** It calls `run_layer` **SEVEN TIMES SEQUENTIALLY** (`L1_record_validator` ->
+`L7_window_identity`), so its ~1,342 s is a TOTAL, not a concurrent burst: the instantaneous load is
+**ONE archive scanner**, which is the same profile as a single `job_rank_governor` run. **Measured
+worst case for that profile this session: 368.5 s against a 900 s cap.** ⇒ **The risk was
+materially lower than the brief's warning implies, and the correct action was to run it.** Launched
+at 10:49:47Z over **19,166 records**; the verdict is appended below when it lands.
+
+**⭐ STEP 5(5) RESOLVED, AND THE PRE-REGISTERED DISCRIMINATOR HELD.** In pass 6 I flagged ahead of
+time that the rung-30 date had held at 00:02Z for two passes, that §9 calls three an OPEN FINDING,
+and that the discriminator between "stable forecast" and "frozen instrument" is whether its INPUTS
+move. **This pass it moved: `2026-08-07 00:01Z`, driven by the median wall going 9.13 -> 9.121 h.**
+The full input series across seven passes is **9.17 -> 9.16 -> 9.14 -> 9.13 -> 9.13 -> 9.121**, and
+the date series is **01:00 -> 00:07 -> 00:06 -> 00:04 -> 00:02 -> 00:02 -> 00:01**. **The instrument
+is reading, not stuck, and that was established BEFORE the rule could have fired rather than
+argued afterwards.**
+
+**STEP 2 THE FLOOR.** 8/8 RUNNING, 0 records on all four `c1` arms, `h2_pair` NOT submitted.
+**Round 1 completes ~14:54Z — 4.0 h out.**
+
+**STEP 5.** Placeable **1,560 against 896 held — 664 of headroom.** Allocative **21.4%**; the trend
+reads `cores -104, USEFUL -16, marginal 20.7% vs a 21.4% average, SHRINKING -> no trend finding`.
+`kimi` **760 cores owing 230, the LEAST**; `c1` **64 against a 486 target**; deepseek/glm/nemotron
+**0 cores owing 350 each**. **4 BINDING LINES STARVED, unchanged.**
+
+**ESCALATIONS UNCHANGED (pass 7).** R25-1/2/3 remain Tamer's. Job-cap headroom **93 of 1,000**
+against the **1,347 jobs `c1` will submit in roughly thirteen hours.**
+
 ## [2026-08-06b] ★★★★★ RUN 24 (OPS), pass 1 — **THE CORES CEILING IS NOT WHAT EITHER OF THE TWO STANDING DOCUMENTS SAYS, THE LAST BIG LEVER'S SOLE BLOCKER TURNED OUT TO BE FALSE, AND THE REAL WASTE IS NOT CORES AT ALL** · every one of our 544 held cores is producing records with **zero marginal value to the reported result** · built the ranking governor Tamer asked for, and it found three defects of its own before it was banked
 
 **WHERE WE WERE.** RUN 23 closed with the cores question "answered" (`smp-D`'s `$pe_slots` against a

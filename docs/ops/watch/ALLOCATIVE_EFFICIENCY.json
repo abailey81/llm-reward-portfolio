@@ -1,16 +1,16 @@
 {
- "utc": "2026-08-06T10:20:35Z",
- "epoch": 1786011635,
+ "utc": "2026-08-06T10:50:16Z",
+ "epoch": 1786013416,
  "useful_cores": 192,
- "deferred_cores": 712,
- "total_cores": 904,
- "efficiency": 0.2124,
+ "deferred_cores": 704,
+ "total_cores": 896,
+ "efficiency": 0.2143,
  "by_distance": {
   "-1": 64,
   "0": 128,
   "1": 152,
   "2": 176,
-  "3": 88,
+  "3": 80,
   "4": 168,
   "5": 128
  },
