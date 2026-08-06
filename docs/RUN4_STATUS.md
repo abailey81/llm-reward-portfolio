@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-06 11:10 UTC -- T+206h01m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-06 11:11 UTC -- T+206h02m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+206h01m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+206h02m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **19134** |
@@ -26,7 +26,7 @@ back what it did.
 |---|---|
 | cluster jobs | **900** (106 running, 794 queued) |
 | **cores computing** | **848** |
-| **cores doing RUNG-RAISING work** | **21.4%** -- 192 of 896 cores (20 min old) |
+| **cores doing RUNG-RAISING work** | **21.4%** -- 192 of 896 cores (21 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73).
 
@@ -37,22 +37,22 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-06 11:11 UTC | elapsed 8.58 d | 20.5 d to the Aug-27 stop
+generated 2026-08-06 11:11 UTC | elapsed 8.59 d | 20.5 d to the Aug-27 stop
 test tier: 17,591 records over 69 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 75.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 75.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      62 records      62.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     228 records      76.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     906 records      75.5 rec/h   usable
-    last 24 h    2669 records     111.2 rec/h   usable
+    last 12 h     904 records      75.3 rec/h   usable
+    last 24 h    2668 records     111.2 rec/h   usable
     12 h rate is 88% from ONE line (test_leg_kimi_k3); 3 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (76 rec/h); latest excludes cells already within
-    8 of the ceiling (76 rec/h). Window 12 h.
+    the whole fleet (75 rec/h); latest excludes cells already within
+    8 of the ceiling (75 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
@@ -250,12 +250,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-06T10:58:42Z  OK  records=19115 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=30.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T10:59:43Z  OK  records=19117 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.2m  drift=0  sci=OK  r115=22B  sweep=30.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:00:44Z  OK  records=19122 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.8m  drift=0  sci=OK  r115=22B  sweep=30.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:01:42Z  OK  records=19122 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=28.2s  auto-cycle
 2026-08-06T11:05:33Z  OK  records=19131 (+9)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.0m  drift=0  sci=OK  r115=22B  sweep=200.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-06T11:10:50Z  OK  records=19134 (+3)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=286.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-06T11:11:49Z  OK  records=19134 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=29.4s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
