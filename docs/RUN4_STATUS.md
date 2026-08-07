@@ -16,7 +16,7 @@ back what it did.
 | records archived | **21778** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.5 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=6; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 4.9 h ago; none live, newest failure 4.9 h ago** |
+| transport health | **timeouts 6h=6; worst streak 1/240 (0.4% to fatal), ops on nemotron-3-super, 5.0 h ago; none live, newest failure 5.0 h ago** |
 | transport timeouts (cumulative, ever) | 348 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 20:06 UTC | elapsed 9.96 d | 19.2 d to the Aug-27 stop
+generated 2026-08-07 20:07 UTC | elapsed 9.96 d | 19.2 d to the Aug-27 stop
 test tier: 20,235 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 87.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      64 records      64.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     138 records      46.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     137 records      45.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1049 records      87.4 rec/h   usable
     last 24 h    1816 records      75.7 rec/h   usable
     12 h rate is 37% from ONE line (test_leg_deepseek_v4_pro); 5 line(s) contributed at all
@@ -61,12 +61,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,557      64  2026-08-08 13:55  2026-08-08 14:03  yes
-      189       4,630      64  2026-08-10 01:04  2026-08-10 01:28  yes
-      279       7,832      64  2026-08-11 13:42  2026-08-11 14:23  yes
+      100       1,557      64  2026-08-08 13:56  2026-08-08 14:04  yes
+      189       4,630      64  2026-08-10 01:05  2026-08-10 01:29  yes
+      279       7,832      64  2026-08-11 13:43  2026-08-11 14:24  yes
       340      10,272      64  2026-08-12 17:37  2026-08-12 18:31  yes
-      403      12,792      64  2026-08-13 22:26  2026-08-13 23:34  yes
-      568      20,093      64  2026-08-17 09:57  2026-08-17 11:43  yes
+      403      12,792      64  2026-08-13 22:27  2026-08-13 23:34  yes
+      568      20,093      64  2026-08-17 09:58  2026-08-17 11:44  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 57% of the rung-568 backlog (11,461 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
