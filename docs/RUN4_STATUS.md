@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-07 07:42 UTC -- T+226h33m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-07 07:43 UTC -- T+226h34m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+226h33m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+226h34m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **20721** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 07:42 UTC | elapsed 9.44 d | 19.7 d to the Aug-27 stop
+generated 2026-08-07 07:43 UTC | elapsed 9.44 d | 19.7 d to the Aug-27 stop
 test tier: 19,178 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 63.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      16 records      16.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     100 records      33.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h      15 records      15.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h      98 records      32.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     760 records      63.3 rec/h   usable
     last 24 h    1818 records      75.8 rec/h   usable
     12 h rate is 64% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       2,308      16  2026-08-08 20:09  2026-08-08 20:09  yes
-      189       5,423      16  2026-08-10 21:20  2026-08-10 21:20  yes
-      279       8,881      16  2026-08-13 03:56  2026-08-13 03:56  yes
-      340      11,321      16  2026-08-14 18:28  2026-08-14 18:28  yes
-      403      13,841      16  2026-08-16 10:15  2026-08-16 10:15  yes
-      568      21,150      16  2026-08-21 05:39  2026-08-21 05:39  yes
+      100       2,308      15  2026-08-08 20:10  2026-08-08 20:10  yes
+      189       5,423      15  2026-08-10 21:21  2026-08-10 21:21  yes
+      279       8,881      15  2026-08-13 03:57  2026-08-13 03:57  yes
+      340      11,321      15  2026-08-14 18:28  2026-08-14 18:28  yes
+      403      13,841      15  2026-08-16 10:16  2026-08-16 10:16  yes
+      568      21,150      15  2026-08-21 05:40  2026-08-21 05:40  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 59% of the rung-568 backlog (12,382 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
