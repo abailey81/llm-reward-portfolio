@@ -2358,3 +2358,37 @@ jobs in our own queue (`leg7 ..._sweep_t1_p35..p40`, 8-spec), and all 19 complet
 ~10.5 h) before their 24-spec replacements take those slots. **A dip over the next half-day is the
 mechanism working, not a fault** — but it must be watched, because it is indistinguishable from a
 real regression without the h_rt census. **Every pass: report `24-spec running` as well as cores.**
+
+### R29-12 — ⭐⭐⭐⭐⭐ **THE CONCENTRATION HYPOTHESIS IS NOW REFUTED BY A CONTROLLED BEFORE/AFTER ON OUR OWN QUEUE, NOT BY A MODEL**
+
+RUN 27 refuted "fewer jobs in the queue" by measuring `prior`, a NORMALISED quantity whose
+denominator it did not control. RUN 28 revived the hypothesis from a CROSS-SECTION of other users,
+which confounds pool size with job count. R29-2 capped it at ~2.2x from a fitted allocation law,
+which is still a model. **Today's repack accidentally ran the experiment properly.**
+
+| | 10:19Z | 11:56Z |
+|---|---:|---:|
+| our ELIGIBLE jobs | 267 | **575** |
+| our CONTENDING jobs (r + qw) | 372 | 679 |
+| **our BEST pending job's RAW `tckts`** | **37,991** | **38,095** |
+| our total ticket mass | 9,581,946 | 11,876,206 |
+
+**WE MORE THAN DOUBLED OUR OWN ELIGIBLE COUNT AND THE HEAD JOB'S RAW TICKET MOVED BY 0.3%.**
+Same user, same line (`leg7 ..._sweep_t1`), same statistic, 97 minutes apart, and the change in the
+independent variable was OURS rather than the cluster's.
+
+**WHY: THE POOL IS NOT FIXED.** Mass rose 9.58M -> 11.88M (+24%) as contending jobs rose 372 -> 679.
+SGE's functional pool grows sublinearly with the contending count, so dividing it over more jobs and
+enlarging it very nearly cancel at the HEAD of the queue. The 1/n intuition — Tamer's, RUN 28's, and
+mine when I worried the repack would dilute `c1` — assumes a fixed pool, and the pool is not fixed.
+(`c1`'s own best ticket ROSE 26,226 -> 29,629 across the same window, because its RANK improved.)
+
+⇒ **HOLDING JOBS TO CONCENTRATE TICKETS BUYS ESSENTIALLY NOTHING AT THE HEAD OF THE QUEUE, AND THE
+QUESTION IS CLOSED.** What holding DOES do — and this remains true and useful — is change WHICH of
+our jobs is at the head, which is the entire basis of the placement policy and of `c1`'s protection.
+**Order: yes. Rank against other users: no.**
+
+⚠ **CAVEAT, STATED SO THIS IS NOT OVER-CLAIMED.** One before/after pair over 97 minutes, with other
+users free to move underneath us. It is far stronger than either prior attempt (raw statistic,
+within-user, our own manipulation) but it is n=1. **Re-derive it the next time the eligible count
+moves by 2x in either direction** — the loop's STEP 3 already records the numbers needed.
