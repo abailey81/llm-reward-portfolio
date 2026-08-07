@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+226h00m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **3 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **20715** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.0 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 07:09 UTC | elapsed 9.42 d | 19.7 d to the Aug-27 stop
+generated 2026-08-07 07:10 UTC | elapsed 9.42 d | 19.7 d to the Aug-27 stop
 test tier: 19,172 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -62,9 +62,9 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30           0       0  REACHED           REACHED           yes
       100       2,314      16  2026-08-08 18:24  2026-08-08 18:24  yes
       189       5,429      16  2026-08-10 17:50  2026-08-10 17:50  yes
-      279       8,887      20  2026-08-12 22:29  2026-08-12 22:29  yes
-      340      11,327      20  2026-08-14 11:39  2026-08-14 11:39  yes
-      403      13,847      20  2026-08-16 02:01  2026-08-16 02:01  yes
+      279       8,887      20  2026-08-12 22:30  2026-08-12 22:30  yes
+      340      11,327      20  2026-08-14 11:40  2026-08-14 11:40  yes
+      403      13,847      20  2026-08-16 02:02  2026-08-16 02:02  yes
       568      21,156      20  2026-08-20 17:20  2026-08-20 17:20  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
