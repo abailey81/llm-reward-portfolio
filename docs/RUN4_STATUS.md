@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+231h39m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **21099** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 12:48 UTC | elapsed 9.65 d | 19.5 d to the Aug-27 stop
+generated 2026-08-07 12:49 UTC | elapsed 9.65 d | 19.5 d to the Aug-27 stop
 test tier: 19,556 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 90.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     142 records     142.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     317 records     105.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h     140 records     140.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     316 records     105.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1084 records      90.3 rec/h   usable
     last 24 h    1929 records      80.4 rec/h   usable
     12 h rate is 43% from ONE line (test_leg_kimi_k3); 6 line(s) contributed at all
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       2,026     138  2026-08-08 11:14  2026-08-08 11:14  yes
-      189       5,141     138  2026-08-09 21:43  2026-08-09 21:43  yes
-      279       8,503     142  2026-08-11 10:56  2026-08-11 10:56  yes
-      340      10,943     142  2026-08-12 13:57  2026-08-12 13:57  yes
-      403      13,463     142  2026-08-13 17:50  2026-08-13 17:50  yes
-      568      20,772     142  2026-08-17 02:45  2026-08-17 02:45  yes
+      100       2,026     136  2026-08-08 11:15  2026-08-08 11:15  yes
+      189       5,141     136  2026-08-09 21:44  2026-08-09 21:44  yes
+      279       8,503     140  2026-08-11 10:57  2026-08-11 10:57  yes
+      340      10,943     140  2026-08-12 13:57  2026-08-12 13:57  yes
+      403      13,463     140  2026-08-13 17:51  2026-08-13 17:51  yes
+      568      20,772     140  2026-08-17 02:46  2026-08-17 02:46  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 47% of the rung-568 backlog (9,692 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
