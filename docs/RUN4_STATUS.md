@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-07 04:30 UTC -- T+223h21m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-07 04:31 UTC -- T+223h22m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,13 +10,13 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+223h21m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+223h22m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **20604** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on core, 76 min ago; none live, newest failure 76 min ago** |
+| transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on core, 77 min ago; none live, newest failure 77 min ago** |
 | transport timeouts (cumulative, ever) | 342 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **974** = 93 running + **335 ELIGIBLE** + 546 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **744** |
-| **cores doing RUNG-RAISING work** | **56.5%** -- 416 of 736 cores (52 min old) |
+| **cores doing RUNG-RAISING work** | **56.5%** -- 416 of 736 cores (53 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,34 +38,34 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 04:30 UTC | elapsed 9.31 d | 19.8 d to the Aug-27 stop
+generated 2026-08-07 04:31 UTC | elapsed 9.31 d | 19.8 d to the Aug-27 stop
 test tier: 19,061 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 69.6 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     147 records     147.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     484 records     161.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     835 records      69.6 rec/h   usable
-    last 24 h    1949 records      81.2 rec/h   usable
+    => OPERATIVE RATE 69.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     146 records     146.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     481 records     160.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     833 records      69.4 rec/h   usable
+    last 24 h    1948 records      81.2 rec/h   usable
     12 h rate is 80% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (70 rec/h); latest excludes cells already within
-    8 of the ceiling (70 rec/h). Window 12 h.
+    the whole fleet (69 rec/h); latest excludes cells already within
+    8 of the ceiling (69 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       2,369       6  2026-08-08 14:33  2026-08-08 14:33  yes
-      189       5,484       6  2026-08-10 11:19  2026-08-10 11:19  yes
-      279       8,992      28  2026-08-12 13:44  2026-08-12 13:44  yes
-      340      11,432      28  2026-08-14 00:48  2026-08-14 00:48  yes
-      403      13,952      34  2026-08-15 13:01  2026-08-15 13:01  yes
-      568      21,267     147  2026-08-19 22:08  2026-08-19 22:08  yes
+      100       2,369       6  2026-08-08 14:39  2026-08-08 14:39  yes
+      189       5,484       6  2026-08-10 11:31  2026-08-10 11:31  yes
+      279       8,992      28  2026-08-12 14:03  2026-08-12 14:03  yes
+      340      11,432      28  2026-08-14 01:12  2026-08-14 01:12  yes
+      403      13,952      33  2026-08-15 13:30  2026-08-15 13:30  yes
+      568      21,267     146  2026-08-19 22:53  2026-08-19 22:53  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 58% of the rung-568 backlog (12,382 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
