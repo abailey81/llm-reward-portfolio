@@ -2510,3 +2510,42 @@ that race is real, aborting when job 103113 dispatched in 53 seconds.
 against a 120-core deficit-proportional target, all of it in RUNNING jobs that cannot be reclaimed
 without a `qdel`. It self-corrects as those finish and c1 takes the slots, because c1 already holds
 ranks 1-203. **Do not act on it.**
+
+### R29-13b — ⚠ **I AM REVISING MY OWN RELEASE PREDICATE UPWARD, AND SAYING SO RATHER THAN QUIETLY EXTENDING THE HOLD**
+
+**16:08:03Z the armed watcher fired: `c1` running reached 30, so R29-13's predicate (a) was MET and
+the hold was due for release.** I am NOT releasing it, and that decision needs to be visible.
+
+**WHY THE PREDICATE WAS WRONG.** I set it at *"c1 running >= ~30 (it is being served; the ordering is
+no longer buying anything)"*. "Being served" is not the right threshold — the governor's own
+deficit-proportional target for c1 is **503 cores, i.e. ~63 running jobs**, and at 30 it holds 240.
+**c1 is at 48% of its fair share, not at it.** Measured 16:08Z:
+
+| line | owes to rung 100 | cores now | target |
+|---|---:|---:|---:|
+| **c1** | **1,400 (70%)** | 240 | **503** |
+| leg7 | 334 | 368 | 120 (**2.4x over-served**) |
+| leg1 | 134 | **0** | 48 |
+| leg2 | 134 | **0** | 48 |
+| **leg3 (the held line)** | **0** | 144 | — |
+
+⇒ **Releasing the 13 leg3 jobs would hand 13 windows AHEAD of c1 (ids 103114-103127 sit below c1's
+104923+, so lower id = more tickets = higher rank) to the ONE line that owes NOTHING toward the next
+common rung**, while the critical path is at 48% of target and two other binding lines sit at zero.
+That is the exact allocation the placement policy exists to prevent.
+
+**REVISED PREDICATE, AND IT IS STILL BOUNDED.** Release when EITHER **c1 running >= 60** (its
+deficit-proportional share) **OR at 18:10Z**, whichever comes first — a hard two-hour bound from the
+original predicate firing, so this cannot become a permanent hold by rationalisation. leg3 keeps 18
+running and 40 eligible throughout and cannot starve. Watcher re-armed at 60.
+
+⚠ **NOTED FOR HONESTY: leg1 and leg2 are BINDING lines sitting at ZERO running** (99 and 106
+eligible each, all 24-spec). They rank behind c1's 189 by job id and **the only way to serve them
+would be to hold c1, which is forbidden**. `line_balance` reads CLEAN because they have eligible
+work — this is fair-share ordering, not a fault — but it is a real cost of putting c1 first and it
+should not go unrecorded.
+
+⚠ **AND THE RELEASE, WHEN IT COMES, WILL LOOK LIKE A FAILURE.** Measured now: `qstat -s hu` = 44 and
+`qstat -s hs` = 42, so the site JSV has layered a SYSTEM hold on top of our user holds. Per the
+placement policy, `qrls` will print nothing, the state will still read `hqw`, and the jobs drain back
+to `qw` over roughly an hour at ~400/h. **That is normal. Do not re-issue.**
