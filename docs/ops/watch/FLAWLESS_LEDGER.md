@@ -2237,3 +2237,52 @@ only as the 8-spec backlog drains, over roughly one to two job durations.
 at once and then none for half an hour. That is what a supply-limited queue looks like when 84% of
 the visible free capacity is owned by somebody else: we take the windows the moment they appear,
 and then we wait. It is NOT a rank problem, and no hold, release or reorder changes it.
+
+### R29-9 — ⛔⛔⛔ **THE DURATION LEVER HAS A LATENT DATA-LOSS MODE NOBODY HAS RECORDED: A MULTI-WAVE JOB ARCHIVES NOTHING UNTIL ITS LAST SPEC IS SUBMITTED**
+
+**FOUND 2026-08-07T13:0xZ while validating the 24-spec shape I had just converted 544 jobs into.**
+`leg3_leg_qwen3_6_27b_sweep_t6` had ten 24-spec jobs running for **17.5 h** and its driver reported
+**`2/739 done`** the whole time, while 8-spec jobs on the SAME line wrote 168 records that day. Eight
+trainings had reached `step 400000/400000` with **zero errors** and **zero records on disk**.
+
+**THE CAUSE, read first-hand.** `parallel.DevicePool.submit_with` opens with
+`token = self._tokens.get()  # blocks until a device is free`. And `run_one.run_task` submits like
+this:
+
+```python
+futs = {pool.submit_with(_worker_for(s), dict(s)): s for s in to_run}   # <- BLOCKS HERE
+for fut in as_completed(futs):
+    ...
+    _archive_result(row, s)                                              # <- not reached yet
+```
+
+**The dict comprehension must COMPLETE before `as_completed` is ever evaluated.** With `pack=8` and
+24 specs there are 8 tokens, so submitting spec 9 blocks until a wave-1 training finishes, spec 17
+blocks until wave 2 finishes, and the comprehension only returns at roughly **21 h**. Only then does
+archiving begin. ⇒ **A 24-spec job is SILENT for ~21 h and then delivers in a burst.**
+
+**IT IS NOT DATA LOSS TODAY — the work is delayed, not discarded, and the repack is safe.** Two
+consequences that are NOT benign:
+
+1. ⚠⚠ **A KILL BEFORE THE COMPREHENSION RETURNS DISCARDS EVERY COMPLETED TRAINING IN THAT JOB.**
+   Nothing has been archived, so a node failure, an admin purge, an `h_rt` expiry or the **2026-08-12
+   maintenance** costs up to **16 completed trainings x ~10.5 h = ~168 core-hours PER JOB**. At 8
+   specs the same kill costs at most 8 trainings and usually 0, because a 1-wave job's comprehension
+   never blocks. **The duration lever therefore trades core-occupancy for kill-exposure, and that
+   trade has never been priced.** With 197 24-spec jobs live, a cluster-wide event is worth ~33,000
+   core-hours.
+2. ⚠ **MONITORING WILL READ THE SILENCE AS A STALL.** `done` counts stay frozen for ~21 h per block
+   and then jump. Any instrument that treats a flat record count as a fault will false-fire, and any
+   session reading `2/739 done` will conclude a line is broken when it is healthy. **This is exactly
+   how RUN 29 nearly mis-diagnosed its own repack.**
+
+**⇒ THREE STANDING CONSEQUENCES.**
+* **DO NOT RAISE `specs_per_task` ABOVE 24** until this is fixed: at 48 the silent window is ~45 h
+  and the per-kill loss is ~40 trainings. The core-count arithmetic favours 48; the risk does not.
+* **A TRAINING IS ~10.5 h, NOT 8.9 h** (measured: 400,000 steps at 10.6-11.2 steps/s = 37,000-39,000 s,
+  and one full run logged `elapsed 38,975 s`). So 24 specs is **~31 h**, not 26.7 h, and the honest
+  converted-fleet projection is `11.7 x 31 x 8 = ~2,900 cores` — but see R29-8 on lambda.
+* **THE FIX IS ONE LINE AND MUST NOT BE APPLIED WHILE LIVE.** Interleave submission with archiving
+  (submit up to `pack`, then archive completions as tokens free) instead of materialising the whole
+  comprehension. `src/**` is drift-fenced and this is training-path code (the D17 class: never while
+  live). **Registered for the post-campaign fix, not for now.**
