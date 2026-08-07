@@ -2208,3 +2208,32 @@ and all six are registered in `LINE_DURATION.json` so a revive cannot silently u
 ⚠ **AND THE STANDING RECOMMENDATION FROM THIS SESSION IS: DO NOT DO IT PIECEMEAL.** A supervisor
 restart without the guard change reverts on the next revive; a repack without the supervisor change
 resubmits at 8 specs anyway. It is one coordinated change or none.
+
+### R29-8 — MEASURED — **DISPATCH IS BURSTY, SO A SHORT-WINDOW `lambda` IS NOT A RATE, AND THE STEADY-STATE ESTIMATOR IS THE ONE TO USE**
+
+**Identity-tracked (`qw -> r` by job id, never by counts, because completions mask dispatches),
+2026-08-07:**
+
+| window | minutes | dispatches | implied rate |
+|---|---:|---:|---:|
+| 11:13 -> 11:26 | 13 | **10** | 46 /h |
+| 11:26 -> 11:39 | 13 | 1 | 4.6 /h |
+| 11:39 -> 11:56 | 17 | **0** | 0 /h |
+
+**43 minutes, 11 dispatches, and ten of them in one burst.** ⇒ **THE 43-MINUTE AVERAGE OF 15.3/h IS
+NOT A RATE, IT IS ONE BURST DIVIDED BY AN ARBITRARY WINDOW**, and projecting cores from it (it gives
+3,279) would be this project's oldest error in a new costume. **A negative — or a positive — from a
+bursty system is not a result until watched longer than its period**, and we do not yet know the
+period.
+
+⭐ **THE ESTIMATOR THAT IS SAFE, AND WHY.** The fleet's own occupancy already averages over a whole
+job duration: `N = lambda x T` gives `lambda = 104 / 8.9 h = 11.7 /h`, which is an 8.9-hour average
+rather than a 43-minute one and matches the 12.4 figure carried since RUN 28. **Use `N / T`, never a
+short-window count.** ⇒ the honest projection for a fully converted 24-spec fleet is
+`11.7 x 26.7 x 8 = ~2,500 cores`, not the 2,648 of RUN 28's brief and not 3,279 — and it arrives
+only as the 8-spec backlog drains, over roughly one to two job durations.
+
+⚠ **AND THE BURSTINESS IS ITSELF THE R29-1 EVIDENCE, SEEN FROM THE OTHER SIDE.** Ten windows opened
+at once and then none for half an hour. That is what a supply-limited queue looks like when 84% of
+the visible free capacity is owned by somebody else: we take the windows the moment they appear,
+and then we wait. It is NOT a rank problem, and no hold, release or reorder changes it.
