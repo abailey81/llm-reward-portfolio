@@ -3,6 +3,99 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-07c] ★★★★★★★ RUN 29 (OPS), pass 1 — **THE CORES ANSWER, MEASURED: 84% OF THE FREE CAPACITY WE CAN SEE BELONGS TO DEPARTMENTS THAT BOUGHT IT, SO WE ARE SUPPLY-LIMITED AND NO AMOUNT OF QUEUE CONCENTRATION CAN HELP** · a line was DEADLOCKED with 701 specs frozen while every gate read green · 544 held 8-spec jobs repacked to 24-spec with ZERO retries consumed
+
+### THE HEADLINE, AND IT CLOSES A QUESTION THAT HAS BEEN WRONG IN THREE CONSECUTIVE RUNS
+
+`cores = lambda x duration x 8`. Every run since RUN 26 has tried to raise `lambda`, and RUN 28
+concluded that Tamer's "fewer jobs in the queue" hypothesis was probably right. **Measured
+first-hand today, it is real but small, and it is not the constraint.**
+
+At 10:30Z pool-D held **2,063 free `Bran` slots**. **1,728 of them (84%) sit behind PAID
+departmental hostgroups.** `@PAID_MathsStatSci` alone holds **1,404 free slots across 43 of its 44
+hosts**, sitting at LOAD 0.19 doing nothing, and our jobs carry `PAID=0`. Net those out and there
+were **7 open hosts with an 8-wide window, room for NINE of our jobs**, against 267 eligible.
+
+**Two independent derivations, because a negative this large is a claim about my own script first.**
+Route 1: hostgroup membership (`qconf -shgrp`) plus our own job's `PAID=0` env and `context:
+allow=d`. Route 2: **all 105 of our running jobs sat on OPEN nodes, none on PAID**, and the 44
+`@PAID_MathsStatSci` hosts carried exactly ONE running job cluster-wide, not ours.
+
+⭐ **AND IT RESOLVES A PARADOX THE CODEBASE ITSELF RECORDED AND COULD NOT EXPLAIN.**
+`driver._chunk_packs`'s docstring banks, from 2026-08-06: *"78 D-pool hosts held >=8 free slots
+while we won ZERO dispatches in two hours"*, and attributes it to fair share. It was never fair
+share. Those hosts were not ours to take.
+
+### WHY CONCENTRATION CANNOT WORK, AS ARITHMETIC RATHER THAN OPINION
+
+Held (`hqw`) jobs carry `prior 0.00000` and `tckts 0`, so holding really does remove a job from the
+divisor: Tamer's mechanism is correct. But fitting the allocation across ALL 372 of our contending
+jobs gives `t(rank) = 6,419,107 / (rank + 112.7)`, and **`c ~ 113` is our 105 RUNNING jobs, which
+hold 4,481,384 of our 9,581,946 ticket mass (47%) and cannot be held.** Collapsing eligible
+267 -> 4 would lift our best pending job only 37,991 -> ~65,000 tckts, i.e. `prior` 2.01026 ->
+~2.0177, against a cluster where 526 foreign jobs already outrank us, p10 = 2.02744 and
+p1 = 2.54878. **A 2.2x ceiling, and rank was never the binding constraint anyway.**
+
+⚠ **This supersedes two earlier verdicts, both reached on the wrong statistic.** RUN 28 projected
+~5x from a bare `1/n` model that omitted the running jobs from the divisor. RUN 27 refuted the
+hypothesis by measuring `prior`, a NORMALISED quantity whose denominator it did not control. This
+one measures raw `tckts`.
+
+### THE DEADLOCK NOBODY COULD SEE
+
+**leg10 (kimi-k3) had 701 specs frozen and every gate read green.** `batch_jobs_in_queue` counts
+`hqw` as ALIVE, so five driver threads (t2-t6) sat at `round 0` for hours with 89 held jobs, 0
+running and 0 eligible, producing nothing. `line_balance` flagged HELD-OUT correctly, which is
+R28-5 earning its keep on the first day it mattered. ⚠ **But its printed remedy, "release this
+line's LOWEST pending block", would have been actively harmful**: leg10 owns our lowest job ids and
+owes ZERO trainings toward rung 100, so releasing it would have taken 89 dispatches away from the
+critical path for no gain to the reported result.
+
+### WHAT WAS DONE — 544 JOBS REPACKED, ZERO RETRIES CONSUMED
+
+Every link was verified BEFORE the first delete: the P13 code path read first-hand; `MAX_RETRIES=2`
+against all 445 leg10-t2 specs measured at `_cluster_retries=0`; leg10's driver confirmed live and
+carrying `--specs-per-task 24 --h-rt 45:0:0`; the PPID chain checked so the paired PIDs were proved
+to be the venv redirector rather than a double-drive; and `leg3_..._sweep_t6` already at `round 1`
+proving the resubmit-at-24 path **in production**.
+
+**CANARY** (leg10-t2, 5 jobs, 11:11Z): `qdel` -> `drain with NO qacct trace (1/3)` -> `submitted ...
+round 1` -> **2 jobs at `h_rt=162000`**, ids 107248/107252. Then extended line by line, never all at
+once, because 15 simultaneous drains is the stampede condition.
+
+| | 10:19Z | 11:26Z |
+|---|---:|---:|
+| 24-spec jobs | 31 | **197** |
+| 8-spec jobs | 914 | 355 |
+| held (`hqw`) | 575 | **31** |
+| eligible | 267 | **464** (the depth guard is 420) |
+| `Eqw` / error states | 0 | **0** |
+
+Every drain took the P13 purge path and said so in the driver's own words: *"the array was purged
+before dispatch; requeueing 315 spec(s) WITHOUT a retry bump"*. **No spec anywhere lost a retry.**
+
+### THE BONUS THAT PROTECTS THE CRITICAL PATH
+
+Our per-job tickets are monotone in JOB ID, so a resubmitted job gets a NEW higher id and lands at
+the BACK of our own queue. c1 was submitted at 08-07 04:08:32, right after rung 30 banked, so it
+owns our highest ids and ranked LAST. **After the repack every repacked job sits behind c1's entire
+block** (leg10 rank 250, leg2 252, leg1 288, against c1 at 31), and **jobs ahead of c1 fell 48 ->
+30.** ⇒ **A STANDING RULE INVERTS: R26-11's "before 03:00Z, release everything" is now harmful.**
+The 575 held jobs all carried lower ids than c1, so releasing them would have delayed the critical
+path by ~46 h.
+
+### MY OWN ERRORS, CORRECTED IN PLACE
+
+Three parser defects, each caught by an implausible number rather than by a test. A regex written
+for the RUNNING-job layout silently matched only 105 of 947 jobs. Splitting `qstat -ext` from the
+right mistook a `ja-task-ID` for `slots`, and the fixed-column repair then dropped **1,162 rows, 793
+of them RUNNING**, which had inflated "our share of cluster running slots" to **27.2% when the true
+figure is 9.9%**. Hostgroup membership compared `qconf`'s FQDNs against `qhost`'s short names,
+marking all 259 pool-D hosts OPEN when I had already proved one was PAID. Also hit the documented
+non-ASCII trap: a `⇒` inside a `print()` crashed on the cp1251 console.
+
+Recorded as **R29-1 … R29-6** in `docs/ops/watch/FLAWLESS_LEDGER.md`.
+
 ## [2026-08-07b] ★★★★★★★ RUN 28 (OPS), CLOSE-OUT — **THE CORES ANSWER ARRIVED TOO LATE TO ACT ON, AND IT SAYS TAMER WAS RIGHT ALL ALONG: OUR TICKET POOL IS DIVIDED AMONG 296 CONTENDING JOBS WHILE EVERY COMPARABLE USER SPREADS A LARGER POOL OVER 5–25** · the 03:00-08:00Z burst window is refuted by 362 samples · RUN 29 brief written
 
 **TAMER'S VERDICT ON THIS SESSION, AND IT IS CORRECT.** *"the jobs/h rate is extremely low, we didn't
