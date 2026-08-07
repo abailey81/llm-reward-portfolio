@@ -2392,3 +2392,36 @@ our jobs is at the head, which is the entire basis of the placement policy and o
 users free to move underneath us. It is far stronger than either prior attempt (raw statistic,
 within-user, our own manipulation) but it is n=1. **Re-derive it the next time the eligible count
 moves by 2x in either direction** — the loop's STEP 3 already records the numbers needed.
+
+### R29-9a — **CONFIRMED BY PREDICTION, AND THE TIMING HALF OF MY OWN CLAIM WAS WRONG**
+
+R29-9 predicted that `leg3 ..._sweep_t6`'s records would appear **in a burst** rather than
+incrementally, once the blocked submission comprehension returned. A watcher was armed on the
+falsifier before the outcome was known.
+
+**FIRED 2026-08-07T14:00:07Z.** t6-range records (seed >= 420) went **3 -> 18** in one step:
+`distributional-s420/431/432/433`, `placebo-s420/430/431/432`, `placebo_shuffled-s430/431/432`,
+`scalar_cvar5-s430/431/432`, `scalar-s420/430/431/432/433`. Campaign records jumped **+79 in 50 min**
+after eight hours of near-flatness on that line. **The burst mechanism is confirmed.**
+
+⛔ **BUT MY TIMING WAS WRONG AND THE WAVE MODEL BEHIND IT WAS TOO RIGID.** I predicted ~16:20Z on a
+"three discrete waves of 8" picture. It landed at ~14:00Z, about **18.5 h** after dispatch rather
+than the 21 h I derived. **`DevicePool` is a ROLLING 8-wide pipeline, not three synchronised waves:**
+`submit_with` frees one token per COMPLETION, so spec 9 submits when the FIRST training finishes,
+not when all eight do, and the comprehension returns after the **16th completion** — which arrives
+sooner and more staggered than a wave boundary. The seeds prove it: 420 alongside 430-433 means
+different jobs crossed their own thresholds at different times.
+⇒ **The silent window is ~18-19 h, not ~21 h.** Slightly better than recorded, and the substance of
+R29-9 (nothing archived until then, so a kill discards everything completed) is UNCHANGED.
+
+### R29-11a — **THE 45 h WALL PLACES FINE. R29-11's OPEN QUESTION IS CLOSED.**
+
+R29-11 refused to conclude either way on whether `h_rt=45 h` hurts placement, because no 24-spec job
+had yet reached the head of our own queue. **Measured 13:05Z -> 14:01Z: 24-spec RUNNING went
+10 -> 17** while 8-spec running drained 81 -> 71. **Seven of the repacked jobs dispatched.** There is
+no walltime penalty, which matches the cluster prior (1,068 jobs at 72 h, 927 at 7 days).
+
+⇒ **THE CONVERSION IS UNDERWAY AND VISIBLE IN THE COMPOSITION, WHICH IS THE METRIC TO WATCH — NOT
+THE CORE COUNT.** Cores are still falling (728 -> 704) because 8-spec jobs finish ~3x faster than
+their replacements are won, exactly as R29-11 predicted. **Report `24-spec running` every pass; it
+is the leading indicator, and cores is the lagging one.**
