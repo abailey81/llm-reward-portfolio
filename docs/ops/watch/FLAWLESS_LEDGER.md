@@ -2652,3 +2652,48 @@ target the moment rung 100 banks, and the fleet reaches it without intervention 
 
 ⚠ **WHAT TO WATCH INSTEAD OF CORES:** `common rung 100 needs N`. It has gone **2,273 -> 2,215 ->
 2,002 -> 1,806 -> 1,797 -> 1,738 in one day (-535)**. That is the number the grade is made of.
+
+### R29-17 — ⭐⭐⭐⭐⭐ **THE REAL DEFECT WAS NOT THE CORE COUNT: c1 WAS SPENDING FIVE SIXTHS OF ITS EFFORT ON BLOCKS THAT CANNOT RAISE ITS RUNG. LADDER LOCK APPLIED, AND IT SERVES BOTH GOALS AT ONCE.**
+
+**FOUND 21:37Z when allocative efficiency collapsed to 18.8%** (52.2% at 15:24Z). 144 of 768 cores
+were doing rung-raising work. The cause, measured rather than inferred:
+
+| c1 block | running | eligible | serves rung 100? |
+|---|---:|---:|---|
+| **t1** | **11** | **21** | **YES — t1 IS the entire 1,400-training rung-100 requirement** |
+| t2-t6 | 58 | 129 | no — cannot lift c1 off rung 30 until t1 completes |
+
+11 (c1-t1) + 7 (leg7-t1) = 18 useful jobs = **144 cores, matching the governor exactly.**
+⇒ **THE CRITICAL PATH WAS RUNNING AT ONE SIXTH OF ITS OWN THROUGHPUT.** `--pipeline-rungs` submits
+all six blocks concurrently (`campaign.py` ThreadPoolExecutor), so c1's limited queue depth was
+SPREAD across six blocks instead of concentrated on the one that banks the rung. **This, not the
+core count, is why rung 100 was slow — and no amount of extra cores would have fixed it.**
+
+⚠ **AND `c1_sweep_t1` HAS READ `0/1400 done, 1400 pending` SINCE 04:14:08, EIGHTEEN HOURS.** Benign
+on inspection: `grep "submitted c1_sweep"` returns NOTHING, so this driver adopted 219 pre-existing
+jobs via `--resume` and never submitted a round; c1's first completions are only due from ~00:30Z
+since its jobs started 14:00-21:00Z. **But it means t1 holds just 32 of its 175 jobs, and the rest
+are not submitted until the block drains.**
+
+**ACTION 21:43:27Z — `job_rank_governor`'s own LADDER LOCK, APPLIED TO c1 ONLY.** 129 c1 jobs on
+t2-t6 held, `rc=0`, journalled `~/r29_c1_ladderlock.txt`. **Deliberately NOT the full 151-id ladder
+lock the governor emitted**, because 124 of those are the repacked 24-spec jobs and holding them
+would suppress cores. Selection computed ON THE NODE, so no race is possible.
+
+| | before | after |
+|---|---:|---:|
+| first 24-spec job's rank | **180** | **1** |
+| c1 eligible blocks | t1-t6 | **t1 only (21)** |
+| c1 running | 69 | 69 (untouched) |
+| eligible / guard | 533 / 384 | 403 / 388 |
+
+⇒ **IT RESOLVES THE CONFLICT R29-16 IDENTIFIED INSTEAD OF CHOOSING A SIDE.** Every c1 dispatch now
+serves rung 100 (allocative efficiency must rise from 18.8%), and the 24-spec queue has moved from
+rank 180 to rank 1, so once c1's 21 t1 jobs dispatch the windows flow to 31-hour jobs and **cores
+rise**. Neither the c1 tail hold (cores at the rung's expense) nor doing nothing (rung at cores'
+expense) was necessary.
+
+**RETIREMENT PREDICATE — NOT A CLOCK.** Release `xargs -a ~/r29_c1_ladderlock.txt -r qrls` when
+EITHER c1's next-needed block moves off t1 (read it from `job_rank_governor`; t1 is then complete and
+t2 becomes the rung-raising block), OR c1 running falls below 20, OR c1 has ZERO eligible AND zero
+t1 work left to submit. **Re-check every pass; a hold that outlives its purpose is the failure mode.**
