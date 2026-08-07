@@ -2286,3 +2286,42 @@ consequences that are NOT benign:
   (submit up to `pack`, then archive completions as tokens free) instead of materialising the whole
   comprehension. `src/**` is drift-fenced and this is training-path code (the D17 class: never while
   live). **Registered for the post-campaign fix, not for now.**
+
+### R29-10 — ⚠⚠ **MY OWN REPACK MOVED THE 2026-08-12 MAINTENANCE DISPATCH CLIFF FORWARD BY ~30 HOURS, AND THE PLAYBOOK STILL SAYS THE OLD DATE**
+
+**UCL's official notice** (quoted in `docs/ops/MAINTENANCE_2026-08-12.md`): *"We will be draining
+jobs on Myriad so that they will only start if they can complete before the outage, or else they
+will wait in the queue until it is over."* The playbook then computes our cliff **for `h_rt=15 h`**:
+*"expect our queue to stop dispatching roughly 15 h before the outage, i.e. from around 17:00 on
+Tue 11 August."*
+
+⇒ **THAT SENTENCE IS NOW WRONG, AND I AM THE REASON.** After today's repack our jobs carry
+**`h_rt=45 h` (162000 s)**, so UCL's drain will refuse to START them from **~45 h before the outage,
+i.e. from about 11:00 on MONDAY 10 AUGUST** — roughly **30 hours earlier** than the playbook says.
+Anyone reading that section on the 11th will think the flattening is a fault, or will discover the
+cliff a day and a half after it bit.
+
+**THE ARITHMETIC, BECAUSE THE TRADE IS STILL WORTH IT AND SHOULD BE STATED HONESTLY.**
+
+| | dispatch stops | dead window to ~Aug 13 |
+|---|---|---:|
+| 8-spec, `h_rt` 15 h (before today) | Tue 11 Aug ~17:00 | ~31 h |
+| 24-spec, `h_rt` 45 h (now) | **Mon 10 Aug ~11:00** | **~61 h** |
+
+Gain: ~70 h from now to the cliff at roughly +1,650 cores once converted = **~115,000 extra
+core-hours**. Cost: ~30 h of extra dead window at the ~850-core baseline = **~25,500 core-hours**.
+**NET ~+90,000 core-hours, so the repack stands** — but the dead window is real, it is mine, and it
+was not planned for.
+
+⭐ **THE MITIGATION, AND IT IS FREE.** Walltime is what UCL's drain filters on, so around **Sat 9 /
+Sun 10 August** put the six legs BACK to `-SpecsPerTask 8 -HRt 15:0:0` (and update
+`LINE_DURATION.json` in the same change, per its own KEEP-IN-SYNC contract). Short jobs keep
+dispatching until Tue 11 ~17:00 instead of Mon 10 ~11:00, recovering ~30 h of fleet time across the
+window. Restore 24 specs once access returns after Thu 13. **The supervisors must be restarted
+one at a time — twelve lines resuming together is the stampede condition that earned the
+2026-08-03 penalty.**
+
+✅ **ONE THING THIS DOES *NOT* THREATEN.** UCL DRAINS rather than kills, and jobs already running
+*"will wait in the queue until it is over"* — so the R29-9 kill-exposure (a multi-wave job discarding
+every completed training) is NOT triggered by the maintenance itself. R29-9's exposure stays limited
+to node failures, `h_rt` expiry and our own `qdel`s, measured at ~5.7% of job exits.
