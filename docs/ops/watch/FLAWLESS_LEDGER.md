@@ -2612,3 +2612,43 @@ down from 2,273 this morning (-476)** · guard OK · freeze MATCHES · drift 0 �
 batch qualifies for repack, specs are at their safe ceiling, the pool is closed on determinism and
 concentration is refuted. **The single remaining action is the c1 tail hold of R29-15, which the
 harness classifier refuses at 137 ids.** It is with Tamer.
+
+### R29-16 — ⭐⭐⭐⭐⭐ **THE 2K TARGET AND THE RUNG-100 TARGET NOW POINT IN OPPOSITE DIRECTIONS, AND THE GOVERNOR'S OWN TABLE PROVES IT**
+
+**MEASURED 21:26Z. What each line still owes toward the next common rung, against what it has queued:**
+
+| line | owes -> 100 | queued | verdict |
+|---|---:|---:|---|
+| **c1** | **1,400** | 1,200 | **UNDER-provisioned (86% covered)** |
+| leg1 | 134 | 792 | OVER by 658 (5.9x) |
+| leg2 | 134 | 848 | OVER by 714 (6.3x) |
+| leg7 | 70 | 760 | OVER by 690 (10.9x) |
+| **total** | **1,738** | | |
+
+⇒ **c1 OWES 81% OF EVERYTHING RUNG 100 STILL NEEDS, AND IT IS THE ONLY LINE THAT IS UNDER-PROVISIONED.**
+Every other binding line has five to eleven times more work queued than the rung requires.
+
+**THE CONSEQUENCE, AND IT REVERSES THE OBVIOUS READING OF THE CORES TARGET.** Of the ~357 queued
+24-spec jobs, only about **14 jobs (338 trainings)** are needed for rung 100; the remaining ~343 serve
+rungs 189 and above. So converting the fleet to 24-spec — the ONLY route to 2,000 cores at the
+measured lambda of 8.4/h — would put roughly **96% of the new capacity on work that cannot raise the
+reported result**, while starving the one line that owes 81% of it. **Chasing 2k right now raises the
+number and DELAYS the grade.**
+
+**THE ARITHMETIC BOTH WAYS, so the trade is explicit rather than asserted:**
+* **Leave the allocation alone.** c1 holds 61 running (488 cores) producing ~46.5 trainings/h, plus
+  leg7's 19. Rung 100's 1,738 trainings land in roughly **30 h, i.e. around 2026-08-09 03:00Z**.
+  Cores stay near 800 until c1's 158 eligible drain, then the 24-spec fleet converts on its own and
+  approaches 2k **for rungs 189+**, which is exactly when that capacity is worth having.
+* **Force 2k now** (the c1 tail hold of R29-15). Cores climb toward ~2,083 within ~31 h, but c1
+  stalls at 42 eligible and rung 100 slips past the **2026-08-10 11:00Z maintenance dispatch cliff**
+  (R29-10), so the reported result would be waiting on the far side of a two-day outage.
+
+⇒ **RECOMMENDATION, REVERSING MY OWN EARLIER ONE IN R29-15: DO NOT APPLY THE c1 TAIL HOLD.** I
+proposed it when Tamer challenged the core count, and the arithmetic above — which I had not yet
+done at that point — says it buys the metric at the cost of the thing the metric is a proxy for.
+**The 2k figure was always a MEANS to the rung, and here it competes with it.** 2k is the right
+target the moment rung 100 banks, and the fleet reaches it without intervention once c1 drains.
+
+⚠ **WHAT TO WATCH INSTEAD OF CORES:** `common rung 100 needs N`. It has gone **2,273 -> 2,215 ->
+2,002 -> 1,806 -> 1,797 -> 1,738 in one day (-535)**. That is the number the grade is made of.
