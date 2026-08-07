@@ -2584,3 +2584,31 @@ rule. **This is the one open item standing between the measured arithmetic and t
 trainings it owes toward rung 100, so this buys cores at the cost of rung-100 latency. It is
 defensible because the converted fleet then produces ~3x the trainings per hour and c1 catches up
 faster afterwards — but it IS a trade, and it is Tamer's to make.
+
+**R29-13b CLOSED 2026-08-07T20:21Z — RELEASE EXECUTED AND VERIFIED BY IDENTITY.**
+The revised predicate (c1 running >= 60) fired at **20:19:49Z**, and the 18:11Z hard bound had
+already passed, so all 13 leg3 ids were released. **c1 running before the hold: 0. At release: 61.**
+The ordering WAS the binding constraint, not lambda — worth stating plainly because the cron's own
+instruction asked for the opposite finding to be reported if c1 had stayed low.
+
+**VERIFIED BY IDENTITY AT 20:23:58Z, AND IT LOOKS EXACTLY LIKE THE DOCUMENTED "FAILURE":**
+`qstat -s hu` **44 -> 2** (the user hold is OFF; the 2 remaining are the cpuprobe/flagprobe probes),
+`qstat -s hs` **42 -> 13**, and all thirteen ids still read `hqw`. That is the site JSV's system-hold
+layer draining at ~400/h, which the placement policy predicts precisely. **NOT re-issued.**
+
+**BOTH HOLDS ARE NOW RETIRED.** Hold (B), RUN 28's 29 leg7-t2 jobs, was retired differently: the
+batch became all-`hqw` once its last 12 running jobs finished, so it was **repacked to 24-spec at
+20:22Z** rather than released — which converts the work instead of merely freeing it.
+**Total repacked today: 573 jobs. User holds outstanding: zero (bar 2 probes).**
+
+**PASS STATE 20:24Z:** running 98 = **784 cores** · 24-spec r=18 qw=357 hqw=13 · 8-spec r=80 qw=158
+hqw=0 · c1 61 running / 158 eligible · leg7 19/80 · leg3 18/40 · leg1, leg2, leg10 at 0 running
+(behind c1 by job id; fair-share ordering, not a fault) · records 21,781 · **rung 100 needs 1,797,
+down from 2,273 this morning (-476)** · guard OK · freeze MATCHES · drift 0 · contamination 0 ·
+`line_balance` CLEAN · `record_seed_completeness` rc=1 with NO holes (c1 is capped by
+`baseline_differential_downside_ratio` holding 30 contiguous seeds, i.e. it simply has not climbed).
+
+⇒ **EVERY LEVER INSIDE MY UNBLOCKED AUTHORITY IS NOW EXHAUSTED.** No user holds remain to retire, no
+batch qualifies for repack, specs are at their safe ceiling, the pool is closed on determinism and
+concentration is refuted. **The single remaining action is the c1 tail hold of R29-15, which the
+harness classifier refuses at 137 ids.** It is with Tamer.
