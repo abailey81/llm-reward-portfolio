@@ -96,6 +96,64 @@ non-ASCII trap: a `⇒` inside a `print()` crashed on the cp1251 console.
 
 Recorded as **R29-1 … R29-6** in `docs/ops/watch/FLAWLESS_LEDGER.md`.
 
+### WHAT VALIDATING THE REPACK THEN TURNED UP — SIX MORE FINDINGS, TWO OF THEM CORRECTIONS TO ME
+
+**R29-7 — c1 AT 8 SPECS IS DELIBERATE, AND I HAD TO CORRECT MYSELF BEFORE ACTING.** I wrote that
+core was left at 8 specs *"almost certainly because c1 was mid-floor-run"* and that the reason had
+expired. Speculation, and wrong. `LINE_DURATION.json` states it: *"core (c1) carries the ENTIRE
+reported result and is DELIBERATELY still at 8 specs / 15 h. Converting it is Tamer's call and only
+AFTER rung 30 banks."* `watchdog_fenced.ps1:238` backs it with a hard guard, `if ($Line -ieq
+"core") { return $a }`, pinned by a selftest. **I inferred a motive from a timestamp instead of
+reading the artefact that states it.** The precondition IS now met, but a supervisor restart alone
+would revert on the first revive, so converting c1 is one coordinated change or none. Tamer's call.
+
+**R29-8 — DISPATCH IS BURSTY, SO A SHORT-WINDOW `lambda` IS NOT A RATE.** Identity-tracked `qw -> r`:
+10 dispatches in 13 min, then 1, then 0 in 17 min. The 43-minute average of 15.3/h is one burst over
+an arbitrary window and would project 3,279 cores. Use `lambda = N/T`, which averages over a whole
+job duration.
+
+**R29-9 — ⛔ THE BIGGEST FIND: A MULTI-WAVE JOB ARCHIVES NOTHING UNTIL ITS LAST SPEC IS SUBMITTED.**
+leg3's ten 24-spec jobs ran 17.5 h reporting `2/739 done`, with eight trainings at
+`step 400000/400000`, zero errors and zero records. `DevicePool.submit_with` BLOCKS on
+`_tokens.get()`, and `run_task` materialises the whole submission dict BEFORE `as_completed` — so
+with 8 tokens and 24 specs the comprehension only returns at ~21 h. **The work is delayed, not lost,
+and the repack is safe.** But a kill before that point discards every completed training in the job
+(up to 16 x 10.5 h against ~0 for a single-wave job), and the measured kill rate is **~5.7%** of job
+exits (252 SIGTERM + 58 SIGKILL + 26 h_rt over ~5,900 accounting rows). ⇒ **do NOT raise specs above
+24**, and a flat `done` count for ~21 h is CORRECT, not a stall. Also corrects the model: **a
+training is ~10.5 h, not 8.9 h**, so 24 specs is ~31 h. The fix is training-path code behind the
+drift fence, registered for after the campaign.
+
+**R29-10 — ⚠ MY REPACK MOVED THE AUG-12 MAINTENANCE CLIFF ~30 h EARLIER, AND THE PLAYBOOK IS NOW
+CORRECTED.** UCL drains by WALLTIME. The playbook computed our cliff for `h_rt=15 h`: *"around 17:00
+on Tue 11 August"*. Our legs now carry 45 h, so their cliff is **~11:00 Mon 10 August**. Net still
+strongly positive (~115,000 extra core-hours gained before the cliff against ~25,500 lost to a
+longer dead window), and there is a free mitigation: revert the legs to 8 specs / 15 h by Sat 9
+August, then restore 24 after access returns. Playbook §2 rewritten to derive the cliff from the
+LIVE walltime instead of a baked-in number.
+
+**R29-11 — R29-1 WAS TOO STRONG; BOTH CONSTRAINTS BIND.** 11:56 -> 13:05Z: 6 dispatched, 19
+finished, running 104 -> 91. There were 17 open windows and we took ~5/h, so we are not purely
+supply-limited — we also lose races from a mid-table rank. Duration remains the lever. **And the
+shrinkage is the transition: an all-8-spec fleet bleeds when completions outrun dispatch, which is
+exactly what a 3x longer job fixes. Expect cores to dip before they rise.**
+
+**R29-12 — ⭐ THE CONCENTRATION HYPOTHESIS IS REFUTED BY A CONTROLLED BEFORE/AFTER, NOT A MODEL.**
+The repack accidentally ran the experiment properly: our eligible count went **267 -> 575** and our
+best pending job's RAW `tckts` went **37,991 -> 38,095 — a 0.3% change.** Same user, same line, 97
+minutes apart, our own manipulation. The cause is that the pool is NOT fixed (mass 9.58M -> 11.88M,
++24%), so dividing it further and enlarging it nearly cancel at the head. That supersedes RUN 27's
+normalised-`prior` measurement, RUN 28's confounded cross-section, and my own fitted 2.2x cap.
+Holding still changes WHICH of our jobs leads, which is what the placement policy rests on.
+
+**AND ONE LEVER MEASURED AND DECLINED.** 83 placeable OPEN 8-wide windows sit in NON-D pools (e00a
+43, t00a 16, l00a 13, b00a 5) against 14 in pool D. Widening `-ac allow=d` would roughly 5x our
+placeable windows. **Refused:** t00a is 64-core/1-socket and u00a/v00a are 48-core, and
+`check_determinism_homogeneity` fingerprints only `dev=` and thread count, so a CPU-model mix would
+pass every live check while violating `allocation.py`'s stated pool-homogeneous-blocks invariant.
+CLAUDE.md Priority 5: *"speed comes from more machines, never different arithmetic."* ⇒ a costed
+Criterion-3 fact for the write-up: **we declined ~5x placeable capacity to protect CRN pairing.**
+
 ## [2026-08-07b] ★★★★★★★ RUN 28 (OPS), CLOSE-OUT — **THE CORES ANSWER ARRIVED TOO LATE TO ACT ON, AND IT SAYS TAMER WAS RIGHT ALL ALONG: OUR TICKET POOL IS DIVIDED AMONG 296 CONTENDING JOBS WHILE EVERY COMPARABLE USER SPREADS A LARGER POOL OVER 5–25** · the 03:00-08:00Z burst window is refuted by 362 samples · RUN 29 brief written
 
 **TAMER'S VERDICT ON THIS SESSION, AND IT IS CORRECT.** *"the jobs/h rate is extremely low, we didn't
