@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+226h48m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **20725** |
+| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **20726** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.0 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on core, 4.7 h ago; none live, newest failure 4.7 h ago** |
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 07:57 UTC | elapsed 9.45 d | 19.7 d to the Aug-27 stop
+generated 2026-08-07 07:58 UTC | elapsed 9.45 d | 19.7 d to the Aug-27 stop
 test tier: 19,183 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -61,11 +61,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
       100       2,303      13  2026-08-08 20:08  2026-08-08 20:08  yes
-      189       5,418      13  2026-08-10 21:03  2026-08-10 21:03  yes
-      279       8,876      13  2026-08-13 03:22  2026-08-13 03:22  yes
+      189       5,418      13  2026-08-10 21:04  2026-08-10 21:04  yes
+      279       8,876      13  2026-08-13 03:23  2026-08-13 03:23  yes
       340      11,316      13  2026-08-14 17:42  2026-08-14 17:42  yes
-      403      13,836      13  2026-08-16 09:16  2026-08-16 09:16  yes
-      568      21,145      13  2026-08-21 04:04  2026-08-21 04:04  yes
+      403      13,836      13  2026-08-16 09:17  2026-08-16 09:17  yes
+      568      21,145      13  2026-08-21 04:05  2026-08-21 04:05  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 59% of the rung-568 backlog (12,382 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 8 min ago)
+## Monitoring -- the cycle (last monitoring cycle 9 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
