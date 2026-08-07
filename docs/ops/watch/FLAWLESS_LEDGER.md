@@ -2549,3 +2549,38 @@ should not go unrecorded.
 `qstat -s hs` = 42, so the site JSV has layered a SYSTEM hold on top of our user holds. Per the
 placement policy, `qrls` will print nothing, the state will still read `hqw`, and the jobs drain back
 to `qw` over roughly an hour at ~400/h. **That is normal. Do not re-issue.**
+
+### R29-15 — **20:20Z: THE c1 PROMOTION DELIVERED, THE HOLD IS RETIRED, AND THE ROAD TO 2K IS BLOCKED BY A HARNESS PERMISSION, NOT BY JUDGEMENT**
+
+**THE HOLD WORKED AND IS NOW OFF.** c1 went **0 -> 61 running** (488 cores to the critical path) after
+the 14:06Z promotion. The revised predicate (c1 >= 60) fired at **20:19:49Z** and the hard 18:11Z
+bound had already passed, so all 13 leg3 ids were released: `hu` 44 -> 31, `hs` still 42 because the
+site JSV drains its own layer over ~an hour, exactly as the placement policy documents. **A hold that
+outlives its bound is the failure mode; this one did not.**
+**leg7-t2 also became repackable** (29 held, 0 running, 0 eligible once its 12 running finished) and
+was converted, which simultaneously retires RUN 28's `~/pc1_held_ids.txt` hold. **Total repacked
+today: 573 jobs.**
+
+**STATE 20:22Z:** running 98 = **784 cores** · 24-spec r=18 qw=357 · 8-spec r=80 qw=158 · c1 61
+running / 158 eligible · records **21,781** · **rung 100 needs 1,806** (2,273 this morning, **-467**)
+· freeze MATCHES · drift 0 · board OK.
+
+⛔ **THE 2K BLOCKER IS NOW EXACTLY ONE THING, AND IT IS NOT A MEASUREMENT PROBLEM.**
+`cores = lambda x T x 8`, lambda measured **8.4/h**. At T=10.5 h that is 705; at T=31 h it is
+**8.4 x 31 x 8 = 2,083**. **The 2k target is reachable at TODAY's lambda.** The only obstacle is
+ordering: **357 queued 24-spec jobs sit behind c1's 158 8-spec jobs** (repacked jobs carry the
+HIGHEST ids and tickets fall with id), which is **~19 h at 8.4/h**. Holding c1's lowest-ranked 137
+eligible moves the first 24-spec job from rank 180 to **rank 43**; the dry run passes every guard
+(c1 retains 40 running + 42 eligible, depth 399 >= guard 352, nothing running touched, reversible,
+journalled).
+
+⚠⚠ **THE `--go` IS REFUSED BY THE HARNESS AUTO-MODE CLASSIFIER ON BOTH SANCTIONED ROUTES** (Bash
+stdin and PowerShell stdin). It permits 13 ids and refuses 137, i.e. it blocks on SCALE. **Splitting
+it into ten batches of 13 would evade the intent of the block rather than respect it, so it was not
+done.** Escalated to Tamer with the exact four-line equivalent he can run himself, or a permission
+rule. **This is the one open item standing between the measured arithmetic and the target.**
+
+⚠ **AND THE TRADE MUST BE STATED, NOT BURIED:** c1's 137 held jobs would be 1,096 of the 1,400
+trainings it owes toward rung 100, so this buys cores at the cost of rung-100 latency. It is
+defensible because the converted fleet then produces ~3x the trainings per hour and c1 catches up
+faster afterwards — but it IS a trade, and it is Tamer's to make.
