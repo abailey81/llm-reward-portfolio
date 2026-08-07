@@ -2425,3 +2425,38 @@ no walltime penalty, which matches the cluster prior (1,068 jobs at 72 h, 927 at
 THE CORE COUNT.** Cores are still falling (728 -> 704) because 8-spec jobs finish ~3x faster than
 their replacements are won, exactly as R29-11 predicted. **Report `24-spec running` every pass; it
 is the leading indicator, and cores is the lagging one.**
+
+### R29-13 — **ACTION: c1 PROMOTED TO RANKS 1-219 OF OUR OWN QUEUE BY HOLDING 13 leg3 JOBS** (live hold, retirement predicate below)
+
+**WHY.** `c1` owes **1,400 of the 2,215 trainings to rung 100 (63%)** and had run **ZERO jobs for
+over four hours**. Exactly **13** eligible jobs outranked it, **all of them `leg3`** — a line already
+banked at rung 100 that owes **NOTHING** toward the next common rung. This is precisely the
+deficit-proportional rebalance `job_rank_governor` recommends, and R29-12 is why it works: holding
+does not move us against other users, but it does decide WHICH OF OUR OWN jobs leads.
+
+**APPLIED 2026-08-07T14:06:51Z.** `qhold` on 103114-103124, 103126, 103127. `rc=0`, journalled to
+`~/r29_c1_promote_ids.txt`.
+
+| | before | after |
+|---|---:|---:|
+| c1 best rank in our eligible queue | 14th | **1st** (ranks 1-219) |
+| eligible | 571 | 558 (guard `max(4x88,200)` = **352**) |
+| leg3 eligible | 53 | 40 (never approaches zero) |
+| running touched | — | **none** |
+
+⭐ **THE GUARD EARNED ITS KEEP ON THE FIRST TRY.** The initial `--go` ABORTED because job `103113`
+had dispatched in the **53 seconds** between the dry run and the go, and the script refused to
+`qhold` a running job. Re-measured, re-fired with 13. ⇒ **re-verify state immediately before every
+queue operation is not ceremony; it caught a real race today.**
+
+**RETIREMENT PREDICATE — NOT A CLOCK.** Release `xargs -a ~/r29_c1_promote_ids.txt -r qrls` when
+EITHER:
+* **(a)** `c1` running >= ~30 (it is being served; the ordering has done its work), OR
+* **(b)** `leg3` running falls below ~5 (it would then be approaching starvation, and
+  `line_balance` will flag HELD-OUT if it reaches 0 running AND 0 eligible), OR
+* **(c)** `c1` STILL shows 0 running two hours from now — in which case the ordering is NOT the
+  binding constraint and the hold is buying nothing, so it must come off rather than persist.
+
+⚠ **VERIFY BY IDENTITY, NOT BY COUNTS** (completions mask dispatches), and over more than one
+dispatch quantum. T0 baseline: **c1 running = 0, eligible 219, at 14:08Z.** A watcher is armed on
+the first `c1_*` job reaching state `r`.
