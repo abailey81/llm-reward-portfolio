@@ -2697,3 +2697,61 @@ expense) was necessary.
 EITHER c1's next-needed block moves off t1 (read it from `job_rank_governor`; t1 is then complete and
 t2 becomes the rung-raising block), OR c1 running falls below 20, OR c1 has ZERO eligible AND zero
 t1 work left to submit. **Re-check every pass; a hold that outlives its purpose is the failure mode.**
+
+### R29-18 — ⭐⭐⭐⭐⭐ **THE UNTESTED TERM: `smp-D` PUTS EVERY SLOT OF A JOB ON ONE HOST, SO A 4-WIDE JOB HAS 3.4x THE PLACEABLE WINDOWS OF OUR 8-WIDE ONE**
+
+**MEASURED 22:10Z, the last experiment of RUN 29 and the one it should have run first.**
+`qconf -sp smp-D` has **`allocation_rule $pe_slots`**, so all slots of a job must fit on ONE host. A
+wider job therefore sees fewer placeable hosts AND wastes each host's remainder. Over the **194 OPEN
+pool-D hosts (413 free slots total)**:
+
+| job width | hosts with >= w free | placeable jobs | instantaneous cores |
+|---:|---:|---:|---:|
+| 4 | **35** | **58** | **232** |
+| 6 | 19 | 27 | 162 |
+| **8 (OURS)** | **12** | **17** | **136** |
+| 12 | 4 | 6 | 72 |
+| 16 | 3 | 3 | 48 |
+
+⇒ **AT WIDTH 4 THERE ARE 3.4x AS MANY PLACEABLE WINDOWS AS AT WIDTH 8**, and `cores = lambda_w x T x w`
+means halving the width is a WIN whenever `lambda_4 > 2 x lambda_8`. On the snapshot ratio it is
+**~1.7x**.
+
+⭐⭐ **AND TWO INDEPENDENT SOURCES ALREADY SAID THIS AND NOBODY ACTED.** The dossier's own queue-wait
+table records **median wait 0.7 h at 2-4 slots against 1.2 h at 5-8**, and today's cluster-wide census
+gives 4-slot jobs `r/(r+qw) = 0.844` against 8-slot's `0.392`. **The evidence for narrowing has been
+sitting in the repo since July.** `jobscript.py`'s "8 places best" note is from a 2026-07-26 probe and
+is contradicted by both.
+
+⚠ **FOUR CHECKS BEFORE CHANGING IT, AND THE FIRST IS NON-NEGOTIABLE.**
+1. ⛔ **DETERMINISM.** `pack` sets `-pe smp N` and SGE derives `OMP_NUM_THREADS` from the slot count.
+   `run_task` OVERRIDES it from the SPEC's thread count (1), so the env fingerprint SHOULD be
+   unchanged — **but that must be PROVEN with a canary record diffed against an 8-slot record before
+   any line is converted.** If it differs, `check_determinism_homogeneity` goes CRITICAL and the
+   campaign's validity is at risk. **STOP if it differs.**
+2. **`maxujobs = 1000`** — at width 4, 2,000 cores needs 500 jobs. Fine; at width 2 it binds exactly.
+3. **Memory** is sized from `pack`, so a narrower job asks less and should place MORE easily. Verify
+   the computed `mem_per_core`.
+4. **`specs_per_task` interacts**: at pack 4, 24 specs is 6 waves (~63 h), which worsens R29-9's
+   silent window. **Prefer pack 4 with 12 specs = 3 waves ~31 h**, i.e. today's duration at half the
+   width.
+
+⇒ **CANARY ON `leg10` FIRST — it owes ZERO toward rung 100, so it cannot damage the reported result.**
+Measure `lambda_4` by job identity for at least 3 h before rolling out. **This is RUN 30's first job.**
+
+### R29-19 — **RUN 29 CLOSE-OUT: WHAT WAS ACHIEVED, AND THE HONEST FAILURE**
+
+**ACHIEVED.** The cores question answered to the bottom (R29-1, R29-2, R29-11, R29-12, R29-18); 573
+held 8-spec jobs repacked to 24-spec with **zero retries consumed, zero specs lost, zero Eqw**
+(24-spec jobs **31 -> 403**); a deadlock that had frozen **701 specs** with every gate green found and
+cleared; **R29-9** found, predicted and confirmed by an armed falsifier; **R29-17** found, which is
+the largest operational defect of the campaign so far; `c1` taken from **0 to 69 running**; the
+maintenance cliff my own repack moved **found and corrected in the playbook**; and **rung 100's
+deficit driven from 2,273 to 1,699 in one day, the fastest single-day movement of the campaign.**
+
+⛔ **THE FAILURE, STATED PLAINLY.** Cores ended at **800**, never exceeded **880**, against Tamer's
+**2,000** target. Three causes, all mine: **four hours of measurement before the first queue action**;
+**two big actions that partly cancelled** (the repack gave 24-spec jobs the HIGHEST ids so they rank
+LAST, and the c1 promotion then put 8-spec jobs at the FRONT); and **the one term that was never
+tested — job WIDTH — left to the next session** after rank, pools, duration and ordering had all been
+explored. **Handed to RUN 30 in `docs/RUN30_SESSION_PROMPT.md`.**
