@@ -2147,3 +2147,64 @@ single-threaded. **`duration` is the entire remaining lever, and it is multiplic
 training done 24-to-a-job instead of 8-to-a-job holds its cores 26.7 h instead of 8.9 h. That is
 why the 819 pending 8-spec jobs are the thing standing between us and the target, and why R29-4
 repacks them rather than reordering them.
+
+### R29-7 — ESCALATED TO TAMER — **c1 IS THE CRITICAL PATH AND IT IS THE ONE LINE THE DURATION LEVER DOES NOT REACH**
+
+**MEASURED 2026-08-07T11:39Z from the live process table.** The `core` supervisor runs
+
+```
+mode_d_supervisor.ps1 -Line core -StaggerSecs 0 -ExcludeHosts ... -OutDir ... -RemoteRoot ...
+run_campaign_cluster.py --tiered ... --batch-tag c1 --pack 8 ... --resume
+```
+
+with **NO `-SpecsPerTask` and NO `-HRt`**, so it defaults to `specs_per_task = pack = 8`. The six
+legs were converted to 24 on 2026-08-06 16:33Z; core was left at 8.
+
+> ⛔ **CORRECTED IN PLACE 2026-08-07T11:56Z, BEFORE ANY ACTION WAS TAKEN ON IT.** This row first
+> said core was left at 8 *"almost certainly because c1 was mid-floor-run at that moment"* and that
+> *"that reason has now expired"*. **That was speculation and it was WRONG**, and acting on it would
+> have meant overriding a deliberate protection on the reported result. The real reason is written
+> down in two places I had not yet read. `docs/ops/watch/LINE_DURATION.json`:
+> *"core (c1) carries the ENTIRE reported result and is DELIBERATELY still at 8 specs / 15 h.
+> Converting it is Tamer's call and only AFTER rung 30 banks."* And `watchdog_fenced.ps1:238`
+> carries a hard CODE guard, `if ($Line.Trim() -ieq "core") { return $a }`, pinned by
+> `selftest_revive_args.ps1`, which *"refuses to apply any override to 'core' even if this file
+> gained one, so the protection does not depend on this file staying correct."*
+> ⇒ **THE LESSON, AND IT IS THE SAME ONE THIS PROJECT KEEPS PAYING FOR: I INFERRED A MOTIVE FROM A
+> TIMESTAMP INSTEAD OF READING THE ARTEFACT THAT STATES IT. A design decision I cannot find the
+> reason for is a reason I have not yet found, not an oversight.**
+
+**TWO CONSEQUENCES THAT CHANGE THE ASK.** First, the documented precondition **is now met** —
+*"only AFTER rung 30 banks"*, and rung 30 banked at 04:08:01Z today — so this is a live decision
+rather than a premature one. Second, **a supervisor restart alone would NOT hold**: the watchdog's
+revive path refuses core overrides by design, so the first time that line died it would silently
+revert to 8 specs. Converting c1 means changing the code guard AND its selftest AND
+`LINE_DURATION.json`, which is a deliberate, reviewable change rather than an ops tweak.
+
+**WHY IT MATTERS MORE THAN ANYTHING ELSE ON THE BOARD.** c1 owes **1,400 of the 2,215 trainings to
+rung 100 (63%)** and holds **219 of our 228 eligible 8-spec jobs**. After RUN 29's repack the fleet
+has 347 eligible 24-spec jobs, but they carry the HIGHEST job ids and so rank last, which means
+**the next ~18 h of dispatches go to c1's 8-spec jobs and the core count cannot climb until they
+drain.** At 8 specs c1's 1,752 queued trainings are ~15,600 core-hours, i.e. **~18-25 h at ~880
+cores**. At 24 specs the same work would sit behind ~2,650 cores and land in roughly a third of the
+time.
+
+**WHY I DID NOT ACT.** Converting c1 needs its 219 ELIGIBLE jobs repacked, and eligible jobs can
+race a dispatch between the state check and the `qdel`. §12 says never hold c1 and §6 says never
+touch it, because it carries the reported result. **Restarting the core supervisor with
+`-SpecsPerTask 24 -HRt 45:0:0` is much safer** (c1 has ZERO running jobs right now, which is the
+quietest moment it will ever have, and `--resume` re-adopts the queue by name) **but on its own it
+converts NOTHING at this rung**, because the 219 already-submitted jobs keep their 8-spec shape and
+they already cover c1's entire rung-100 need. The two only pay off together.
+
+⇒ **TAMER'S CALL, exactly as `LINE_DURATION.json` already says it is.** The honest framing: a ~3x
+speedup on the critical path, whose documented precondition (rung 30 banked) was met this morning,
+against three costs that are real — the `qdel` race on 219 ELIGIBLE jobs (worst case a handful of
+trainings taking one extra retry of two, not lost data), and the need to amend a code guard plus
+its selftest plus the duration config so the change actually survives a revive. Everything around
+it is already done: the repack route is proven, guarded and journalled, all six legs are converted
+and all six are registered in `LINE_DURATION.json` so a revive cannot silently undo them.
+
+⚠ **AND THE STANDING RECOMMENDATION FROM THIS SESSION IS: DO NOT DO IT PIECEMEAL.** A supervisor
+restart without the guard change reverts on the next revive; a repack without the supervisor change
+resubmits at 8 specs anyway. It is one coordinated change or none.
