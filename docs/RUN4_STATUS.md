@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-07 19:05 UTC -- T+237h56m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-07 19:06 UTC -- T+237h57m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+237h56m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+237h57m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **21714** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.5 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 19:05 UTC | elapsed 9.91 d | 19.2 d to the Aug-27 stop
+generated 2026-08-07 19:06 UTC | elapsed 9.92 d | 19.2 d to the Aug-27 stop
 test tier: 20,171 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -61,12 +61,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,621       7  2026-08-08 14:34  2026-08-08 14:43  yes
-      189       4,694       7  2026-08-10 03:28  2026-08-10 03:56  yes
-      279       7,896       7  2026-08-11 17:56  2026-08-11 18:42  yes
-      340      10,336       7  2026-08-12 23:15  2026-08-13 00:15  yes
-      403      12,856       7  2026-08-14 05:31  2026-08-14 06:46  yes
-      568      20,157       7  2026-08-17 21:13  2026-08-17 23:10  yes
+      100       1,621       7  2026-08-08 14:34  2026-08-08 14:44  yes
+      189       4,694       7  2026-08-10 03:29  2026-08-10 03:56  yes
+      279       7,896       7  2026-08-11 17:57  2026-08-11 18:43  yes
+      340      10,336       7  2026-08-12 23:15  2026-08-13 00:16  yes
+      403      12,856       7  2026-08-14 05:32  2026-08-14 06:47  yes
+      568      20,157       7  2026-08-17 21:14  2026-08-17 23:11  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 57% of the rung-568 backlog (11,461 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
