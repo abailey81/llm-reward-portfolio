@@ -2473,3 +2473,40 @@ of training, i.e. **rung 100 lands around 2026-08-09** absent a lambda change. *
 ordering lever: c1 is first, every other line is behind it, and R29-12 says our rank against other
 users is not ours to move.** The only remaining variable is duration, which is deployed at its
 safe ceiling (R29-9).
+
+### R29-14 — **PASS 2 (15:24Z): THE HOLD IS WORKING, AND IT EXPOSES WHY R29-7 MATTERS MORE THAN I SAID**
+
+**THE HOLD DELIVERED, MEASURED BY IDENTITY (14:19Z -> 15:24Z, 65 min):** **15 dispatches, ALL 15 to
+`c1`.** c1 running **1 -> 16**, cores 704 -> 712, lambda recovered to **13.8/h** (from 5.2/h).
+Rung 100 now needs **2,002 trainings**, down from 2,215 at 13:05Z and 2,273 at 10:19Z. `line_balance`
+**CLEAN** — leg10's deadlock is gone (32 eligible 24-spec jobs where 89 held ones sat).
+**BOTH HOLDS STAY:** c1 running 16 (release at >=30), leg3 running 18 (release at <5), leg7 running
+53 (release at <12), c1 eligible 203 (release at <50). No predicate met.
+
+⚠⚠ **BUT THE SUCCESS CREATES A TENSION THAT SHARPENS R29-7 CONSIDERABLY.** `c1` is now BOTH the
+critical path (**1,400 of the 2,002 owed trainings, 70%**) AND first in our queue — and its jobs are
+**8-spec**, because the core supervisor carries no `--specs-per-task`. So every window c1 wins is
+released after **10.5 h** instead of 31 h, and **c1's shape now sets the WHOLE FLEET's occupancy**:
+
+| if dispatches go to | steady state `N = lambda x T` at lambda=13.8 | cores |
+|---|---:|---:|
+| c1's 8-spec jobs (today) | 13.8 x 10.5 | **~1,160** |
+| 24-spec jobs | 13.8 x 31 | **~3,424** |
+
+⭐ **THE HONEST QUALIFIER, BECAUSE THE NAIVE READ OVERSTATES IT.** Throughput per window-slot is
+IDENTICAL over time — three sequential 8-spec jobs do the same 24 trainings as one 24-spec job. The
+24-spec advantage is **insurance against lambda volatility**: it needs one race won instead of three,
+and lambda was measured swinging **5.2 -> 13.8/h (2.7x) within two hours today**. At high lambda the
+shapes are equivalent; at low lambda the 8-spec fleet bleeds (R29-11 measured exactly that: 6
+dispatches against 19 completions).
+
+⇒ **R29-7's ask is therefore larger than first recorded.** It is not only "c1 finishes sooner"; it is
+"the fleet's floor under a lambda collapse is 3x higher". Everything else about R29-7 is unchanged
+and still Tamer's call: it needs the code guard, its selftest and `LINE_DURATION.json` amended
+together, plus a `qdel` of ELIGIBLE c1 jobs which can race a dispatch — and today the guard proved
+that race is real, aborting when job 103113 dispatched in 53 seconds.
+
+**ALLOCATIVE EFFICIENCY 52.2%, DOWN FROM 57.1%, AND THAT IS EXPECTED.** leg7 holds 424 of 712 cores
+against a 120-core deficit-proportional target, all of it in RUNNING jobs that cannot be reclaimed
+without a `qdel`. It self-corrects as those finish and c1 takes the slots, because c1 already holds
+ranks 1-203. **Do not act on it.**
