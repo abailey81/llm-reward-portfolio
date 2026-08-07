@@ -230,8 +230,22 @@ records 20,765 · spend $45.5019 · drift 0 · freeze MATCHES (3ca6f01a…) · g
 CORES 880 (110 running jobs)      allocative efficiency 59.1%   (was 30.3% at RUN 28's start)
   h_rt=162000 (24-spec/45h): 10 jobs   <-- UNCHANGED ALL SESSION. THE CONVERSION IS STUCK.
   h_rt=54000  (8-spec/15h):  100 jobs
-eligible ~296 · user-held 546 · c1: 219 eligible, 0 user-held, 0 running
+eligible 267 · user-held 575 · c1: 219 eligible, 0 user-held, 0 running
 c1 is in C4 and owes 1,400 trainings to rung 100 — 4x the next line. IT IS THE CRITICAL PATH.
+
+⚠⚠ THERE IS ONE LIVE HOLD AND IT IS YOURS TO RETIRE. RUN 28 applied it at 09:48:19Z:
+    29 `leg7` (nemotron) ELIGIBLE jobs at block **t2 ONLY**, to let c1 dispatch.
+    ids recorded at `~/pc1_held_ids.txt` on the node (29 ids) — release with
+        ssh myriad "bash -s" <<< 'xargs -a ~/pc1_held_ids.txt -r qrls'
+    WHY t2 ONLY: nemotron's **t1 (27 jobs) is its LOWEST PENDING BLOCK and was deliberately left
+    ELIGIBLE** — holding it would repeat the deepseek deadlock (R28-4). It also keeps 29 RUNNING.
+    ⭐ RETIREMENT PREDICATE, NOT A CLOCK — release when EITHER:
+        (a) c1's eligible count falls below ~50 (it is being served; the ordering is no longer
+            buying anything), OR
+        (b) nemotron's RUNNING count falls below ~12 (it would then be approaching starvation
+            itself, and `line_balance` will flag HELD-OUT if it reaches 0 running AND 0 eligible).
+    ⚠ VERIFY THE EFFECT BY IDENTITY, NOT BY COUNTS, AND OVER MORE THAN ONE 10-MINUTE QUANTUM.
+    T0 baseline: c1 running = 0 at 09:48Z.
 exogenous stop 2026-08-27 (19.6 d) · dissertation due 2026-09-01 · UCL maintenance 08-12
 7 supervisors alive: core(8 specs, 15h, DELIBERATE) + 6 legs at SpecsPerTask=24 HRt=45:0:0
 ⚠ login13 STILL DOWN (direct test RC=255). `Host myriad` -> login12. Do NOT revert.
