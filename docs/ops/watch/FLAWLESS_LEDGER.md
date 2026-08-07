@@ -2325,3 +2325,36 @@ one at a time — twelve lines resuming together is the stampede condition that 
 *"will wait in the queue until it is over"* — so the R29-9 kill-exposure (a multi-wave job discarding
 every completed training) is NOT triggered by the maintenance itself. R29-9's exposure stays limited
 to node failures, `h_rt` expiry and our own `qdel`s, measured at ~5.7% of job exits.
+
+### R29-11 — **REFINES R29-1: BOTH CONSTRAINTS BIND, AND THE FLEET IS MID-TRANSITION (SHRINKING BEFORE IT GROWS)**
+
+**MEASURED 11:56Z -> 13:05Z by job identity (69 min):** 6 dispatched, **19 finished**, running
+**104 -> 91**, cores **832 -> 728**. Every one of the 6 dispatches went to the SIX HIGHEST-RANKED
+jobs in our own queue (`leg7 ..._sweep_t1_p35..p40`, 8-spec), and all 19 completions were 8-spec.
+
+**THREE THINGS THIS SETTLES.**
+
+1. ⚠ **NO EVIDENCE THAT THE 45 h WALL HURTS PLACEMENT — AND NO EVIDENCE IT DOESN'T.** Zero 24-spec
+   jobs dispatched, but none has yet reached the head of our own queue (they carry the newest job
+   ids by construction, which is the very property that protects `c1`). **Do not conclude either way
+   until a 24-spec job is top-ranked.** The cluster runs 1,068 jobs at 72 h and 927 at 7 days, so the
+   prior is strongly against a walltime penalty.
+2. ⭐ **R29-1 WAS TOO STRONG AS WRITTEN. BOTH CONSTRAINTS BIND.** There were **17** open 8-wide
+   windows at 13:05Z (up from 7 at 10:30Z) and we took ~5/h, so we are not purely supply-limited:
+   we are also losing races to the 526 foreign jobs that outrank our best. **The correct statement
+   is: open capacity is SCARCE because 1,728 of 2,158 free pool-D slots are PAID-gated, AND we
+   compete for what remains from a mid-table rank.** R29-2's 2.2x ceiling on concentration is
+   unchanged, so the conclusion (duration is the lever) survives — but the reasoning is now honest
+   about which term is doing the work.
+3. ⭐⭐ **THE SHRINKAGE IS THE TRANSITION, AND THE REPACK IS THE CURE FOR IT.** The fleet drains
+   whenever completions outrun dispatches, which is exactly what an all-8-spec fleet does at low
+   lambda: 81 jobs finishing every ~10.5 h is ~7.7 completions/h against ~5/h of dispatch. A 24-spec
+   job holds its slot ~31 h, so the completion rate falls ~3x and the fleet accumulates instead of
+   bleeding. **Even at today's depressed lambda of 5.2/h a fully converted fleet settles at
+   `5.2 x 31 x 8 = ~1,290 cores`, against 728 now; at the 11.7/h steady-state estimate it is
+   ~2,900.**
+
+⇒ **EXPECT CORES TO FALL FURTHER BEFORE THEY RISE.** The 8-spec jobs running now must finish (up to
+~10.5 h) before their 24-spec replacements take those slots. **A dip over the next half-day is the
+mechanism working, not a fault** — but it must be watched, because it is indistinguishable from a
+real regression without the h_rt census. **Every pass: report `24-spec running` as well as cores.**
