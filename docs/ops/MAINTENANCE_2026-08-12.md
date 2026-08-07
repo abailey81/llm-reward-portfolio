@@ -21,9 +21,26 @@
    projected 08-09 against an 08-27 stop), but the alarm window doubles.
 2. ✅ **THE DISPATCH CLIFF IS OFFICIAL, NOT OUR INFERENCE.** Effect **E4** below predicted UCL would
    refuse jobs whose `h_rt=15 h` would overrun the window. The notice confirms UCL is doing exactly
-   that deliberately. **So expect our queue to stop dispatching roughly 15 h before the outage,
-   i.e. from around 17:00 on Tue 11 August**, and expect `records=` to flatten well BEFORE the 12th.
-   That flattening is CORRECT BEHAVIOUR and must not be diagnosed as a stall.
+   that deliberately. **So expect our queue to stop dispatching roughly ONE WALLTIME before the
+   outage**, and expect `records=` to flatten well BEFORE the 12th. That flattening is CORRECT
+   BEHAVIOUR and must not be diagnosed as a stall.
+
+   > ⚠⚠ **CORRECTED 2026-08-07 (RUN 29, ledger R29-10). THIS PARAGRAPH SAID "roughly 15 h before the
+   > outage, i.e. from around 17:00 on Tue 11 August", AND THAT IS NO LONGER TRUE — RUN 29's repack
+   > is the reason.** The cliff is one WALLTIME wide, and our walltime changed. The six legs now
+   > submit at **`h_rt=45 h` (162000 s)** instead of 15 h, so UCL's drain refuses to START them from
+   > about **11:00 on MONDAY 10 AUGUST** — roughly **30 hours earlier** than the sentence above.
+   > **READ THE LIVE WALLTIME, NEVER THIS NUMBER:** one `qstat -u ucestes -r` and grep `h_rt=`; the
+   > cliff is `outage_start - max(h_rt)`. `c1`/core is deliberately still at 8 specs / 15 h, so the
+   > CORE line's cliff really is ~17:00 on the 11th while every leg's is a day and a half earlier.
+   >
+   > ⭐ **AND THERE IS A FREE MITIGATION — DECIDE IT BY SAT 9 AUGUST.** Walltime is exactly what the
+   > drain filters on, so putting the six legs back to `-SpecsPerTask 8 -HRt 15:0:0` before the
+   > weekend recovers ~30 h of fleet time across the window (worth ~25,000 core-hours), then restore
+   > 24 specs once access returns after Thu 13. Update `docs/ops/watch/LINE_DURATION.json` in the
+   > SAME change, per its own KEEP-IN-SYNC contract, or the next watchdog revive silently undoes it.
+   > **Restart the supervisors ONE AT A TIME** — twelve lines resuming together is the stampede
+   > condition that earned the 2026-08-03 penalty.
 3. ✅ **"NO ACCESS" MEANS THE LOGIN-NODE PENALTY HAZARD IS OFF DURING THE WINDOW.** Section 2 names
    the UCL penalty as the one genuine hazard, on the reasoning that every driver relaunch
    sha256-verifies ~36.8 MB of remote gold on a SHARED login node. With no access at all, those ssh
