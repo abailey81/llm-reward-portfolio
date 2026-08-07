@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-07 10:33 UTC -- T+229h24m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-07 10:33 UTC -- T+229h25m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+229h24m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+229h25m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **20852** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 10:33 UTC | elapsed 9.56 d | 19.6 d to the Aug-27 stop
+generated 2026-08-07 10:34 UTC | elapsed 9.56 d | 19.6 d to the Aug-27 stop
 test tier: 19,309 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -46,7 +46,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h      87 records      87.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     132 records      44.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     882 records      73.5 rec/h   usable
-    last 24 h    1766 records      73.6 rec/h   usable
+    last 24 h    1764 records      73.5 rec/h   usable
     12 h rate is 54% from ONE line (test_leg_kimi_k3); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       2,234      39  2026-08-08 16:57  2026-08-08 16:57  yes
-      189       5,349      39  2026-08-10 11:20  2026-08-10 11:20  yes
-      279       8,750      87  2026-08-12 09:36  2026-08-12 09:36  yes
-      340      11,190      87  2026-08-13 18:48  2026-08-13 18:48  yes
-      403      13,710      87  2026-08-15 05:05  2026-08-15 05:05  yes
+      100       2,234      39  2026-08-08 16:58  2026-08-08 16:58  yes
+      189       5,349      39  2026-08-10 11:21  2026-08-10 11:21  yes
+      279       8,750      87  2026-08-12 09:37  2026-08-12 09:37  yes
+      340      11,190      87  2026-08-13 18:49  2026-08-13 18:49  yes
+      403      13,710      87  2026-08-15 05:06  2026-08-15 05:06  yes
       568      21,019      87  2026-08-19 08:32  2026-08-19 08:32  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
