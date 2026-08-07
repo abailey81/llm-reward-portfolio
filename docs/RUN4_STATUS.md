@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+224h30m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **20671** |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **20672** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 1/240 (0.4% to fatal), ops on core, 2.4 h ago; none live, newest failure 2.4 h ago** |
@@ -38,16 +38,16 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 05:39 UTC | elapsed 9.35 d | 19.8 d to the Aug-27 stop
-test tier: 19,128 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-07 05:40 UTC | elapsed 9.36 d | 19.8 d to the Aug-27 stop
+test tier: 19,129 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 65.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 65.6 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      58 records      58.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     340 records     113.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     786 records      65.5 rec/h   usable
-    last 24 h    1890 records      78.8 rec/h   usable
-    12 h rate is 72% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
+    last  3 h     341 records     113.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     787 records      65.6 rec/h   usable
+    last 24 h    1889 records      78.7 rec/h   usable
+    12 h rate is 71% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       2,336      29  2026-08-08 17:19  2026-08-08 17:19  yes
-      189       5,451      29  2026-08-10 16:52  2026-08-10 16:52  yes
-      279       8,931      52  2026-08-12 22:00  2026-08-12 22:00  yes
-      340      11,371      52  2026-08-14 11:15  2026-08-14 11:15  yes
-      403      13,891      52  2026-08-16 01:44  2026-08-16 01:44  yes
-      568      21,200      58  2026-08-20 17:19  2026-08-20 17:19  yes
+      100       2,336      29  2026-08-08 17:17  2026-08-08 17:17  yes
+      189       5,451      29  2026-08-10 16:47  2026-08-10 16:47  yes
+      279       8,930      52  2026-08-12 21:50  2026-08-12 21:50  yes
+      340      11,370      52  2026-08-14 11:02  2026-08-14 11:02  yes
+      403      13,890      52  2026-08-16 01:27  2026-08-16 01:27  yes
+      568      21,199      58  2026-08-20 16:54  2026-08-20 16:54  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 58% of the rung-568 backlog (12,382 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -178,7 +178,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | deepseek_v4_pro | **30** | 30 | 5 |  |
 | nemotron_3_super | **34** | 36 | 5 |  |
 | glm_5_2 | **47** | 50 | 5 |  |
-| qwen3_6_27b | **210** | 215 | 5 |  |
+| qwen3_6_27b | **210** | 216 | 5 |  |
 | kimi_k3 | **425** | 429 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
