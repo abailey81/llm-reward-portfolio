@@ -3,6 +3,80 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-07a] ★★★★★★★ RUN 28 (OPS), pass 3 — **RUNG 30 IS BANKED. THE COMMON RUNG MOVED 0 → 30 AND THE DISSERTATION HAS A WRITABLE RESULT** · 60 of 60, first round, ZERO exhausted specs · c1 passed the C3 gate and entered C4 unaided
+
+**THIS IS THE EVENT THE WHOLE CAMPAIGN HAS BEEN GATED ON.** `PREREGISTRATION.md` R101 makes the
+reported result the **COMMON RUNG — the MINIMUM banked rung over every registered arm of every
+line** — and it has read **0** since the campaign launched on 2026-07-28, because `test`
+(the confirmatory `c1` line) had two frozen winners with no sealed-test record at all. It now
+reads **30**.
+
+### THE EVIDENCE, FROM THREE INDEPENDENT INSTRUMENTS
+
+**1. The driver, verbatim and untruncated** (the first read was cut off mid-dict and was NOT acted
+on until the whole line was recovered):
+
+```
+2026-08-07 04:08:01  [c1_h2_pair_test] batch complete: {'ok': True, 'completed': 60,
+    'total': 60, 'rounds': 1, 'exhausted': [], 'job_ids': ['103187' … '103194']}
+2026-08-07 04:08:14  [gate] green execution health (auto) — PROCEEDING to C4 sweep
+2026-08-07 04:08:14  [C4|pipelined] block 1: 20 units x 70 seeds
+```
+
+**`completed: 60 of 60`, `rounds: 1`, `exhausted: []`.** No repair round was needed and **not one
+spec was abandoned** — which matters beyond this batch, because an abandoned spec is a hole, one
+hole demotes a line's banked rung, and the reported result is a minimum over lines.
+
+**2. `docs/analysis/record_seed_completeness.py` (S15), the authority on a BANKED rung** — counting
+`record.json`, never directories: `C6: NONE -- every arm with a frozen winner has begun its
+sealed-test ladder`, and the `test` line **banks rung 30**. Its own footer: *"EFFECT-BLIND:
+directory names and counts only. No record was opened, no metric read."*
+
+**3. `docs/ops/job_rank_governor.py`:** **`COMMON RUNG = 30   NEXT COMMON RUNG = 100`**, with
+`ARMS PINNING THE COMMON RUNG: NONE — every registered arm banks at or above the floor rung.`
+⭐ **Re-read two hours later and still 30** — the two-derivations discipline applied to the result
+itself, not only to the defects.
+
+### WHAT IT DOES AND DOES NOT MEAN
+
+**It means the study is now reportable.** Under Amendment E1's cumulative-tier rule a truncated run
+banks the largest COMPLETED rung, so from this moment the campaign has a valid pre-registered result
+in hand rather than a promise. Every hour from here raises the rung rather than deciding whether
+there is one.
+
+**It does NOT mean any outcome has been seen.** Every instrument above is effect-blind by
+construction — job states, directory names and seed counts. No treatment arm's sealed-test outcome
+has been read, and R101's inference plan still runs ONCE, at the end, at whatever rung is reached.
+
+**And it does not mean the work is done:** the next common rung is **100** and costs **2,612 more
+trainings**. S15 reports **23 arms holding a hole below their frontier** and exits rc=1, which is the
+normal MID-FILL state while work is in flight — and `c1` will now show holes of its own, because it
+entered C4 thirteen seconds after banking.
+
+### THE REST OF THE PASS
+
+**c1 WAS NEVER DISTURBED**, which was the standing instruction: it ran 8 jobs from 17:10Z to 04:08Z,
+**~8.6 h against its own 8.6 h median precedent**, with **zero wall-kills** — the risk the brief said
+was measured at 0 of 32 stayed at 0 of 40.
+
+**ALLOCATIVE EFFICIENCY 30.3 % → 62.4 %** across the session's six measurements — 29.4, 32.1, 33.6,
+42.0, 56.5, 62.4 — with useful cores 240 → 416. The mechanism is exactly what §6 predicts: a hold
+cannot move a running job, so the fleet re-shapes only as the over-served line's jobs expire, and
+they expired. **Cores fell 856 → 680 across the same window, and that is the GOOD signature** — the
+status page's own note, *"cores down with records up is throughput ARRIVING, not leaving"* — records
+went 19,972 → 20,663 over the same period.
+
+⚠ **AND ONE NEW FINDING, OPENED NOT CLOSED:** `sweep=996.2s` on a live cycle, against a bound §12
+states as *"NEVER raise the 900 s sweep cap"*. Measured over the last 60 cycles the distribution is
+bimodal — median **36.5 s**, p90 **938.2 s**, max **1,072.7 s**, with **7 of 60 above 900 s and 18
+above 600 s**. Whether that is a breached protective cap (work being silently dropped) or a
+mis-labelled reporting threshold is the next thing to establish, and it is NOT being assumed either
+way.
+
+**VERIFIED GREEN at 05:37:29Z:** freeze **MATCHES** `3ca6f01a…`, drift **0** on
+`src|scripts|config|prompts`, `loginnode_guard` **rc 0** `OK node=login12`, permanent-batch guard
+**0**, cycle `OK sci=OK guards=0n/2k drift=0`, records **20,663**, spend **$45.5019**.
+
 ## [2026-08-06i] ★★★★★ RUN 28 (OPS), pass 2 — **AN ALARM SAID THE ONLY PROPERTY PROTECTING THE HEADLINE HYPOTHESIS HAD COLLAPSED. IT HAD NOT — THE ESTIMATOR WAS COUNTING 568 REPLICATIONS OF ONE FROZEN PROGRAM AS 568 INDEPENDENT OBSERVATIONS** · and the general form of that mistake threatens every record-level statistic the campaign will report
 
 **WHERE WE WERE.** Pass 1 restored the blind login-node guard, made the promotion hold value-aware,
