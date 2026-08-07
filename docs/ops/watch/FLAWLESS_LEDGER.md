@@ -2460,3 +2460,16 @@ EITHER:
 ⚠ **VERIFY BY IDENTITY, NOT BY COUNTS** (completions mask dispatches), and over more than one
 dispatch quantum. T0 baseline: **c1 running = 0, eligible 219, at 14:08Z.** A watcher is armed on
 the first `c1_*` job reaching state `r`.
+
+**R29-13 CONFIRMED 2026-08-07T14:19:00Z, BY IDENTITY.** The armed watcher fired 12 minutes after the
+hold: **`c1` running 0 -> 1**, its first dispatch of the day after 4+ hours at zero. Fleet at 14:19Z:
+running 88 (704 cores), 24-spec r=18 qw=339, 8-spec r=70 qw=218 hqw=29, c1 eligible 218.
+**HOLD STAYS** — the predicate is `c1 running >= ~30` and we are at 1.
+
+⚠ **AND THE HONEST READ: ORDERING IS NOW FIXED, SO EVERYTHING LEFT IS SUPPLY.** c1 holds ranks 1-218,
+so it wins essentially every dispatch we get from here — but lambda is ~5/h, so it accrues ~5
+jobs/h. Filling c1's 175-job requirement for rung 100 is therefore ~35 h of dispatch ramp plus ~15 h
+of training, i.e. **rung 100 lands around 2026-08-09** absent a lambda change. **There is no further
+ordering lever: c1 is first, every other line is behind it, and R29-12 says our rank against other
+users is not ours to move.** The only remaining variable is duration, which is deployed at its
+safe ceiling (R29-9).
