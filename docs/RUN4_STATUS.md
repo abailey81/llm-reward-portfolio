@@ -12,8 +12,8 @@ back what it did.
 |---|---|
 | elapsed | **T+221h09m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **20262** |
+| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **20264** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 5.2 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 9.3 h ago** |
@@ -24,9 +24,9 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **801** = 100 running + **155 ELIGIBLE** + 546 held by us + 0 held only by the site |
+| cluster jobs | **800** = 99 running + **155 ELIGIBLE** + 546 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
-| **cores computing** | **800** |
+| **cores computing** | **792** |
 | **cores doing RUNG-RAISING work** | **42.0%** -- 336 of 800 cores (40 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
@@ -38,47 +38,47 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 02:18 UTC | elapsed 9.21 d | 19.9 d to the Aug-27 stop
-test tier: 18,721 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-07 02:19 UTC | elapsed 9.22 d | 19.9 d to the Aug-27 stop
+test tier: 18,724 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 82.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     184 records     184.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     294 records      98.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     990 records      82.5 rec/h   usable
-    last 24 h    1656 records      69.0 rec/h   usable
+    => OPERATIVE RATE 82.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     186 records     186.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     297 records      99.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     993 records      82.8 rec/h   usable
+    last 24 h    1659 records      69.1 rec/h   usable
     12 h rate is 81% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (82 rec/h); latest excludes cells already within
-    8 of the ceiling (82 rec/h). Window 12 h.
+    the whole fleet (83 rec/h); latest excludes cells already within
+    8 of the ceiling (83 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30          36      20  2026-08-07 02:44  2026-08-07 02:44  yes
-      100       2,414      44  2026-08-08 07:34  2026-08-08 07:34  yes
-      189       5,529      44  2026-08-09 21:19  2026-08-09 21:19  yes
-      279       9,059      44  2026-08-11 16:06  2026-08-11 16:06  yes
-      340      11,499      45  2026-08-12 21:41  2026-08-12 21:41  yes
-      403      14,174     184  2026-08-14 06:06  2026-08-14 06:06  yes
-      568      21,607     184  2026-08-18 00:12  2026-08-18 00:12  yes
+       30          36      20  2026-08-07 02:45  2026-08-07 02:45  yes
+      100       2,414      44  2026-08-08 07:29  2026-08-08 07:29  yes
+      189       5,529      44  2026-08-09 21:08  2026-08-09 21:08  yes
+      279       9,059      44  2026-08-11 15:47  2026-08-11 15:47  yes
+      340      11,499      44  2026-08-12 21:16  2026-08-12 21:16  yes
+      403      14,171     186  2026-08-14 05:34  2026-08-14 05:34  yes
+      568      21,604     186  2026-08-17 23:23  2026-08-17 23:23  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 52% of the rung-568 backlog (11,306 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @800 cores      @830 cores   binding
+     rung      @792 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           6.8 d           6.5 d   throughput
-      279           9.6 d           9.3 d   throughput
-      340          11.5 d          11.1 d   throughput
-      403          13.5 d          13.0 d   throughput
-      568          18.8 d          18.1 d   throughput
+      279           9.7 d           9.3 d   throughput
+      340          11.7 d          11.1 d   throughput
+      403          13.7 d          13.0 d   throughput
+      568          18.9 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -179,7 +179,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | nemotron_3_super | **34** | 36 | 5 |  |
 | glm_5_2 | **39** | 40 | 5 |  |
 | qwen3_6_27b | **202** | 204 | 5 |  |
-| kimi_k3 | **369** | 375 | 5 |  |
+| kimi_k3 | **371** | 376 | 5 |  |
 | haiku_4_5 | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
