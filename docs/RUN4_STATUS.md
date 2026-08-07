@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 01:24 UTC | elapsed 9.18 d | 19.9 d to the Aug-27 stop
+generated 2026-08-07 01:25 UTC | elapsed 9.18 d | 19.9 d to the Aug-27 stop
 test tier: 18,553 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -46,7 +46,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h     120 records     120.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     126 records      42.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     911 records      75.9 rec/h   usable
-    last 24 h    1545 records      64.4 rec/h   usable
+    last 24 h    1544 records      64.3 rec/h   usable
     12 h rate is 80% from ONE line (test_leg_kimi_k3); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -59,12 +59,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
-       30          56       4  2026-08-07 02:08  2026-08-07 02:08  yes
+       30          56       4  2026-08-07 02:09  2026-08-07 02:09  yes
       100       2,457      49  2026-08-08 09:46  2026-08-08 09:46  yes
       189       5,572      49  2026-08-10 02:48  2026-08-10 02:48  yes
       279       9,102      49  2026-08-12 01:18  2026-08-12 01:18  yes
-      340      11,542      85  2026-08-13 09:26  2026-08-13 09:26  yes
-      403      14,342     120  2026-08-14 22:19  2026-08-14 22:19  yes
+      340      11,542      85  2026-08-13 09:27  2026-08-13 09:27  yes
+      403      14,342     120  2026-08-14 22:20  2026-08-14 22:20  yes
       568      21,775     120  2026-08-19 00:14  2026-08-19 00:14  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
