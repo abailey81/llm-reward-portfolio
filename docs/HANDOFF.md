@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-08-06"
-  head: "3d26ae75"
+  regenerated_utc: "2026-08-07"
+  head: "00a8ca48"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "not re-run this session (ops-only; freeze MATCHES, drift 0)"
+  suite_status: "exit 0 (3,062 passed / 3 skipped / 0 failed)"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```
