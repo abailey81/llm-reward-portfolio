@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+234h18m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **21438** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.7 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **681** = 91 running + **546 ELIGIBLE** + 44 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **728** |
-| **cores doing RUNG-RAISING work** | **52.2%** -- 376 of 720 cores (1 min old) |
+| **cores doing RUNG-RAISING work** | **52.2%** -- 376 of 720 cores (2 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 15:27 UTC | elapsed 9.76 d | 19.4 d to the Aug-27 stop
-test tier: 19,895 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-07 15:28 UTC | elapsed 9.76 d | 19.4 d to the Aug-27 stop
+test tier: 19,900 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 82.6 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     138 records     138.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     389 records     129.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     991 records      82.6 rec/h   usable
-    last 24 h    1870 records      77.9 rec/h   usable
+    => OPERATIVE RATE 82.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     143 records     143.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     392 records     130.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     995 records      82.9 rec/h   usable
+    last 24 h    1872 records      78.0 rec/h   usable
     12 h rate is 39% from ONE line (test_leg_deepseek_v4_pro); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,820      53  2026-08-08 13:29  2026-08-08 13:29  yes
-      189       4,898      90  2026-08-10 02:46  2026-08-10 02:46  yes
-      279       8,164     138  2026-08-11 18:19  2026-08-11 18:19  yes
-      340      10,604     138  2026-08-12 23:51  2026-08-12 23:51  yes
-      403      13,124     138  2026-08-14 06:22  2026-08-14 06:22  yes
-      568      20,433     138  2026-08-17 22:53  2026-08-17 22:53  yes
+      100       1,815      58  2026-08-08 13:21  2026-08-08 13:21  yes
+      189       4,893      95  2026-08-10 02:29  2026-08-10 02:29  yes
+      279       8,159     143  2026-08-11 17:52  2026-08-11 17:52  yes
+      340      10,599     143  2026-08-12 23:17  2026-08-12 23:17  yes
+      403      13,119     143  2026-08-14 05:41  2026-08-14 05:41  yes
+      568      20,428     143  2026-08-17 21:50  2026-08-17 21:50  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 53% of the rung-568 backlog (10,768 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -175,7 +175,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
 | test | **30** | 30 | 9 |  |
-| nemotron_3_super | **39** | 44 | 5 |  |
+| nemotron_3_super | **40** | 45 | 5 |  |
 | glm_5_2 | **74** | 76 | 5 |  |
 | deepseek_v4_pro | **106** | 108 | 5 |  |
 | qwen3_6_27b | **253** | 258 | 5 |  |
@@ -248,12 +248,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-07T15:07:10Z  OK  records=21401 (+30)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=647.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-07T15:08:14Z  OK  records=21402 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=34.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-07T15:13:04Z  OK  records=21404 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=4.2m  drift=0  sci=OK  r115=22B  sweep=260.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-07T15:25:04Z  OK  records=21431 (+27)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.7m  drift=0  sci=OK  r115=22B  cores=712  sweep=689.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-07T15:26:13Z  OK  records=21436 (+5)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=39.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-07T15:27:18Z  OK  records=21438 (+2)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.2m  drift=0  sci=OK  r115=22B  sweep=34.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-07T15:28:24Z  OK  records=21438 (+0)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=35.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
