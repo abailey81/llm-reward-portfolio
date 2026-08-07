@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+237h52m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **21714** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.5 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,14 +38,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 19:01 UTC | elapsed 9.91 d | 19.2 d to the Aug-27 stop
+generated 2026-08-07 19:02 UTC | elapsed 9.91 d | 19.2 d to the Aug-27 stop
 test tier: 20,171 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 83.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 83.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h       7 records       7.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     223 records      74.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1001 records      83.4 rec/h   usable
+    last  3 h     220 records      73.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1000 records      83.3 rec/h   usable
     last 24 h    1790 records      74.6 rec/h   usable
     12 h rate is 39% from ONE line (test_leg_deepseek_v4_pro); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -61,12 +61,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,621       7  2026-08-08 14:27  2026-08-08 14:37  yes
-      189       4,694       7  2026-08-10 03:18  2026-08-10 03:45  yes
-      279       7,896       7  2026-08-11 17:41  2026-08-11 18:26  yes
-      340      10,336       7  2026-08-12 22:56  2026-08-12 23:56  yes
-      403      12,856       7  2026-08-14 05:08  2026-08-14 06:23  yes
-      568      20,157       7  2026-08-17 20:40  2026-08-17 22:37  yes
+      100       1,621       7  2026-08-08 14:29  2026-08-08 14:38  yes
+      189       4,694       7  2026-08-10 03:22  2026-08-10 03:49  yes
+      279       7,896       7  2026-08-11 17:47  2026-08-11 18:33  yes
+      340      10,336       7  2026-08-12 23:04  2026-08-13 00:04  yes
+      403      12,856       7  2026-08-14 05:18  2026-08-14 06:33  yes
+      568      20,157       7  2026-08-17 20:55  2026-08-17 22:52  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 57% of the rung-568 backlog (11,461 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
