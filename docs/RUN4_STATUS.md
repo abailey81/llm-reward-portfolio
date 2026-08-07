@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+236h26m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **21693** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.6 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,12 +38,12 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 17:35 UTC | elapsed 9.85 d | 19.3 d to the Aug-27 stop
+generated 2026-08-07 17:36 UTC | elapsed 9.85 d | 19.3 d to the Aug-27 stop
 test tier: 20,150 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 85.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     144 records     144.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h     143 records     143.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     366 records     122.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1024 records      85.3 rec/h   usable
     last 24 h    1810 records      75.4 rec/h   usable
@@ -61,12 +61,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,642      80  2026-08-08 12:50  2026-08-08 12:59  yes
-      189       4,715      80  2026-08-10 00:50  2026-08-10 01:17  yes
-      279       7,917     144  2026-08-11 14:22  2026-08-11 15:06  yes
-      340      10,357     144  2026-08-12 18:58  2026-08-12 19:55  yes
-      403      12,877     144  2026-08-14 00:29  2026-08-14 01:41  yes
-      568      20,178     144  2026-08-17 14:03  2026-08-17 15:55  yes
+      100       1,642      79  2026-08-08 12:51  2026-08-08 13:00  yes
+      189       4,715      79  2026-08-10 00:51  2026-08-10 01:17  yes
+      279       7,917     143  2026-08-11 14:23  2026-08-11 15:06  yes
+      340      10,357     143  2026-08-12 18:58  2026-08-12 19:56  yes
+      403      12,877     143  2026-08-14 00:30  2026-08-14 01:41  yes
+      568      20,178     143  2026-08-17 14:04  2026-08-17 15:55  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 57% of the rung-568 backlog (11,461 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -232,7 +232,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
