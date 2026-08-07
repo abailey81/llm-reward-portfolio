@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+229h44m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **7 / 12 running; 5 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **20880** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-07 10:53 UTC | elapsed 9.57 d | 19.5 d to the Aug-27 stop
+generated 2026-08-07 10:54 UTC | elapsed 9.57 d | 19.5 d to the Aug-27 stop
 test tier: 19,337 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 75.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      91 records      91.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     158 records      52.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     156 records      52.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     910 records      75.8 rec/h   usable
     last 24 h    1767 records      73.6 rec/h   usable
     12 h rate is 52% from ONE line (test_leg_kimi_k3); 6 line(s) contributed at all
@@ -61,8 +61,8 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
       100       2,221      37  2026-08-08 16:11  2026-08-08 16:11  yes
-      189       5,336      37  2026-08-10 09:15  2026-08-10 09:15  yes
-      279       8,722      91  2026-08-12 05:54  2026-08-12 05:54  yes
+      189       5,336      37  2026-08-10 09:16  2026-08-10 09:16  yes
+      279       8,722      91  2026-08-12 05:55  2026-08-12 05:55  yes
       340      11,162      91  2026-08-13 14:05  2026-08-13 14:05  yes
       403      13,682      91  2026-08-14 23:19  2026-08-14 23:19  yes
       568      20,991      91  2026-08-18 23:42  2026-08-18 23:42  yes
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 5 min ago)
+## Monitoring -- the cycle (last monitoring cycle 6 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
