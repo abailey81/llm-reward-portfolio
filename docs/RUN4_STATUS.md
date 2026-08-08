@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+256h52m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22884** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.7 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 14:01 UTC | elapsed 10.70 d | 18.4 d to the Aug-27 stop
+generated 2026-08-08 14:02 UTC | elapsed 10.70 d | 18.4 d to the Aug-27 stop
 test tier: 21,341 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -46,7 +46,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h       0 records       0.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h      24 records       8.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     599 records      49.9 rec/h   usable
-    last 24 h    1642 records      68.4 rec/h   usable
+    last 24 h    1641 records      68.4 rec/h   usable
     12 h rate is 72% from ONE line (test); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,11 +60,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         798       0  2026-08-09 06:00  2026-08-09 06:00  yes
-      189       3,749       0  2026-08-11 17:07  2026-08-11 17:07  yes
-      279       6,899       0  2026-08-14 08:14  2026-08-14 08:14  yes
-      340       9,183       0  2026-08-16 05:59  2026-08-16 05:59  yes
-      403      11,703       0  2026-08-18 08:28  2026-08-18 08:28  yes
+      100         798       0  2026-08-09 06:01  2026-08-09 06:01  yes
+      189       3,749       0  2026-08-11 17:08  2026-08-11 17:08  yes
+      279       6,899       0  2026-08-14 08:15  2026-08-14 08:15  yes
+      340       9,183       0  2026-08-16 06:00  2026-08-16 06:00  yes
+      403      11,703       0  2026-08-18 08:29  2026-08-18 08:29  yes
       568      18,987       0  2026-08-24 10:24  2026-08-24 10:24  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
