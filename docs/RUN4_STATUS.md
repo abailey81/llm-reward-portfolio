@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-08 09:47 UTC -- T+252h38m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-08 09:48 UTC -- T+252h39m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+252h38m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+252h39m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22815** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.9 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **675** = 94 running + **122 ELIGIBLE** + 459 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **752** |
-| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (373 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (374 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -42,12 +42,12 @@ generated 2026-08-08 09:48 UTC | elapsed 10.53 d | 18.6 d to the Aug-27 stop
 test tier: 21,272 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 76.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 76.0 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h     142 records     142.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     246 records      82.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     913 records      76.1 rec/h   usable
+    last 12 h     912 records      76.0 rec/h   usable
     last 24 h    2033 records      84.7 rec/h   usable
-    12 h rate is 77% from ONE line (test); 4 line(s) contributed at all
+    12 h rate is 78% from ONE line (test); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         819      77  2026-08-08 20:33  2026-08-08 20:33  yes
-      189       3,770      77  2026-08-10 11:21  2026-08-10 11:21  yes
-      279       6,920      77  2026-08-12 04:45  2026-08-12 04:45  yes
-      340       9,236     141  2026-08-13 11:11  2026-08-13 11:11  yes
-      403      11,756     141  2026-08-14 20:18  2026-08-14 20:18  yes
-      568      19,056     142  2026-08-18 20:15  2026-08-18 20:15  yes
+      100         819      77  2026-08-08 20:35  2026-08-08 20:35  yes
+      189       3,770      77  2026-08-10 11:25  2026-08-10 11:25  yes
+      279       6,920      77  2026-08-12 04:51  2026-08-12 04:51  yes
+      340       9,236     141  2026-08-13 11:20  2026-08-13 11:20  yes
+      403      11,756     141  2026-08-14 20:29  2026-08-14 20:29  yes
+      568      19,056     142  2026-08-18 20:32  2026-08-18 20:32  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 28% of the rung-568 backlog (5,322 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 8 min ago)
+## Monitoring -- the cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -248,12 +248,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-08T08:55:12Z  OK  records=22680 (+7)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  cores=728  sweep=331.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-08T09:01:00Z  OK  records=22681 (+1)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.4m  drift=0  sci=OK  r115=22B  sweep=318.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-08T09:09:48Z  OK  records=22696 (+15)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=497.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-08T09:19:14Z  OK  records=22706 (+10)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  cores=744  sweep=535.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-08T09:28:12Z  OK  records=22731 (+25)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.4m  drift=0  sci=OK  r115=22B  sweep=507.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-08T09:39:21Z  OK  records=22761 (+30)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=1.8m  drift=0  sci=OK  r115=22B  sweep=638.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-08T09:48:11Z  OK  records=22815 (+54)  spend=$45.5019  guards=0n/2k  arms_full=10/10legs-ever  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  cores=752  sweep=500.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
