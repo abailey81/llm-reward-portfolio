@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-08 22:53 UTC -- T+265h45m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-08 22:54 UTC -- T+265h45m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -12,11 +12,11 @@ back what it did.
 |---|---|
 | elapsed | **T+265h45m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **23957** |
+| stalest driver log | **1 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **23965** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.4 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 31.7 h ago** |
+| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 31.8 h ago** |
 | transport timeouts (cumulative, ever) | 348 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -38,34 +38,34 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 22:54 UTC | elapsed 11.07 d | 18.0 d to the Aug-27 stop
-test tier: 22,414 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-08 22:55 UTC | elapsed 11.07 d | 18.0 d to the Aug-27 stop
+test tier: 22,422 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 91.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     148 records     148.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     450 records     150.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1097 records      91.4 rec/h   usable
-    last 24 h    1990 records      82.9 rec/h   usable
-    12 h rate is 35% from ONE line (test); 6 line(s) contributed at all
+    => OPERATIVE RATE 92.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     156 records     156.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     458 records     152.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1105 records      92.1 rec/h   usable
+    last 24 h    1998 records      83.2 rec/h   usable
+    12 h rate is 34% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (91 rec/h); latest excludes cells already within
-    8 of the ceiling (91 rec/h). Window 12 h.
+    the whole fleet (92 rec/h); latest excludes cells already within
+    8 of the ceiling (92 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         301      19  2026-08-09 02:12  2026-08-09 02:12  yes
-      189       3,085     129  2026-08-10 08:39  2026-08-10 08:39  yes
-      279       6,235     129  2026-08-11 19:06  2026-08-11 19:06  yes
-      340       8,370     129  2026-08-12 18:28  2026-08-12 18:28  yes
-      403      10,774     132  2026-08-13 20:45  2026-08-13 20:45  yes
-      568      17,914     148  2026-08-17 02:52  2026-08-17 02:52  yes
+      100         300      20  2026-08-09 02:10  2026-08-09 02:10  yes
+      189       3,077     137  2026-08-10 08:20  2026-08-10 08:20  yes
+      279       6,227     137  2026-08-11 18:32  2026-08-11 18:32  yes
+      340       8,362     137  2026-08-12 17:43  2026-08-12 17:43  yes
+      403      10,766     140  2026-08-13 19:50  2026-08-13 19:50  yes
+      568      17,906     156  2026-08-17 01:22  2026-08-17 01:22  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
@@ -176,7 +176,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | test | **84** | 88 | 9 |  |
 | glm_5_2 | **114** | 117 | 5 |  |
 | deepseek_v4_pro | **117** | 119 | 5 |  |
-| nemotron_3_super | **131** | 134 | 5 |  |
+| nemotron_3_super | **132** | 136 | 5 |  |
 | qwen3_6_27b | **361** | 365 | 5 |  |
 | kimi_k3 | **458** | 462 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
