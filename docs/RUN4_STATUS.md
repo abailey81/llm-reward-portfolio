@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **696** = 86 running + **151 ELIGIBLE** + 459 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **688** |
-| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (147 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (148 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 06:01 UTC | elapsed 10.37 d | 18.7 d to the Aug-27 stop
+generated 2026-08-08 06:02 UTC | elapsed 10.37 d | 18.7 d to the Aug-27 stop
 test tier: 21,019 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         975      80  2026-08-08 19:42  2026-08-08 19:42  yes
-      189       3,926      80  2026-08-10 13:07  2026-08-10 13:07  yes
-      279       7,076      80  2026-08-12 09:20  2026-08-12 09:20  yes
-      340       9,488      80  2026-08-13 19:11  2026-08-13 19:11  yes
-      403      12,008      80  2026-08-15 06:33  2026-08-15 06:33  yes
-      568      19,309      80  2026-08-19 13:01  2026-08-19 13:01  yes
+      100         975      80  2026-08-08 19:43  2026-08-08 19:43  yes
+      189       3,926      80  2026-08-10 13:08  2026-08-10 13:08  yes
+      279       7,076      80  2026-08-12 09:21  2026-08-12 09:21  yes
+      340       9,488      80  2026-08-13 19:12  2026-08-13 19:12  yes
+      403      12,008      80  2026-08-15 06:34  2026-08-15 06:34  yes
+      568      19,309      80  2026-08-19 13:02  2026-08-19 13:02  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 28% of the rung-568 backlog (5,465 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
