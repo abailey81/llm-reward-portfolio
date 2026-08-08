@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-08 00:21 UTC -- T+243h12m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-08 00:22 UTC -- T+243h13m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+243h12m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+243h13m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **22116** |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **22126** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.3 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 9.2 h ago** |
@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **750** = 95 running + **524 ELIGIBLE** + 131 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **760** |
-| **cores doing RUNG-RAISING work** | **13.6%** -- 112 of 824 cores (117 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **13.6%** -- 112 of 824 cores (118 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -39,34 +39,34 @@ showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)
 
 ```
 generated 2026-08-08 00:22 UTC | elapsed 10.13 d | 19.0 d to the Aug-27 stop
-test tier: 20,573 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+test tier: 20,585 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 90.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     133 records     133.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     250 records      83.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1081 records      90.1 rec/h   usable
-    last 24 h    2141 records      89.2 rec/h   usable
+    => OPERATIVE RATE 91.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     145 records     145.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     262 records      87.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1093 records      91.1 rec/h   usable
+    last 24 h    2153 records      89.7 rec/h   usable
     12 h rate is 41% from ONE line (test_leg_nemotron_3_super); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 1% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
-    the whole fleet (90 rec/h); latest excludes cells already within
-    8 of the ceiling (89 rec/h). Window 12 h.
+    the whole fleet (91 rec/h); latest excludes cells already within
+    8 of the ceiling (90 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,391     123  2026-08-08 15:48  2026-08-08 15:55  yes
-      189       4,342     123  2026-08-10 00:34  2026-08-10 00:55  yes
-      279       7,495     132  2026-08-11 11:34  2026-08-11 12:11  yes
-      340       9,934     133  2026-08-12 14:38  2026-08-12 15:27  yes
-      403      12,454     133  2026-08-13 18:37  2026-08-13 19:38  yes
-      568      19,755     133  2026-08-17 03:39  2026-08-17 05:18  yes
+      100       1,379     135  2026-08-08 15:31  2026-08-08 15:38  yes
+      189       4,330     135  2026-08-09 23:55  2026-08-10 00:16  yes
+      279       7,483     144  2026-08-11 10:32  2026-08-11 11:08  yes
+      340       9,922     145  2026-08-12 13:18  2026-08-12 14:07  yes
+      403      12,442     145  2026-08-13 16:58  2026-08-13 17:59  yes
+      568      19,743     145  2026-08-17 01:08  2026-08-17 02:44  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 16% of the rung-568 backlog (3,167 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -175,7 +175,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
-| test | **35** | 41 | 9 |  |
+| test | **35** | 42 | 9 |  |
 | glm_5_2 | **74** | 76 | 5 |  |
 | deepseek_v4_pro | **108** | 110 | 5 |  |
 | nemotron_3_super | **122** | 126 | 5 |  |
@@ -210,7 +210,7 @@ pre-registered to run ONCE, at the end, at whatever rung is reached. Every monit
 effect-blind by construction.
 
 What IS reported below is the **hand-written comparison canon (H1)** -- 11 human-designed rewards,
-currently at **33 seeds each** (read live from the archive on this publish). !! THE
+currently at **35 seeds each** (read live from the archive on this publish). !! THE
 CANON IS NOT PINNED AT 30: amendment **R111** registered that it **CLIMBS THE SEED LADDER** with
 everything else, so its depth is a LIVE quantity and `_TEST_UNITS_PER_RUNG = 71` carries all 11 in
 the per-rung denominator. This line used to read "30 seeds each" as a flat design claim -- true as a
