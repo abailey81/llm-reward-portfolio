@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+255h13m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22884** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 12:22 UTC | elapsed 10.63 d | 18.5 d to the Aug-27 stop
+generated 2026-08-08 12:23 UTC | elapsed 10.63 d | 18.5 d to the Aug-27 stop
 test tier: 21,341 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 63.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    => OPERATIVE RATE 62.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h       8 records       8.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     174 records      58.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h     757 records      63.1 rec/h   usable
-    last 24 h    1849 records      77.0 rec/h   usable
+    last  3 h     157 records      52.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h     755 records      62.9 rec/h   usable
+    last 24 h    1847 records      77.0 rec/h   usable
     12 h rate is 76% from ONE line (test); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         798       0  2026-08-09 01:01  2026-08-09 01:01  yes
-      189       3,749       0  2026-08-10 23:48  2026-08-10 23:48  yes
-      279       6,899       0  2026-08-13 01:44  2026-08-13 01:44  yes
-      340       9,183       0  2026-08-14 13:56  2026-08-14 13:56  yes
-      403      11,703       0  2026-08-16 05:53  2026-08-16 05:53  yes
-      568      18,987       8  2026-08-21 01:21  2026-08-21 01:21  yes
+      100         798       0  2026-08-09 01:04  2026-08-09 01:04  yes
+      189       3,749       0  2026-08-10 23:58  2026-08-10 23:58  yes
+      279       6,899       0  2026-08-13 02:02  2026-08-13 02:02  yes
+      340       9,183       0  2026-08-14 14:20  2026-08-14 14:20  yes
+      403      11,703       0  2026-08-16 06:23  2026-08-16 06:23  yes
+      568      18,987       8  2026-08-21 02:10  2026-08-21 02:10  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 24% of the rung-568 backlog (4,516 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
