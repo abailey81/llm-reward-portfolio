@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-08 05:14 UTC -- T+248h05m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-08 05:15 UTC -- T+248h06m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+248h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+248h06m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **0 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22492** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,045      97  2026-08-08 20:32  2026-08-08 20:32  yes
-      189       3,996      97  2026-08-10 15:43  2026-08-10 15:43  yes
-      279       7,146      97  2026-08-12 13:49  2026-08-12 13:49  yes
-      340       9,558      97  2026-08-14 01:07  2026-08-14 01:07  yes
+      100       1,045      97  2026-08-08 20:33  2026-08-08 20:33  yes
+      189       3,996      97  2026-08-10 15:44  2026-08-10 15:44  yes
+      279       7,146      97  2026-08-12 13:50  2026-08-12 13:50  yes
+      340       9,558      97  2026-08-14 01:08  2026-08-14 01:08  yes
       403      12,078      97  2026-08-15 14:00  2026-08-15 14:00  yes
-      568      19,379      97  2026-08-20 00:50  2026-08-20 00:50  yes
+      568      19,379      97  2026-08-20 00:51  2026-08-20 00:51  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 28% of the rung-568 backlog (5,465 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
