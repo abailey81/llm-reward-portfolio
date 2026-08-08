@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 14:39 UTC | elapsed 10.73 d | 18.4 d to the Aug-27 stop
+generated 2026-08-08 14:40 UTC | elapsed 10.73 d | 18.4 d to the Aug-27 stop
 test tier: 21,365 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -62,10 +62,10 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30           0       0  REACHED           REACHED           yes
       100         790       8  2026-08-09 06:42  2026-08-09 06:42  yes
       189       3,741       8  2026-08-11 18:37  2026-08-11 18:37  yes
-      279       6,891       8  2026-08-14 10:34  2026-08-14 10:34  yes
-      340       9,159      24  2026-08-16 08:37  2026-08-16 08:37  yes
-      403      11,679      24  2026-08-18 11:47  2026-08-18 11:47  yes
-      568      18,963      24  2026-08-24 15:41  2026-08-24 15:41  yes
+      279       6,891       8  2026-08-14 10:35  2026-08-14 10:35  yes
+      340       9,159      24  2026-08-16 08:38  2026-08-16 08:38  yes
+      403      11,679      24  2026-08-18 11:48  2026-08-18 11:48  yes
+      568      18,963      24  2026-08-24 15:42  2026-08-24 15:42  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 24% of the rung-568 backlog (4,516 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 4 min ago)
+## Monitoring -- the cycle (last monitoring cycle 5 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
