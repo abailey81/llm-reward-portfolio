@@ -16,7 +16,7 @@ back what it did.
 | records archived | **22884** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.8 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
-| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 22.6 h ago** |
+| transport health | **timeouts 6h=0; worst streak 0/240 (0.0% to fatal), - on -, age UNKNOWN; none live, newest failure 22.7 h ago** |
 | transport timeouts (cumulative, ever) | 348 -- a level with no rate; read the row above |
 | guards | **RC=2**, not green: truncation transport  |
 
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 13:48 UTC | elapsed 10.69 d | 18.4 d to the Aug-27 stop
+generated 2026-08-08 13:49 UTC | elapsed 10.69 d | 18.4 d to the Aug-27 stop
 test tier: 21,341 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         798       0  2026-08-09 05:09  2026-08-09 05:09  yes
-      189       3,749       0  2026-08-11 13:54  2026-08-11 13:54  yes
-      279       6,899       0  2026-08-14 02:28  2026-08-14 02:28  yes
-      340       9,183       0  2026-08-15 22:24  2026-08-15 22:24  yes
+      100         798       0  2026-08-09 05:10  2026-08-09 05:10  yes
+      189       3,749       0  2026-08-11 13:55  2026-08-11 13:55  yes
+      279       6,899       0  2026-08-14 02:29  2026-08-14 02:29  yes
+      340       9,183       0  2026-08-15 22:25  2026-08-15 22:25  yes
       403      11,703       0  2026-08-17 22:52  2026-08-17 22:52  yes
-      568      18,987       0  2026-08-23 18:56  2026-08-23 18:56  yes
+      568      18,987       0  2026-08-23 18:57  2026-08-23 18:57  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 24% of the rung-568 backlog (4,516 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
