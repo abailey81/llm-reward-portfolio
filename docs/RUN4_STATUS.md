@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-08 06:24 UTC -- T+249h15m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-08 06:25 UTC -- T+249h16m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+249h15m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+249h16m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22563** |
@@ -62,10 +62,10 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30           0       0  REACHED           REACHED           yes
       100         974      63  2026-08-08 20:07  2026-08-08 20:07  yes
       189       3,925      63  2026-08-10 13:38  2026-08-10 13:38  yes
-      279       7,075      63  2026-08-12 09:56  2026-08-12 09:56  yes
-      340       9,487      63  2026-08-13 19:52  2026-08-13 19:52  yes
-      403      12,007      63  2026-08-15 07:19  2026-08-15 07:19  yes
-      568      19,308      63  2026-08-19 14:02  2026-08-19 14:02  yes
+      279       7,075      63  2026-08-12 09:57  2026-08-12 09:57  yes
+      340       9,487      63  2026-08-13 19:53  2026-08-13 19:53  yes
+      403      12,007      63  2026-08-15 07:20  2026-08-15 07:20  yes
+      568      19,308      63  2026-08-19 14:03  2026-08-19 14:03  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 28% of the rung-568 backlog (5,465 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
