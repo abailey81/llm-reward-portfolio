@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **675** = 94 running + **122 ELIGIBLE** + 459 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **752** |
-| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (381 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **34.7%** -- 264 of 760 cores (382 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,7 +38,7 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 09:55 UTC | elapsed 10.53 d | 18.6 d to the Aug-27 stop
+generated 2026-08-08 09:56 UTC | elapsed 10.53 d | 18.6 d to the Aug-27 stop
 test tier: 21,276 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
@@ -46,7 +46,7 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
     last  1 h     137 records     137.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     248 records      82.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     903 records      75.2 rec/h   usable
-    last 24 h    2029 records      84.5 rec/h   usable
+    last 24 h    2028 records      84.5 rec/h   usable
     12 h rate is 79% from ONE line (test); 4 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         815      72  2026-08-08 20:45  2026-08-08 20:45  yes
-      189       3,766      72  2026-08-10 11:58  2026-08-10 11:58  yes
+      100         815      72  2026-08-08 20:46  2026-08-08 20:46  yes
+      189       3,766      72  2026-08-10 11:59  2026-08-10 11:59  yes
       279       6,916      72  2026-08-12 05:50  2026-08-12 05:50  yes
-      340       9,232     136  2026-08-13 12:36  2026-08-13 12:36  yes
-      403      11,752     136  2026-08-14 22:05  2026-08-14 22:05  yes
-      568      19,052     137  2026-08-18 23:06  2026-08-18 23:06  yes
+      340       9,232     136  2026-08-13 12:37  2026-08-13 12:37  yes
+      403      11,752     136  2026-08-14 22:06  2026-08-14 22:06  yes
+      568      19,052     137  2026-08-18 23:07  2026-08-18 23:07  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 28% of the rung-568 backlog (5,322 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -231,7 +231,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 7 min ago)
+## Monitoring -- the cycle (last monitoring cycle 8 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
