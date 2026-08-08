@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+245h07m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **22299** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 4.2 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-08 02:16 UTC | elapsed 10.21 d | 18.9 d to the Aug-27 stop
-test tier: 20,756 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-08 02:17 UTC | elapsed 10.21 d | 18.9 d to the Aug-27 stop
+test tier: 20,759 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 87.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      70 records      70.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     321 records     107.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1046 records      87.2 rec/h   usable
-    last 24 h    2039 records      85.0 rec/h   usable
+    => OPERATIVE RATE 87.3 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      69 records      69.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     324 records     108.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1048 records      87.3 rec/h   usable
+    last 24 h    2041 records      85.0 rec/h   usable
     12 h rate is 43% from ONE line (test_leg_nemotron_3_super); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
     !! 1% of the 12 h window came from cell(s) now within 8 records of rung 568 (test_leg_haiku_4_5) -- that rate STOPS. The ETA below assumes the cluster redirects those slots; it is an assumption, not a measurement.
@@ -54,19 +54,19 @@ MEASURED test-tier throughput (record mtimes; an observation, not a model):
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
     assume freed slots are REDIRECTED to whatever still owes work. earliest uses
     the whole fleet (87 rec/h); latest excludes cells already within
-    8 of the ceiling (86 rec/h). Window 12 h.
+    8 of the ceiling (87 rec/h). Window 12 h.
     !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the
     slowest owing cell, which is INFINITE for every rung while most owing cells
     produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100       1,223      61  2026-08-08 16:18  2026-08-08 16:24  yes
-      189       4,174      61  2026-08-10 02:09  2026-08-10 02:31  yes
-      279       7,324      62  2026-08-11 14:17  2026-08-11 14:56  yes
-      340       9,751      70  2026-08-12 18:08  2026-08-12 19:00  yes
-      403      12,271      70  2026-08-13 23:03  2026-08-14 00:08  yes
-      568      19,572      70  2026-08-17 10:48  2026-08-17 12:32  yes
+      100       1,222      59  2026-08-08 16:16  2026-08-08 16:23  yes
+      189       4,173      59  2026-08-10 02:04  2026-08-10 02:26  yes
+      279       7,323      59  2026-08-11 14:08  2026-08-11 14:47  yes
+      340       9,748      69  2026-08-12 17:54  2026-08-12 18:45  yes
+      403      12,268      69  2026-08-13 22:45  2026-08-13 23:50  yes
+      568      19,569      69  2026-08-17 10:21  2026-08-17 12:05  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 16% of the rung-568 backlog (3,167 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
