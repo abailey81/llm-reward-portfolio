@@ -24,10 +24,10 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **779** = 113 running + **227 ELIGIBLE** + 439 held by us + 0 held only by the site |
+| cluster jobs | **778** = 112 running + **227 ELIGIBLE** + 439 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
-| **cores computing** | **904** |
-| **cores doing RUNG-RAISING work** | **51.3%** -- 464 of 904 cores (2 min old) |
+| **cores computing** | **896** |
+| **cores doing RUNG-RAISING work** | **51.3%** -- 464 of 904 cores (3 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 01:35 UTC | elapsed 11.19 d | 17.9 d to the Aug-27 stop
+generated 2026-08-09 01:36 UTC | elapsed 11.19 d | 17.9 d to the Aug-27 stop
 test tier: 22,844 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 125.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     137 records     137.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     489 records     163.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h     136 records     136.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     484 records     161.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1503 records     125.2 rec/h   usable
-    last 24 h    2141 records      89.2 rec/h   usable
+    last 24 h    2139 records      89.1 rec/h   usable
     12 h rate is 35% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,24 +60,24 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         161      80  2026-08-09 02:52  2026-08-09 02:52  yes
-      189       2,761     112  2026-08-09 23:38  2026-08-09 23:38  yes
+      100         161      80  2026-08-09 02:53  2026-08-09 02:53  yes
+      189       2,761     112  2026-08-09 23:39  2026-08-09 23:39  yes
       279       5,911     112  2026-08-11 00:47  2026-08-11 00:47  yes
       340       8,046     112  2026-08-11 17:50  2026-08-11 17:50  yes
-      403      10,344     137  2026-08-12 12:10  2026-08-12 12:10  yes
-      568      17,484     137  2026-08-14 21:11  2026-08-14 21:11  yes
+      403      10,344     136  2026-08-12 12:11  2026-08-12 12:11  yes
+      568      17,484     136  2026-08-14 21:11  2026-08-14 21:11  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung      @904 cores      @830 cores   binding
+     rung      @896 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           6.0 d           6.5 d   throughput
-      279           8.5 d           9.3 d   throughput
-      340          10.2 d          11.1 d   throughput
-      403          12.0 d          13.0 d   throughput
-      568          16.6 d          18.1 d   throughput
+      279           8.6 d           9.3 d   throughput
+      340          10.3 d          11.1 d   throughput
+      403          12.1 d          13.0 d   throughput
+      568          16.7 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
     critical-chain floor: 4.64 d total, 0.00 d still to run   (every DFO arm has spent its full candidate budget)
@@ -230,7 +230,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 3 min ago)
+## Monitoring -- the cycle (last monitoring cycle 4 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
