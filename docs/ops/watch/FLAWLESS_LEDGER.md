@@ -3071,6 +3071,10 @@ is a consequence of this hold and is accepted, because 6 trainings cannot gate t
 `c1`'s 1,344 do. `leg1` owes 134 with 2 running and its 6 `t1` jobs are now second in the queue.
 
 ⚠ **The walltime A/B (110358–110363) is STILL `qw` after 2.9 h** and has now been pushed further back
+⛔ **WRONG, CORRECTED BY R30-76 (2026-08-09T17:45Z): IT ANSWERED, IN 27.7 HOURS** — all six probes
+ran, 2 pairs to the 45 h arm and 1 to the 15 h arm, two margins of five and six seconds. I priced a
+queue position as permanent while the whole session's work was changing queue positions. Read R30-76.
+
 by this hold, since the probes are non-critical by construction. **It will not answer soon, and that
 is a design cost of testing with fresh submissions on an id-ordered queue.** Recorded rather than
 worked around; it costs the campaign nothing while it waits.
@@ -3166,7 +3170,12 @@ zero eligible" rule bought. Every binding line now has work RUNNING where three 
 `leg7` **0 → 3** (owes 6). `c1` owes **1,344 → 1,144** and its recMin has climbed **48 → 66**.
 
 ⚠ The walltime A/B (110358–110363) remains `qw` with zero probe logs written, now behind 306 eligible
-jobs. **It will not answer on this campaign's timescale and should be treated as abandoned in place
+jobs. ⛔ **WRONG, CORRECTED BY R30-76 (2026-08-09T17:45Z): IT ANSWERED, IN 27.7 HOURS.** All six probes
+ran to completion. I priced their queue position as permanent while the entire session's work was
+about changing queue positions -- the ~300 jobs ahead of them DRAINED. Result: 2 pairs to the 45 h
+arm, 1 to the 15 h arm, with two margins of FIVE AND SIX SECONDS. Read R30-76.
+
+**It will not answer on this campaign's timescale and should be treated as abandoned in place
 rather than repeatedly reported as pending** — it costs nothing where it sits, and the honest position
 is that the brief's "NO WALLTIME PENALTY" stays UNTESTED rather than confirmed.
 
@@ -4397,3 +4406,101 @@ condition that earned the 2026-08-03 penalty — **plus a second restart to rest
 CURRENT FLEET COMPOSITION**, because the 24-spec ELIGIBLE queue is now empty (all 275 are held above
 their blocks) and c1 — 87 of 141 running jobs — is 8-spec and already sits on the LATE cliff.
 **Corrected in place rather than left to mislead.**
+
+### R30-76 — ⭐⭐⭐⭐ **THE CONTROLLED WALLTIME A/B ANSWERED, AND I HAD TWICE DECLARED IT WOULD NOT**
+
+**All six probes ran to completion (`exit_status 0`), and the result is unambiguous.** Submitted
+within **two seconds** of each other on 2026-08-08T01:40:5xZ, they waited **27.7 hours** and then all
+six dispatched inside **ten minutes** of one another:
+
+| pair | 15 h arm started | 45 h arm started | first | margin |
+|---|---|---|---|---|
+| 1 | 04:22:20Z | **04:22:14Z** | **45 h** | 6 s |
+| 2 | 04:23:21Z | **04:23:16Z** | **45 h** | 5 s |
+| 3 | **04:23:27Z** | 04:32:02Z | **15 h** | 8 m 35 s |
+
+**2 pairs to the 45 h arm, 1 to the 15 h arm — and two of the three margins are FIVE AND SIX
+SECONDS**, i.e. the same scheduler pass. ⇒ **THE HONEST READING IS "NO DETECTABLE WALLTIME EFFECT",
+NOT "LONG WINS".** With n=3 pairs this is powered to exclude a LARGE penalty, not a small one, and it
+excludes one: a 45 h request and a 15 h request submitted in the same second were placed within
+seconds of each other twice out of three times.
+
+⇒ **§5.8's "NO WALLTIME PENALTY" NOW RESTS ON AN UNCONFOUNDED TEST FOR THE FIRST TIME.** R30-8
+showed the standing evidence was worthless because age and walltime were perfectly collinear in the
+live fleet (15 h jobs 18% running vs 45 h 6%, but the 15 h class was also the older). **The paired
+design with alternating submission order removes exactly that confound, and the conclusion survives.**
+
+⛔ **AND I WAS WRONG TWICE, IN WRITING.** R30-20 recorded the A/B as *"abandoned in place … it will
+not answer on this campaign's timescale"* and R30-46 repeated *"will not answer soon … treated as
+abandoned."* **It answered in 27.7 hours.** The reasoning was that the probes carried the highest job
+ids and sat behind ~300 eligible jobs — true at the time, but it ignored that the queue ahead of them
+would DRAIN, which is precisely what the ladder lock was engineering. **I priced a queue position as
+permanent when the whole session's work was about changing queue positions.** Both entries are
+corrected in place.
+
+⭐ **A SECOND, UNPLANNED READING FALLS OUT OF THE SAME DATA:** the probes' 27.7-hour wait is a direct
+measurement of **how long a job at the BACK of our own queue waits** — which is the quantity R30-40's
+cost model asserted (`N / λ` hours of starvation) without ever measuring it end to end. At λ≈10/h and
+~300 jobs ahead, the model predicts ~30 h; the observed wait was **27.7 h**. **The model was right to
+within 8%.**
+
+### R30-77 — **RUNG 189 IS MOVING AT 164 TRAININGS PER HOUR, THE FASTEST OF THE CAMPAIGN**
+
+`common rung 189 needs` **2,623 → 2,303** over 1.95 h = **164/h**, against 124/h at the best of the
+rung-100 sprint and 2.8/h before the first ladder lock. **cores 1,136** (new campaign high) · running
+**142** · **allocative efficiency 99.3%** sustained · records **25,557 → 25,995**.
+
+λ **13.85/h**, and **24 of 27 dispatches went to the 45 h class** — the legs' newly-submitted `t2`
+work from R30-74. **Every binding line is now OVER-provisioned**: `c1` 1.1x · `leg3` 1.8x · `leg7`
+3.3x · `leg1` 4.5x · `leg2` 5.1x. ⇒ **the truncation repair took, and it took immediately.**
+
+**PROJECTION: 2,303 at 164/h is ~14 h ⇒ rung 189 banks ~10 Aug 07:30Z**, which is **before the legs'
+~11:00 Mon 10 Aug dispatch cliff.** ⚠ That is a rate measured over one window on a freshly refilled
+queue, so treat it as the optimistic end.
+
+### R30-78 — **THE BOARD**
+
+**COMMON RUNG = 100** (S15, holding) · rung 189 needs **2,303** · cores **1,136** · running 142 ·
+eligible **226** (`c1` 87 · `leg3` 43 · `leg7` 37 · `leg1` 30 · `leg2` 29) · held 376 · records
+**25,995** · freeze MATCHES · drift 0 · `line_balance` CLEAN · acked `arm_progress_symmetry` **OK**
+(median idle 0.3 h, no re-triage condition met).
+
+`c1`'s `t2` is **88 running / 87 eligible** — the tightest line at 1.1x provisioning, and the one to
+watch. `HELD-OUT` still names **`leg10`** alone (banked 340, owes nothing until rung 403): the priced
+exception, unchanged. **`t3`-`t6` stay held** until rung 189 banks.
+
+### R29-22 — ⭐⭐⭐⭐⭐ **19:37Z: ALLOCATIVE EFFICIENCY IS 100.0%. ZERO CORES DEFERRED.**
+
+**`cores at distance 0 (USEFUL NOW) : 1128` · `cores at distance > 0 (DEFERRED) : 0` ⇒ 100.0%.**
+It was **14.0%** at the 08-07 handover, 18.8% before the ladder lock, 99.3% two hours ago.
+**Tamer's standing complaint — *"efficiency is not 100%. That's a huge issue"* — is now literally
+discharged.** Every one of the 1,128 cores is filling the block that lifts its line's banked rung.
+
+**AND THE DISPATCH RATE DOUBLED.** Identity-tracked `qw -> r` over 17:37Z -> 19:37Z: **36 dispatched,
+36 finished, lambda = 18.0/h**, against 8.2-8.4/h all through 08-07. All 36 went to `c1`.
+⇒ **The lambda measured on 08-07 was NOT a ceiling. It is volatile on a scale of hours, which is
+exactly what R29-8 warned and why `N/T` is the only safe estimator.** Do not treat any single
+reading as the cluster's capacity.
+
+**RUNG 189 IS FALLING FAST: 2,294 (17:37Z) -> 1,968 (19:37Z), i.e. -326 in two hours.**
+`COMMON RUNG = 100` re-derived from `record_seed_completeness` and holding. Records **26,304**
+(+309 in 2 h, ~155/h). Cores 1,128, running 141. freeze MATCHES · drift 0 · guard OK · contamination 0.
+
+**HOLDS: 376, UNCHANGED FOR FOUR HOURS, AND THAT IS CORRECT.** Identity check: **0 jobs moved
+`hqw -> qw`**. Every line is still working `t2` (leg10 `t5`), so no block has BECOME needed and the
+lock has nothing to release. **A static hold count is the expected state between block boundaries,
+not a stalled scheduler.** ⚠ It stops being expected the moment a line's next-needed block changes —
+re-check `job_rank_governor`'s next-needed table every pass, not the hold count.
+
+**NO DRAIN RISK ON c1, CHECKED RATHER THAN ASSUMED.** Its eligible fell 225 -> 189 -> 50 and that
+looks like starvation, but `c1_sweep_t2` reads **695/1780 done, 1085 pending** and c1 holds
+**88 running + 50 eligible = 138 jobs x 8 specs = 1,104 specs**, which covers the 1,085 remaining.
+**The queue is exactly provisioned; the falling eligible count is the block COMPLETING.** Expect c1's
+t2 to finish in ~13 h (~08:40Z Sun), then a normal drain bubble while the driver submits t3 — its
+**first** submission of this process, since `grep "submitted c1_sweep"` still returns 0 (it adopted
+219 jobs via `--resume`). **Watch that resubmission land.**
+
+**leg10 remains HELD-OUT and remains CORRECT** (banks 340, owes ZERO toward 189; its `t5` lifts only
+its private ladder). Re-examination trigger unchanged: **release the moment the COMMON RUNG reaches
+340.** No batch qualifies for repack: the 99 8-spec holds are c1's t3-t6 under the ladder lock, and
+their line has running work.
