@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-09 22:20 UTC -- T+289h11m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-09 22:21 UTC -- T+289h12m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+289h11m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+289h12m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **1 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **26636** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 22:21 UTC | elapsed 12.05 d | 17.1 d to the Aug-27 stop
+generated 2026-08-09 22:22 UTC | elapsed 12.05 d | 17.1 d to the Aug-27 stop
 test tier: 25,093 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 130.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     100 records     100.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     326 records     108.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h      99 records      99.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     324 records     108.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1571 records     130.9 rec/h   usable
     last 24 h    2769 records     115.4 rec/h   usable
     12 h rate is 77% from ONE line (test); 5 line(s) contributed at all
@@ -64,11 +64,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung  rec-count left     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
       100           0       0  REACHED           REACHED           yes
-      189         638     100  2026-08-10 03:14  2026-08-10 03:14  yes
-      279       3,788     100  2026-08-11 03:17  2026-08-11 03:17  yes
-      340       5,923     100  2026-08-11 19:36  2026-08-11 19:36  yes
-      403       8,159     100  2026-08-12 12:40  2026-08-12 12:40  yes
-      568      15,235     100  2026-08-14 18:43  2026-08-14 18:43  yes
+      189         638      99  2026-08-10 03:14  2026-08-10 03:14  yes
+      279       3,788      99  2026-08-11 03:18  2026-08-11 03:18  yes
+      340       5,923      99  2026-08-11 19:37  2026-08-11 19:37  yes
+      403       8,159      99  2026-08-12 12:41  2026-08-12 12:41  yes
+      568      15,235      99  2026-08-14 18:44  2026-08-14 18:44  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 3% of the rung-568 backlog (476 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
@@ -250,7 +250,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 9 min ago)
+## Monitoring -- the cycle (last monitoring cycle 10 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
