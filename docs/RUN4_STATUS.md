@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+269h10m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (deepseek-v4-pro)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **24415** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.2 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 02:19 UTC | elapsed 11.22 d | 17.9 d to the Aug-27 stop
-test tier: 22,872 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-09 02:20 UTC | elapsed 11.22 d | 17.9 d to the Aug-27 stop
+test tier: 22,873 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 125.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      51 records      51.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     379 records     126.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1510 records     125.8 rec/h   usable
-    last 24 h    2111 records      88.0 rec/h   usable
+    => OPERATIVE RATE 125.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      52 records      52.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     380 records     126.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1511 records     125.9 rec/h   usable
+    last 24 h    2112 records      88.0 rec/h   usable
     12 h rate is 36% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         138      40  2026-08-09 03:25  2026-08-09 03:25  yes
-      189       2,738      40  2026-08-10 00:05  2026-08-10 00:05  yes
-      279       5,888      40  2026-08-11 01:07  2026-08-11 01:07  yes
-      340       8,023      40  2026-08-11 18:05  2026-08-11 18:05  yes
-      403      10,316      51  2026-08-12 12:18  2026-08-12 12:18  yes
-      568      17,456      51  2026-08-14 21:02  2026-08-14 21:02  yes
+      100         138      40  2026-08-09 03:26  2026-08-09 03:26  yes
+      189       2,738      40  2026-08-10 00:04  2026-08-10 00:04  yes
+      279       5,888      40  2026-08-11 01:05  2026-08-11 01:05  yes
+      340       8,023      40  2026-08-11 18:03  2026-08-11 18:03  yes
+      403      10,315      52  2026-08-12 12:15  2026-08-12 12:15  yes
+      568      17,455      52  2026-08-14 20:57  2026-08-14 20:57  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
