@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-09 02:04 UTC -- T+268h56m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-09 02:05 UTC -- T+268h56m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -38,15 +38,15 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 02:05 UTC | elapsed 11.21 d | 17.9 d to the Aug-27 stop
+generated 2026-08-09 02:06 UTC | elapsed 11.21 d | 17.9 d to the Aug-27 stop
 test tier: 22,859 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 126.5 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      67 records      67.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h      63 records      63.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     414 records     138.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1518 records     126.5 rec/h   usable
-    last 24 h    2112 records      88.0 rec/h   usable
+    last 24 h    2110 records      87.9 rec/h   usable
     12 h rate is 35% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100         151      42  2026-08-09 03:17  2026-08-09 03:17  yes
-      189       2,751      53  2026-08-09 23:50  2026-08-09 23:50  yes
-      279       5,901      53  2026-08-11 00:44  2026-08-11 00:44  yes
-      340       8,036      53  2026-08-11 17:37  2026-08-11 17:37  yes
-      403      10,329      67  2026-08-12 11:44  2026-08-12 11:44  yes
-      568      17,469      67  2026-08-14 20:11  2026-08-14 20:11  yes
+      100         151      41  2026-08-09 03:17  2026-08-09 03:17  yes
+      189       2,751      50  2026-08-09 23:51  2026-08-09 23:51  yes
+      279       5,901      50  2026-08-11 00:45  2026-08-11 00:45  yes
+      340       8,036      50  2026-08-11 17:37  2026-08-11 17:37  yes
+      403      10,329      63  2026-08-12 11:45  2026-08-12 11:45  yes
+      568      17,469      63  2026-08-14 20:11  2026-08-14 20:11  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
