@@ -89,9 +89,14 @@ a 2,000 target, having never exceeded 880.** Three specific errors:
 > 2026-08-07: *"this priority system and all other stuff would be a job of the next session yeah,
 > that's the absolute priority, to get all results for the floor first, and then progress."*)
 
-⭐ **RUNG 30 IS BANKED (2026-08-07T04:08:01Z).** `COMMON RUNG = 30`. The same rule now points at the
-next tier: **common rung 100 needs 1,699 more trainings**, and **`c1` alone owes 1,400 of them
-(82%)**. **c1 IS THE CRITICAL PATH, and §5.5 explains why its job SHAPE is now the binding problem.**
+⭐⭐⭐ **UPDATED 2026-08-09T17:40Z — RUNG 100 IS BANKED (2026-08-09T15:19:25Z) AND THE ALLOCATION
+DEFECT IS FIXED.** `COMMON RUNG = 100`, confirmed by three instruments. The next tier is **rung 189,
+which needs 2,294 trainings**, owed by five lines: c1 1,362 · leg3 301 · leg7 277 · leg1 189 · leg2 165.
+**Allocative efficiency is 99.3%** (1,120 of 1,128 cores rung-raising), against 14.0% when this file
+was first written — the ladder lock of R29-17 did what it was built to do, and every binding line now
+runs its own next-needed block (`t2`). **Cores 1,128, records 25,995.**
+⇒ **§3, §5.5 and §5.7 below were written on 08-07 and their NUMBERS are superseded by this paragraph
+and by ledger rows R29-20 and R29-21. Their MECHANISMS all still hold. Re-derive every figure live.**
 
 ### §0.4 THE PRIORITY PRINCIPLE (still standing, still true)
 
@@ -235,7 +240,46 @@ ZERO gaps. Read these END TO END before acting, not in excerpt.**
 
 ---
 
-# §3 STATE AT HANDOVER (2026-08-07 22:11 UTC, T+241 h)
+# §3a ⭐ STATE REFRESHED 2026-08-09 17:37 UTC (T+284 h) — **THIS SUPERSEDES §3 BELOW**
+
+```
+★★★ COMMON RUNG = 100  (BANKED 2026-08-09T15:19:25Z)   NEXT COMMON RUNG = 189, needs 2,294
+    It turned on ONE training: baseline_differential_sharpe-s99. Nineteen of c1's twenty arms
+    already banked 100 (holes from seed 102); that one arm had a hole at seed 99, so it held a
+    contiguous prefix of 0-98 and under R101 the MINIMUM dragged the whole campaign to rung 30.
+    ⇒ ONLY THE HOLE-AWARE INSTRUMENT (record_seed_completeness, S15) CAN SEE THIS. The governor
+      counts records and will say "needs 1" while the line actually banks 30. BOTH ARE RIGHT.
+records 25,995 · spend $45.5019 · drift 0 · freeze MATCHES (3ca6f01a…) · guard OK on login12
+CORES 1,128 (141 running jobs)     ⭐ ALLOCATIVE EFFICIENCY 99.3%  (1,120 of 1,128; was 14.0%)
+  24-spec (h_rt=162000): r= 54  qw=  0  hqw=275
+  8-spec  (h_rt= 54000): r= 87  qw=225  hqw= 99
+  line     run  elig  held   running block
+  c1        87    86    99   t2      <- owes 1,362 of the 2,294 to rung 189
+  leg7      15    37    77   t2      ·  leg3 14/43/24 t2  ·  leg2 13/29/77 t2  ·  leg1 12/30/76 t2
+  leg10      0     0    21   —       <- DELIBERATELY PARKED, see below
+
+★ HOLDS LIVE: 376 total (374 also carry the site JSV's own system-hold layer).
+  They are the LADDER LOCK: every job held is ABOVE its line's next-needed block. That is what
+  took allocative efficiency from 14.0% to 99.3%. ⚠ DO NOT BULK-RELEASE THEM.
+  Blocks become needed as lines climb, and the governor's TO RELEASE path frees them then.
+
+⚠ leg10 IS HELD-OUT (0 running, 0 eligible, 21 held) AND THAT IS CORRECT, NOT A DEFECT.
+  It banks 340 and owes ZERO toward rung 189, so its own next-needed block (t5) lifts only its
+  private ladder. `line_balance`'s HELD-OUT remedy would be WRONG here.
+  ⭐ RE-EXAMINATION TRIGGER: the moment the COMMON RUNG reaches 340, leg10's t5 becomes
+    rung-raising and MUST be released. Do not let this become permanent by neglect.
+
+⚠ THE 2026-08-12 MAINTENANCE DECISION IS MADE: **DO NOT REVERT THE LEGS TO 8 SPECS.**
+  Measured 17:37Z — keeping 24-spec is 7,517 core-hours against 6,826 for reverting, because
+  reverting cuts T from 31 h to 10.5 h and so cuts N = lambda x T threefold. It also costs six
+  supervisor restarts (the 2026-08-03 stampede condition) plus a second to restore afterwards.
+  The 24-spec ELIGIBLE queue is already empty and c1 (87 of 141 running) is 8-spec on the LATE
+  cliff. ⇒ NO ACTION. R29-10's mitigation is right in principle, wrong under this composition.
+```
+
+---
+
+# §3 STATE AT THE ORIGINAL HANDOVER (2026-08-07 22:11 UTC, T+241 h) — ⚠ SUPERSEDED BY §3a
 
 ```
 ★★★ COMMON RUNG = 30   NEXT COMMON RUNG = 100, needs 1,699 trainings (2,273 at 10:19Z, -574 today)
