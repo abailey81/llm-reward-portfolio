@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **648** = 139 running + **120 ELIGIBLE** + 389 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **1112** |
-| **cores doing RUNG-RAISING work** | **27.9%** -- 304 of 1088 cores (111 min old **STALE**) |
+| **cores doing RUNG-RAISING work** | **27.9%** -- 304 of 1088 cores (112 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 13:24 UTC | elapsed 11.68 d | 17.4 d to the Aug-27 stop
+generated 2026-08-09 13:25 UTC | elapsed 11.68 d | 17.4 d to the Aug-27 stop
 test tier: 23,813 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 82.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      79 records      79.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     290 records      96.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     288 records      96.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h     987 records      82.2 rec/h   usable
     last 24 h    2472 records     103.0 rec/h   usable
     12 h rate is 65% from ONE line (test); 6 line(s) contributed at all
@@ -65,8 +65,8 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30           0       0  REACHED           REACHED           yes
       100           0       0  REACHED           REACHED           yes
       189       1,902      79  2026-08-10 12:32  2026-08-10 12:32  yes
-      279       5,052      79  2026-08-12 02:49  2026-08-12 02:49  yes
-      340       7,187      79  2026-08-13 04:47  2026-08-13 04:47  yes
+      279       5,052      79  2026-08-12 02:50  2026-08-12 02:50  yes
+      340       7,187      79  2026-08-13 04:48  2026-08-13 04:48  yes
       403       9,439      79  2026-08-14 08:10  2026-08-14 08:10  yes
       568      16,515      79  2026-08-17 22:12  2026-08-17 22:12  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
