@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-09 03:56 UTC -- T+270h47m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-09 03:57 UTC -- T+270h48m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,7 +10,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+270h47m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+270h48m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **24556** |
@@ -38,14 +38,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 03:57 UTC | elapsed 11.28 d | 17.8 d to the Aug-27 stop
+generated 2026-08-09 03:58 UTC | elapsed 11.28 d | 17.8 d to the Aug-27 stop
 test tier: 23,013 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 131.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     106 records     106.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h     105 records     105.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     247 records      82.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1582 records     131.8 rec/h   usable
+    last 12 h    1581 records     131.8 rec/h   usable
     last 24 h    2174 records      90.6 rec/h   usable
     12 h rate is 37% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100          36      69  2026-08-09 04:13  2026-08-09 04:13  yes
-      189       2,613      92  2026-08-09 23:46  2026-08-09 23:46  yes
-      279       5,763      92  2026-08-10 23:40  2026-08-10 23:40  yes
-      340       7,898      92  2026-08-11 15:51  2026-08-11 15:51  yes
-      403      10,183      98  2026-08-12 09:11  2026-08-12 09:11  yes
-      568      17,315     106  2026-08-14 15:17  2026-08-14 15:17  yes
+      100          36      68  2026-08-09 04:14  2026-08-09 04:14  yes
+      189       2,613      91  2026-08-09 23:48  2026-08-09 23:48  yes
+      279       5,763      91  2026-08-10 23:42  2026-08-10 23:42  yes
+      340       7,898      91  2026-08-11 15:54  2026-08-11 15:54  yes
+      403      10,183      97  2026-08-12 09:15  2026-08-12 09:15  yes
+      568      17,315     105  2026-08-14 15:23  2026-08-14 15:23  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
