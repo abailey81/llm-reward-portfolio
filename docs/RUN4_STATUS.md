@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-09 14:18 UTC -- T+281h09m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-09 14:19 UTC -- T+281h10m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+281h09m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+281h10m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **25459** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 2.7 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -27,7 +27,7 @@ back what it did.
 | cluster jobs | **640** = 141 running + **123 ELIGIBLE** + 376 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
 | **cores computing** | **1128** |
-| **cores doing RUNG-RAISING work** | **16.7%** -- 184 of 1104 cores (45 min old) |
+| **cores doing RUNG-RAISING work** | **16.7%** -- 184 of 1104 cores (46 min old) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -44,7 +44,7 @@ test tier: 23,916 records over 71 of the 71 registered units (lanes.py _TEST_UNI
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 86.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h     112 records     112.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     282 records      94.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     279 records      93.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1043 records      86.9 rec/h   usable
     last 24 h    2554 records     106.4 rec/h   usable
     12 h rate is 63% from ONE line (test); 6 line(s) contributed at all
@@ -65,10 +65,10 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
        30           0       0  REACHED           REACHED           yes
       100           0       0  REACHED           REACHED           yes
       189       1,815      96  2026-08-10 11:12  2026-08-10 11:12  yes
-      279       4,965      96  2026-08-11 23:26  2026-08-11 23:26  yes
-      340       7,100      96  2026-08-13 00:00  2026-08-13 00:00  yes
-      403       9,336     112  2026-08-14 01:43  2026-08-14 01:43  yes
-      568      16,412     112  2026-08-17 11:08  2026-08-17 11:08  yes
+      279       4,965      96  2026-08-11 23:27  2026-08-11 23:27  yes
+      340       7,100      96  2026-08-13 00:01  2026-08-13 00:01  yes
+      403       9,336     112  2026-08-14 01:44  2026-08-14 01:44  yes
+      568      16,412     112  2026-08-17 11:09  2026-08-17 11:09  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
