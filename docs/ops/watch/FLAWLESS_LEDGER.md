@@ -4504,3 +4504,36 @@ t2 to finish in ~13 h (~08:40Z Sun), then a normal drain bubble while the driver
 its private ladder). Re-examination trigger unchanged: **release the moment the COMMON RUNG reaches
 340.** No batch qualifies for repack: the 99 8-spec holds are c1's t3-t6 under the ladder lock, and
 their line has running work.
+
+### R29-23 — **21:37Z: 100.0% HELD, CORES 1,152, AND THE HANDOVER FROM c1 TO THE LEGS IS ABOUT TO HAPPEN**
+
+**ALLOCATIVE EFFICIENCY 100.0% FOR THE SECOND CONSECUTIVE PASS** — `distance 0 = 1,152`,
+`deferred = 0`. Cores **1,128 -> 1,152**, running 141 -> 144. `COMMON RUNG = 100` holds.
+**Rung 189 needs 1,735**, down from 1,968 two hours ago and 2,294 four hours ago
+(**-326, then -233**). Records **26,526**. freeze MATCHES · drift 0 · guard OK · contamination 0 ·
+`line_balance` CLEAN.
+
+**IDENTITY-TRACKED 19:37 -> 21:37: 32 dispatched, 29 finished, 0 released, 0 new jobs, lambda 16.0/h**
+(18.0/h the previous pass, 8.2/h on 08-07). All 32 went to `c1`.
+
+⭐ **THE THING TO WATCH NEXT IS A HANDOVER, NOT A FAULT.** `c1`'s eligible has fallen
+**50 -> 18** and will reach zero in about **1.1 h**. That is NOT starvation, and the arithmetic says
+so: `c1_sweep_t2` reads **921/1780 done, 859 pending**, and c1 holds **91 running + 18 eligible =
+109 jobs x 8 = 872 specs**, which still covers the 859 remaining exactly. **The block is precisely
+provisioned and is completing.**
+⇒ When c1's eligible hits zero its 91 running jobs finish t2 over ~10.5 h, and the windows pass to
+the **legs, which hold 140 eligible t2 jobs between them (leg3 44 · leg7 37 · leg1 30 · leg2 29) and
+are ALL BINDING toward rung 189.** **Cores should hold through the handover; if they fall sharply
+instead, that is the finding.**
+
+⚠ **AND A COMPOSITION FACT WORTH KNOWING BEFORE THE NEXT PASS MISREADS IT.** The fleet is currently
+**8-spec dominant** (`r=91 qw=157`) with only **53 running 24-spec** and **275 held**. That is not a
+regression of the repack: the repack converted the legs' **t3-t6** blocks, and every line is still
+working **t2**, which was submitted at 8 specs before the conversion and could not be repacked
+because those batches had running siblings. ⇒ **The 275 held 24-spec jobs are the NEXT wave. Expect
+cores to rise again when lines cross from t2 into t3 and the lock releases them.**
+
+**NO ACTION THIS PASS.** No batch qualifies for repack (the 99 8-spec holds are c1's t3-t6 under the
+lock, and their line has running work). leg10 remains correctly parked with its rung-340 trigger. The
+maintenance decision stands: **do not revert the legs**; the 45 h cliff is now ~13 h out and the
+24-spec eligible queue is empty anyway.
