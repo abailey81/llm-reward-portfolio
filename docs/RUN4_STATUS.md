@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+273h07m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (qwen3_6-27b)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **24722** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,14 +38,14 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 06:16 UTC | elapsed 11.38 d | 17.7 d to the Aug-27 stop
+generated 2026-08-09 06:17 UTC | elapsed 11.38 d | 17.7 d to the Aug-27 stop
 test tier: 23,179 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 121.1 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h      88 records      88.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    => OPERATIVE RATE 120.9 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h      86 records      86.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last  3 h     234 records      78.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1453 records     121.1 rec/h   usable
+    last 12 h    1451 records     120.9 rec/h   usable
     last 24 h    2159 records      90.0 rec/h   usable
     12 h rate is 37% from ONE line (test); 6 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100           4      13  2026-08-09 06:18  2026-08-09 06:18  yes
-      189       2,491      63  2026-08-10 02:50  2026-08-10 02:50  yes
-      279       5,641      63  2026-08-11 04:51  2026-08-11 04:51  yes
-      340       7,776      63  2026-08-11 22:29  2026-08-11 22:29  yes
-      403      10,056      67  2026-08-12 17:19  2026-08-12 17:19  yes
-      568      17,149      88  2026-08-15 03:54  2026-08-15 03:54  yes
+      100           4      11  2026-08-09 06:19  2026-08-09 06:19  yes
+      189       2,491      61  2026-08-10 02:53  2026-08-10 02:53  yes
+      279       5,641      61  2026-08-11 04:56  2026-08-11 04:56  yes
+      340       7,776      61  2026-08-11 22:35  2026-08-11 22:35  yes
+      403      10,056      65  2026-08-12 17:27  2026-08-12 17:27  yes
+      568      17,149      86  2026-08-15 04:06  2026-08-15 04:06  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
@@ -230,7 +230,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
