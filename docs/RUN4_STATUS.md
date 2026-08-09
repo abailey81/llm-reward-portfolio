@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+285h02m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **0 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **26161** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 2.6 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 18:11 UTC | elapsed 11.88 d | 17.2 d to the Aug-27 stop
+generated 2026-08-09 18:12 UTC | elapsed 11.88 d | 17.2 d to the Aug-27 stop
 test tier: 24,618 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 120.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     228 records     228.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     601 records     200.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  1 h     225 records     225.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     598 records     199.3 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1442 records     120.2 rec/h   usable
     last 24 h    2902 records     120.9 rec/h   usable
     12 h rate is 63% from ONE line (test); 6 line(s) contributed at all
@@ -64,11 +64,11 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung  rec-count left     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
       100           0       0  REACHED           REACHED           yes
-      189       1,113     228  2026-08-10 03:27  2026-08-10 03:27  yes
-      279       4,263     228  2026-08-11 05:40  2026-08-11 05:40  yes
-      340       6,398     228  2026-08-11 23:26  2026-08-11 23:26  yes
-      403       8,634     228  2026-08-12 18:02  2026-08-12 18:02  yes
-      568      15,710     228  2026-08-15 04:55  2026-08-15 04:55  yes
+      189       1,113     225  2026-08-10 03:28  2026-08-10 03:28  yes
+      279       4,263     225  2026-08-11 05:41  2026-08-11 05:41  yes
+      340       6,398     225  2026-08-11 23:27  2026-08-11 23:27  yes
+      403       8,634     225  2026-08-12 18:03  2026-08-12 18:03  yes
+      568      15,710     225  2026-08-15 04:56  2026-08-15 04:56  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
