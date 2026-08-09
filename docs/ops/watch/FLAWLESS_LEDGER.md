@@ -4283,3 +4283,117 @@ freeze MATCHES · drift 0 · guard OK · `line_balance` CLEAN apart from one HEL
 ⇒ **THE FLOOR PRIORITY IS DISCHARGED AT A SECOND TIER. The dissertation now holds a pre-registered
 result at rung 100 rather than rung 30**, i.e. one hundred CRN-paired seeds per arm across all eleven
 full-loop models.
+
+### R30-72 — ⭐⭐⭐⭐⭐⭐⭐ **RUNG 100 IS BANKED. THE REPORTED RESULT HAS RISEN FOR THE FIRST TIME SINCE 2026-08-07T04:08:01Z.**
+
+**`==> COMMON RUNG (the MINIMUM over the 11 FULL-LOOP MODELS -- under R101 this IS the result) = 100`**
+
+**CONFIRMED BY BOTH AUTHORITIES, which share no code path:** `record_seed_completeness.py` (S15) prints
+the line above, and `job_rank_governor.py` independently prints `COMMON RUNG = 100 NEXT COMMON RUNG =
+189`. **Every one of the eleven full-loop lines now banks 100 or better** — `test` (c1) **100** ·
+`leg1` 100 · `leg2` 100 · `leg7` 100 · `leg3` 100 · `leg10` **340** · and `gemini`, `gpt_5_6_luna`,
+`haiku`, `qwen3_5_9b`, `sonnet_5` at **568** (plus `h3ss` 568, excluded from the minimum by R101).
+
+**THE TRAJECTORY, from the handover to now:** `common rung 100 needs` **1,699 → 0** in **41 hours**,
+against a pre-intervention rate that projected a **five-day miss**. Records **21,920 → 25,557**.
+
+⭐⭐ **AND ALLOCATIVE EFFICIENCY STEPPED 16.7% → 99.3% IN ONE MOVE**, exactly as R30-57 predicted three
+passes earlier and R30-71 repeated: *"it will not climb back gradually; the moment rung 100 banks,
+`t2` becomes the rung-distance-0 block and the number steps up in one move."* **A prediction written
+down before the event and then observed is the strongest evidence this session has produced that the
+allocation model is right.**
+
+### R30-73 — **THE LADDER LOCK'S PREDICATE FIRED, BUT ITS PURPOSE HAS NOT EXPIRED — AND THE DIFFERENCE MATTERS**
+
+The standing retirement test is *"retire it if `c1`'s next-needed block moves off `t1`"*. **It has:**
+the governor now reports `c1`'s next-needed block as **`t2`**. ⚠ **But retiring the lock WHOLESALE
+would be the R30-40 error a fourth time.** What remains held for `c1` is **`t3`-`t6` (99 jobs)**, and
+those serve rung **279 and beyond** — releasing them now would put rung-279 work AHEAD of the rung-189
+work that is currently critical, because their ids are lower.
+
+⇒ **The correct retirement is the BOUNDARY MOVING BY ONE BLOCK, and it already happened**: `t2` was
+released in R30-63 and R30-70, and `t3`-`t6` stay held because they are still above the needed block.
+**The lock is not expired; it is doing exactly what it was built to do, one rung further on.**
+**A predicate firing is not the same as a purpose ending**, and this is the distinction the rule's
+wording does not capture — recorded so a future pass does not "retire" it mechanically.
+
+### R30-74 — ⭐⭐⭐⭐ **FOUR OF THE FIVE RUNG-189 BINDING LINES HAD TRUNCATED `t2` ROUNDS, AND THE GOVERNOR'S DEFICIT MATCHED THE UNSUBMITTED SPEC COUNT LINE FOR LINE**
+
+The R30-1/R30-2 defect, found again the moment `t2` became critical — **by dry-running every binding
+line's block rather than waiting for a symptom**:
+
+| line | local parts | alive | archived | **never submitted** | governor's rung-189 deficit |
+|---|---:|---:|---:|---:|---:|
+| `c1` `t2` | 223 | 196 | 27 | **0** | 1,546 (covered) |
+| `leg1` `t2` | 56 | 12 | 14 | **30 parts / 237 specs** | **237** |
+| `leg2` `t2` | 56 | 13 | 12 | 31 parts / 245 specs | **245** |
+| `leg7` `t2` | 56 | 15 | 4 | 37 parts / 293 specs | **294** |
+| `leg3` `t2` | 56 | 13 | 0 | 43 parts / 338 specs | 301 |
+
+⭐⭐ **`leg1` owed 237 and exactly 237 specs were unsubmitted. `leg2` owed 245 and exactly 245 were
+unsubmitted. `leg7` owed 294 against 293.** **Two instruments with no shared code path — one counting
+archive holes by seed, the other counting task files on disk — agreeing to the unit, line for line.**
+That is the strongest reconciliation this session has produced, and it says the deficit was not a
+throughput problem at all: **the legs' entire rung-189 requirement was sitting unsubmitted on local
+disk.**
+
+⭐ **AND `c1`'s `t2` WAS CLEAN — 0 to submit — because R30-19 pre-loaded it 14 hours earlier.** The
+pre-load paid off precisely here: had it not been done, `c1` would have been short by ~1,500 specs at
+the exact moment `t2` became the critical block.
+
+**SUBMITTED: 30 + 29 + 43 + 37 = 139 parts, 0 FAILED**, each after its own `--dry`. ⚠ `leg2` dry-ran
+at 31 and executed 29 — **two parts dispatched in the gap and the tool's re-validation correctly
+skipped them**, which is the race guard earning its place for the second time this session.
+**Verified by identity: queue 626 → 765 jobs, eligible 114 → 253.** Cap 1,000, margin 40: comfortable.
+
+### R30-75 — **THE BOARD AT THE MILESTONE**
+
+**BANKED COMMON RUNG 100** (was 30) · `common rung 189 needs` **2,623** — `c1` 1,546 · `leg3` 301 ·
+`leg7` 294 · `leg2` 245 · `leg1` 237 · **allocative efficiency 99.3%** · cores **1,088** · running 136
+· eligible **253** · held 376 · records **25,557** · freeze MATCHES · drift 0 · guard OK.
+
+λ **9.47/h**, now split **10 to the 15 h class and 9 to the 45 h class** — the legs are back in play,
+which is correct: all five binding lines need `t2` for rung 189, so both shapes are rung-critical
+again for the first time since the ladder lock went on.
+
+### R29-21 — **17:37Z: RUNG 100 HOLDS, ALLOCATIVE EFFICIENCY IS 99.3%, AND THE MAINTENANCE DECISION IS MADE**
+
+**RUNG 100 RE-DERIVED LIVE AND HOLDING.** `record_seed_completeness` (the authority): every full-loop
+line banks **>= 100**, `==> COMMON RUNG = 100`. `job_rank_governor` agrees: `COMMON RUNG = 100,
+NEXT COMMON RUNG = 189`, which now needs **2,294** trainings.
+⚠ **The cursor briefly carried a competing "THE RUNG IS 30" entry timestamped ~15:30Z.** It predates
+the 15:19:25Z banking, and the ~20:00Z entry supersedes it. **Re-derive from the instrument, never
+from a cursor entry; the campaign is live and the rung climbs.**
+
+⭐⭐⭐⭐⭐ **ALLOCATIVE EFFICIENCY 99.3% — 1,120 of 1,128 cores on rung-raising work, only 8 deferred.**
+It was **14.0%** at the 08-07 handover and **18.8%** before the ladder lock. **R29-17's diagnosis is
+now confirmed by the outcome, not just the mechanism:** every line runs its own next-needed block
+(all five binding lines on `t2`), the above-block work is held, and the waste is gone.
+**Cores 1,128 · 24-spec running 30 -> 54 · records 25,995 · freeze MATCHES · drift 0 · guard OK.**
+
+⚠ **A CHECK OF MINE MIS-LABELLED A CORRECT STATE AS A DEFECT, AND THE INSTRUMENT IS GUILTY FIRST.**
+I wrote a guard asking "is any line's own next-needed block being held by us?" — the invariant the
+lock must never violate — and it flagged **leg10: 3 jobs held on `t5`, which IS leg10's next-needed
+block**, printing "DEFECT, release them". **That label is wrong.** leg10 banks **340** and owes
+**ZERO** toward the next common rung of 189, so its `t5` block lifts only its OWN ladder (340 -> 403)
+and cannot raise the reported result. My check conflated *"the line's own next-needed block"* with
+*"work that raises the common rung"*. ⇒ **leg10 IS DELIBERATELY PARKED, NOT STARVED.**
+**RE-EXAMINATION TRIGGER, so this cannot become permanent by neglect: revisit the moment the COMMON
+RUNG reaches 340, at which point leg10's t5 becomes rung-raising and MUST be released.**
+(The other `?` row is the two `cpuprobe`/`flagprobe` diagnostics, not campaign work.)
+
+**⚠ DATED ITEM DISCHARGED — THE 2026-08-12 MAINTENANCE MITIGATION: DO NOT REVERT THE LEGS.**
+Measured at 17:37Z rather than assumed. UCL drains by WALLTIME, so the 45 h legs stop dispatching
+~11:00 Mon 10 Aug (**17.4 h away**) and 15 h work stops ~17:00 Tue 11 Aug.
+
+| option | cores affected | window | core-hours |
+|---|---:|---:|---:|
+| **KEEP 24-spec** | 432 (54 running jobs) | 17.4 h | **7,517** |
+| revert to 8-spec/15 h | 144 (T falls 31 h -> 10.5 h, so N = lambda x T falls 3x) | 47.4 h | 6,826 |
+
+**Keeping wins on the arithmetic, and reverting also costs six supervisor restarts** — the stampede
+condition that earned the 2026-08-03 penalty — **plus a second restart to restore 24 specs after the
+13th.** ⇒ **NO ACTION. R29-10's mitigation recommendation is CORRECT IN PRINCIPLE BUT WRONG UNDER THE
+CURRENT FLEET COMPOSITION**, because the 24-spec ELIGIBLE queue is now empty (all 275 are held above
+their blocks) and c1 — 87 of 141 running jobs — is 8-spec and already sits on the LATE cliff.
+**Corrected in place rather than left to mislead.**
