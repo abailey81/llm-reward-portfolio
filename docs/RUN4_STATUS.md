@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-09 05:56 UTC -- T+272h47m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-09 05:57 UTC -- T+272h48m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+272h47m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+272h48m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (nemotron-3-super)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **24702** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 3.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -38,13 +38,13 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-09 05:57 UTC | elapsed 11.37 d | 17.8 d to the Aug-27 stop
+generated 2026-08-09 05:58 UTC | elapsed 11.37 d | 17.8 d to the Aug-27 stop
 test tier: 23,159 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
     => OPERATIVE RATE 120.8 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
     last  1 h      85 records      85.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     252 records      84.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     251 records      83.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
     last 12 h    1449 records     120.8 rec/h   usable
     last 24 h    2143 records      89.3 rec/h   usable
     12 h rate is 38% from ONE line (test); 6 line(s) contributed at all
@@ -60,12 +60,12 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
     'is this plausible on current throughput', NOT as an assurance verdict.
      rung   remaining     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
-      100           4      20  2026-08-09 05:59  2026-08-09 05:59  yes
-      189       2,502      66  2026-08-10 02:40  2026-08-10 02:40  yes
-      279       5,652      66  2026-08-11 04:45  2026-08-11 04:45  yes
-      340       7,787      66  2026-08-11 22:26  2026-08-11 22:26  yes
+      100           4      20  2026-08-09 06:00  2026-08-09 06:00  yes
+      189       2,502      66  2026-08-10 02:41  2026-08-10 02:41  yes
+      279       5,652      66  2026-08-11 04:46  2026-08-11 04:46  yes
+      340       7,787      66  2026-08-11 22:27  2026-08-11 22:27  yes
       403      10,068      69  2026-08-12 17:20  2026-08-12 17:20  yes
-      568      17,169      85  2026-08-15 04:08  2026-08-15 04:08  yes
+      568      17,169      85  2026-08-15 04:09  2026-08-15 04:09  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
 
