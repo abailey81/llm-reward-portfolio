@@ -4454,7 +4454,11 @@ rung-100 sprint and 2.8/h before the first ladder lock. **cores 1,136** (new cam
 work from R30-74. **Every binding line is now OVER-provisioned**: `c1` 1.1x · `leg3` 1.8x · `leg7`
 3.3x · `leg1` 4.5x · `leg2` 5.1x. ⇒ **the truncation repair took, and it took immediately.**
 
-**PROJECTION: 2,303 at 164/h is ~14 h ⇒ rung 189 banks ~10 Aug 07:30Z**, which is **before the legs'
+⛔ **CORRECTED BY R30-80 (2026-08-09T19:45Z) TO ~10 Aug 22:30Z.** This divides a total deficit by a
+FLEET rate and assumes it falls smoothly. `leg3`'s 301 cannot: its jobs are 24-spec and archive nothing
+until ~21 h (R29-9), and they were only 4 h old. **A rung is gated by its slowest CELL, not its average.**
+
+~~PROJECTION: 2,303 at 164/h is ~14 h ⇒ rung 189 banks ~10 Aug 07:30Z~~, which is **before the legs'
 ~11:00 Mon 10 Aug dispatch cliff.** ⚠ That is a rate measured over one window on a freshly refilled
 queue, so treat it as the optimistic end.
 
@@ -4537,3 +4541,234 @@ cores to rise again when lines cross from t2 into t3 and the lock releases them.
 lock, and their line has running work). leg10 remains correctly parked with its rung-340 trigger. The
 maintenance decision stands: **do not revert the legs**; the 45 h cliff is now ~13 h out and the
 24-spec eligible queue is empty anyway.
+
+### R30-79 — ⭐⭐⭐ **ALLOCATIVE EFFICIENCY 100.0% — EVERY CORE ON THE FLEET IS DOING RUNG-RAISING WORK, FOR THE FIRST TIME IN THE CAMPAIGN**
+
+`cores at distance 0` **1,104 of 1,104**. It read **13.6%** at the handover. λ **16.50/h**, a session
+high, all 33 dispatches to the 15 h class. `common rung 189 needs` **2,303 → 1,973** (330 in 2.00 h =
+**165/h**, sustained across two windows). cores 1,104 · running 138 · records **25,995 → 26,304** ·
+freeze MATCHES · drift 0 · `line_balance` CLEAN · acked alarm OK (median idle 0.1 h).
+
+### R30-80 — ⚠⚠ **`leg3`'s DEFICIT HAS BEEN FROZEN AT EXACTLY 301 FOR FOUR HOURS. IT IS BENIGN — AND IT MOVES THE RUNG-189 DATE BY FIFTEEN HOURS.**
+
+Every other binding line is falling (`c1` 1,371 → 1,089 · `leg1` 189 → 141 · `leg2` 165 · `leg7` 277)
+while **`leg3` reads 301, 301, 301** across three passes. Investigated rather than assumed benign.
+
+**MEASURED, AND IT IS THE R29-9 SIGNATURE EXACTLY:**
+
+| line | oldest running `t2` job | driver's own count | archiving? |
+|---|---:|---|---|
+| `leg2` | **26.1 h** | 282/445 done | YES |
+| `leg1` | **25.6 h** | 304/445 done | YES |
+| `leg7` | **24.7 h** | 168/445 done | YES |
+| **`leg3`** | **4.6 h** | **104/405, unchanged** | **NO, AND CANNOT YET** |
+
+**A 24-spec job at pack 8 archives NOTHING until ~16 of its 24 specs complete — about 21 hours**
+(R29-9). `leg3`'s jobs are **3.8-4.6 h old**. ⇒ **its 301 cannot land for another ~16 h**, and a flat
+count is the CORRECT reading, exactly as §5.6 warns.
+
+⛔ **THIS CORRECTS MY OWN PROJECTION FROM LAST PASS.** R30-77 said *"2,303 at 164/h is ~14 h ⇒ rung
+189 banks ~10 Aug 07:30Z"*. **That divides a total deficit by a fleet rate and assumes it falls
+smoothly. It cannot: `leg3`'s 301 arrives in a BURST governed by job age, not by fleet throughput.**
+`leg3`'s 13 running jobs carry 312 specs (≥ its 301); the first ~208 archive at ~21 h and the
+remainder at job completion (~31.5 h).
+⛔ **ITSELF SUPERSEDED BY R30-84 (2026-08-09T22:15Z): ~10 Aug 08:00-17:00Z.** This looked only at
+`leg3`'s RUNNING 24-spec jobs; its 44 ELIGIBLE jobs are **8-spec/15 h** (R30-83) and archive in ONE
+wave with no R29-9 delay, so the 21 h threshold is not binding. **Second over-confident point
+estimate in two passes; R30-84 reports a RANGE with its mechanism instead.**
+
+~~⇒ RUNG 189 BANKS ~10 Aug 22:30Z, NOT 07:30Z — fifteen hours later than I said.~~ The fleet rate is
+irrelevant to the last line; **a rung is gated by its slowest CELL, not by its average.**
+
+### R30-81 — ⛔ **AND THE FIFTEEN HOURS ARE MINE. THE R30-70 ERROR HAS A PRICE, AND THIS IS IT.**
+
+`leg3`'s `t2` work started late for one reason: **I held it.** The sequence, from my own record:
+
+* **~03:40Z** — the ladder lock (R30-16) held `leg3` entirely, on the correct reasoning that it owed
+  nothing at rung 100.
+* **13:45Z** — R30-70 found that I had classified `leg3` using **recMin 392 as if it were a banked
+  rung**, when its banked rung was 100 and it therefore **binds at rung 189**. Released its 13 `t2`.
+* **15:40Z** — R30-74 found 43 of its 56 `t2` parts had never been submitted, and submitted them.
+
+⇒ **`leg3` could have started its rung-189 work around 03:40Z and actually started around 15:15Z —
+roughly TEN HOURS late**, and because its archiving is governed by a ~21 h threshold, that ten hours
+propagates almost one-for-one into the rung-189 date.
+
+**I am recording the COST, not just the correction.** R30-70 already states the error; what it did not
+state is that the error was not free. **The rung-100 sprint was not slowed — `leg3` owed nothing there
+— but rung 189 is roughly ten hours later than it needed to be, and no amount of dispatch rate can
+recover it, because the constraint is a job's own clock.**
+
+⇒ **THE TRANSFERABLE LESSON: a mis-classified line costs nothing until the rung it binds arrives, and
+then costs the FULL latency of its job shape.** The error was invisible for ten hours and is now
+unrecoverable. **Classify against the authority the first time.**
+
+### R30-82 — **THE BOARD, AND WHAT THE MAINTENANCE DOES TO THIS**
+
+**COMMON RUNG = 100** (S15, holding) · rung 189 needs **1,973** — `c1` 1,089 · `leg3` **301** ·
+`leg7` 277 · `leg2` 165 · `leg1` 141 · cores **1,104** · running 138 · eligible 194 · held 376 ·
+records **26,304** · `HELD-OUT` names `leg10` alone, the priced exception.
+
+✅ **The maintenance does NOT threaten rung 189, and the check matters:** `leg3`'s 13 jobs are
+**already RUNNING**, and UCL **drains rather than kills**, so the ~11:00 Mon 10 Aug cliff cannot stop
+them — it only prevents NEW 45 h starts. `leg3` needs no new jobs (13 × 24 = 312 ≥ 301). ⇒ **rung 189
+survives the window on work already in flight.**
+
+### R30-83 — ⚠⚠ **THE LEG `t2` BLOCKS CONTAIN TWO DIFFERENT JOB SHAPES, AND I DID NOT KNOW IT WHEN I WROTE R30-80**
+
+Chasing why the 45 h class took **0 of 42 dispatches from 1 eligible** while the legs plainly had work,
+I read the jobscripts rather than assuming:
+
+| part | source | `-pe smp` | `h_rt` | specs | waves |
+|---|---|---|---:|---:|---|
+| `leg3 …_t2_p01` | driver, 08-07 | 8 | **45:0:0** | 24 | 3 (~31 h) |
+| `leg3 …_t2_p50` | **me, R30-74** | 8 | **15:0:0** | **8** | **1 (~10.5 h)** |
+| `leg7 …_t2_p50` | **me, R30-74** | 8 | **15:0:0** | **8** | **1** |
+
+**RUN 29 repacked only the jobs it HELD.** The truncated tails I submitted in R30-74 kept their
+ORIGINAL 8-spec/15 h rendering, because `resubmit_truncated_round.py` submits the jobscripts the
+driver already wrote — which is exactly the safety property that makes it safe, and also the reason
+the shapes differ. ⇒ **Each leg's `t2` block is now part 24-spec/45 h and part 8-spec/15 h.**
+
+**THIS IS NOT A DEFECT AND IT IS BETTER THAN THE ALTERNATIVE, on three checks:**
+1. **Science: identical.** A spec trains the same whatever shares its job; `_task_threads` reads
+   threads from the SPEC (=1) and the env fingerprint is spec-derived, not slot-derived.
+2. **Latency: strictly better.** One wave (~10.5 h) instead of three (~31 h), and **no R29-9 archiving
+   delay at all** — an 8-spec job at pack 8 never blocks on the token pool.
+3. ⭐ **Maintenance: strictly better, and unplanned.** A 15 h job's dispatch cliff is **~17:00 Tue 11
+   Aug**, against **~11:00 Mon 10 Aug** for 45 h. **The tails I submitted can keep STARTING a day and
+   a half longer than the legs' original shape** — which is, by accident, exactly the mitigation
+   `MAINTENANCE` §10 declined to buy deliberately.
+
+### R30-84 — ⛔ **MY THIRD PROJECTION FOR RUNG 189, AND I HAVE NOW BEEN OVER-CONFIDENT TWICE IN THE SAME WAY**
+
+| pass | projection | what I looked at | what I missed |
+|---|---|---|---|
+| R30-77 | ~10 Aug **07:30Z** | total deficit ÷ fleet rate | per-cell latency — a rung is gated by its slowest cell |
+| R30-80 | ~10 Aug **22:30Z** | `leg3`'s RUNNING 24-spec jobs and their 21 h archiving threshold | the ELIGIBLE jobs behind them are a **different, faster shape** |
+| now | **~10 Aug 08:00-17:00Z** | both routes and both shapes | — |
+
+`leg3` owes **301** and can satisfy it by **either** route: its 13 running 24-spec jobs (312 specs,
+archiving ~21 h after a 4-7 h-old start ⇒ ~10 Aug 14:00-17:00Z) **or** its 44 eligible 8-spec jobs
+(352 specs, ~10.5 h after dispatch, and `c1` is down to 9 eligible so the legs' turn is imminent
+⇒ ~10 Aug 08:00-12:00Z). **Whichever lands first wins.**
+
+⇒ **I am reporting a RANGE with its mechanism, not a date.** Both earlier numbers were single points
+derived from a partial view, and both were wrong in the confident direction. **The failure was not the
+arithmetic; it was answering before enumerating the routes.** ⚠ **State the bound, name what sets it,
+and say which part of the system you have NOT looked at.**
+
+### R30-85 — **THE BOARD: 1,152 CORES, AND `c1` IS THE ONE TO WATCH NOW**
+
+**cores 1,104 → 1,152** (campaign high) · **allocative efficiency 100.0%** sustained a second pass ·
+running 144 · λ **16.46/h** over a 2.55 h window, all 42 to the 15 h class · `common rung 189 needs`
+**1,973 → 1,693** (110/h) · records **26,606** · COMMON RUNG **100** holding · freeze MATCHES ·
+drift 0 · `line_balance` CLEAN · acked alarm OK.
+
+| line | running | eligible | held | owes → 189 |
+|---|---:|---:|---:|---:|
+| `c1` | **91** | **9** | 99 | **811** |
+| `leg7` | 15 | 37 | 77 | 277 |
+| `leg3` | 13 | 44 | 24 | 301 |
+| `leg2` | 13 | 29 | 77 | 163 |
+| `leg1` | 12 | 30 | 76 | 141 |
+| `leg10` | 0 | 0 | 21 | 0 (banked 340) |
+
+⚠ **`c1` is down to NINE eligible and owes 811.** Its 100 alive `t2` jobs carry ~800 specs, so the
+requirement is almost exactly covered — but with no slack. **If its `t2` round drains before the
+deficit closes, its driver must submit a repair round, and R30-1 is the standing reason not to assume
+that happens cleanly. Dry-run `c1_sweep_t2` next pass.**
+
+### R30-86 — ✅ **THE FLAGGED `c1` RISK IS CLOSED, AND `c1` HAS NOW HANDED THE FLEET TO THE LEGS**
+
+R30-85 flagged `c1` at nine eligible against 811 owed and said to dry-run its `t2`. Done:
+**223 local parts · 90 ALIVE · 133 ARCHIVED · 0 TO SUBMIT — nothing to do.** The driver agrees:
+`[c1_sweep_t2] 1064/1780 done, 716 pending`, and **90 alive × 8 = 720 ≈ 716**. ⇒ **`c1`'s entire
+rung-189 contribution is in flight, no repair round is needed, and R30-1 cannot bite here.**
+
+⚠ **BUT `c1` NOW HOLDS ZERO ELIGIBLE JOBS** (90 running, 0 eligible, 99 held on `t3`-`t6`). ⇒ **from
+this point every dispatch goes to the legs**, which is exactly right: the legs own **863 of the
+remaining 1,579** (`leg3` 301 · `leg7` 277 · `leg2` 145 · `leg1` 140) and `c1`'s 716 is already
+running.
+
+⛔ **AND `c1`'s `t3`-`t6` STAY HELD.** Releasing them now would put rung-279 work into competition with
+the rung-189 work that is currently binding — R30-40 for the fifth time. **The fleet does not shrink
+for it: the legs hold 124 eligible jobs = ~992 cores of capacity, more than enough to absorb what
+`c1` stops taking.**
+
+### R30-87 — ⛔ **ANOTHER INSTRUMENT OF MINE DIED, AND THIS TIME I SAW IT DIE**
+
+My per-line query failed with `awk: fatal: attempt to use scalar 'L' as an array` — I used **one name
+for both a scalar and an array** in the same program. It printed a plausible-looking
+`leg3 15h-class running: 0`.
+
+⭐ **THE POINT IS NOT THE BUG; IT IS THAT THE BUG WAS VISIBLE.** Two passes ago (R30-51) the identical
+class of failure was **silent**, because I was piping `ssh … 2>/dev/null` and had thrown the syntax
+error away — and I nearly published "rung 100 is blocked" off the empty result. **This time the fatal
+error printed, I refused to report the `0`, fixed the naming, and re-ran to `AWK_RC=0` on both
+queries.** The R30-51 rule — *never blanket-suppress stderr; filter the known warning by name* —
+earned its keep within 48 hours of being written.
+
+**And the corrected read changed the conclusion:** `leg1` has **6** jobs running in the 15 h class,
+not 0, while `leg3` and `leg7` have **none yet** despite holding 44 and 37 eligible 8-spec jobs. **The
+legs' fast tails have only just begun to dispatch** — which is the quantity that now sets rung 189.
+
+### R30-88 — **THE BOARD, AND THE RUNG-189 RANGE NARROWS**
+
+**cores 1,176** (campaign high; the cycle log touched **1,192**) · **allocative efficiency 100.0%** a
+third consecutive pass · running 147 · λ 12.43/h over 1.45 h, all 18 to the 15 h class ·
+`common rung 189 needs` **1,693 → 1,579** · records **26,724** · COMMON RUNG **100** holding ·
+freeze MATCHES · drift 0 · `line_balance` CLEAN.
+
+| line | running | eligible | held | owes → 189 | running shape |
+|---|---:|---:|---:|---:|---|
+| `c1` | **90** | **0** | 99 | **716** | all 15 h |
+| `leg7` | 15 | 37 | 77 | 277 | all 45 h |
+| `leg3` | 13 | 44 | 24 | 301 | all 45 h |
+| `leg2` | 11 | 29 | 77 | 145 | all 45 h |
+| `leg1` | 18 | 14 | 76 | 140 | 12 × 45 h + **6 × 15 h** |
+
+**PROJECTION, narrowed within R30-84's range and stated with its mechanism:** `c1`'s 716 lands within
+~10.5 h (8-spec, one wave) ⇒ **~10 Aug 10:00Z**. The legs' 863 needs their 8-spec tails to dispatch
+(~4-8 h at λ≈12/h now that `c1` has stepped aside) and then run ~10.5 h ⇒ **~10 Aug 14:00-18:00Z**.
+⇒ **rung 189 ~10 Aug 14:00-18:00Z, gated by the legs' tails, at the later end of R30-84's range.**
+
+✅ **The maintenance does not threaten it, checked rather than assumed:** those tails are **15 h**
+jobs whose dispatch cliff is **~17:00 Tue 11 Aug**, not the legs' original 45 h cliff of ~11:00 Mon 10
+Aug — the accidental benefit R30-83 identified, now load-bearing.
+
+### R29-24 — **23:37Z: THE PREDICTED c1 -> LEGS HANDOVER HAPPENED AND CORES ROSE THROUGH IT**
+
+**R29-23 PREDICTED IT AND SET THE FALSIFIER: *"cores should hold through the handover; if they fall
+sharply instead, that is the finding."* THEY ROSE.**
+
+| | 21:37Z | 23:37Z |
+|---|---:|---:|
+| c1 eligible | 18 | **0** (exactly as predicted) |
+| leg1 running | 12 | **18** |
+| dispatches by line | c1 32 | **c1 18, leg1 6** |
+| cores | 1,152 | **1,176** |
+| allocative efficiency | 100.0% | **100.0%** |
+
+⇒ **The windows passed to a BINDING line rather than idling, which is what the ladder lock exists to
+guarantee.** Identity-tracked: 24 dispatched, 21 finished, 0 released, **lambda 12.0/h** (16.0 and
+18.0 the two previous passes — bursty, as R29-8 established; do not read a trend into one reading).
+
+**RUNG 189 NEEDS 1,579**, from 1,735 two hours ago and **2,294 six hours ago**. `COMMON RUNG = 100`
+holds. Records **26,724**. freeze MATCHES · drift 0 · guard OK · contamination 0 · `line_balance`
+CLEAN.
+
+**c1's t2 IS STILL EXACTLY PROVISIONED AND HAS NO ELIGIBLE LEFT BY DESIGN.** `1064/1780 done, 716
+pending`, and its **90 running x 8 = 720 specs** cover the 716. **Zero eligible is the correct
+terminal state of a block that is finishing**, not starvation. Expect t2 to complete in ~10.5 h
+(~10:00Z), then c1's FIRST submission of this driver process (`grep "submitted c1_sweep"` still
+returns 0). **That resubmission is the next thing to verify.**
+
+**THE 2026-08-12 MAINTENANCE IS NOW CLOSE AND COSTS US NOTHING, WHICH THE ARITHMETIC CONFIRMS RATHER
+THAN ASSUMES.** The 45 h cliff is **11.4 h** away and the 15 h cliff **41.4 h** away. **24-spec
+ELIGIBLE = 1**, so the early cliff has almost nothing to bite. c1's 99 held jobs are **8-spec/15 h**
+and sit on the LATE cliff; the 275 held 24-spec jobs are the legs' t3-t6 and remain locked behind
+their t2 blocks, so they were never going to dispatch before the outage anyway. ⇒ **The decision not
+to revert the legs (R29-21) is confirmed by the outcome, not just by the projection.**
+
+**NO ACTION. No batch qualifies for repack. leg10 correctly parked (trigger: COMMON RUNG 340).**
