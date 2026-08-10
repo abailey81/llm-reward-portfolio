@@ -4878,3 +4878,98 @@ still returns 0, and no drain has fired). **Still the next thing to verify.**
 
 **MAINTENANCE: 45 h cliff ~9.4 h away, 24-spec eligible = 1. Nothing to do; R29-21's decision stands.**
 **NO ACTION. leg10 correctly parked (trigger: COMMON RUNG 340).**
+
+### R30-93 — **RUNG 189 AT 100/h, ALLOCATIVE 100.0% FOR A FIFTH PASS, AND `leg3`'s TAIL IS DISPATCHING**
+
+`common rung 189 needs` **1,468 → 1,277** over 1.91 h = **100/h** · cores **1,256** · running 157 ·
+**allocative efficiency 100.0%**, fifth consecutive pass · λ 11.50/h · records **27,011** ·
+COMMON RUNG **100** holding · freeze MATCHES · drift 0 · `line_balance` CLEAN · acked alarm OK.
+
+⭐ **`leg3` is now 34 running — 21 in the 15 h class and 13 at 45 h.** Its 8-spec tail, which R30-83
+identified and R30-88 flagged as not yet dispatching, is now doing so. `leg7` 245 → 240, `leg2`
+109 → 96, `leg1` 108 → 75. **Every line has healthy eligible depth** (`leg7` 73 · `leg3` 61 · `leg1`
+38 · `leg2` 38).
+
+### R30-94 — ⭐⭐⭐⭐⭐ **THE LAST TRUNCATED BLOCK IS REPAIRED. THE SESSION HAS RECOVERED 811 PARTS AND 6,439 TRAININGS THAT WERE QUEUED NOWHERE.**
+
+`c1_sweep_t3` submitted: **192 parts / 1,536 specs, SUBMITTED=192 FAILED=0**, after its own `--dry`.
+**Verified by identity: queue 743 → 935, exactly the predicted figure, and eligible 210 → 402.**
+
+⭐ **The job-cap headroom arrived precisely as R30-91 said it would** — *"`c1`'s `t3` waits for job-cap
+headroom, which arrives as the current 160 running jobs complete"* — 743 + 192 = **935 against the
+tool's 960 limit**. The margin that refused the submission two hours ago permitted it now, with no
+intervention.
+
+**THE SESSION TOTAL, each figure from its own dry run at the time:**
+
+| repair | parts | specs |
+|---|---:|---:|
+| `c1` `t1` (R30-1) | 143 | **1,144** |
+| `c1` `t2` (R30-19) | 187 | **1,492** |
+| leg `t2` × 4 (R30-74) | 139 | **1,097** |
+| leg `t3` × 4 (R30-91) | 150 | **1,170** |
+| `c1` `t3` (this pass) | 192 | **1,536** |
+| **TOTAL** | **811** | **6,439** |
+
+⇒ **6,439 trainings were rendered on local disk, complete with their jobscripts, and submitted
+NOWHERE.** Every one was invisible to every gate: `line_balance` read CLEAN throughout, the sentinel
+read OK, the drivers logged their pending counts without complaint, and the campaign would simply
+have stalled one block at a time as each round drained. **The defect is structural — `submit_batch`
+walks parts one at a time and a driver death mid-walk leaves the remainder unqueued, and `run_batch`
+only re-submits on a FULL drain, so the survivors mask the loss indefinitely.**
+
+⭐ **AND IT IS NOW A KNOWN, TOOLED, ROUTINE CHECK** rather than a discovery: `resubmit_truncated_round.py`
+with a mandatory `--dry`, node-side re-validation against a live `qstat`, a job-cap margin that
+refuses rather than overruns, and a race guard that has correctly skipped mid-flight dispatches twice.
+**Dry-run the block AHEAD of the one in use, every pass.**
+
+### R30-95 — **THE BOARD AND THE PROJECTION**
+
+rung 189 needs **1,277** — `c1` 573 · `leg3` 293 · `leg7` 240 · `leg2` 96 · `leg1` 75 · cores
+**1,256** · running 157 · **eligible 402** (~35 h of supply at λ=11.5/h) · held 376 · records
+**27,011** · `HELD-OUT` names `leg10` alone.
+
+**PROJECTION unchanged: rung 189 ~10 Aug 16:00-19:00Z**, comfortably before the 12 Aug 08:00Z outage.
+`c1`'s 573 sits in 73 running 8-spec jobs (584 specs) landing within ~10.5 h; the legs' 704 is in
+running work plus tails now dispatching.
+
+⛔ **`t4`-`t6` STAY HELD** — 376 jobs serving rung 279 and beyond. **Nothing more should be submitted
+until rung 189 banks**: the queue now holds 35 h of supply, and adding more would only consume the
+job-cap headroom that the next repair will need.
+
+### R29-26 — **03:37Z: THE t3 PRE-PROVISIONING FIRED ON FOUR LINES, AND THE DRIVER LOG LAGS THE QUEUE**
+
+**304 NEW JOBS APPEARED IN TWO HOURS** — `c1_sweep_t3` **192**, `leg1_..._t3` 38, `leg2_..._t3` 38,
+`leg7_..._t3` 36. This is the resubmission R29-23/24/25 were watching for, and it arrived on four
+lines at once.
+
+⚠⚠ **AND IT CONTRADICTED THE DRIVER LOG, WHICH IS THE FINDING.** `grep -c "submitted c1_sweep"`
+returned **0**, and the newest `submitted` line in `driver_core.log` is dated **2026-08-06 17:05** —
+while 192 c1 jobs had just been submitted. **The queue was right and the log was stale.** Resolved by
+reading submit times off `qstat` instead of the log:
+
+```
+c1_sweep_t3 : 214 jobs = 22 hqw submitted 08/07 04:10  +  192 qw submitted 08/10 04:37 (03:37Z)
+```
+
+⇒ **THE SUPERVISOR'S `Out-File -Append` PIPELINE BUFFERS, SO THE DRIVER LOG TRAILS REALITY.**
+**VERIFY SUBMISSIONS AGAINST `qstat`, NEVER AGAINST A `grep` OF THE LOG.** Three consecutive passes
+of mine reported "c1 submissions logged: 0" as though it were a fact about the campaign; it was a
+fact about a buffered file. **The instrument was guilty, as usual.**
+
+⭐ **AND THE OUTCOME IS BETTER THAN PREDICTED.** `c1_sweep_t3` reads `88/1800 done, 1712 pending`,
+i.e. **214 jobs' worth — exactly the 214 now queued. The block is FULLY pre-provisioned**, so when
+t2 finishes there will be **no drain bubble at all**, which is the opposite of the gap I warned about
+in R29-24.
+
+**STATE:** running 157, **cores 1,256** (1,280 last pass) · **allocative efficiency 100.0%, fifth
+consecutive pass** · `COMMON RUNG = 100` · **rung 189 needs 1,271**, from 1,457 (**-186**) · records
+**27,011** (+179, up from +108 — c1's burst has begun: its t2 went `1070 -> 1213 done`) ·
+freeze MATCHES · drift 0 · guard OK · contamination 0 · `line_balance` CLEAN.
+
+**c1 REMAINS EXACTLY PROVISIONED ON t2:** `1213/1780 done, 567 pending`, **73 running x 8 = 584
+specs** covers it. Its 192 new t3 jobs are ELIGIBLE and above the needed block, but carry ids
+**117116-117307 — the highest we own — so they rank LAST and cannot take a window from t2 work**
+(R29-25's belt-and-braces property, now observed a second time at four times the scale).
+
+**NO ACTION. Maintenance 45 h cliff ~7.4 h out, 24-spec eligible = 1, R29-21's decision stands.**
