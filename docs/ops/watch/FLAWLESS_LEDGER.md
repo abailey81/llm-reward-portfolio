@@ -4772,3 +4772,109 @@ their t2 blocks, so they were never going to dispatch before the outage anyway. 
 to revert the legs (R29-21) is confirmed by the outcome, not just by the projection.**
 
 **NO ACTION. No batch qualifies for repack. leg10 correctly parked (trigger: COMMON RUNG 340).**
+
+### R30-89 — ⭐⭐ **CORES 1,280, AND `leg3`/`leg7` UNFROZE EXACTLY AS PREDICTED**
+
+**cores 1,176 → 1,280** (campaign high; the cycle log touched 1,272) · running **147 → 160** ·
+**allocative efficiency 100.0% for a FOURTH consecutive pass** · `common rung 189 needs`
+**1,579 → 1,468** · records **26,832** · COMMON RUNG **100** holding · freeze MATCHES · drift 0.
+
+⭐ **`leg3` 301 → 293 and `leg7` 277 → 245** — both had been frozen for six hours, and R30-80/R30-83
+said why (24-spec archiving threshold) and that their 8-spec tails would break it. **They did.**
+`leg2` 145 → 109 and `leg1` 140 → 108 alongside them.
+
+### R30-90 — ⚠⚠ **THE ELIGIBLE QUEUE WOULD HAVE EMPTIED IN SEVEN HOURS, AND EVERY LINE'S RUNG-189 WORK BEING "COVERED" IS EXACTLY WHY**
+
+Measured per line (`AWK_RC=0` on both queries):
+
+| line | running | eligible | owes → 189 | covered by |
+|---|---:|---:|---:|---|
+| `c1` | 90 | **0** | 713 | 90 × 8 = 720 running |
+| `leg1` | 28 | **0** | 108 | running |
+| `leg2` | 18 | **3** | 109 | running |
+| `leg3` | 13 | 44 | 293 | 44 × 8 = 352 + running |
+| `leg7` | 11 | 37 | 245 | 37 × 8 = 296 + running |
+
+**Every line's rung-189 requirement is covered — and that is the problem.** Three of the five lines
+have essentially nothing eligible, so **only `leg3` and `leg7`'s 81 jobs were left to dispatch: about
+seven hours at λ≈12/h.** After that the fleet would have had nothing to take, and **cores would decay
+from 1,280 as jobs finished with no replacement.** ⇒ **"the rung is covered" and "the fleet is fed"
+are different questions, and this pass they had different answers.**
+
+### R30-91 — ⭐⭐⭐ **ALL FIVE `t3` BLOCKS ARE TRUNCATED TOO — THE THIRD BLOCK IN A ROW — AND FOUR ARE NOW SUBMITTED**
+
+Dry-run ahead of need, which is the practice that has now paid three times:
+
+| block | local parts | alive | archived | **never submitted** |
+|---|---:|---:|---:|---:|
+| `c1 t3` | 225 | 22 | 11 | **192 / 1,536 specs** |
+| `leg1 t3` | 57 | 14 | 5 | 38 / 298 |
+| `leg2 t3` | 57 | 15 | 4 | 38 / 298 |
+| `leg3 t3` | 57 | 12 | 7 | 38 / 292 |
+| `leg7 t3` | 57 | 16 | 5 | 36 / 282 |
+
+**342 parts / 2,706 specs, never submitted.** ⇒ **the truncation is a property of EVERY block, not an
+accident of two** (R30-1 `t1`, R30-74 `t2`, this `t3`), and dry-running the block AHEAD of the one in
+use is now the standing practice.
+
+**SUBMITTED the four LEG blocks: 38 + 36 + 38 + 38 = 150 parts, 0 FAILED**, each after its own `--dry`.
+⛔ **`c1`'s 192 deliberately NOT submitted:** 620 + 342 = 962 against the tool's own 960 limit
+(cap 1,000 less a 40 margin), and the tool would have refused. **The margin did its job.**
+
+⚠ **The R30-40 test applied and PASSED before acting:** new submissions receive the HIGHEST job ids,
+and dispatch is strictly by id, **so these rung-279 jobs rank BEHIND `leg3`/`leg7`'s rung-189 tails
+and cannot displace them.** The ordering that made an early release wrong at rung 100 makes this one
+safe.
+
+**VERIFIED BY IDENTITY: queue 620 → 769, eligible 84 → 233** ⇒ **~19 h of dispatch supply instead of
+seven.** The decay risk is averted before it started.
+
+### R30-92 — **THE BOARD AND THE PROJECTION**
+
+`common rung 189 needs` **1,468** — `c1` 713 · `leg3` 293 · `leg7` 245 · `leg2` 109 · `leg1` 108 ·
+cores **1,280** · running 160 · eligible **233** · held 376 · records **26,832** · `line_balance`
+CLEAN · acked `arm_progress_symmetry` OK · `HELD-OUT` names `leg10` alone, the standing exception.
+
+**PROJECTION: `c1`'s 713 lands within ~10.5 h (8-spec, one wave) ⇒ ~10 Aug 10:00-12:00Z; `leg3` and
+`leg7`'s tails dispatch over ~4-7 h then run ~10.5 h ⇒ ~10 Aug 16:00-19:00Z.** ⇒ **rung 189
+~10 Aug 16:00-19:00Z**, and **comfortably before the 12 Aug 08:00Z outage.**
+
+⛔ **`c1`'s `t3`-`t6` and the legs' `t4`-`t6` STAY HELD.** Only the `t3` blocks needed for the fleet's
+next feed were submitted, and `c1`'s `t3` waits for job-cap headroom — which arrives as the current
+160 running jobs complete.
+
+### R29-25 — **01:37Z: CORES 1,280, THE HIGHEST OF THE SESSION, AND 100.0% HELD FOR A FOURTH PASS**
+
+| | 23:37Z | 01:37Z |
+|---|---:|---:|
+| running / cores | 147 / 1,176 | **160 / 1,280** |
+| allocative efficiency | 100.0% | **100.0%** |
+| rung 189 owed | 1,579 | **1,457** |
+| records | 26,724 | **26,832** |
+
+**Cores have climbed 800 -> 1,128 -> 1,152 -> 1,176 -> 1,280 across the five passes since the
+handover was written.** `COMMON RUNG = 100` holds. freeze MATCHES · drift 0 · guard OK ·
+contamination 0 · `line_balance` CLEAN.
+
+**IDENTITY-TRACKED 23:37 -> 01:37: 25 dispatched, 12 finished, 0 released, lambda 12.5/h.** The
+dispatches went **entirely to the legs (leg1 12, leg2 13) and none to c1** — the handover R29-24
+observed is now complete. leg1 running **18 -> 27**, leg2 **11 -> 19**, and both drained their
+eligible to ~0 doing it.
+
+⭐ **38 NEW JOBS APPEARED AND I CHECKED THEM BY IDENTITY RATHER THAN ASSUMING A RESUBMISSION.** They
+are `leg3_leg_qwen3_6_27b_sweep_t3`, ids **116895-116932**, all `qw`, all 8-spec — a fresh submission
+from leg3's driver (`t3` reads `136/410 done, 274 pending, round 1`). ⚠ **`t3` is ABOVE leg3's
+next-needed block (`t2`), so the ladder lock has not caught them.** **BENIGN, and for a structural
+reason worth banking: new submissions carry the HIGHEST job ids, tickets are monotone in job id
+(R29-12/R29-3), so freshly-submitted above-block work automatically ranks LAST and cannot take a
+window from needed work.** ⇒ **THE LOCK IS A BELT; JOB-ID ORDER IS THE BRACES.** Allocative
+efficiency is unaffected because it counts RUNNING cores, and none of the 38 is running.
+
+**c1 IS STILL CORRECTLY PARKED MID-BLOCK.** `c1_sweep_t2` reads `1070/1780 done, 710 pending` and c1
+holds **90 running x 8 = 720 specs** against those 710 — covered, zero eligible by design. `done`
+moved only +6 in two hours because all 90 jobs are mid-flight on a ~10.5 h wall and complete in a
+burst. **Expect that burst, then c1's FIRST submission of this process** (`grep "submitted c1_sweep"`
+still returns 0, and no drain has fired). **Still the next thing to verify.**
+
+**MAINTENANCE: 45 h cliff ~9.4 h away, 24-spec eligible = 1. Nothing to do; R29-21's decision stands.**
+**NO ACTION. leg10 correctly parked (trigger: COMMON RUNG 340).**
