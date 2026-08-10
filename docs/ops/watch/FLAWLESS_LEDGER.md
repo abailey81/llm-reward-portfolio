@@ -5188,3 +5188,156 @@ covering it. Its 192 pre-provisioned t3 jobs are queued and will take over with 
 **Deficits have inverted: leg3 now owes the most (293) and c1 the least (58).**
 
 **NO ACTION. 45 h cliff ~3.4 h out, 24-spec eligible = 0 — the cliff now costs literally nothing.**
+
+### R30-101 — ⛔⛔⛔ **I BUILT A WATCHER ON A PATTERN THAT CAN NEVER MATCH, "VERIFIED" IT WITH THE SAME PATTERN, AND IT TOLD ME A RUNNING JOB WAS DEAD**
+
+To be at the kill rather than two hours after it, I launched a background watcher polling
+`grep -c "Full jobname: c1_sweep_t2_p158"`. **It returned 0 on its first poll and exited announcing
+"p158 IS GONE -- repair now".** The real `qstat -r` line, verbatim from the file:
+
+```
+       Full jobname:     c1_sweep_t2_p158
+```
+
+**FIVE spaces after the colon. The pattern has one. It could never have matched anything, ever** —
+so the watcher was not reporting a dead job, it was reporting its own inability to see.
+
+⚠⚠ **AND MY "INDEPENDENT RE-CHECK" REUSED THE SAME PATTERN AND AGREED.** I ran a second query,
+called it independent, and it returned 0 for the same reason. **Two derivations that share a parser
+are ONE derivation.** The standing rule says two derivations or it is not a finding; **it needs
+sharpening, and this is the sharpening: two derivations that share an INPUT PARSER are one.**
+
+⭐ **WHAT ACTUALLY SAVED IT WAS THE REPOSITORY DISAGREEING WITH ME.**
+`resubmit_truncated_round.py --dry` reported `already ALIVE: 9 / TO SUBMIT: 0`, which contradicted
+"p158 is gone and its 8 specs are lost". **I chased the contradiction instead of overriding it**, and
+the tool was right: its `alive_jobnames` does `ln.split(":", 1)[1].strip()`, which is whitespace-blind.
+**The check already in the repo was stronger than the one I wrote by hand.** `p158` is `jid=112011,
+state=r`, still running, still at 5.9 steps/s.
+
+⇒ **TWO TRANSFERABLE RULES.**
+1. **Never hand-roll a parse for a fact an existing instrument already extracts.** Import the
+   instrument. Mine was worse than the repo's within five minutes of being written.
+2. **A watcher must carry a POSITIVE CONTROL.** An absence predicate that has never been shown to
+   fire on a PRESENT object is untested in the only direction that matters.
+
+**BOTH ARE NOW BUILT IN.** The replacement watcher imports `alive_jobnames`, refuses to act if
+`qstat` returns zero jobnames at all, and **fails loudly if the target is not visible on its FIRST
+poll** — because on the first poll the job is known to be there, so not seeing it means the predicate
+is broken. **Falsifying test run before relaunch, 3/3 (rows=1, the real line):** the old pattern
+matches **False**, the new one **True**, and the new one on a longer name `p1580` **False** (the
+prefix mutation). **Positive control live: 859 alive jobnames, `p158` visible.** Re-armed.
+
+### R30-102 — **THE COVERAGE AUDIT RE-DERIVED 2 h LATER: 762 OWED, 762 RUNNING, 0 ELSEWHERE — AND `p158`'s EXPOSURE IS EXACTLY 8**
+
+| line | owes < 189 | in RUNNING | in ELIGIBLE | in HELD | **NOT ANYWHERE** |
+|---|---:|---:|---:|---:|---:|
+| `test` (c1) | 61 | 61 | 0 | 0 | **0** |
+| `leg3` | 293 | 293 | 0 | 0 | **0** |
+| `leg7` | 240 | 240 | 0 | 0 | **0** |
+| `leg2` | 96 | 96 | 0 | 0 | **0** |
+| `leg1` | 72 | 72 | 0 | 0 | **0** |
+| **TOTAL** | **762** | **762** | **0** | **0** | **0** |
+
+**R30-96 holds, 1,277 → 973 → 763 later.** And the exposure is now stated to the spec rather than
+estimated. `c1` owes **50**, held by **exactly seven** running jobs:
+
+| part | pending | of which owed |
+|---|---:|---:|
+| **`p158`** | 8 | **8** |
+| `p218` `p220` `p221` `p222` | 8 each | 8 each |
+| `p210` | 6 | 6 |
+| `p223` | 4 | 4 |
+| **covered** | | **50 of 50** |
+| **orphaned** | | **0** |
+
+⇒ **When `p158` is killed at 09:40Z, exactly 8 of those 50 become orphaned and `c1` misses rung 189
+by 8.** Its 8 are named: `baseline_log_growth-s162`, `baseline_return_minus_downside-s162`,
+`baseline_return_minus_turnover-s162`, `baseline_volatility_scaled_return-s162`, and
+`distributional`/`scalar`/`placebo`/`scalar_cvar5` at **s163**.
+
+### R30-103 — **ALLOCATIVE EFFICIENCY FELL 100.0% → 87.8%, AND THAT IS THE CORRECT READING, NOT A REGRESSION**
+
+`d0=1152 · d1=152 · d4=8`. The cause, read from one `qstat`: **`leg3` is running 19 `t3` jobs and one
+`t6` job while its next-needed block is `t2`.**
+
+⭐ **This is R30-96 arriving as an observable.** `leg3` has **zero eligible `t2`** — its entire
+rung-189 requirement is in 54 RUNNING jobs — so the scheduler took the next thing it had by id, which
+is its `t3`. **The first line to run out of rung-189 work to dispatch**, exactly as the coverage audit
+said every line now is.
+
+⇒ **The metric is honest and the state is fine.** Those 160 cores are doing real rung-279 work and
+they displaced nothing: there was no rung-189 job left for them to take. ⚠ **But it means the 100.0%
+figure of the last six passes is no longer reachable while rung 189 is in flight**, and a future pass
+must not read the decline as a fault to fix.
+
+### R30-104 — ⚠ **`t5` IS TRUNCATED TOO — THE FIFTH BLOCK IN A ROW — AND THE UNSUBMITTED BACKLOG IS NOW 413 PARTS**
+
+| block | `c1` | `leg1` | `leg2` | `leg3` | `leg7` | **parts / specs** |
+|---|---:|---:|---:|---:|---:|---:|
+| `t4` (R30-100) | 110 | 26 | 26 | 27 | 26 | **215 / 1,681** |
+| `t5` (now) | 120 | 26 | 26 | **0** | 26 | **198 / 1,565** |
+| | | | | | **TOTAL** | **413 / 3,246** |
+
+⭐ `leg3`'s `t5` reads **40 of 40 ARCHIVED** — the deepest line has already finished a block two above
+the one it is nominally working. **The scatter is real and the ladder lock is what keeps it from
+setting the pace.**
+
+⛔ **NOTHING SUBMITTED.** All of it serves rung 279 and above; `c1`'s `t4` alone would take the queue
+to exactly the 1000 cap; and **the `p158` repair needs that headroom within the hour.**
+
+### R30-105 — **THE BOARD**
+
+`common rung 189 needs` **973 → 763** over 1.9 h = **110/h** · λ **14.46/h** by identity (28 to the
+15 h class, 1 to the 45 h class) · cores **1,312** (cycle log touched **1,352**) · running 164 ·
+**allocative 87.8%, and R30-103 says why** · records **27,515** · COMMON RUNG **100** · freeze
+**MATCHES** · drift **0** · `line_balance` **CLEAN** · guard OK · S15 rc=1 as expected · 6 lines
+COMPLETE at 568.
+
+**S16 second reading, and the projection is stable:** `p158` **270,000/400,000**, rate **5.9**, needs
+**6.12 h**, holds **2.12 h** ⇒ **SHORT BY 4.00 h** (3.87 h an hour ago). **164 inspected, 1 SHORT,
+163 ok.** The instrument agrees with itself across two hours and one job change.
+
+⛔ **THE REPAIR IS ARMED, NOT ASSUMED:** the corrected watcher exits the moment `p158` leaves the
+queue, so the repair goes in within minutes of the kill instead of at the next 2-hourly pass. Then
+`--base c1_sweep_t2 --dry` → expect **1 part / 8 specs** → `--go` → **hold the eligible `t3` queue
+until it dispatches** (it takes the highest id, and 323 eligible jobs ahead of it is 22 h at λ=14.5/h)
+→ release. ★ **`qdel 112011` remains open for Tamer and remains worth ~3 h.**
+
+### R29-29 — **09:37Z: CORES FELL 1,304 -> 1,184 AND lambda HIT ITS SESSION LOW OF 4/h. EXPLAINED, ORDERING CORRECT, NO ACTION — BUT A FALSIFIER IS SET.**
+
+**RUNG 189 NEEDS 514**, from 759 two hours ago and **2,294 sixteen hours ago**. `COMMON RUNG = 100`.
+Records **27,774**. freeze MATCHES · drift 0 · guard OK · contamination 0 · `line_balance` CLEAN.
+
+**THE DECLINE, MEASURED RATHER THAN EXPLAINED AWAY.** Running 163 -> 148, cores 1,304 -> 1,184,
+**8 dispatched against 23 finished, lambda 4.0/h** — the lowest of the session (the range is now
+4.0 to 22.0). The 23 completions were **c1/t2 9 and leg1/t2 12**: a completion BURST as two blocks
+close together, against a low-lambda window. ⚠ **16 placeable open windows existed at the time, so
+this is NOT pure supply** — it is the burstiness R29-8 documented, now seen at its bottom.
+
+⭐ **THE DISPATCH ORDER IS ALMOST EXACTLY DEFICIT ORDER, WHICH IS THE ALLOCATION WE WANT AND IT
+ARRIVED BY ACCIDENT OF SUBMISSION TIMING.** Our eligible sorts by lowest job id (lower id = more
+tickets = dispatches first):
+
+| queue position | line | lowest id | owes -> 189 |
+|---|---|---:|---:|
+| 1st | **leg3** | 116922 | **240** |
+| 2nd | **leg7** | 116933 | **208** |
+| 3rd / 4th | leg1 / leg2 | 116970 / 117008 | 26 / 32 |
+| **last** | **c1** | 117116 | **8** |
+
+**The two lines owing 87% of the remaining 514 are FIRST, and c1 — which owes 8 — is LAST.**
+⇒ **NO REORDERING IS WARRANTED. c1 sitting at the back with 192 eligible looks like the R29-17
+starvation I fixed on 08-07, and it is the OPPOSITE: then c1 owed 82% and ranked last; now it owes
+1.6% and ranks last.** **Read the deficit table before reading the queue.**
+
+**ALLOCATIVE EFFICIENCY 81.1%** (224 deferred = leg3's 27 t3 + 1 t6 jobs). Same call as R29-28:
+leg3's t2 is fully in flight with zero eligible, so holding its t3 would idle it and surrender the
+windows to other users. **Below-100% here is correct, not a defect.**
+
+⚠⚠ **FALSIFIER SET, SO THE NEXT PASS TESTS THIS RATHER THAN RE-EXPLAINING IT: if lambda is STILL
+<= 6/h AND cores are BELOW 1,000 at the next check, the "bursty completion" reading is WRONG and
+there is a structural cause to find.** Two low readings in a row are a trend; one is not.
+
+**MAINTENANCE: the 45 h cliff is ~1.4 h away and 24-spec ELIGIBLE = 0, so it costs literally
+nothing. The 30 running 24-spec jobs all started early enough to finish before the outage.**
+**leg10 correctly parked (trigger: COMMON RUNG 340). No batch qualifies for repack. NO ACTION.**
