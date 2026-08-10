@@ -5634,3 +5634,219 @@ lines are running out of needed-block work because they are FINISHING their need
 **19 dispatched, 25 finished** (finished: leg2/t2 12, leg1/t2 6, leg3/t2 6, c1/t2 1). c1 holds 1
 running and 193 eligible and is correctly LAST in the queue: it owes 8 of the 234.
 **NO ACTION. leg10 parked (trigger: rung 340). Maintenance cliff passed with 24-spec eligible = 0.**
+
+### R30-116 — ⭐⭐ **`leg1` HAS BANKED RUNG 189 — THE FIRST BINDING LINE TO CLEAR IT — AND λ WAS A TROUGH, NOT A COLLAPSE**
+
+`test_leg_deepseek_v4_pro` reads **banked 189, owes 0**. The governor now scores it *"ZERO marginal
+value"*, which for a line that was owing 72 this morning is the good kind of zero.
+
+`common rung 189 needs` **466 → 257** over 1.37 h = **153/h**, the fastest reading of the campaign.
+`leg7` 128 · `leg3` 119 · `c1` 8 · `leg2` 2 · **`leg1` 0**.
+
+✅ **AND λ RECOVERED 3.82 → 12.38/h**, all 17 dispatches to the 15 h class, running flat at 143 with
+dispatches exactly equalling completions (17 and 17). ⇒ **last pass's 3.82/h was a TROUGH, not a
+trend.** R30-112 said *"λ has been volatile all session, so this is the formula, not a forecast"* —
+**and reporting the steady-state formula rather than a decay forecast is what kept that entry
+correct.** A forecast would have been wrong within ninety minutes.
+
+### R30-117 — ⛔⛔ **I MANUFACTURED A "DOOMED JOB" AND CAUGHT IT BEFORE IT REACHED THE RECORD. THE CORRECTION WOULD HAVE BEEN WRONG AND THE ORIGINAL WAS RIGHT.**
+
+Chasing a real gap — **S16 projects the CURRENT WAVE, and a 24-spec job at pack 8 runs THREE waves**
+— I estimated each 45 h job's total as `3 × (400,000 / current rate)`. It flagged
+`leg7_..._t2_p05` (the second victim of the degraded `node-d00b-020`, at 5.8 steps/s) as
+**"OVER ITS WALLTIME BY 12.5 h"**, and I was about to record that R30-97's *"p05 survives on its 45 h
+headroom"* had been an error of mine.
+
+⚠ **THEN I RE-DERIVED FROM THE JOB'S OWN HISTORY INSTEAD OF FROM ONE RATE READING, AND THE FLAG
+EVAPORATED.** Its log holds **16 lines of `step 400000/400000`** — sixteen trainings COMPLETE — at a
+maximum elapsed of **69,324 s = 19.26 h**. ⇒ **two waves in 19.26 h = 9.63 h per wave, not 19.16 h.**
+Wave three is running at **7.0-7.9 steps/s**, not 5.8. Projected total **28.9 h against 45 h ⇒ 16.1 h
+SPARE.**
+
+⇒ **R30-97 WAS CORRECT AND MY CORRECTION WAS THE ERROR.** ⭐ **The transferable rule: a rate sampled
+at one instant is not a wave duration. When a job has already finished waves, its OWN completion
+history is the estimator, and an extrapolated instantaneous rate is not.**
+
+**THE SWEEP, RUN OVER ALL 30 RUNNING 45 h JOBS WITH THE HISTORY-BASED ESTIMATOR (rows=30):**
+every one projects inside its walltime, minimum spare **16.1 h** (`leg7 p05`), median spare **35.1 h**.
+⇒ **no multi-wave job is at risk**, and S16's clean board is now corroborated by a second, completely
+different estimator. ⚠ The probe assumes 3 waves per 45 h job; every margin is ≥16 h, so the
+conclusion survives that assumption comfortably.
+
+### R30-118 — ⭐ **THE LEGS' TRAINING IS ESSENTIALLY DONE; THE GATE IS `c1`'s REPAIR**
+
+The same sweep shows **seven of `leg7`'s nine 24-spec jobs at `done=24` — every training finished** —
+and `leg3`'s five oldest at `done=32`. ⇒ **`leg7`'s 128 and `leg3`'s 119 are largely TRAINED already
+and waiting on the archive pull, not on compute.** The deficits corroborate it: `leg7` 208 → 192 →
+128 and `leg3` 240 → 119, both falling far faster than any training could produce.
+
+⚠ **AND THAT REFUTES THE PER-JOB ETA I COMPUTED TEN MINUTES EARLIER IN THIS SAME PASS.** Summing
+S16's per-job `eta` gave *"rung 189 lands ~00:57Z"*, driven by `leg7 t2_p12` at 13.37 h — **a job
+whose log says all 24 of its trainings are COMPLETE.** S16's eta for it is the projection of a fresh
+wave that will not run. **The same defect as R30-117, in a different disguise, ten minutes apart.**
+
+⇒ **THE HONEST ETA: `leg3` ~13:00Z and `leg7` ~14:00Z on their measured deficit slopes, `leg2`'s 2
+imminently, and `c1`'s 8 when the repair finishes — `age 1.50 · step 70,000 · rate 13.5 · eta 6.79 h`
+⇒ **~18:20Z**. **RUNG 189 ~18:30Z, AND THE REPAIR IS THE LONG POLE**, exactly as it was two passes ago.
+
+### R30-119 — **COVERAGE, FOURTH CONSECUTIVE DERIVATION**
+
+| line | owes < 189 | in RUNNING | in ELIGIBLE | in HELD | **NOT ANYWHERE** |
+|---|---:|---:|---:|---:|---:|
+| `leg7` | 128 | 128 | 0 | 0 | **0** |
+| `leg3` | 103 | 103 | 0 | 0 | **0** |
+| `c1` | 8 | 8 | 0 | 0 | **0** |
+| `leg2` | 2 | 2 | 0 | 0 | **0** |
+| `leg1` | **0** | 0 | 0 | 0 | **0** |
+| **TOTAL** | **241** | **241** | **0** | **0** | **0** |
+
+**Zero orphans for the fourth pass running**, and `c1`'s 8 are the repair.
+
+### R30-120 — **THE BOARD**
+
+`common rung 189 needs` **257** (**153/h**) · λ **12.38/h** · cores **1,144**, running 143 ·
+allocative **67.1%** (R30-103: the binding lines' rung-189 work is all in flight, so dispatches go to
+`t3`) · records **28,043** · COMMON RUNG **100** · freeze **MATCHES** · drift **0** ·
+`line_balance` **CLEAN** · guard OK · S15 rc=1 as expected ·
+**S16: 143 inspected, 0 SHORT, 0 unknown, 143 ok — the first completely clean board since it was
+built**, and corroborated by the independent history-based sweep above.
+
+⛔ `t4`/`t5` stay unsubmitted (413 parts / 3,246 specs, all rung 279+). ✅ The 45 h maintenance cliff
+remains moot: **all 297 eligible jobs are 15 h class.**
+
+### R30-121 — ⭐⭐ **`leg2` BANKS 189 TOO. RUNG 189 NEEDS 97, AND ONLY THREE LINES ARE LEFT.**
+
+`test_leg_glm_5_2` reads **banked 189**, joining `leg1`. `common rung 189 needs` **257 → 97** over
+2.01 h = **80/h**: `leg7` **70** · `leg3` **19** · `c1` **8** (the repair) · `leg1` 0 · `leg2` 0.
+
+λ **15.43/h** by identity, all 31 dispatches to the 15 h class, 29 completions, running **145**.
+⇒ λ has now read 3.82 → 12.38 → 15.43 across three consecutive windows, which settles the point:
+**the 3.82 trough was noise in a rank-limited queue, not a trend.**
+
+**COVERAGE, FIFTH CONSECUTIVE DERIVATION: 97 owed · 97 in RUNNING · 0 eligible · 0 held · 0 orphaned.**
+
+**S16: 145 inspected, 0 SHORT, 3 unknown/no-progress, 142 ok.** The repair reads
+`age 3.50 · step 165,000 · rate 13.2 · eta 4.95 h · head 11.50 · ok` ⇒ **~18:35Z**, and `leg7`'s 70
+and `leg3`'s 19 are pull-bound rather than compute-bound (R30-118). ⇒ **RUNG 189 ~18:30Z, THE REPAIR
+STILL THE LONG POLE.**
+
+### R30-122 — ⛔⛔ **THE 45 h CLIFF PASSED AT ~11:00Z AND IT HAS CUT OUR SUPPLY IN HALF. MEASURED, NOT ASSUMED.**
+
+The 12 Aug 08:00Z outage minus a 45 h walltime is **10 Aug 11:00Z** — two and a half hours ago.
+**No 45 h job we own can start again until after the outage.** So the only question that matters is
+which of our supply is 15 h class, and I read it from the jobscripts rather than assuming:
+
+| supply | count | class | usable before the outage? |
+|---|---:|---|---|
+| **held** `t3`-`t6` | **275** | **45 h** (`h_rt=162000`) | ⛔ **NO** — the cliff has passed |
+| **held** `t3`-`t6` | **99** | 15 h | ✅ yes — but **every one is `c1`'s** |
+| **unsubmitted** `t4`/`t5` | **413** | **15 h, 8-spec, `-pe smp 8`** | ✅ **yes** |
+
+⇒ **RUN 29's repack is what split the supply**: it repacked only the jobs it HELD into 24-spec/45 h,
+while the truncated tails still on local disk kept their original 8-spec/15 h rendering (R30-83).
+**The blocks I could not submit are now the ONLY leg supply that can run before the outage**, which
+is the opposite of how it looked when they were merely "deferred rung-279 work".
+
+**THE PRE-OUTAGE DISPATCH BUDGET, and it is the binding number:** the 15 h cliff is **11 Aug 17:00Z**,
+**27.4 h away**, and at λ=15.43/h that is **~423 more dispatches, ever, before the outage.**
+
+### R30-123 — ⭐⭐⭐ **AND THE BALANCED ACTION WAS THE OPPOSITE OF MY FIRST INSTINCT. THE MEASUREMENT CHANGED IT.**
+
+My first thought was to release the 99 held 15 h jobs, because they carry the LOWEST ids
+(104,992-105,148 against an eligible range of 116,974-118,469) and would therefore dispatch first.
+**I measured where rung 279 actually needs work before doing it, and the answer inverted the plan:**
+
+| line | owes → 279 | eligible 15 h supply it holds |
+|---|---:|---|
+| **`c1`** | **1,720** | **192 jobs = 1,536 specs**, plus the 99 held |
+| `leg7` | 425 | — |
+| `leg2` | 354 | — |
+| `leg1` | 330 | — |
+| `leg3` | 292 | — |
+| **legs combined** | **1,401** | **74 jobs = 592 specs** |
+
+⇒ **`c1` is already over-provisioned for rung 279 and every one of the 99 held 15 h jobs is `c1`'s,
+while the four legs own 1,401 of the deficit and have almost no eligible supply left.** Releasing
+`c1`'s holds would have put its rung-403 work (ids ~105k) AHEAD of the legs' rung-279 work (ids
+~117k) — **R30-40 a seventh time, and I would have done it to myself while trying to help.**
+
+**SUBMITTED THE FOUR LEGS' `t4` BLOCKS INSTEAD**, each after its own `--dry`:
+
+| block | parts | specs |
+|---|---:|---:|
+| `leg1` `t4` | 26 | 201 |
+| `leg2` `t4` | 26 | 201 |
+| `leg3` `t4` | 27 | 202 |
+| `leg7` `t4` | 26 | 201 |
+| **TOTAL** | **105** | **805** |
+
+**`SUBMITTED=26/26/27/26, FAILED=0`.** ⚠ **Verified by identity: eligible 266 → 370.**
+
+⛔ **AND I STOPPED THERE DELIBERATELY.** The pre-outage dispatch budget is ~423 and the eligible queue
+is now **370** — so the `t5` blocks and `c1`'s `t4` (308 further parts) **cannot dispatch before the
+outage no matter when they are submitted**, and submitting them would only consume the job-cap
+headroom that the next repair will need. **Sizing the queue to the dispatch budget is the whole
+point; a longer queue at a fixed λ buys nothing.**
+
+⚠ **This cost the floor NOTHING, and that was checked rather than assumed:** rung 189 has zero
+eligible work (R30-121's coverage audit), and the new jobs carry the highest ids, so they rank behind
+everything. **Floor-first is intact.**
+
+### R30-124 — **THE BOARD**
+
+`common rung 189 needs` **97** (**80/h**) · λ **15.43/h** · cores **1,160**, running 145 (queue after
+the submission: `376 hqw · 370 qw · 142 r`) · allocative **48.3%** and falling as lines clear, which
+R30-103 predicted and R30-121's coverage explains · records **28,202** · COMMON RUNG **100** ·
+freeze **MATCHES** · drift **0** · `line_balance` **CLEAN** · guard OK · S15 rc=1 as expected.
+
+**S15 also names WHY each line is capped, which is worth banking for the write-up:** `c1` by
+`baseline_log_growth` (200 holes below frontier 406) · `leg7` by `placebo` (189 holes below 381) ·
+`leg3` by `placebo` (117 holes below 567). **Six lines are COMPLETE at 568.**
+
+### R29-31 — ⛔⛔ **THE PRESENTATION NOTEBOOK WAS PINNED TO THE RUNG-30 FLOOR AND HAD BEEN FOR THE WHOLE CLIMB. FIXED, RE-EXECUTED, AND THE ANALYSIS SAMPLE IS NOW 3.3x LARGER.**
+
+**FOUND 2026-08-10 while refreshing the notebook at Tamer's request.** `notebooks/presentation_results.ipynb`
+restricted every figure and every paired contrast to **30 seeds**, in TWO independent places:
+
+* `notebooks/prelim_loader.py:42` — `FLOOR_SEEDS = 30`, and `build()` line 179 **DISCARDED every
+  record with `seed >= 30`** from the `series` products (equity curves, turnover, training curves).
+* the notebook's own setup cell — `D["floor"] = D["seed"] < 30`, which every `cell()` and `paired()`
+  call filters on.
+
+⇒ **The presentation had been showing the rung-30 floor for the entire climb to rung 100.**
+⚠ **NEITHER CONSTANT WAS WRONG WHEN WRITTEN. They were correct at rung 30 and silently became wrong
+as the ladder advanced — the exact failure mode `LINE_DURATION.json` was built to prevent for the
+duration lever. A hardcoded number that tracks a moving campaign quantity is a defect the day the
+quantity moves, not the day it is written.**
+
+**THE FIX: BOTH NOW READ THE BANKED RUNG LIVE** from `outputs/tables/achieved_rung.json`, so the
+presentation follows the ladder. `prelim_loader._banked_rung()` **fails safe to 30** on a missing,
+unreadable or malformed file, exactly as the duration reader does.
+
+⭐ **AND IT USES THE REGISTERED TIER (100), NOT THE CONTIGUOUS DEPTH (102).** The json's own note is
+explicit: 102 is not a member of the frozen ladder [30,100,189,279,340,403,568], so quoting it
+*"would claim a ladder tier the study has not reached"*. **Mutation-tested both ways.**
+
+**VERIFICATION, IN THIS ORDER.** Falsifier written FIRST and shown to fail against the pre-fix file
+(which returned 30); two mutations proven caught (a broken reader failing safe to 30; substituting
+the depth for the tier). Then measured live: `PL.FLOOR_SEEDS = 100`, max seed in floor **99**, and
+`test/distributional` now holds **100 seeds (0..99)** where it held 30. **Every paired contrast has
+3.3x the sample it had this morning.**
+
+**RE-EXECUTED** with the stale cache moved aside (not deleted): `nbconvert --execute` **rc=0, 25 code
+cells, 70 outputs, ZERO errors, 36 figures rewritten**. 14 markdown strings patched by exact match
+with every edit asserted, the script refusing to write on any miss. ⚠ **`30 candidates` was
+deliberately NOT touched — that is the SEARCH BUDGET, not a run count.**
+
+⛔ **AND I CAUGHT AN ERROR OF MY OWN IN VERIFICATION.** I put **28,222** in the headline, taken from
+the cycle log. The notebook computes **26,712**, because the cycle count includes SEARCH-stage
+records while `D` is test-leg only. **A headline that disagrees with the cell below it is worse than
+a stale one.** Corrected to 26,712, with the 28,222 archive total noted alongside so neither number
+looks wrong later.
+
+**BACKUPS:** `docs/ops/backup_presentation_20260810T135406Z/` (both files) and
+`outputs/notebook_cache.pre_rung100_20260810T135756Z/`. freeze MATCHES · drift 0.
+
+⚠ **ONE THING FOR THE WRITE-UP LANE, NOT ME:** cell 63 previously read *"needs ~112 runs. We have
+30."* It now reads *"We have 100."* **The equivalence test is close to powered for the first time**,
+and whether that changes the registered claim is a write-up decision, not an ops one.

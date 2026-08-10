@@ -39,7 +39,39 @@ import numpy as np
 
 TRADING_DAYS = 252
 LEFT_TAIL_K = 2.0          # mirrors measurement.LEFT_TAIL_K
-FLOOR_SEEDS = 30           # the common floor rung; series products are restricted to seeds < this
+
+
+def _banked_rung(default: int = 30) -> int:
+    """The registered ladder tier every (line, arm) has COMPLETELY banked, read LIVE.
+
+    This was a hardcoded ``30`` until 2026-08-10, which silently pinned every notebook product to
+    the rung-30 floor months after the campaign had climbed past it: ``series`` aggregates dropped
+    every seed >= 30, and the notebook's own ``D["floor"]`` mirrored the same constant. Reading it
+    live means the presentation follows the ladder instead of freezing at whatever rung happened to
+    be current when the file was written.
+
+    ⚠ THE LADDER TIER, NOT THE CONTIGUOUS DEPTH. ``achieved_rung.json`` records both, and its own
+    note is explicit: the depth (102 on 2026-08-09) is NOT a member of the frozen ladder
+    [30,100,189,279,340,403,568], so quoting it "would claim a ladder tier the study has not
+    reached". Paired contrasts may only use seeds present in EVERY arm, so the registered tier is
+    the honest floor.
+
+    ⚠ FAILS SAFE. A missing, unreadable or malformed file returns the pre-2026-08-10 constant
+    rather than a guess, exactly as ``LINE_DURATION.json``'s reader does for the duration lever.
+    """
+    try:
+        here = pathlib.Path(__file__).resolve()
+        repo = next(p for p in here.parents if (p / "outputs").is_dir())
+        blob = json.loads((repo / "outputs" / "tables" / "achieved_rung.json")
+                          .read_text(encoding="utf-8"))
+        rung = int(blob["achieved_rung"])
+        return rung if rung > 0 else default
+    except Exception:                      # noqa: BLE001 - a presentation must never fail to load
+        return default
+
+
+#: The common floor rung; ``series`` products are restricted to seeds < this. Re-derived on import.
+FLOOR_SEEDS = _banked_rung()
 
 
 # --------------------------------------------------------------------------- derived quantities
