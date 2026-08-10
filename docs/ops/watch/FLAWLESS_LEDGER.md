@@ -5007,3 +5007,184 @@ the early cliff costs essentially nothing either. ⇒ **R29-21's decision not to
 confirmed a third time, now against the outage itself rather than against a projection.**
 
 **NO ACTION. leg10 correctly parked (trigger: COMMON RUNG 340). No batch qualifies for repack.**
+
+### R30-96 — ⭐⭐⭐ **THE RUNG-189 COVERAGE AUDIT: 970 OWED, 970 INSIDE RUNNING JOBS, ZERO ANYWHERE ELSE. THE RUNG IS NO LONGER A THROUGHPUT PROBLEM.**
+
+I have been projecting rung 189 from dispatch rate for six passes. **That was the wrong model, and the
+right one is a set comparison.** For each binding line I took the arms' missing seeds below 189 from
+S15's own `scan()`, and the pending specs of every ALIVE job read from its own task files, and
+differenced the two SETS rather than the two counts:
+
+| line | owes < 189 | in RUNNING | in ELIGIBLE | in HELD | **NOT ANYWHERE** |
+|---|---:|---:|---:|---:|---:|
+| `test` (c1) | 269 | **269** | 0 | 0 | **0** |
+| `leg3` | 293 | **293** | 0 | 0 | **0** |
+| `leg7` | 240 | **240** | 0 | 0 | **0** |
+| `leg2` | 96 | **96** | 0 | 0 | **0** |
+| `leg1` | 72 | **72** | 0 | 0 | **0** |
+| **TOTAL** | **970** | **970** | **0** | **0** | **0** |
+
+⇒ **EVERY training rung 189 still needs is already inside a job that is RUNNING.** Three consequences,
+and the first two change what this session should be doing:
+
+1. **CORES, λ AND DISPATCH ARE NOW IRRELEVANT TO RUNG 189.** More cores cannot advance it. Only job
+   clocks can. Everything eligible (353 jobs) is `t3`, which serves rung **279**.
+2. **THERE IS ZERO SLACK.** Not one owed training has a second copy anywhere. **A single job that dies
+   takes its specs with it and the rung cannot be reached without a repair round.**
+3. **The instrument that matters changed with it** — from "how fast are we dispatching" to "will every
+   running job finish", which nothing in the repository measured. R30-97.
+
+⚠ **AND THE GOVERNOR AND MY SCAN DISAGREED BY 11 UNTIL I CHECKED WHY.** It read 284, mine read 273,
+eleven minutes apart. **Records were landing at ~1/min, so the gap was elapsed time, not method** —
+confirmed by re-running the governor, which then read **272** against my 273. Both use
+`range(target)` over the same `scan()`. **A disagreement between two instruments is a claim about the
+clock before it is a claim about either one.**
+
+### R30-97 — ⛔⛔⛔ **ONE RUNNING JOB CANNOT FINISH, IT HOLDS 8 OF THOSE 970, AND IT WOULD HAVE DEMOTED THE CAMPAIGN'S REPORTED RUNG SILENTLY**
+
+`c1_sweep_t2_p158` (jid 112011, started 2026-08-09T18:40:09Z, `h_rt` **15 h**):
+
+| quantity | value |
+|---|---|
+| rate | **5.9 steps/s** |
+| the other 163 running jobs | **10.6 to 15.4**, median **12.7** |
+| progress | **240,000 / 400,000**, and that is the MAXIMUM over all 8 packed trainings |
+| still needs | 160,000 steps = **7.5 h** |
+| walltime left | **3.7 h** |
+| **verdict** | **KILLED AT ~09:40Z, SHORT BY ~3.9 h, ARCHIVING NOTHING** |
+
+**It holds 8 rung-189 `test` specs and R30-96 proves they have no second copy.** ⇒ **c1 cannot bank
+rung 189, and the loss would have surfaced days later as a hole below an arm's frontier — which is
+exactly the S15 failure mode, discovered after the fact instead of 3.7 h before it.**
+
+⭐ **THE CAUSE IS A DEGRADED NODE, AND I SEPARATED IT FROM THREE COMPETING EXPLANATIONS RATHER THAN
+ASSERTING IT.** Both slow jobs in the whole fleet sit on **`node-d00b-020`**:
+
+| explanation | measurement | verdict |
+|---|---|---|
+| node oversubscribed | jobs at load/ncpu **> 1.10**: median rate **12.35**, min 12.00 | **REFUTED** — oversubscribed nodes are healthy |
+| our own double-booking | 1 / 2 / 3 of our jobs per node: **13.20 / 12.60 / 12.30** | **REFUTED** — a ~7% penalty, not a halving |
+| the `d00b` node family | one `d00b` node hosts a job at **13.50** | **REFUTED as a family effect** |
+| **this specific node** | **both** its jobs at **5.8 and 5.9**, for 11.2 h and 13.6 h with no variance | ⇒ **DEGRADED NODE** |
+
+✅ **The other victim survives, and the difference is instructive:** `leg7_..._t2_p05` runs at 5.8 on
+the same node but carries a **45 h** walltime, so it has 31.4 h of headroom and merely takes ~19 h
+instead of ~9 h. **The flag is about the PAIR (rate, walltime), never about the rate alone** — which
+is why the instrument tests the pair and has a control case for exactly this.
+
+### R30-98 — ⭐⭐⭐⭐ **S16: A NEW LAYER, BECAUSE NOTHING IN THE REPOSITORY ASKED WHETHER A RUNNING JOB CAN FINISH**
+
+Every existing instrument asks about work that is QUEUED or work that has LANDED. **The gap was
+between them**, and it is where 8 trainings were about to disappear.
+
+`docs/ops/walltime_shortfall_watch.py` — **W1** max step over the packed log, **W2** need at the job's
+own rate, **W3** walltime remaining, **W4** the comparison.
+
+⚠ **W1 IS THE WHOLE INSTRUMENT AND I GOT IT WRONG FIRST.** A pack-8 job interleaves **eight** trainings
+into ONE log, so `tail -1` returns whichever printed last — **it returned 230,000 when the job was at
+240,000.** The max over the log is the progress; the last line is noise.
+
+**VERIFIED, and to the standard STEP 6 demands:**
+* `--selftest` **11/11**, including three controls that exist to stop over-firing: the same slow rate
+  with a 45 h walltime reads **ok** (the `leg7` case), a zero rate reads **unknown** and never **ok**,
+  and need exactly equal to remaining reads **ok**, not SHORT.
+* **MUTATION TEST: 4 mutants, 4 CAUGHT BY THEIR OWN CASE** — last-step-instead-of-max → T1 · zero-rate
+  reads ok → T5 · equality fires → T8 · walltime hardcoded → T4. File restored, 11/11 after.
+* **LIVE: 165 jobs inspected, 1 SHORT, 1 no-progress (0.05 h old), 163 ok** — an independent Python
+  reproduction of the shell probe's finding, to the same job and within 0.1 h.
+
+⚠ **AND IT CRASHED ON ITS FIRST LIVE RUN, AFTER computing the answer** — `UnicodeEncodeError` on a cp1251
+console at the final print. **The finding was computed and then thrown away at the last step**, which is
+the worst possible place to fail. Fixed by reconfiguring the streams rather than by dropping the
+characters, because a mangled instrument teaches the next session the wrong lesson.
+
+### R30-99 — ⛔ **THE REMEDY, AND WHY I AM *NOT* SUBMITTING THE COPY NOW**
+
+The copy is tempting: submitting `p158`'s 8 specs immediately lands them ~15:30Z instead of ~19:00Z.
+**I am not doing it, and the reason is not caution for its own sake.**
+
+`resubmit_truncated_round.py` **refuses a part that is ALIVE**, and that check exists precisely to stop
+double-submission. Bypassing it would need `p158` to archive nothing — which the evidence says is true
+(max step 240,000 of 400,000, zero completion markers, a node that has held 5.8-5.9 for 13.6 h) but
+which **requires the node to stay broken to remain true.** If it recovers and both copies finish, we
+get **8 duplicate seed directories**, S15's C5 fires, and **the standing rule forbids deduplicating the
+archive** — so the blemish would be permanent, in a document graded on record integrity.
+
+⇒ **Three hours of schedule against a permanent, unfixable integrity defect is not a close call.**
+
+**THE PRE-POSITIONED PATH, which needs no permission and no rule bent:**
+1. ~**09:40Z** `p158` is killed. The part then reads neither ALIVE nor ARCHIVED.
+2. `resubmit_truncated_round.py --base c1_sweep_t2 --dry` → expect **1 part / 8 specs** → `--go`.
+3. ⚠ **AND THE HOLD IS THE WHOLE REMEDY, NOT AN OPTIONAL EXTRA.** The repair takes the HIGHEST job id
+   and dispatch is strictly by id, so it would sit behind **353 eligible jobs = 16.6 h at λ=21.3/h**,
+   landing **11 Aug ~11:00Z — a 19-hour delay.** So the eligible `t3` queue is held until the repair
+   dispatches, then released. Those 353 serve rung **279**; the repair serves rung **189**; under the
+   floor-first priority that is not a trade-off, it is the priority.
+4. Repair lands **~18:50Z** ⇒ **rung 189 ~19:00Z** in this branch.
+
+⚠ **ONE TRAP RECORDED SO THE NEXT PASS CHECKS IT: the repair could be placed back on `node-d00b-020`,
+where a 15 h jobscript cannot finish.** ~1 chance in 110, and **S16 now detects it within one pass**.
+
+★ **AND THERE IS A FASTER PATH THAT IS TAMER'S ALONE: `qdel 112011` NOW.** It costs nothing — the job
+cannot produce a record — and it makes the kill deterministic and immediate, so the repair submits at
+once through the UNMODIFIED tool with no duplicate risk at all. **Worth ~3 h on the campaign's headline
+rung.** Standing rule: never `qdel` a campaign job without his explicit go. **Surfaced, not acted on.**
+
+### R30-100 — **THE BOARD**
+
+`common rung 189 needs` **1,277 → 985 → 973** · λ **21.27/h**, a campaign high, all 41 dispatches to
+the 15 h class · cores **1,288** · running 161-165 · **allocative efficiency 100.0%, a sixth
+consecutive pass** · records **27,315** · COMMON RUNG **100** · freeze **MATCHES** · drift **0** ·
+`line_balance` **CLEAN** · guard OK · S15 rc=1 as expected · `HELD-OUT` names `leg10` plus our own two
+`cpuprobe14`/`flagprobe` probes.
+
+**STEP 3b, RE-DERIVED FROM `qacct` RATHER THAN QUOTED:** all six A/B probes `exit_status 0`; starts
+04:22:13/04:22:19 · 04:23:16/04:23:20 · 04:23:27/04:32:01 UTC ⇒ **45 h first, 45 h first, 15 h first;
+margins 6 s, 4 s, 8 m 34 s.** Identical to R30-76 from an independent read. **NO DETECTABLE WALLTIME
+EFFECT stands.**
+
+⚠ **THE `t4` BLOCKS ARE TRUNCATED TOO — THE FOURTH BLOCK IN A ROW — found by the standing dry-run
+ahead of need:** `c1` **110 / 876** · `leg1` 26 / 201 · `leg2` 26 / 201 · `leg3` 27 / 202 · `leg7`
+26 / 201 ⇒ **215 parts / 1,681 specs never submitted.** ⛔ **NOT submitted this pass**: `t4` is rung
+279, the job cap refuses `c1`'s (`after submission = 1000` against the 1000 cap), and the queue holds
+16 h of supply. **The repair needs that headroom more.**
+
+⚠ **THE `c1` LADDER LOCK STAYS, AND THE ID RANGES PROVE IT RATHER THAN ASSERT IT.** Every held job
+sits at **104,992-107,648**; every eligible rung-189 job sits at **116,548+**. **A release would put
+rung-279 work AHEAD of rung-189 work by construction** — R30-40 for the sixth time, this time measured.
+
+### R29-28 — ⛔ **07:37Z: I MUST CORRECT R29-25. JOB-ID ORDER DOES *NOT* PROTECT A LINE FROM ITS OWN ABOVE-BLOCK WORK — AND THE RESULTING 87.7% IS STILL THE RIGHT TRADE.**
+
+**THE CORRECTION.** R29-25 and R29-26 recorded that freshly-submitted above-block jobs are benign
+because *"new submissions carry the HIGHEST job ids ... so they rank LAST and cannot take a window
+from needed work."* **That is true ACROSS lines and FALSE WITHIN one**, and the campaign demonstrated
+it two passes later. `leg3` exhausted its `t2` eligible (54 running, **0 queued**), so the only leg3
+work left was its **t3**, and 19 of those dispatched. ⇒ **allocative efficiency 100.0% -> 87.7%, with
+exactly 160 deferred cores = leg3's 19 t3 + 1 t6 jobs x 8.**
+⇒ **THE CORRECT RULE: job-id order stops above-block work outranking ANOTHER line's needed work.
+Only the ladder lock stops a line running its OWN above-block work once its needed queue empties.**
+
+⭐ **AND YET THE RIGHT ACTION IS TO DO NOTHING, WHICH THE COUNTERFACTUAL SETTLES.**
+`leg3 t2` reads `112/405 done, 293 pending` and its **54 running x 8 = 432 specs** cover that, so t2
+is fully in flight and closes in ~10.5 h. Holding its t3 would leave leg3 with **ZERO eligible**, so
+as its t2 jobs finished it would **IDLE, and those windows would go to OTHER USERS** — our other
+lines already have their own t2 eligible and are dispatching, so they would not absorb them.
+Tamer's standing rule is explicit: *"nothing should be blocked ... we must accumulate cores, not let
+them to anyone else"* and *"if stage 1 only requires 64 cores, it doesn't mean that we should put the
+next stage on pause."* **leg3 is working the block it will need within hours, not wasting cores.**
+
+⇒ ⭐⭐ **THE METRIC LESSON, WHICH MATTERS MORE THAN THIS INSTANCE: ALLOCATIVE EFFICIENCY BELOW 100%
+IS NOT AUTOMATICALLY A DEFECT. It is a defect when above-block work DISPLACES needed work. It is
+CORRECT when the alternative is an idle core.** R29-17's 14.0% was the first case (c1 had 129
+above-block jobs eligible while its own t1 queue was full). Today's 87.7% is the second. **Ask which
+one you are looking at before acting.**
+
+**STATE:** running 163, **cores 1,304** · **rung 189 needs 759** (981 two hours ago; **2,294 -> 759 in
+fourteen hours**) · records **27,529** · lambda 13.0/h · `COMMON RUNG = 100` · freeze MATCHES ·
+drift 0 · guard OK · contamination 0 · `line_balance` CLEAN.
+
+**c1's t2 IS ESSENTIALLY FINISHED:** `1721/1780 done, 59 pending`, with 10 running x 8 = 80 specs
+covering it. Its 192 pre-provisioned t3 jobs are queued and will take over with no bubble.
+**Deficits have inverted: leg3 now owes the most (293) and c1 the least (58).**
+
+**NO ACTION. 45 h cliff ~3.4 h out, 24-spec eligible = 0 — the cliff now costs literally nothing.**
