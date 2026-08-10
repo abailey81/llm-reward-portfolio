@@ -4973,3 +4973,37 @@ specs** covers it. Its 192 new t3 jobs are ELIGIBLE and above the needed block, 
 (R29-25's belt-and-braces property, now observed a second time at four times the scale).
 
 **NO ACTION. Maintenance 45 h cliff ~7.4 h out, 24-spec eligible = 1, R29-21's decision stands.**
+
+### R29-27 — **05:37Z: RUNG 189 IS UNDER A THOUSAND, lambda HITS 22/h, AND THE MAINTENANCE POSES NO R29-9 RISK**
+
+| | 03:37Z | 05:37Z |
+|---|---:|---:|
+| running / cores | 157 / 1,256 | **164 / 1,312** |
+| allocative efficiency | 100.0% | **100.0% (6th pass)** |
+| **rung 189 owed** | 1,271 | **981** |
+| records | 27,011 | **27,315** |
+| lambda (identity) | 11.0/h | **22.0/h** |
+
+**RUNG 189 IS NOW UNDER A THOUSAND TRAININGS.** The deficit has fallen **2,294 -> 1,968 -> 1,735 ->
+1,579 -> 1,457 -> 1,271 -> 981** across seven passes, i.e. **-1,313 in twelve hours.** `COMMON RUNG =
+100` holds. freeze MATCHES · drift 0 · guard OK · contamination 0 · `line_balance` CLEAN.
+
+**44 dispatched, 37 finished, 0 released, 0 new — lambda 22.0/h, the highest measured this session**
+(8.2 on 08-07, then 18.0, 16.0, 12.0, 12.5, 11.0). ⇒ **Yet another reason no single lambda reading is
+a capacity estimate.** Every dispatch went to `leg3/t2` (20) and `leg7/t2` (24), and their running
+counts rose **34 -> 54** and **10 -> 34**. **The fleet is rebalancing across lines as c1's t2 winds
+down, which is precisely what deficit-proportional allocation should look like.**
+
+**c1's t2 IS ALMOST DONE AND STILL EXACTLY PROVISIONED:** `1497/1780 done, 283 pending`, with **37
+running x 8 = 296 specs** covering the 283. Its 192 pre-provisioned t3 jobs are queued and waiting,
+so R29-26's prediction stands: **no drain bubble when t2 closes.**
+
+⭐ **THE MAINTENANCE POSES NO R29-9 EXPOSURE, AND THE ARITHMETIC PROVES IT RATHER THAN ASSUMING IT.**
+The 45 h cliff is **5.4 h** away and the outage **49.4 h** away. **A 45 h job started exactly at the
+cliff finishes Wed 08:00Z — an hour BEFORE the outage.** UCL only STARTS a job that can COMPLETE
+before the window, so **that drain IS the protection**: every running 24-spec job will have finished,
+and R29-9's "a kill discards up to 16 completed trainings" cannot fire. With **24-spec eligible = 1**,
+the early cliff costs essentially nothing either. ⇒ **R29-21's decision not to revert the legs is
+confirmed a third time, now against the outage itself rather than against a projection.**
+
+**NO ACTION. leg10 correctly parked (trigger: COMMON RUNG 340). No batch qualifies for repack.**
