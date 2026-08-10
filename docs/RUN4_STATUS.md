@@ -12,7 +12,7 @@ back what it did.
 |---|---|
 | elapsed | **T+296h08m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **6 / 12 running; 6 COMPLETE (gemini-2.5-flash, gpt-5.6-luna, h3, haiku-4.5, qwen3.5-9b, sonnet-5)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (core)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **27290** |
 | **Myriad maintenance** | **2026-08-12 from 08:00 UTC, at risk all day** (in 2.1 days). Delayed from Aug 11. Jobs may die and REQUEUE idempotently; the supervisors ride it. Playbook: docs/ops/MAINTENANCE_2026-08-12.md |
 | LLM calls / spend | 2956 / **$45.5021** |
@@ -24,10 +24,10 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **895** = 165 running + **354 ELIGIBLE** + 376 held by us + 0 held only by the site |
+| cluster jobs | **894** = 164 running + **354 ELIGIBLE** + 376 held by us + 0 held only by the site |
 | | *These four ADD to the total, by construction. "queued" used to lump the last three together and overstated the ready backlog by ~62% (762 shown against 470 actually dispatchable). Only ELIGIBLE can be dispatched. **held by us** is the LADDER LOCK, ours to lift. **held only by the site** is the policyjsv throttle, which drains itself at ~700-1,000 jobs/h and is NOT ours to lift -- counted EXCLUSIVE of our own holds, because a job commonly carries both.* |
-| **cores computing** | **1320** |
-| **cores doing RUNG-RAISING work** | **100.0%** -- 1256 of 1256 cores (99 min old **STALE**) |
+| **cores computing** | **1312** |
+| **cores doing RUNG-RAISING work** | **100.0%** -- 1256 of 1256 cores (100 min old **STALE**) |
 
 A core counts as USEFUL only if its job fills the assurance block that LIFTS its line's banked rung. The rest is real work whose records raise the reported result by ZERO until every block below them lands. Cause: the C4 ladder lost its ordering mechanism (D73) -- `campaign.PRIORITY_RUNG_BASE = 0` and all six blocks are submitted concurrently, so nothing orders them. THE COMPENSATING CONTROL IS THE LADDER LOCK (`job_rank_governor.py`), which holds ABOVE-BLOCK work so every freed slot goes to a line that actually gates the rung; the `held by us` figure in the jobs row above is how much of it is applied RIGHT NOW. !! IT CANNOT MOVE A RUNNING JOB, so after it is applied this percentage improves only as the over-served line's jobs EXPIRE -- about one job duration. A flat reading minutes after applying it is expected, not a failure.
 
@@ -38,16 +38,16 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-10 05:17 UTC | elapsed 12.34 d | 16.8 d to the Aug-27 stop
-test tier: 25,747 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-10 05:18 UTC | elapsed 12.34 d | 16.8 d to the Aug-27 stop
+test tier: 25,750 records over 71 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    => OPERATIVE RATE 112.2 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
-    last  1 h     160 records     160.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last  3 h     392 records     130.7 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
-    last 12 h    1346 records     112.2 rec/h   usable
-    last 24 h    2653 records     110.5 rec/h   usable
-    12 h rate is 80% from ONE line (test); 5 line(s) contributed at all
+    => OPERATIVE RATE 112.4 rec/h  (the 12 h window; the shortest one an ETA may be priced from)
+    last  1 h     163 records     163.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last  3 h     393 records     131.0 rec/h   NOISE, not a rate: shorter than one job's 15.0 h quantum, so it samples the gaps between 8-record bursts
+    last 12 h    1349 records     112.4 rec/h   usable
+    last 24 h    2655 records     110.6 rec/h   usable
+    12 h rate is 81% from ONE line (test); 5 line(s) contributed at all
     (windows under 12 h are a STALL INDICATOR ONLY and do not price the ETA -- the arrival quantum is a 15 h pack-8 job)
 
 EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both
@@ -64,23 +64,23 @@ EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so bo
      rung  rec-count left     -1h  earliest (UTC)    latest (UTC)      Aug-27?
        30           0       0  REACHED           REACHED           yes
       100           0       0  REACHED           REACHED           yes
-      189         145      57  2026-08-10 06:35  2026-08-10 06:35  yes
-      279       3,142     160  2026-08-11 09:18  2026-08-11 09:18  yes
-      340       5,277     160  2026-08-12 04:20  2026-08-12 04:20  yes
-      403       7,505     160  2026-08-13 00:12  2026-08-13 00:12  yes
-      568      14,581     160  2026-08-15 15:17  2026-08-15 15:17  yes
+      189         145      57  2026-08-10 06:36  2026-08-10 06:36  yes
+      279       3,139     163  2026-08-11 09:14  2026-08-11 09:14  yes
+      340       5,274     163  2026-08-12 04:13  2026-08-12 04:13  yes
+      403       7,502     163  2026-08-13 00:02  2026-08-13 00:02  yes
+      568      14,578     163  2026-08-15 14:59  2026-08-15 14:59  yes
     GATED = the relevant rate is zero, so no throughput number can date that row -- it is
     waiting on a stage barrier (C1 chain / C3 gate), not on cores.
     !! 3% of the rung-568 backlog (476 records) sits on cells that produced NOTHING in the 12 h window -- work behind a stage barrier (C1 chain / C3 gate) is not accelerated by redirected cores. Neither column models when it starts.
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
-     rung     @1320 cores      @830 cores   binding
+     rung     @1312 cores      @830 cores   binding
        30           4.6 d           4.6 d   critical_chain
       100           4.6 d           4.6 d   critical_chain
       189           4.6 d           6.5 d   throughput
-      279           5.8 d           9.3 d   throughput
+      279           5.9 d           9.3 d   throughput
       340           7.0 d          11.1 d   throughput
-      403           8.2 d          13.0 d   throughput
+      403           8.3 d          13.0 d   throughput
       568          11.4 d          18.1 d   throughput
 
     saturation: more than ~3235 cores buy NOTHING at rung 568
@@ -250,7 +250,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (**last monitoring cycle was 12 min ago -- the loop has lapsed**)
+## Monitoring -- the cycle (**last monitoring cycle was 13 min ago -- the loop has lapsed**)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
