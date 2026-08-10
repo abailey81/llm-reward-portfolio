@@ -5850,3 +5850,65 @@ looks wrong later.
 ⚠ **ONE THING FOR THE WRITE-UP LANE, NOT ME:** cell 63 previously read *"needs ~112 runs. We have
 30."* It now reads *"We have 100."* **The equivalence test is close to powered for the first time**,
 and whether that changes the registered claim is a write-up decision, not an ops one.
+
+---
+
+## R29-32 — ⛔ **THE NOTEBOOK CLAIMED RUNG 189. THE HONEST RUNG IS 100. A RECORD COUNT IS NOT A DEPTH.** (2026-08-10T14:5xZ)
+
+**FOUND BY A DISAGREEMENT INSIDE ONE EXECUTED NOTEBOOK**, not by a test. `preliminary_results.ipynb`
+printed `paired seeds available : 100` in one cell and `common rung reported : 189` in another. Two
+numbers, one dataset, one run. **One definition had to be wrong.**
+
+**THE DEFECT.** Cell 3 measured each arm's depth as a **record count**:
+
+```python
+depths = {a: int(((D["line"] == line) & (D["arm"] == a)).sum()) for a in arms}
+rung   = max([r for r in LADDER if r <= min(depths.values())], default=0)
+```
+
+The CRN pairing is **by seed index**, so a paired contrast may only use seeds present in EVERY arm it
+compares. **A count reports a hole as progress.**
+
+**MEASURED AGAINST THE LIVE ARCHIVE** (force-reloaded, 26,740 test-leg records, 844 s):
+
+| definition | minimum over the 11 full-loop lines | ladder tier |
+|---|---:|---:|
+| **contiguous prefix (honest)** | **143** | **100** |
+| distinct seeds | 202 | 189 |
+| record count (what the notebook used) | 202 | 189 |
+
+**THE ARM THAT HOLDS EVERYTHING DOWN, named and inspected first-hand:**
+`test_leg_nemotron_3_super/placebo` holds **204 records**, complete prefix **0..142**, **first hole at
+seed 143**, 178 holes below its maximum of 381. **Rung 189 is arithmetically unreachable for that arm
+however many records land above the gap.** Same shape at `test/baseline_log_growth` (207 records,
+first hole 162) and `test_leg_qwen3_6_27b/placebo` (456 records, first hole 224).
+
+⭐ **`achieved_rung.json` HAD ALREADY WARNED ABOUT EXACTLY THIS, IN ITS OWN TEXT:** *"a paired contrast
+can only use seeds present in every arm it compares ... Every distinct-count figure is larger than
+what a paired analysis may actually use, so quoting one would overstate the depth."* **The artefact
+knew and the notebook did not.**
+
+**THE HONEST LADDER: 5 lines at 568 · 1 at 340 · 3 at 189 · 2 at 100. COMMON RUNG = 100**, held down
+by OPUS 5 (162) and nemotron (143).
+
+**FIXED AT SOURCE, not papered over.** Cell 3 now computes depth via a `contiguous_prefix()` helper
+and adds a **`stranded above holes`** column, so records above a gap stay VISIBLE as real work rather
+than being silently dropped or silently counted. Re-executed: **rc=0, 90 cells, 0 errors, 19 figures,
+`COMMON RUNG = 100` in every cell that reports it.**
+
+⛔ **TWO ERRORS OF MY OWN, BOTH RECORDED.**
+1. **I patched the markdown with the count-based distribution** — *"six at 568, one at 340, two at
+   189, three at 100"*. The honest distribution is **5/1/3/2**. Corrected.
+2. **I had been executing off a STALE CACHE.** The notebook read 26,712 cached rows while the archive
+   held more. "Freshest info" was ~1,500 records behind. Forced a full re-read; the true test-leg
+   figure is **26,740**, and the presentation notebook's headline was corrected 26,712 -> 26,740.
+
+**`achieved_rung.json` RE-DERIVED** (dated yesterday, and NOT hash-bound — no match in `freeze.py`, so
+this is a measurement refresh and not a freeze touch): rung **100, unchanged**; contiguous depth
+**102 -> 143**; the counting defect recorded inside the file so it cannot be rediscovered the
+expensive way.
+
+⚠ **THE CONSEQUENCE THAT MATTERS.** This is the notebook that goes in front of the professor, and it
+would have claimed **a ladder tier the study has not reached**. The count can only ever run AHEAD of
+the honest number, never behind it, so the failure mode is one-directional and always flattering.
+**Holes hide depth.**

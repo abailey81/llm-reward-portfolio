@@ -1,0 +1,21 @@
+{
+  "achieved_rung": 100,
+  "_achieved_rung_note": "THE LADDER TIER, which is what scripts/check_rung_freshness.py accepts. The frozen E1 ladder is [30,100,189,279,340,403,568] and 143 is NOT a member of it, so passing 143 makes the gate exit 2. The contiguous seed depth is 143 and is recorded separately below. Reporting the depth as though it were a rung would claim a ladder tier the study has not reached.",
+  "contiguous_seed_depth": 143,
+  "measured_utc": "2026-08-10",
+  "definition": "contiguous_seed_depth is the largest n such that EVERY arm of EVERY line holds a complete contiguous seed prefix 0..n-1 with an archived record.json. achieved_rung is the highest frozen-ladder tier at or below that depth.",
+  "cells_measured": 70,
+  "cells_at_or_above_rung_100": 70,
+  "cells_below_rung_100": 0,
+  "rung_100_achieved_everywhere": true,
+  "llm_arms_only_contiguous_minimum": 143,
+  "distinct_seed_minimum_all_arms": 202,
+  "test_leg_records_read": 26740,
+  "shallowest_cell": "test_leg_nemotron_3_super/placebo: 204 records, complete prefix 0..142, first hole at seed 143",
+  "per_line_tier_distribution": "5 lines at 568, 1 at 340, 3 at 189, 2 at 100",
+  "why_contiguous_and_not_distinct_count": "a paired contrast can only use seeds present in every arm it compares, and the CRN pairing is by seed index, so a complete prefix is the honest depth. Every distinct-count figure is larger than what a paired analysis may actually use, so quoting one would overstate the depth.",
+  "counting_defect_found_2026-08-10": "notebooks/preliminary_results.ipynb computed each arm's depth as a RECORD COUNT and therefore reported rung 189. The count minimum is 202 and the contiguous minimum is 143, because nemotron/placebo is missing seeds 143 and 144 while holding 204 records above them. The notebook was corrected to use the contiguous prefix. THE HONEST BANKED RUNG IS 100; RUNG 189 IS NOT BANKED.",
+  "source_archive": "outputs/campaign_cluster_run4",
+  "status": "PROVISIONAL. The campaign is live and runs to the exogenous stop of 2026-08-27, so this value climbs. It MUST be re-derived immediately before submission and never quoted from memory.",
+  "supersedes": "the 2026-08-09 measurement (same rung 100, contiguous depth 102), which is superseded on depth only; the rung tier is unchanged"
+}
