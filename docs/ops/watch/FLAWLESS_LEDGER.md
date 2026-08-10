@@ -5341,3 +5341,296 @@ there is a structural cause to find.** Two low readings in a row are a trend; on
 **MAINTENANCE: the 45 h cliff is ~1.4 h away and 24-spec ELIGIBLE = 0, so it costs literally
 nothing. The 30 running 24-spec jobs all started early enough to finish before the outage.**
 **leg10 correctly parked (trigger: COMMON RUNG 340). No batch qualifies for repack. NO ACTION.**
+
+### R30-106 — **THE KILL LANDED EXACTLY AS PROJECTED, AND `c1`'s ENTIRE REMAINING RUNG-189 REQUIREMENT IS NOW THOSE EIGHT TRAININGS**
+
+`c1_sweep_t2_p158` left the queue between 09:41Z and 09:44Z. Its walltime expired at **09:40:09Z**
+(started 2026-08-09T18:40:09Z, `h_rt` 15 h) — **the projection made at 05:56Z was right to the
+minute**, and S16 held it steady across three readings (short by 3.87 h → 3.99 h → 4.00 h).
+
+⚠ **AND THIS TIME THE ABSENCE WAS VERIFIED BY A DIFFERENT PARSER FROM THE ONE THAT FOUND IT**
+(R30-101's lesson applied the same day): the watcher uses the repository's colon-split
+`alive_jobnames`; the confirmation used `awk` on field 3. **838 jobname rows, `p158` in none of them,
+and zero `c1` `t2` jobs left alive.**
+
+⭐ **The other six `c1` `t2` jobs all landed.** `c1`'s deficit fell 269 → 61 → 50 → **8**, and the 8
+are precisely `p158`'s: `baseline_log_growth`, `baseline_return_minus_downside`,
+`baseline_return_minus_turnover`, `baseline_volatility_scaled_return` at **s162**, and
+`distributional`, `scalar`, `placebo`, `scalar_cvar5` at **s163**. ⇒ **the repair is not part of
+`c1`'s rung-189 requirement, it IS `c1`'s rung-189 requirement.**
+
+### R30-107 — ⛔⛔⛔ **THE REPAIR TOOL REFUSED TO REPAIR, AND REPORTED SUCCESS. ELEVEN JOURNALS WERE BLOCKING 811 PARTS.**
+
+The dry run was exactly right — `TO SUBMIT: 1 part, 8 specs, c1_sweep_t2_p158` — and then `--go`
+printed:
+
+```
+SUBMITTED=0 SKIPPED=1 FAILED=0        node script rc=0
+```
+
+**rc=0. No error. Nothing submitted.** The node loop's first test is
+`if grep -q "^$p " "$J"; then skip; continue`, and `$J` was
+`~/r30_resubmit_c1_sweep_t2.journal` — **ONE journal per round, forever.** `p158` was written into it
+on 2026-08-07 when this same tool first submitted it. **So the journal built to make a torn ssh
+resumable had become a permanent blocklist: a part that was submitted, ran 15 h and died having
+archived nothing could never be submitted again.**
+
+⇒ **The tool that exists to re-submit lost work refused to re-submit lost work, and said rc=0.**
+
+⚠⚠ **THE FULL SCOPE, ENUMERATED RATHER THAN SAMPLED — ELEVEN STALE JOURNALS, 811 PARTS:**
+
+| journal | parts blocked |
+|---|---:|
+| `c1_sweep_t1` | 143 |
+| `c1_sweep_t2` | 187 |
+| `c1_sweep_t3` | 192 |
+| `leg1` `t2`/`t3` | 30 / 38 |
+| `leg2` `t2`/`t3` | 29 / 38 |
+| `leg3` `t2`/`t3` | 43 / 38 |
+| `leg7` `t2`/`t3` | 37 / 36 |
+| **TOTAL** | **811** |
+
+**That is exactly the 811 parts and 6,439 trainings this session recovered.** ⇒ **every one of them
+was one job-death away from being unrecoverable by the tool, silently, and the failure had already
+happened once.**
+
+**THE FIX — `journal_path(base, names)`, keyed on the base AND a SHA-256 of the sorted part set.**
+It keeps the property the journal was built for and drops the one it was not: a re-run of the SAME
+intent resolves to the SAME journal and still skips what it already qsubbed, while a genuinely new
+repair has a different part set and is not blocked by history. The ALIVE check is untouched and
+remains the primary race guard.
+
+**VERIFIED TO THE STEP-6 STANDARD:**
+* **falsifying test written FIRST and shown to FAIL against the pre-fix code** — pre-fix, both
+  invocations resolve to `~/r30_resubmit_c1_sweep_t2.journal`, so T1 is an equality and cannot pass;
+* `--selftest` **5/5** (different sets differ · same set resumes · order-independent · the base still
+  separates rounds · path shape);
+* **MUTATION: 3 mutants, 3 CAUGHT BY THEIR OWN CASE** — tag from the base only (the pre-fix defect
+  restored) → T1 · tag from the unsorted list → T3 · base dropped from the path → T4. Restored, 5/5;
+* **LIVE: `SUBMITTED=1 SKIPPED=0 FAILED=0`**, journal `~/r30_resubmit_c1_sweep_t2.f88f86f0d0c3.journal`,
+  new job **jid 118532**.
+
+### R30-108 — **THE HOLD, AND WHY IT WAS NOT OPTIONAL**
+
+The repair carries the HIGHEST job id and dispatch is strictly by id, so it would have queued behind
+**314 eligible jobs = ~22 h at λ=14.5/h** and landed **11 Aug ~08:00Z**. So, in this order:
+
+1. **314 eligible ids captured** (116924-118469), CR-stripped node-side after the R30-63 CRLF
+   incident, and copied to `~/r30_held_by_ops_2026-08-10.txt` so the release list survives `/tmp`;
+2. `qhold` **314/314, 0 failed** ⇒ census `690 hqw · 0 qw · 146 r`;
+3. the repair submitted into an **empty eligible queue** ⇒ census `690 hqw · **1 qw** · 146 r`, and
+   `p158` is that one job;
+4. a bounded node-side watcher releases all 314 the moment it dispatches, **or after ~25 minutes
+   regardless** — the fleet must never be left held on a watcher that stalls.
+
+⚠ **Every held job serves rung 279 or above** (R30-102: all 762 rung-189 trainings are inside RUNNING
+jobs, none eligible), so the hold delays nothing that gates the reported result. **Under the
+floor-first priority this is not a trade-off; the 8 specs ARE the floor for `c1`.**
+
+### R30-109 — ✅ **THE REPAIR IS RUNNING, ON A HEALTHY NODE, AND THE HOLD COST TWELVE MINUTES**
+
+| step | time | result |
+|---|---|---|
+| repair submitted | 09:54Z | `SUBMITTED=1`, jid **118532** |
+| the only eligible job | 09:56Z | census `690 hqw · **1 qw** · 146 r` |
+| **DISPATCHED** | **10:03:51Z** | poll 10 of the bounded watcher, **7.5 min after submission** |
+| 314 holds released | 10:04:32Z | **`QRLS ok=314 fail=0`**, census back to `376 hqw · 314 qw · 143 r` |
+
+⇒ **the hold lasted twelve minutes and cost three running jobs (146 → 143).** Against the ~22 h the
+repair would otherwise have waited behind 314 higher-priority ids, and it is now the ONLY thing
+standing between `c1` and rung 189.
+
+⭐ **AND THE TRAP R30-99 RECORDED DID NOT SPRING: it landed on `node-d00a-249`, not the degraded
+`node-d00b-020`.** That mattered — a 15 h jobscript at that node's 5.9 steps/s cannot finish, so the
+repair would have died exactly as its predecessor did. **Checked rather than assumed**, which is the
+whole reason the trap was written down.
+
+### R30-110 — ⛔⛔ **AND S16 IMMEDIATELY READ THE DEAD JOB'S LOG AS THE NEW JOB'S PROGRESS**
+
+Minutes after dispatch, S16 printed:
+
+```
+c1_sweep_t2_p158    h_rt 15.0   age 0.03   step 315000   rate 5.9   eta 4.00   head 14.97   ok
+```
+
+**A job 0.03 h old cannot be at step 315,000.** A re-submitted part keeps its log DIRECTORY, so
+`logs/c1_sweep_t2_p158/1.o` still held the log of the incarnation that died at 315,000 steps. S16
+took `ls -t | head -1`, found that file, and reported a dead job's numbers as a live job's health.
+
+⚠⚠ **THE DIRECTION IS THE PROBLEM, NOT THE WRONGNESS.** A stale log carries a HIGH step count, so it
+makes a job look nearly finished. ⇒ **a genuinely doomed re-submitted job would have been reported
+`ok`** — the reassurance direction this repository refuses (P244), and in the one place it matters
+most, because a re-submitted part is by definition work we already lost once.
+
+**W5, THE STALE-LOG TEST.** `elapsed` is measured INSIDE the job and cannot exceed the job's own age,
+so an `elapsed` far beyond the age proves the log belongs to a previous incarnation. Such a job is
+**UNKNOWN — never `ok`, and never `SHORT` either**, because nothing about the current run has been
+observed. Slack 0.25 h for clock skew between login and compute nodes.
+
+**VERIFIED TO THE STEP-6 STANDARD:**
+* **falsifying test written FIRST against the shipped code and shown to FAIL** — the real numbers
+  (315,000 / 400,000, rate 5.9, age 0.03 h) returned `ok`;
+* `--selftest` **16/16**, up from 11, with **T10 and T11 as controls so the new test cannot
+  over-fire**: a healthy job's own log (elapsed 32,000 s at age 9.0 h) stays `ok`, and elapsed exactly
+  equal to age stays `ok`;
+* **MUTATION: 4 mutants, 4 CAUGHT BY THEIR OWN CASE** — staleness removed → T9 · slack dropped so
+  equality trips → T11 · `elapsed` not carried out of `parse_log` → T1c · stale reported as `ok`
+  → T9. Restored, 16/16;
+* **LIVE: the row now reads `stale-log`**, and the fleet reads **0 SHORT · 1 stale-log · 142 ok**.
+
+⇒ **S16 has now found two things: a job that could not finish, and its own blind spot.** Both inside
+four hours of being written, which is the argument for building the instrument rather than reading
+the logs by hand.
+
+### R30-111 — **THE BOARD**
+
+`common rung 189 needs` **763 → 473** over 2.5 h = **116/h** · records **27,515+** · queue
+`376 hqw · 314 qw · 143 r` · cores **1,144** (down from 1,312 through the hold and the c1 `t2` drain;
+it recovers as the released 314 dispatch) · **allocative 79.0%**, and R30-103 says why — the binding
+lines are running `t3` because their rung-189 work is all in flight · COMMON RUNG **100** ·
+freeze **MATCHES** · drift **0** · `line_balance` **CLEAN** · guard OK.
+
+**RUNG 189 NOW GATES ON:** `leg3` 240 · `leg7` 208 · `leg2` 32 · `leg1` 18 · **`c1` 8, and those 8 are
+the repair**, which needs ~9.5 h from 10:04Z ⇒ **~19:30Z**. The legs' remainder is in running work
+already. ⇒ **rung 189 ~19:30-20:30Z, and the repair is the long pole.**
+
+⛔ **`t4`/`t5` STAY UNSUBMITTED** — 413 parts / 3,246 specs, all rung 279+.
+
+### R30-112 — ⛔⛔ **λ FELL TO 3.82/h AND MY FIRST DIAGNOSIS OF IT WAS WRONG. THE CORRECTED ANSWER CLOSES R30-5.**
+
+λ by identity across three consecutive windows: **21.27 → 14.46 → 3.82/h**, with 314 jobs eligible.
+
+⚠⚠ **I READ OUR TICKET PRIORITY AS `0.00000` AND ALMOST PUBLISHED A FAIR-SHARE COLLAPSE.** The query
+was mine: `qstat -u ucestes | awk '$5=="qw" {print $2}' | sort -rn | head -3` → three zeros. **The
+zeros are the 376 HELD jobs**, which SGE reports at prior 0. Re-derived two ways before writing
+anything down:
+
+| derivation | result |
+|---|---|
+| census of ALL pending (`-s p`), 690 rows | **376 at 0.00000** (= exactly the hqw count) · the other **314 at 2.00246-2.00756** |
+| `qstat -ext`, ticket breakdown | our running jobs at **prior 2.00968**, `ftckt` 33,856 |
+| running-job census, 147 rows | **147 at 2.00968**, one value |
+
+⇒ **Our standing is UNCHANGED at ~2.01 against a cluster leader of 3.50** — exactly the prior the
+brief recorded. **There is no fair-share collapse.** ⚠ **This is the third hand-rolled shell filter of
+mine in two days to return a dramatic falsehood** (R30-101's unmatchable grep, its "independent"
+re-check, and now this). **The rule earns an extension: when a hand-rolled query returns a DRAMATIC
+result, re-derive it with a different tool BEFORE forming any conclusion.** Here that happened within
+one command, which is the only reason it never reached the record as fact.
+
+⭐⭐ **AND THE CORRECTED INVESTIGATION ANSWERS R30-5, THE STANDING OPEN QUESTION, ON THREE LEGS:**
+
+| candidate explanation | measurement | verdict |
+|---|---|---|
+| our priority collapsed | eligible **2.002-2.008**, running **2.00968**, unchanged | **REFUTED** |
+| no free capacity | `Bran`: **3,637 free slots** on up nodes, 343 instances, 27 down | **REFUTED** |
+| slot fragmentation blocks an 8-slot `$pe_slots` request | **103 nodes hold ≥8 free slots** (3,212 of them) | **REFUTED** |
+| other users outrank us | **3,327 pending cluster-wide / 107 users**, leaders 3.50 vs our 2.01 | ⇒ **THE ANSWER** |
+
+⇒ **WE ARE RANK-LIMITED, NOT PLACEMENT-BLOCKED.** Capacity exists, the shape of our request fits it,
+and our tickets are healthy — we are simply behind 3,327 higher-ticket jobs. **R30-5 is closed.**
+
+⚠ **AND ONE TRAP INSIDE THE SAME DATA, RECORDED SO IT IS NEVER MISREAD.** `qstat -g c` lists 33
+cluster queues each showing ~11,608 AVAIL. **They are the SAME NODES.** `qconf -sq Bran` and
+`qconf -sq Brienne` are identical — same `hostlist @serial`, same `seq_no`, same `slots`, same
+`complex_values`. **Summing them would claim ~380,000 free slots on a pool that holds ~12,580.** The
+free capacity is one number, ~3,637, and it is `Bran`'s.
+
+⇒ **THE ACTIONABLE CONSEQUENCE, STATED HONESTLY: THERE IS NO LEVER HERE.** Self-elevation is
+forbidden by fair-share, an RC request is Tamer's call and he has declined it, and lowering our own
+priority is a standing prohibition. **The only lever left is WHICH job takes each dispatch we do
+get** — which is exactly what the ladder lock already does. **Steady state is `running = λ × T`: at
+λ=3.82/h and T≈9.4 h that is ~36 jobs ≈ 288 cores; at the session's mean λ≈13/h it is ~122 jobs
+≈ 976 cores.** λ has been volatile all session, so this is the formula, not a forecast.
+
+✅ **AND THE 45 h MAINTENANCE CLIFF AT ~11:00Z TODAY IS MOOT FOR US, CHECKED RATHER THAN ASSUMED:**
+every one of our **314 eligible jobs is 15 h class** (`h_rt=54000`). We hold **zero eligible 45 h
+work**, so a cliff on 45 h starts cannot touch anything that is waiting. ⚠ The 275 HELD `t4`-`t6`
+jobs ARE 45 h — **so if they are ever released after ~11:00Z they cannot start before the outage.**
+That is a consideration for after rung 189, and it is now written down.
+
+### R30-113 — ⭐⭐⭐ **W6, THE INCARNATION SPLIT — AND MY FIRST RULE FOR IT WAS REFUTED BY MY OWN OLDEST TEST**
+
+R30-110 left S16 reading `stale-log` for the repair. **That was safe but BLIND**, and the blindness
+was permanent, not transient: the node log is **APPENDED to, never truncated**, so a re-submitted
+part carries its dead predecessor's 315,000 steps for the whole life of its replacement. **S16 would
+have been unable to measure the one job that gates `c1`'s rung 189, for 9.5 hours.**
+
+**W6 splits the log at the last incarnation boundary and parses only the final segment.**
+
+⛔ **THE OBVIOUS RULE IS WRONG AND T1 CAUGHT IT BEFORE IT SHIPPED.** I first wrote *"elapsed decreased
+⇒ new incarnation"*. **A pack-8 job interleaves EIGHT trainings into one log**, each printing its own
+elapsed, so elapsed decreases constantly within one job — T1's own fixture runs 39901 → 40403 →
+**39388**. The selftest went **17/20** and named the three cases it broke. ⇒ **the discriminator has
+to be the SIZE of the collapse, not its direction**: a restart requires BOTH a drop below half the
+running maximum AND an absolute drop over 1,800 s.
+
+⛔⛔ **AND THEN TWO MUTANTS ESCAPED, WHICH WAS A DEFECT IN MY TESTS, NOT MY CODE.** "fraction only"
+and "absolute floor only" each passed all of T1-T16 — **so the test set did not justify the
+conjunction it was testing.** Two separating cases added: **T17** (trainings 50 minutes apart deep in
+a long run: the drop clears 1,800 s but is nowhere near a collapse) kills floor-only, and **T18** (two
+staggered trainings early on, either side of half but only 1,600 s apart) kills fraction-only.
+
+**VERIFIED:** falsifying test FIRST, shown to FAIL on the shipped code (it returned 315,000 for a job
+0.17 h old) · `--selftest` **23/23**, up from 11 this morning · **MUTATION: 5 mutants, 5 CAUGHT BY
+THEIR OWN CASE** · restored 23/23.
+
+### R30-114 — ✅ **AND WITH THE SPLIT IN PLACE THE REPAIR MEASURES HEALTHY — FASTER THAN THE FLEET**
+
+```
+c1_sweep_t2_p158   h_rt 15.0   age 0.21   step 5000   rate 16.6   eta 6.61   head 14.79   ok
+```
+
+**16.6 steps/s against a fleet median of 12.7** — `node-d00a-249` is materially faster than the node
+that killed its predecessor at 5.9. ⇒ **the repair needs 6.61 h and holds 14.79 h. It lands ~16:50Z,
+not the ~19:30Z projected from a fleet-average rate.** ⭐ **The instrument that found the loss now
+measures the recovery, and only because W6 was fixed within the hour.**
+
+### R30-115 — **THE BOARD**
+
+`common rung 189 needs` **473 → 466** · deficits `leg3` **240** · `leg7` **192** · `leg2` **23** ·
+`leg1` **3** · **`c1` 8 = the repair** · λ **3.82/h** · cores **1,144-1,176**, running 146-147 ·
+allocative **79.0%** (R30-103 says why) · records **27,809** · COMMON RUNG **100** · freeze
+**MATCHES** · drift **0** · `line_balance` **CLEAN** · guard OK · S15 rc=1 as expected ·
+**S16: 146 inspected, 0 SHORT, 141 ok.**
+
+⇒ **RUNG 189 REVISED EARLIER: the repair lands ~16:50Z and the legs' 458 are in running work**, so
+the gate moves back to `leg3`/`leg7`'s job clocks. ⛔ `t4`/`t5` stay unsubmitted — 413 parts /
+3,246 specs, all rung 279+, and at λ=3.82/h the 314 already eligible are 82 hours of supply.
+
+### R29-30 — **11:37Z: THE R29-29 FALSIFIER WAS TESTED AND THE READING HELD. RUNG 189 IS 234 TRAININGS AWAY.**
+
+⭐ **FALSIFIER RESULT — the point of setting it was to be able to be wrong.** R29-29 said: *"if
+lambda is STILL <= 6/h AND cores are BELOW 1,000 at the next check, the 'bursty completion' reading
+is WRONG."* Measured now: **lambda 9.5/h** (up from the 4.0/h low) and **cores 1,144** (> 1,000).
+⇒ **READING HOLDS. The 4.0/h was a trough, not a regression.** lambda's session range is now
+**4.0 - 22.0/h across ten passes**, which is the single most important number to keep in view when
+anyone quotes a capacity figure.
+
+**RUNG 189 NEEDS 234**, from 514 two hours ago and **2,294 eighteen hours ago**. `COMMON RUNG = 100`.
+Records **28,043**. freeze MATCHES · drift 0 · guard OK · contamination 0 · `line_balance` CLEAN.
+
+**AND THE DEFICIT IS NOW HIGHLY CONCENTRATED, WHICH MAKES THE ENDGAME LEGIBLE:**
+
+| line | owes -> 189 |
+|---|---:|
+| **leg7** | **128** |
+| **leg3** | **96** |
+| c1 | 8 |
+| leg2 | **2** |
+| leg1 | **0** |
+
+**leg7 + leg3 = 224 of 234 (96%)**, and both are running their `t2` blocks (40 and 47 jobs).
+**A watcher is armed on `record_seed_completeness` reporting COMMON RUNG >= 189.**
+
+**ALLOCATIVE EFFICIENCY 67.1%** (376 deferred = leg3's 38 t3 + 1 t6, leg7's 8 t3). **Third instance
+of the R29-28 pattern and the same call: both lines have ZERO t2 eligible left** (their t2 blocks are
+entirely in flight), so holding their t3 would idle them and surrender the windows to other users.
+⇒ **The metric is now tracking "how far ahead the fleet is working", not "how much is wasted".**
+⚠ **This is the third pass where allocative efficiency fell for a GOOD reason (100 -> 87.7 -> 81.1 ->
+67.1). A successor reading only the number would conclude the campaign is degrading. It is not: the
+lines are running out of needed-block work because they are FINISHING their needed blocks.**
+
+**19 dispatched, 25 finished** (finished: leg2/t2 12, leg1/t2 6, leg3/t2 6, c1/t2 1). c1 holds 1
+running and 193 eligible and is correctly LAST in the queue: it owes 8 of the 234.
+**NO ACTION. leg10 parked (trigger: rung 340). Maintenance cliff passed with 24-spec eligible = 0.**
