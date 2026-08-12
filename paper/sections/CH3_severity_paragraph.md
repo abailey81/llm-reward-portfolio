@@ -44,13 +44,13 @@ literature review, the reference list and the discussion — not from a pre-regi
 
 Stated plainly, because Criterion 1 rewards it and a marker will not infer it:
 
-* The **standard** move in an applied pre-registered study is to treat registration as conferring
+*The **standard** move in an applied pre-registered study is to treat registration as conferring
   severity. It is extremely common and it is incorrect.
-* Noticing the error requires holding two literatures at once — the philosophy of statistics (Popper vs
+*Noticing the error requires holding two literatures at once — the philosophy of statistics (Popper vs
   Mayo on what makes a test severe) and the applied replication literature (what registration actually
   controls) — and the correction was made **against our own interest**, since the weaker, correct claim
   is harder to defend than the stronger, wrong one.
-* It was corrected **pre-data** and recorded as a dated amendment, so it is verifiable rather than
+*It was corrected **pre-data** and recorded as a dated amendment, so it is verifiable rather than
   asserted: `R61`, 2026-06-28, superseding the earlier "corroborated Popperian prediction" label.
 
 ## Citations required in `refs.bib`

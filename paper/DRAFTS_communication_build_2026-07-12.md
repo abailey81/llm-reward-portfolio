@@ -6,7 +6,7 @@
 > `lo2002statistics`, B.5.7 single-look, B.6.6 prototype-not-evidence; K=5/cohort/CVaR-1% were already covered).
 > ⚠ D5 DEFERRED BY RULE: it quotes real PROTOTYPE numbers and the standing rule is that no prototype number
 > enters the dissertation — it will be re-instantiated verbatim-in-form from CAMPAIGN sibling records at the
-> bank gate. Original status:** NEW draft prose/specs, not yet wired into any chapter. Per the handoff §4 build plan and
+> bank gate. Original status:**NEW draft prose/specs, not yet wired into any chapter. Per the handoff §4 build plan and
 > the deep-analysis §5: these are the four highest-EV dimension-4 artifacts, drafted under the
 > delegated full permission. Nothing existing was rewritten; hash-bound files untouched. Numbers
 > marked ⟨CAMPAIGN⟩ are placeholders the bank gate fills; every other number is real and sourced.
@@ -19,7 +19,7 @@
 > as a score the software optimises — and in investing, the score that matters most is the one that
 > captures rare, catastrophic losses, not average performance. This dissertation asks a simple
 > question with an uncomfortable answer: **if you show the AI detailed information about those rare
-> losses, does it actually *use* that information when it writes the score?** We built a controlled
+> losses, does it actually *use* that information when it writes the score?**We built a controlled
 > experiment where everything is held identical — the market data, the learning algorithm, the
 > budget — except the *risk information shown to the AI*, and we registered every prediction and
 > decision rule in advance, so the result cannot be massaged after the fact. The answer we test for,
@@ -55,7 +55,7 @@ pre-registered) and the stake (do AIs use numerical evidence) without one formul
 - **Arrow annotations:** SQ1 carries "Spearman ρ = ⟨CAMPAIGN⟩ [CI]"; SQ2 carries "indirect effect
   a·b = ⟨CAMPAIGN⟩ [CI]"; arrow 3 carries "co-primary H2-Tail IUT".
 - **The cut:** a break symbol on the SQ1 arrow with the caption line: *"the chain is severed at its
-  first joint: the fed numbers do not reliably enter the code"* ⟨conditional on the predicted null⟩.
+  first joint: the fed numbers do not reliably enter the code"*⟨conditional on the predicted null⟩.
 - **Alt outcome discipline:** if SQ1 > 0, the same figure renders with the cut moved (or absent) —
   the figure is outcome-neutral scaffolding, built once, filled at the bank gate.
 - Render: TikZ or draw.io→PDF; grayscale-safe; caption ≤ 3 sentences; referenced from CH1 AND the

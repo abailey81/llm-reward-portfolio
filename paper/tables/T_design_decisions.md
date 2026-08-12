@@ -1,42 +1,17 @@
-# Table (CH4 Methods): Design decisions — alternatives, rationale, and cost
-
-**Purpose.** Criterion 2's title is *"clear statement of objectives … appropriateness of methods,
-technique, **reasoning** to answer them"*, and its top band is *"faultless execution, exemplary
-analysis with entirely appropriate methods."* **A stated method cannot be judged appropriate.** A
-justified method, with the alternatives it beat and the price it paid both visible, is what "exemplary"
-means here — and a table is the form a marker can scan. Tables are excluded from the word count.
-
-**Discipline.** Every rationale is either registered (an `R`-amendment or a config-level decision) or
-measured. Where a choice **costs us something**, the cost column says so plainly; where a choice
-**handicaps our own hypothesis**, that is stated in bold, because a design that biases *against* its own
-prediction is far stronger evidence than one that does not.
-
----
-
-| # | The choice | What else was considered | Why this one | What it costs |
-|---|---|---|---|---|
-| 1 | **Long-only** portfolio: a simplex over 30 risky assets + cash, weights ≥ 0 summing to 1 (`config/environment.yaml: type: simplex`) | long-short with a gross-exposure cap; market-neutral | Keeps the action space a probability simplex, so weights are always feasible without a projection that could distort the policy gradient; matches the long-only mandate typical of the institutional portfolios this study speaks to; and removes leverage as a confound, since a tail-aware reward could otherwise "improve the tail" simply by de-levering. | **⚠ HANDICAPS OUR OWN HYPOTHESIS.** Long-only removes the most natural route from *tail awareness* to *tail protection* — the agent cannot short, hedge, or buy protection. The only tail lever left is reallocation among long positions and cash. So if the distributional arm has an advantage, this design makes it **harder** to express, and a null is correspondingly weaker evidence against the mechanism. Stated explicitly rather than discovered by a referee. |
-| 2 | **Fixed point-in-time universe**: the top-30 selected once at the development-window start, held across train / validation / sealed test (`top30_selection_univ5.parquet`, `phase: development`) | rotating the universe per period; walk-forward re-selection (the table *does* carry 8 `walk_forward` windows) | Selection uses only information available at the window start, so it is **PIT-clean with no look-ahead**. A fixed universe also holds the asset set constant across arms, which is required for CRN pairing — a rotating universe would make two arms trade different assets. | The traded universe is **stale** by the end of the sealed window (a 2005-era selection trading into 2026). Bounded empirically rather than hand-waved: an equal-weighted buy-and-hold of those same 30 names returns **+1.2825** Sharpe over the agents' window, behaving like the broad market (+1.1656), so staleness is not driving the results (record §36). |
-| 3 | **SAC held fixed** as the sole headline agent (`config/algos.yaml`) | TQC (distributional critic); PPO; an ensemble | **This is the identification principle.** The study manipulates the *reward*, so the agent must not vary — otherwise a reward effect is confounded with an agent effect. TQC is retained as a *named secondary* experiment (audit A-1), not as a headline arm. | Results are conditional on SAC. A distributional critic might use tail-aware rewards better, so the measured effect is a lower bound on what some other agent could achieve. Declared as a scope limitation, not a defect. |
-| 4 | **B\* = 400,000 steps** per candidate, identical across arms (`R77`) | 200,000 (the earlier `R74` value); train-to-convergence per candidate | Set to the **measured** critic knee by a **pre-committed extended-curve rule**, so the budget was chosen by a rule fixed before the measurement rather than by inspecting outcomes. Identical across arms is what makes the comparison a matched-budget contrast (B1). | 42,128 trainings ≈ **326,254 core-hours**. Per-candidate training-to-convergence was refused because unequal budgets would confound reward quality with compute. |
-| 5 | **10 bps one-way transaction cost**, charged on half-L1-drifted turnover (`headline_bps: 10`) | 0 / 5 / 25 / 50 bps — all four are **registered as a report-only robustness grid**; and the exact analytic reprice `net = gross − bps·1e-4·turnover` | A realistic institutional level for liquid equities, and the linear cost model makes the whole grid recoverable **without retraining**, so cost-sensitivity is free. | The cost is decisive rather than incidental: at ~79 % daily turnover it is a **20 %/year** drag and a **1.07 Sharpe** wedge (record §32). That is a *finding*, not a flaw — but it means every absolute number must be reported net **and** gross. |
-| 6 | **Selection on validation Deflated Sharpe** (`max(val_DSR)`), subject to R115's execution floor | selecting on CVaR; on a tail-weighted composite; on raw Sharpe | A single pre-registered scalar selector keeps selection identical across arms, so no arm is selected on the very quantity it is fed. DSR additionally corrects the expected-maximum inflation from searching 30 candidates. | **⚠ HANDICAPS OUR OWN HYPOTHESIS (self-disclosed, m13).** DSR embeds skew/kurtosis, so it is *not perfectly tail-blind* and the realised scalar already carries **part** of the tail information — which **narrows the contrast under test, biasing against a measured distributional advantage**. The deviation is therefore conservative, and its residual tail sensitivity is common-mode across arms, so it cannot manufacture a between-arm effect. |
-| 7 | **R115 winner-eligibility execution floor**: eligible iff `train_safe_default_count / train_safe_call_count < 0.10` | no floor (the pre-R115 design); a stricter 1 % floor; excluding on performance | Selection on fitness alone could freeze a candidate whose authored reward had silently fallen back to the harness default. **Effect-blind by construction** — it reads an execution counter, never a performance field, and a test asserts this by inspecting the function's source. Registered **pre-data** and threshold-**insensitive** across a 96× empty gap. | Costs one candidate per breach. **Observed binding once in this run**: a candidate with 49.98 % fallback held the *highest* fitness in its arm (+0.2336 against a best eligible +0.000124) and was excluded. A fully broken reward is self-limiting; a **half**-broken one can score best — which is precisely why fitness cannot substitute for the floor (record §35.4). |
-| 8 | **Sealed test split (Split C)**: train 2005–2016, validation 2017–2019, test 2020–2026, with a **60-session purge** before execution | a single train/test cut; k-fold cross-validation; a shorter embargo | The confirmatory test window is looked at **once**, at a pre-declared date. The purge (production lookback 60, dominating the 21-session embargo floor) removes any overlap between validation features and test execution. | The purge silently removes the **COVID crash** from the traded window (execution begins 2020-03-30, not 2020-01-02). Any benchmark must therefore be computed on the agents' **1,571** sessions, not the panel's 1,631 — an error that cost a retraction here and is now analysis-time obligation 8. |
-| 9 | **Two placebo controls**, not one: `placebo` (six inert constants under *neutral* labels) and `placebo_shuffled` (the six real values on *deranged* labels) | a single placebo; no placebo | They isolate two different things. `placebo` matches block **shape and token count** while removing every semantic hint that tail statistics exist — separating *"six numbers are present"* from *"six **tail** numbers are present"*. `placebo_shuffled` keeps the real labels and values and destroys only their **correspondence** — separating *"the tail structure is usable"* from *"tail-ish numbers are present"*. | Two extra arms, i.e. ~20 % more candidates and compute. Verified in the archive: block lengths 67/86/275/293/275 exactly, and the CVaR ladder is monotone in **102/102** distributional blocks against **0/24** shuffled (record §35). |
-
----
-
-## How to use this table in the prose
-
-* **Do not narrate the table.** One sentence pointing at it, then the two rows that carry the argument:
-  row 1 (long-only) and row 6 (the selector), because both **bias against our own hypothesis**. A
-  reviewer who sees a design that makes its own prediction harder to confirm reads everything else more
-  generously.
-* Row 7 is the **methods justification for R115** and should be cross-referenced from the results
-  section where the binding case is reported.
-* Row 8 is where the purge is disclosed; the same fact is the reason every benchmark states its window
-  as `2020-03-30 → 2026-06-30, n=1571`.
-
-**⚠ Maintenance.** If any registered value changes by amendment, this table changes in the same commit.
-A design-decisions table that has drifted from `config/` is worse than none.
+<!-- RELOCATED 2026-08-12. This file is wired in `build_paper.ASSEMBLY`, which is edit-fenced, so it
+     stays present and renders nothing. Its ten tables used to print as an unheaded block of ten pages
+     between the methodology and the first result, which is the defect this move closes: a reader who
+     finished Chapter 4 met ten pages of specification before any finding.
+     WHERE EACH TABLE WENT
+       4.7  the nine arms            -> CH4_methods.md, Table 4.1, beside the sentence that names them
+       4.8  environment              -> Appendix E, Table E.3
+       4.9  confirmatory rules       -> Appendix E, Table E.4
+       4.10 inference machinery      -> Appendix E, Table E.6
+       4.11 model pins               -> Appendix E, Table E.7
+       4.12 the eleven-reward canon  -> CH4_methods.md, Table 4.6
+       4.13 design decisions         -> CH4_methods.md, Table 4.7
+       4.14 reproducibility layers   -> Appendix E, Table E.8
+       4.15 the chain, link by link  -> CH7_discussion..., Table 6.2 (it is a finding, not a method)
+       4.16 the gear train           -> CH7_discussion..., Table 6.3 (same reason)
+     Nothing was deleted, and no citation key left the document: verified by diffing the key set
+     before and after. -->

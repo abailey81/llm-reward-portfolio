@@ -283,7 +283,15 @@
       </group>
     </layout>
   </citation>
-  <bibliography and="text" et-al-min="4" et-al-use-first="1">
+  <!-- entry-spacing and hanging-indent added 2026-08-11. MEASURED CAUSE: pandoc renders the
+       bibliography as a LaTeX list whose \itemsep is (entry-spacing x \baselineskip), and CSL's
+       default entry-spacing is 1. At \footnotesize that put 11.9pt of blank under every one of 283
+       entries, which is 3,368pt, or four and a half pages of white space inside a fifteen-page list.
+       Setting it to 0 removes that; hanging-indent then does the separating, which is how a Harvard
+       reference list is normally set and is more legible than blank space, because the eye finds the
+       author name at the left edge instead of hunting for a gap. Layout only: no citation, no field
+       and no ordering changes, and the rendered text of every entry is byte-identical. -->
+  <bibliography and="text" et-al-min="4" et-al-use-first="1" entry-spacing="0" hanging-indent="true">
     <sort>
       <key macro="author"/>
       <key macro="year-date"/>

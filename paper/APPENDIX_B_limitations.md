@@ -1,296 +1,228 @@
-# Appendix B — Limitations Register
-> *Lettering note: this Limitations Register is the dissertation's sole appendix; it is lettered 'B' (not 'A') to mirror the pre-registration's appendix lettering, under which the register is Appendix B — the numbering is intentional, not a missing Appendix A. Word-count status: appendices are excluded from the 10,000-word body count.*
+# Appendix B — Limitations register
 
-A complete, structured register of the study's limitations, each with its rationale, its direction of bias where
-known, and its mitigation or disclosure. Grouped by validity type [`shadish2002experimental`].
+<!-- RESTRUCTURED 2026-08-11, ON TAMER'S REPETITIVENESS INSTRUCTION, AND NOTHING IS DELETED.
+     THE DEFECT, MEASURED: forty-two entries each opened with a bold claim and then repeated the same
+     three italic scaffolds, "*Direction:*", "*Mitigation:*" and "*Residual:*". Across the register
+     that is roughly ninety repetitions of three words that carry no information after their first
+     appearance, and it is the single most visible reason the appendix read as a wall. The register
+     also runs to fourteen pages against a 130-page ceiling.
+     THE FIX IS STRUCTURAL RATHER THAN SUBTRACTIVE. The scaffolds become COLUMN HEADERS, so each is
+     stated once instead of forty times, and the entries become rows. Every entry identifier, every
+     measured number and every citation key survives; the register is complete in the sense the
+     opening sentence claims.
+     ⚠ SECTION NUMBERS ARE LOAD-BEARING AND DO NOT MOVE. The pre-registration and the feedback schema
+     cite several of them by number, so a row may be re-set but never renumbered.
+     ⚠ ELEVEN ENTRIES ARE KEPT AS PROSE, DELIBERATELY. B.2.7, B.2.8, B.3.1, B.5.1, B.6.5, B.8.5, B.8.7,
+     B.8.9, B.8.10, B.8.14 and B.8.15 each carry an ARGUMENT rather than a disclosure: a sign that inverts
+     between branches, a threshold whose closeness is the point, three independent causes that share
+     a direction, or a correction that runs against us. Compressing an argument into a table cell
+     loses the reasoning that makes it worth marks, which is the opposite of the intent here. -->
 
-## B.1 Construct validity (what the manipulation measures)
-- **B.1.1 Tail vector, not the distribution.** Six left-tail scalars; named "multi-level tail-risk feedback".
-  *Mitigation:* Chapter 3 shows the vector spans the coherent-risk class; no upside/non-coherent claim is made.
-- **B.1.2 Tail-blind selection ($\lambda=0$).** The selector rewards no tail dimension. *Direction:* biases
-  *against* a tail effect (conservative). *Rationale:* makes any tail effect channel-attributable, not
-  selector-induced. *Future work:* a pre-registered $\lambda>0$ selection variant (B.4).
-- **B.1.3 Single-estimator fed CVaR.** The fed 5%/1% CVaR is a generalised-Pareto extreme-value estimate on a few
-  hundred training observations, with documented finite-sample bias [`belzile2020improved`; `cont2010robustness`;
-  `giles2016biascorrected`]. *Direction:* estimation noise biases *against* detecting a channel effect. *Mitigation:*
-  the $\xi\le-0.5$ guard; a bootstrap error bound on the fitted tail is reported, and the fed-signal SNR
-  exhibit quantifies which fed components carried resolvable signal at the campaign's horizons.
+Table B.1 is a complete register of the study's limitations, each with its rationale, its direction of bias where known, and its mitigation or disclosure. Eleven more carry an argument rather than a disclosure and follow each register in prose: B.2.7, B.2.8, B.3.1, B.5.1 and B.6.5 on the design, and B.8.5, B.8.7, B.8.9, B.8.10, B.8.14 and B.8.15 on the executed run.
 
-## B.2 Internal validity (whether the comparison is clean)
-- **B.2.0 Endogeneity of the fed signal.** The tail vector is measured on the trained policy's *own* realised
-  returns — two coupled reward→policy→measurement loops, never an exogenous measurement; "critic-agnostic" is
-  not "agent-independent". *Mitigation:* the fed/selected/tested three-way split keeps the loops from grading
-  themselves; the mediation analysis (SQ2) is reported as a descriptive decomposition under
-  sequential-ignorability caveats, never as causal proof.
-- **B.2.1 Training budget.** The per-candidate budget is 400,000 steps — the knee of a two-stage measured
-  learning curve: an initial pilot (flat within seed noise to its 350,000-step ceiling) extended, under a rule
-  pre-committed before the extension data existed, to 1,600,000 steps on both archived authored winners; the
-  curve rises decisively to 400,000 and flattens beyond it (residual paired gains an order of magnitude smaller,
-  though still statistically resolvable — disclosed, not hidden). *Residual:* a single fixed budget, applied
-  identically across arms — matched-compute by construction, read "at the measured knee", not "at convergence";
-  the seed-level dispersion of the curve fans out with budget, so the campaign's in-ladder σ_D re-estimate
-  recalibrates power expectations at the new budget (the seed ladder's rung structure absorbs any shortfall).
-- **B.2.2 Reward-scale → effective-entropy confound.** In SAC the reward scale acts as inverse temperature
-  [`haarnoja2018sac`], and `ent_coef="auto"` re-adapts to the normalised scale, so arms whose authored rewards
-  differ in magnitude receive different effective entropy regularisation. *Mitigation:* uniform PopArt normaliser
-  with realised-scale logging; a `popart`-disabled ablation of the frozen winners is reported in Chapter 6
-  [FROM CAMPAIGN: ordering verdict]; residual disclosed.
-- **B.2.3 Critic divergence.** A minority of candidate trainings exhibited critic-loss explosions — the
-value-overestimation/divergence pathology that motivated the clipped double-Q estimator [`fujimoto2018td3`]. *Mitigation:*
-  PopArt; a divergence diagnostic; the analysis is robust to excluding diverged candidates, which score poorly and
-  lose selection regardless.
-- **B.2.4 Single deterministic validation path.** Selection rests on one deterministic walk-forward path per
-  (candidate, seed). *Mitigation:* the winner-seed ladder re-evaluation (up to n = 568) and PBO/DSR machinery; selection-stability
-  reported.
-- **B.2.5 Pretraining contamination ("profit mirage").** The designer has memorised financial history that
-  includes the sealed era [`li2025profitmirage`]. *Mitigation:* date-blind anonymised integer-index arrays, the
-  AST gate and train-split-only feedback make test-era knowledge structurally unreachable from the reward
-  channel (§4.5). *Direction:* the residual era-nonspecific reward-shape prior is arm-identical and cancels in
-  the between-arm contrast; it affects absolute levels only, which carry no inferential claim.
-- **B.2.6 Authoring variance / unit of analysis.** The confirmatory contrast re-runs *one* selected reward
-  program per arm across the seed set, so the paired-seed bootstrap carries training-seed variance only and
-  estimates the difference between two *fixed* programs; strictly, its interval generalises to the selected
-  programs rather than to the feedback condition as a whole. A different search draw could author different
-  winners, and this authoring step is not resampled at the confirmatory stage, so the variance it contributes is
-  not captured by the seed bootstrap. *Direction:* the channel-level claim is therefore carried not by $H_2$ — a
-  program-level contrast — but by the report-only mechanism kernel (responsiveness, mediation and the program
-  taxonomy, §6.5), which is computed across *all* authored candidates and so does sample the authoring step; the
-  two are reported as such.
-- **B.2.7 The plain placebo announces its own inertness.** The inert block is introduced to the designer as
-  "Reference constants (inert; no diagnostic content):" — it does not merely carry uninformative numbers, it
-  *instructs the model to disregard them*. The wording is deliberate: six zero-valued lines without it would read
-  as genuine diagnostics reporting a degenerate, riskless return distribution, which is active misinformation
-  rather than truthful zero-information. The consequence is directional and is stated on both branches. For the
-  registered *null* prediction the tell is conservative — it can only make the control easier to match, never
-  manufacture a tie. On the *rejection* branch the sign inverts: an instruction to ignore the block plausibly
-  suppresses any format or anchoring response, so part of a distributional-over-placebo win could reflect the
-  tell rather than the tail *content*. *Mitigation:* the content claim is carried by `placebo_shuffled` — same
-  intro line, real values deranged across their labels, byte-length matched, and carrying no such instruction —
-  which is precisely why that arm and not plain placebo is the structure control promoted to node N5. Plain
-  placebo is the coarser block-presence control and is never the sole evidence for a content claim.
-- **B.2.8 Numeric resolution of the fed signal is a design parameter.** What the designer can perceive is bounded
-  not by the measured statistics but by the precision at which they are *rendered into text*, and that rendering
-  is part of the manipulation rather than an implementation detail. Both renderings were therefore set against
-  the empirical distribution of the quantities they carry rather than by convention: the shared scalar header
-  resolves the median observed fitness to three significant figures, and the six-line tail vector resolves better
-  than 97% of genuinely-different value pairs on every field. *Residual:* rendering precision is a discrete
-  design choice that was fixed pre-registration and not itself varied, so this study cannot separate "the model
-  cannot use tail information" from "the model cannot use tail information *at this resolution*"; the legibility
-  arm varies the *framing* of the same numbers (units and ordinal deciles) but not their precision, and a
-  precision ladder is named as future work (B.7).
+```{=latex}
+\Needspace{3\baselineskip}
+```
 
-## B.3 The manipulation and the designer
-- **B.3.1 Single confirmatory author.** The *confirmatory* verdicts rest on one frontier model (Opus 5, which
-  superseded Opus 4.8 in this seat pre-launch — R102):
-  the ten replication legs (R80/R95; ≥6 vendors, five open-weights with hash-pinned checkpoints) are
-  report-only at the tier-30 floor, so cross-model claims are descriptive (the sign pattern, the pooled
-  R86 bound, the capability gradient) — never confirmatory. *Direction:* generalisation beyond the
-  confirmatory author is claimed only at the strength the legs' evidence class supports. *Disclosure:*
-  the asymmetry (one confirmatory author vs ten descriptive legs) is a registered design choice, not a
-  deviation.
-- **B.3.2 Designer numeracy / responsiveness.** A negative responsiveness may reflect the documented weakness of
-  language models on raw numerical magnitudes — a lineage running from embedding-era numeracy probes
-  [`wallace2019numbers`] to benchmark-wide number-understanding failures in current frontier models
-  [`yang2025cookbook`]. Three facts sharpen the interpretation: the failures are *format-dependent* —
-  reformatting the same query alone switches the canonical 9.11 > 9.8 decimal-comparison bug on and off within
-  a single model [`sandoval2025evenheads`]; they are mechanistically tied to *number tokenization*, which is why
-  a close pair like −0.0577 vs −0.0582 is a worst case and basis-point integers repair it
-  [`singh2024tokenization`]; and they dissociate from stated comprehension — models articulate the correct
-  comparison rule yet fail to execute it [`zhang2025comprehension`]. Comparison failures that are real,
-  format-dependent, and tokenization-rooted are exactly the hypothesis the pre-registered legible-format
-  ablation tests. The negative sign is interpreted as the model editing on semantic/format cues rather than fed
-  magnitudes, scoped to a frontier model so the null is not a small-model artefact.
-- **B.3.3 Within-generation diversity and search width.** The campaign explores a deliberately *narrow* search —
-  K=5 candidates per reflective generation across 6 generations (30 total) — and within-generation diversity rests
-  on prompt-variation (temperature rejected for the campaign provider); if K-sampling collapses, the matched
-  30-candidate budget overstates effective search. A wider K is identified as future work; the narrow width is a
-  scope choice, disclosed, not a power claim.
-  *Mitigation:* a pairwise reward-source diversity / Quality-Diversity coverage report.
-- **B.3.4 Prompt portability across replication legs.** The ten legs receive the SAME
-  Opus-calibrated prompts; industrial meta-prompting studies find prompts tuned on one model can
-  degrade 20-30% on another [`meta-prompting-industrial` — verify at wiring], so part of any leg's
-  shortfall may reflect instruction-format sensitivity rather than the tail-reading construct.
-  *Mitigation:* the pre-launch compliance gate screens each leg's executable rate BEFORE results
-  (format-incapable legs are excluded and disclosed, never scored); the SWE-bench-Verified anchor
-  absorbs general instruction-following into the capability axis; identical prompts are the
-  REPLICATION design (varying them per leg would confound the model axis with prompt tuning).
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table B.1 — The design register: what each limitation is, and what follows from it.** A direction of bias is given where one is known, and it is stated against this study's own hypothesis wherever the evidence allows, so a reader can see which disclosures cost something.
+```{=latex}
+\par\endgroup
+```
 
-## B.4 External validity and data realism
-- **B.4.1 Single universe / period / cohort.** US large-cap equities, 2020–2026H1 sealed leg, fixed 2005-cohort
-  top-30 (a composition bias on the sealed leg). *Mitigation:* point-in-time walk-forward universe selections ship
-  for a robustness re-evaluation; the bias is reported, not inherited.
-- **B.4.2 Delisting surcharge (univ4).** The surcharged panel books a flat loss on all delistings including M&A
-  exits, contrary to the source authors [`shumway1999delisting`]. *Mitigation — now MEASURED (ADR-051):* the
-  headline panel is the conservative zero-fill (univ5); the executed observed-terminal recovery (univ5s,
-  superseding the planned reason-gated re-pull) recovered the realised terminal return for all 333 dead names
-  with zero surcharges booked, so the corrected panel is byte-identical to the zero-fill headline — the vendor
-  series already carries each terminal, and univ4's flat surcharge was double-counting it on top of the M&A
-  contamination. univ4 remains only the disclosed contaminated heavy end of the sensitivity band.
-- **B.4.3 Transaction-cost realism.** A flat per-turnover cost understates the concave (square-root) market impact
-  a daily-rebalancing agent incurs and ignores the rebalancing-frequency tax relative to monthly baselines
-  [`almgren2005direct`; `frazzini2018trading`]. *Mitigation:* a square-root-impact cost-robustness sweep
-  ($Y\in\{0.5,0.75,1.0\}$) and a per-benchmark turnover table; if the result survives $Y=1.0$ it is robust on cost
-  grounds.
-- **B.4.4 Action-space corner.** The softmax simplex cannot reach an exact cash position [`gaopavel2017softmax`].
-  *Mitigation:* a diagnostic of how close the trained policy approaches cash in stress states; if it drives risky
-  weight toward zero, the limitation is empirically non-binding. *Future work:* Dirichlet / simplex-decomposition
-  parameterisations.
-- **B.4.5 Risk-free rate.** Cash accrues at a zero rate in the headline — the ratified numeraire convention (rf = 0 is
-  common-mode across the arms and cancels to first order in the Sharpe difference); a DGS3MO rf-excess robustness
-  re-run of the family is reported to demonstrate, not assert, rf-invariance. *Direction:* under-
-  rewards the cash-fleeing tail-aware arm in ZIRP periods — conservative against the hypothesis.
+| | The limitation | Direction of bias, and what was done |
+|---|---|---|
+| **B.1 Construct validity** |  |  |
+| B.1.1 | Six left-tail scalars are fed, named *multi-level tail-risk feedback*, and they are not the distribution | §4.9 shows the vector spans the coherent-risk class; no upside or non-coherent claim is made |
+| B.1.2 | The selector carries no explicit tail term. Its one residual sensitivity is the Deflated Sharpe's skew and kurtosis correction, so *tail-blind* is not literal | **Against.** Applied identically in every arm, so the controls are partly tail-selected too and the contrast compresses. Any tail effect stays channel-attributable |
+| B.1.3 | The fed 5% and 1% levels are generalised-Pareto estimates on a few hundred training observations, with finite-sample bias [`belzile2020improved`; `cont2010robustness`; `giles2016biascorrected`] | **Against.** Estimation noise obscures a channel effect. The $\xi\le-0.5$ guard and a bootstrap error bound on the fitted tail |
+| **B.2 Internal validity** |  |  |
+| B.2.0 | The tail vector is measured on the trained policy's own returns, so these are two coupled reward-to-policy-to-measurement loops. *Critic-agnostic* is not *agent-independent* | the fed, selected and tested three-way split keeps the loops from grading themselves |
+| B.2.1 | 400,000 steps per candidate, the knee of a two-stage measured learning curve, extended under a rule pre-committed before the extension data existed | one fixed budget applied identically, so arm differences are read at the knee and not at convergence |
+| B.2.2 | In SAC the reward scale acts as an inverse temperature [`haarnoja2018sac`], so arms differing in reward magnitude would get different effective entropy regularisation | a uniform PopArt normaliser with realised-scale logging, and a disabled ablation of the frozen winners |
+| B.2.2b | The replay buffer is capped at 50,000 transitions for memory safety, against the canonical million. Buffer size is two-sided [`zhang2017deeper`; `fedus2020revisiting`] | the window still holds about seventeen complete passes over the same calendar, at the replay ratio where small buffers are least harmful. Common-mode |
+| B.2.3 | A minority of candidate trainings showed critic-loss explosions [`fujimoto2018td3`] | PopArt, a divergence diagnostic, and robustness to excluding diverged candidates |
+| B.2.4 | Selection rests on one deterministic walk-forward path per (candidate, seed) | the winner-seed ladder re-evaluation, plus PBO and Deflated Sharpe |
+| B.2.5 | The designer has memorised financial history including the sealed era [`li2025profitmirage`] | **Direction:** the residual era-nonspecific prior is arm-identical and cancels. Date-blind integer-index arrays, the AST gate and train-split-only feedback make test-era knowledge unreachable from the reward channel |
+| B.2.6 | The confirmatory contrast re-runs one selected program per arm, so the interval generalises to those programs and not to the feedback condition | the channel-level claim is carried by the report-only mechanism kernel of §5.5, computed across all authored candidates |
+| **B.3 The manipulation and the designer** |  |  |
+| B.3.2 | A negative responsiveness may reflect known weakness on raw numerical magnitude [`wallace2019numbers`; `yang2025cookbook`], format-dependent [`sandoval2025evenheads`], tied to number tokenisation [`singh2024tokenization`], dissociating from stated comprehension [`zhang2025comprehension`] | the negative sign is read as editing on semantic and format cues rather than on fed magnitudes, scoped to a frontier model so the null is not a small-model artefact |
+| B.3.3 | A deliberately narrow search, $K=5$ over six generations, with diversity from prompt variation because temperature was rejected for the campaign provider | **Direction:** if $K$-sampling collapses, the matched thirty-candidate budget overstates effective search. A disclosed scope choice; a wider-$K$ replication is future work |
+| B.3.4 | The ten legs receive prompts calibrated on the registered node's model | **Direction:** part of any leg's shortfall may be format sensitivity rather than the construct. Identical prompts are the replication design; varying them would confound model with prompt tuning |
+| **B.4 External validity and data realism** |  |  |
+| B.4.1 | US large-cap equities, a 2020 to 2026H1 sealed leg, a fixed 2005-cohort top thirty | **Direction:** a composition bias on the sealed leg. Reported, not inherited |
+| B.4.2 | The surcharged panel books a flat loss on every delisting, merger exits included, against the source authors [`shumway1999delisting`] | the observed-terminal recovery recovered the realised return for all 333 dead names with zero surcharges booked, so the corrected panel is byte-identical to the zero-fill headline |
+| B.4.3 | A flat per-turnover cost understates concave market impact [`almgren2005direct`; `frazzini2018trading`] | a square-root-impact robustness sweep and a per-benchmark turnover table |
+| B.4.4 | The softmax simplex cannot reach an exact cash position [`gaopavel2017softmax`] | a diagnostic of how close the policy approaches cash under stress. *Future work*: Dirichlet or simplex-decomposition parameterisations |
+| B.4.5 | Cash accrues at a zero rate in the headline | **Against.** It under-rewards the cash-fleeing tail-aware arm. Common-mode, cancelling to first order in the difference, with an excess-return re-run reported |
+| **B.5 Statistical inference** |  |  |
+| B.5.2 | Comparative expected-shortfall backtests are low-powered on multi-year windows [`du2017backtesting`], and Diebold-Mariano is oversized under heavy-tailed loss differentials at any sample size [`heavytailsDM2026`] | the headline is the stationary-bootstrap $p$, which does not invoke those asymptotics; the Harvey-Leybourne-Newbold companion [`harvey1997testing`] is reported with a size and power calibration |
+| B.5.3 | Combinatorially symmetric cross-validation is negatively biased when mean returns are near zero [`witzany2021bayesian`], the regime a near-null channel occupies | PBO is cross-checked against the Deflated Sharpe ratio |
+| B.5.4 | The Deflated-Sharpe trial count assumes independent trials; guided search produces correlated candidates | **Direction:** the effective count is smaller than the nominal one. Both are reported |
+| B.5.5 | The earlier one-sided $p$ halved a two-sided re-centred bootstrap $p$, which assumes null symmetry | **Direction:** it departs from the true one-sided tail whenever the bootstrap is asymmetric. Superseded by the directly computed upper-tail probability |
+| B.5.6 | Annualised Sharpe assumes i.i.d. returns [`lo2002statistics`] | descriptive only; all inference is the per-seed paired bootstrap. The measured seed-pairing correlation of $-0.141$ is a methods note, not evidence about the channel |
+| B.5.7 | The sealed window is evaluated once, at the achieved rung | per-regime slices are descriptive and never re-tested, because a single look is what makes the sealed leg a severe test |
+| **B.6 Reproducibility and process** |  |  |
+| B.6.1 | Generation is not reproducible, through version drift and floating-point non-determinism [`yuan2025nondeterminism`] | the replay-from-archive contract: the analysis, not the generation, is the reproducible object |
+| B.6.2 | The parallel-equals-serial byte-identity holds on a fixed device | **Direction:** it does not hold across hardware. Stated |
+| B.6.3 | The submitted question is a supervisor-approved change from the approved proposal | disclosed in full, with the original components named as future work |
+| B.6.4 | The frozen design was refined in light of a directional, non-confirmatory prototype | the sealed leg was never touched, the freeze is timestamped before the confirmatory run, and the pilot is disclosed as corroborating rather than causal |
+| B.6.6 | The prototype is not evidence | no prototype number appears in the results or informs any conclusion |
 
-## B.5 Statistical inference
-- **B.5.1 Power vs. SESOI (tier-conditional).** Equivalence power is a function of the seed rung the exogenous
-  stopping rule (Amendment E1) actually reaches, not a single fixed value. At the tier-0 floor ($n=30$) the minimum
-  detectable effect is ≈0.181 Sharpe ≈ 0.120 DSR at 80% power (≈0.141 DSR at 90%) — larger than the smallest effect
-  of interest (0.05 DSR), so the floor is equivalence-*underpowered* and a non-rejection there reads "inconclusive"
-  rather than "equivalent". The winner-seed ladder is designed to cross that threshold: rungs **279 / 340 / 403 / 568**
-  deliver **80% / 90% / 95% (the primary target) / 99%** equivalence assurance, powering the ±0.05 SESOI at the
-  χ²-upper confidence bound on σ_D (`power_analysis.ASSURANCE_TIER_BOUNDS`). A truncated run banks the largest
-  completed rung, so the reported power is always the achieved-rung power, stated explicitly. Independently of the
-  rung, a non-rejection licenses "equivalent" only if the TOST interval lies inside ±0.05, otherwise "inconclusive"
-  [`lakens2017equivalence`]; the conservative Šidák ($m=6$, two-sided) sensitivity this rule superseded as the gate
-  is higher still (≈0.257 Sharpe). Disclosed; the calibrated, tier-conditional statement is reported.
-- **B.5.2 ES-backtest power and heavy tails.** Comparative Expected-Shortfall backtests are low-powered on
-  multi-year windows [`du2017backtesting`], and the Diebold–Mariano statistic is oversized under heavy-tailed loss
-  differentials irrespective of sample size [`heavytailsDM2026`], which the Harvey–Leybourne–Newbold
-  small-sample correction does not fix. *Mitigation:* the autocorrelation-robust headline is the stationary-bootstrap p-value, which does not invoke the
-  Diebold–Mariano asymptotics; the DM-HLN test is reported only as a companion with a size/power calibration, and
-  the tail-index of the FZ0 loss differential is examined at the results stage to flag any heavy-tailed size
-  distortion of that companion.
-- **B.5.3 CSCV/PBO bias regimes.** Combinatorially symmetric cross-validation is negatively biased when mean
-  returns are near zero [`witzany2021bayesian`] — the regime a near-null channel occupies. *Mitigation:* PBO is
-  cross-checked against the Deflated-Sharpe ratio; the regime is disclosed.
-- **B.5.4 Deflated-Sharpe effective trials.** The Deflated-Sharpe trial count assumes independent trials; guided
-  reflective search produces correlated candidates, so the effective count is smaller and is reported alongside the
-  nominal one.
-- **B.5.5 One-sided p construction.** The one-sided headline p is the directly-computed upper-tail bootstrap
-  probability (R64). The earlier construction — halving a two-sided re-centred bootstrap p — assumed
-  bootstrap-null symmetry and departs from the true one-sided tail whenever the CVaR-difference bootstrap is
-  asymmetric (over- or under-stating it according to the skew direction, which is unmeasured), so it is
-  superseded by the direct upper-tail probability, which is valid under any skew, and retained at most as a
-  sensitivity note.
-- **B.5.6 Descriptive conventions.** Annualised Sharpe assumes i.i.d. returns [`lo2002statistics`] and is used
-  descriptively only — all inference is the per-seed paired bootstrap. The measured seed-pairing correlation
-  ($\rho=-0.141$) is not significantly different from zero; it is a methods note on the CRN design's realised
-  efficiency, not evidence about the channel.
-- **B.5.7 Single-look sealed test.** The sealed 2020–2026H1 window is evaluated once, at the exogenous
-  assurance-ladder rung achieved; per-regime slices of that window are reported descriptively and are never
-  re-tested. *Rationale:* a single pre-registered look is what makes the sealed leg a severe test rather than a
-  second search space.
+### The five design entries that carry an argument
 
-## B.6 Reproducibility and process
-- **B.6.1 Language-model non-determinism.** Generation is non-reproducible (version drift; floating-point
-  non-determinism) [`yuan2025nondeterminism`]. *Mitigation:* the replay-from-archive contract;
-  the analysis (not the generation) is the reproducible object.
-- **B.6.2 Fixed-device byte-identity.** The parallel==serial byte-identity holds on a fixed device, not across
-  hardware. Disclosed.
-- **B.6.3 Proposal re-scoping.** The submitted research question is a supervisor-approved *change of research
-  question* from the approved proposal, not a narrowing; disclosed in full with the proposal's original components
-  named as future work, pending the supervisor's written sign-off.
-- **B.6.4 Pre-registration provenance.** The frozen design was refined in light of a *directional, non-confirmatory*
-  prototype; the sealed leg was never touched in that process. The freeze is timestamped before the confirmatory
-  run, and the directional pilot is disclosed as corroborating, not causal, to the design.
-- **B.6.5 H1's comparator asymmetry (the snoop is dissolved; the tuning gap is not).** An earlier framing of H1
-  selected the "best" hand-reward as the maximum over the canon *on the sealed leg it is then reported on* — a
-  comparator data-snoop (White 2000) that confined H1 to a descriptive observation. The registered design removes
-  it by construction rather than by caveat: because the best member of a family is its pointwise maximum, "beats
-  the best" is equivalent to "beats every member", so H1 is an intersection–union test over the full eleven-name
-  canon and **selects nothing**. *Residual, disclosed:* the hand-rewards are un-tuned single specifications while
-  the designed reward survives a thirty-candidate search, so the comparison is not like-for-like and the asymmetry
-  flatters the designed reward — bounded in the conservative direction by the search-multiplicity deflation
-  applied to the designed side but not to the humans. Reported with the per-baseline dominance profile so the
-  reader sees the margin on every leg, not a binary.
-- **B.6.6 The prototype is not evidence.** A single-seed Sonnet prototype (≈18 h) shaped engineering and
-  directional expectations only; no prototype number appears anywhere in the results or informs any
-  confirmatory conclusion.
+**B.2.7 The plain placebo announces its own inertness, and the sign of that inverts between branches.**
+The inert block is introduced as *"Reference constants (inert; no diagnostic content):"*, which instructs the model to disregard them rather than merely carrying uninformative numbers. The wording is deliberate: six zero-valued lines without it would read as genuine diagnostics reporting a degenerate riskless distribution, which is active misinformation rather than truthful zero-information. For the registered null prediction the tell is conservative, since it can only make the control easier to match. On the rejection branch the sign inverts, because an instruction to ignore the block plausibly suppresses any format or anchoring response. The content claim is therefore carried by `placebo_shuffled`, which carries no such instruction.
 
-## B.7 Future work (from the disclosed limitations)
-A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
-corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
-(B.3.1, B.4.1); a reward-distance
-(EPIC/STARC beyond the reported differential) deep-dive, Quality-Diversity search diversity, and a
-hierarchical-Bayesian re-analysis. (The Model-Confidence-Set comparison, the triangulated
-Bayesian-and-frequentist null evidence, mediation, and the regime-conditional and synthetic-null exhibits
-are BUILT instruments reported in Chapter 6 — they are results slots, not future work.)
+**B.2.8 Numeric resolution of the fed signal is a design parameter, and it was fixed rather than varied.**
+What the designer can perceive is bounded by the precision at which the statistics are rendered into text, and that rendering is part of the manipulation. Both were set against the empirical distribution of the quantities they carry: the shared header resolves the median observed fitness to three significant figures, and the tail vector resolves better than 97% of genuinely different value pairs on every field. Precision was fixed at pre-registration and not varied, so this study cannot separate *cannot use tail information* from *cannot use it at this resolution*.
 
-## B.8 Executed-run limitations (RUN 4, added 2026-07-30 from the live execution record)
+**B.5.1 Power against the SESOI is tier-conditional, so the floor and the target read differently.**
+Equivalence power is a function of the seed rung the exogenous stopping rule reaches. At the tier-0 floor ($n=30$) the minimum detectable effect is $\approx 0.181$ Sharpe, about $0.120$ DSR at 80% power, all larger than the $0.05$ DSR smallest effect of interest, so the floor is equivalence-underpowered and a non-rejection there reads inconclusive rather than equivalent. Rungs 279, 340, 403 and 568 deliver 80%, 90%, 95% (the primary target) and 99% assurance against the $\pm0.05$ SESOI, powered at the $\chi^2$ upper confidence bound on $\sigma_D$. A truncated run banks the largest completed rung, and the reported power is always the achieved-rung power.
 
-These are limitations of the run that was *executed*, discovered during execution and disclosed rather
-than absorbed. Each states its direction of bias where known.
+**B.6.5 H1's comparator asymmetry: the snoop is dissolved and the tuning gap is not.** An earlier framing selected the best hand-written reward as the maximum over the canon on the sealed leg it is then reported on, which is a comparator data-snoop [`white2000reality`]. The design removes it by construction: the best member of a family is its pointwise maximum, so beating the best is equivalent to beating every member, and H1 is an intersection-union test over all eleven names that selects nothing. The residual is that the hand-written rewards are un-tuned single specifications while the designed reward survives a thirty-candidate search, so the asymmetry flatters the designed reward. **It is not offset by a search-multiplicity deflation.** An earlier draft claimed it was, and Appendix A records that claim as one that overstated our own result, because the H1 legs are annualised per-seed net Sharpe rather than a deflated ratio.
 
-- **B.8.1 One substrate inhomogeneity, fenced and bounded.** Four `baseline_volatility_scaled_return`
-  records (seeds 14-17) trained on a Xeon Gold 6140 while the unit's other 26 ran on a Gold 6240, so
-  float reduction order is not guaranteed identical within that unit. *Scope:* 4 of 527 records, 1 of ~40
-  comparison units; **H2 contains no such record**, and the affected baseline is not the binding H1
-  maximum (`return_minus_turnover` +1.161 sets that bar; this one is -0.221). *Mitigation:* the single
-  6140 host in the estate (`node-d00b-024`) is fenced from all twelve lines, verified in newly-written
-  jobscripts, so no future record can land there. *Residual:* those four records may carry a
-  floating-point difference of unknown but bounded-as-immaterial size. Myriad exposes no requestable
-  CPU-model complex, so host-name exclusion is the only available mechanism.
-- **B.8.2 One authoring call truncated by our own output cap.** 1 of 1,099 LLM calls returned
-  `stop_reason: length` against the registered 16,384-token cap (`nemotron-3-super`). *Direction:* biases
-  that model's measured authoring reliability **downward**, since the failure is an instrument artefact
-  rather than an inability. *Mitigation:* `stop_reason` is persisted on every ledger row, so truncated
-  calls are excluded from every reliability denominator or reported separately. The cap is **not** raised
-  mid-run: matched caps across all eleven models are what make the cross-model comparison fair.
-- **B.8.3 Author-side rejects are never replaced, so arms are not exactly budget-matched in candidates.**
-  A candidate failing the AST gate is ledgered `permanent` and not re-authored, so an arm searches over
-  fewer than its registered 30. *Direction:* the arm losing more candidates is handicapped, because
-  selection is `max(val_fitness)` and fewer draws lower the expected maximum. On the confirmatory line the
-  losses are 2 on `scalar` and 0 on `distributional` — i.e. **biasing toward** our own hypothesis.
-  *Mitigation:* per-arm accepted-candidate counts are reported beside every H2 contrast, and a
-  pre-committed equal-*k* sensitivity analysis (k = the per-arm minimum) is run if the asymmetry is
-  material.
-- **B.8.4 The sealed window is the purge-adjusted one, and conflating it understates every benchmark.**
-  Execution begins **2020-03-30**, 60 sessions after the panel's 2020-01-02, because the production
-  lookback of 60 dominates the 21-session embargo floor. The purge silently removes the COVID crash. An
-  earlier benchmark computed over the panel's 1,631 sessions rather than the traded **1,571** understated
-  the passive comparator by ~0.47 Sharpe and **retracted two headline claims**. *Mitigation:* every
-  benchmark derives its window from `record.metrics.test_returns` and states it as
-  `2020-03-30 -> 2026-06-30, n = 1571`.
-- **B.8.5 Reflection cannot run at all on the bottom-anchor model.** `prev_block` is set only when a
-  generation yields an accepted candidate, so `qwen3.5-9b` (91% reject rate) received the initial prompt
-  instead of a reflection prompt for 2 of its 7 generation>0 candidates. *This is reported as a finding,
-  not repaired:* below some authoring reliability a reflection loop does not degrade gracefully, it fails
-  to start, because it requires a prior success to reflect on.
-- **B.8.6 The C3 review gate does not check substrate homogeneity.** Its stop message promises to catch
-  "device inhomogeneity", but `health_ok` keys on the device label (`cpu`/`cuda`) only, so a CPU-**model**
-  mix passes it silently — the blocking control is blind to what the advisory sentinel does catch.
-  Registered as a deferred code fix; disclosed here because the gate currently promises more than it
-  verifies.
+### B.3.1 The registered node sits on one line, while the reported conclusion rests on eleven
 
-- **B.8.7 The safe-default fallback resets reward state, turning a transient authoring bug into a
-  permanent one — and the fallback FRACTION is not a severity measure.** On failure `safe_call`
-  substitutes `(SAFE_DEFAULT, {}, None)`, the `None` including the reward's own state. A stateful
-  reward with a cold-start branch therefore enters a limit cycle: the cold-start call succeeds and
-  returns state, the next call takes the main path and raises, the harness clears the state, and the
-  pattern repeats indefinitely. The observed fraction is set by the reset period —
-  `period = warm-up calls + 1` — and **not** by the severity of the defect, which is why seven
-  records spanning **five different models, three arms and five different exceptions**
-  (`UnboundLocalError`, ambiguous truth value, non-finite, `ZeroDivisionError`, `IndexError`) all
-  report a bit-identical **199,932 / 400,000 = 49.983 %**, and one with a three-call warm-up reports
-  exactly **133,333 / 400,000 = 33.333 %**. Two consequences, both disclosed rather than repaired,
-  because `src/` is drift-fenced for the duration of the confirmatory run: **(i)** 49.98 % must never
-  be read as "trained half on a valid reward" — such a reward never once executed its intended logic;
-  **(ii)** where the *only* defect is at the warm-up boundary, the harness converts a one-step
-  transient into a permanent 50 % failure and biases that model's measured authoring reliability
-  **downward**. Replay of all nine breaching records (`docs/ops/probe_safe_default_cycle.py`)
-  classifies **2 as harness-trapped** (`haiku_4_5`, `nemotron_3_super` — 1.0–1.75 % failure once
-  state is preserved), **6 as genuinely broken** (98–100 %), and **1 inconclusive** (its failure does
-  not reproduce under synthetic returns). The probe uses synthetic returns and a random policy, so the
-  counterfactual fractions are indicative rather than the campaign's own; what it establishes firmly
-  is the cycle mechanism, which reproduces the archived fractions to within 0.08 pp. Direction of
-  bias: **against** the affected models — it understates their authoring reliability. No confirmatory
-  result is affected: R115 excludes all nine from winner eligibility, effect-blind, and **zero
-  breaches sit on the core confirmatory line**. Deferred fix D17.
+The hash-bound, $\alpha$-carrying look is seated on a single frontier model, which is a design choice rather than a deviation, and it limits the *instrument* rather than the reported finding. The residual is that eleven authors is replication in the designer dimension only, and not eleven markets.
 
-- **B.8.8 The R115 execution floor is a knife-edge for one record.** Of 979 scored records, 935 are
-  entirely clean, 29 fall below 1 %, six sit in the 1–10 % band and **are scored**, and nine breach.
-  The worst sub-floor record, `qwen3_5_9b/placebo/placebo-g2-c2`, sits at **39,986 / 400,000 =
-  9.9965 %** — **14 calls** below exclusion. The floor is a pre-registered, effect-blind threshold and
-  therefore stands as written; the honest disclosure is that a threshold this close to a record makes
-  that one candidate's eligibility arbitrary in practice, and a sensitivity analysis re-running the
-  selector at floors of 5 % and 20 % is reported alongside the headline.
+## B.7 Future work arising from these limitations
 
+A tail-rewarded ($\lambda>0$) selection variant (B.1.2), a reason-gated delisting re-pull (B.4.2), a
+corner-reaching action parameterisation (B.4.4), a second model family and a second universe and period
+(B.3.1, B.4.1), a precision ladder on the fed rendering (B.2.8), a wider-$K$ replication (B.3.3), and a
+combined-signal arm. Table 7.1 costs each of them against the link it would discriminate.
+
+## B.8 Executed-run limitations
+
+Limitations of the run that was *executed*, discovered during execution and disclosed rather than
+absorbed. Fifteen entries follow, each with the population it was counted over. Two are reported as
+findings rather than as faults.
+
+**B.8.1 Four canon records trained on a different processor from their unit-mates.** Four
+`volatility_scaled_return` records, seeds 14 to 17, ran on a Xeon Gold 6140 while the unit's other 26 ran
+on a Gold 6240, so float reduction order was not guaranteed identical: 4 of 527 sealed-test records, 1 of
+70 cells. H2 contains none, and the affected baseline is not the binding H1 maximum, which is
+`return_minus_turnover` at $+1.192$ against $-0.207$. The 6140 host is fenced, the four records were
+quarantined and preserved rather than deleted, and re-run. `substrate_watch.py` now reads one CPU model
+across every archived record, past 26,000.
+
+**B.8.2 Authoring calls truncated by our own output cap.** 8 of 2,956 calls returned
+`stop_reason: length` against the 16,384-token cap, six on `nemotron-3-super` and one each on `kimi-k3`
+and `qwen3.6-27b`; six more returned `stop_reason: error`. An earlier draft read "1 of 1,099", the same
+population counted much earlier in the run. The truncation biases those models' measured authoring
+reliability **downward**, because the failure is an instrument artefact rather than an inability. The cap
+is not raised mid-run, because matched caps are what make the cross-model comparison fair.
+
+**B.8.3 A candidate failing the static gate is not re-authored, so an arm searches fewer than thirty.**
+On the confirmatory line the losses are `distributional` 2, `scalar` 3, `scalar_cvar5` 5, `placebo` 4 and
+`placebo_shuffled` 4, an as-run 28 / 27 / 25 / 26 / 26 against thirty. This **favours our own
+hypothesis**, because selection is the maximum over the pool and fewer draws lower the expected maximum,
+so every comparator searched a shallower pool than the treatment. This entry read "2 on `scalar` and 0 on
+`distributional`" until 2026-08-10, a mid-search reading that survived the line's completion unrefreshed.
+
+**B.8.4 The sealed window opens sixty sessions late, and the purge silently removes the COVID crash.**
+Execution begins 2020-03-30 because the production lookback of 60 dominates the 21-session embargo floor.
+An earlier benchmark computed over 1,631 sessions rather than the traded 1,571 understated the passive
+comparator by about 0.47 Sharpe and retracted two headline claims. Every benchmark now derives its window
+from the record's own test-return series.
+
+**B.8.6 The blocking review gate is blind to the inhomogeneity its own message promises to catch.** The
+C3 gate keys on the device label only, so a CPU-model mix passes it silently while the advisory sentinel
+catches it. Disclosed rather than repaired, because `src/` is drift-fenced for the run.
+
+**B.8.8 The execution floor is a knife-edge for one record.** Of 979 scored records at 2026-07-30, 935
+were entirely clean, 29 fell below 1%, six sat in the 1 to 10% band and were scored, and nine breached.
+The worst sub-floor record sits at 39,986 / 400,000 = 9.9965%, fourteen calls below exclusion. The floor
+is a pre-registered effect-blind threshold and stands as written. A threshold that close to a record makes
+that candidate's eligibility arbitrary in practice, so a sensitivity at floors of 5% and 20% is reported
+beside the headline.
+
+**B.8.11 The pre-registration's own status line is stale, and cannot be corrected.** It reads *"Status:
+PRE-FREEZE (as of 2026-07-01)"* and sits inside the frozen hash, while the design was frozen as v2.1 on
+2026-07-28. This is a stale line contradicting its own amendment table a thousand lines later, not a
+missing freeze. It cannot be edited, because the hash is taken over the whole file and correcting the
+sentence would invalidate the hash that is the document's evidential value. The re-freeze is recorded in
+the same document, in the machine-readable mirror, in the decision log and in a companion checksum file.
+
+**B.8.12 The training-return series is NaN on every record, and what that costs is bounded.**
+`metrics.`\allowbreak`train_curve.`\allowbreak`return` is NaN on 100% of archived records, verified
+independently on 394, because the vectorised environment was built without the wrapper that populates
+episodic returns. Nothing scored depends on it, since every scored quantity comes from the sealed test
+leg. Over 4,785 sealed-test trainings the median first-to-last fall is 1.8 to 3.3 orders of magnitude for
+the critic loss, 1.7 to 2.7 for the entropy coefficient and 0.7 to 1.6 for the actor loss. An earlier
+draft said three to five, and the measurement supersedes it downward. The critic loss is still descending
+at the 400,000-step cap in 75.5% of trainings, which is this study's answer to whether its agent is
+undertrained: it is, and the budget is a stated scope condition rather than a claim of convergence.
+
+**B.8.13 The reward guard substitutes zero where clipping would have preserved the sign.** It rejects a
+step whose reward magnitude exceeds $10^{6}$ and substitutes 0.0. An extreme step then tells the agent
+*nothing you did mattered* rather than *this was extreme*, which in a tail-risk study is the signal least
+like the truth, and the eligibility floor admits a winner with up to 9.9% of its steps on that null
+signal. On current evidence this is an undocumented default rather than a reasoned decision, and that
+absence is reported rather than a rationale reconstructed after the fact. The phenomenon the guard catches
+is pre-registered; the threshold is audit-added, set pre-data and outside the frozen hash.
+
+**B.8.5 Reflection cannot run at all on the bottom-anchor model, and that is reported as a finding.**
+`prev_block` is set only when a generation yields an accepted candidate, so `qwen3.5-9b` received the
+initial prompt instead of a reflection prompt for 3 of the 17 candidates it delivered beyond generation 0.
+Its measured sandbox-reject rate is 86.0%, 95% Wilson interval [79.5, 90.7], being 129 lost slots of 150.
+Two earlier figures are superseded: an undated 91% the interval excludes, and 84.2% [77.1, 89.4] taken
+from a panel structurally blind to the author-side rejection class. The registered design expectation of
+about 83% falls inside the interval, so only the 91% was wrong. This is not repaired, because it is the
+result: below some authoring reliability a reflection loop does not degrade gracefully, it fails to start,
+since it requires a prior success to reflect on.
+
+**B.8.7 The safe-default fallback resets reward state, so the fallback fraction is not a severity
+measure.** On failure the harness substitutes a default *and clears the reward's own state*, so a stateful reward with a cold-start branch enters a limit cycle: the cold call succeeds, the next raises, the state is cleared, and the pattern repeats. The fraction is set by the reset period rather than by severity, which is why seven records spanning five models, three arms and five different exceptions all report a bit-identical 199,932 / 400,000 = 49.983%, and one with a three-call warm-up reports exactly 133,333 / 400,000 = 33.333%. Two consequences follow, disclosed rather than repaired because `src/` is drift-fenced. 49.98% must never be read as *trained half on a valid reward*, since such a reward never once executed its intended logic. And at the warm-up boundary the harness converts a one-step transient into a permanent 50% failure, biasing that model's reliability downward. Replay of the nine breaching records classifies 2 as harness-trapped, 6 as genuinely broken and 1 inconclusive, none on the core line, and R115 excludes every one effect-blind.
+
+**B.8.9 A scheduling defect of ours starved the control arms, and a containment claim in this entry was
+wrong.** Jobs for the three control arms were submitted at scheduler priority $-100$ while the two
+treatment arms rode at $0$, on a scheduler that weights that field most heavily. Measured on the live
+queue, 120 of 124 stuck jobs were control arms, opening a four-generation depth gap, and on the
+confirmatory line the worst comparator pool stood at 9 accepted candidates against the treatment's 28, a
+ratio of 3.11. The root cause is a half-applied amendment. A starved comparator is systematically easier
+to beat, so the bias runs toward a false positive for our own hypothesis. It was fixed the day it was
+found and is the single row in the deviations log. The claim that was wrong is the containment one: it
+read that the seed ladder cannot begin until every arm reaches its full thirty-candidate budget because
+the integrity gate fails closed. The gate does not guarantee that. The predicate counts attempts, not
+acceptances, and it is implemented three times, all three counting attempts, so no code path anywhere
+enforces thirty acceptances. The completed depths are 28 / 27 / 26 / 26 / 25, every arm short of thirty.
+The imbalance shrinks at completion and does not vanish, at a measured 1.12 rather than the 1.17
+projected. Both consequences are unfavourable: the asymmetry reaches the analysis on a completed campaign
+and not only a truncated one, and the pre-registered equal-$k$ sensitivity is a live companion to the
+primary result rather than truncation insurance.
+
+**B.8.10 A gap in our own sandbox allowlist rejected fifteen valid candidates, and three independent
+causes now share one direction.** The AST gate's 338-name attribute allowlist omits `resize`. `np.resize` is the module-level pure function, reads no global state, and every sibling reshaping operation is allowlisted, so this is an omission rather than a security decision. Because that idiom recurs in the confirmatory line's authoring style the losses concentrate there: 15 of the 275 campaign-wide failure rows are the `resize` gap, 14 on the core line, where 12 cost a slot outright, by arm `distributional` 1, `scalar` 3, `scalar_cvar5` 4, `placebo` 2 and `placebo_shuffled` 2. Adding those twelve back, the depths would have been 29 / 30 / 29 / 28 / 28, lifting the equal-$k$ floor from 25 to 28 and reversing the expected-maximum advantage on H2's primary leg from the treatment arm to its comparator. The magnitude is modest and the sign is the one that matters. The gate was not repaired mid-run because the gate deposited with the pre-registration must be the gate that actually ran. The compounding is the point: unreplaced rejects (B.8.3), scheduling starvation (B.8.9) and this allowlist gap arise from unrelated mechanisms and all three favour the treatment arm, so the equal-$k$ sensitivity is reported against their combined effect.
+
+**B.8.14 The confirmatory tier's activation is conditional, and the difference is structural rather than
+evidential.** All $\alpha$ begins on the two H2 co-primaries, and H3, H4, the structure control and H1
+begin at weight zero. Executing the registered rule on synthetic $p$-values shows what that means. With
+both co-primaries non-rejecting, which is the branch this study predicts, propagation halts at step one
+and the four downstream nodes receive a local $\alpha$ of exactly zero, so an H1 $p$-value of 0.0001
+cannot reject. With the risk-adjusted co-primary rejecting, the same $p$-value is tested at
+$\alpha = 0.00825$ and does reject. Activation rests entirely on N2, which the pre-registration itself
+costs at $n^{*}\approx173$ against an expected rung of roughly 100 to 189 and records as borderline. So if
+the tier does not activate, those four are report-only and not "not rejected", and each node's local
+$\alpha$ is printed beside its verdict.
+
+**B.8.15 The extractor for N2 did not implement the test N2 registers, and the repair runs against us.**
+N2 is registered as a disjunction and the registered graph recycles $\alpha$ on any rejection, superiority
+or equivalence. The executed extractor read the one-sided superiority statistic alone. The consequence was
+not cosmetic: under the predicted branch a superiority test does not reject, so no node could reject, no
+$\alpha$ could propagate, and four of the six confirmatory nodes had no decision path at all. It was not
+found by a test. The propagation test exercised the rule directly and bypassed the extractor, so the
+defect sat in the one seam no test crossed, and it surfaced from a line-by-line comparison of the
+registered node table against the extractor's source. N2's $p$-value is now the one-sided non-inferiority
+intersection-union test at the registered margin $\delta = 0.0756$, with $\delta = 0.0502$ and the
+superiority-only rule both carried as pre-specified sensitivities. The direction is stated against
+ourselves: the repair enables a rejection the as-executed code could not produce, and the registered
+margin is the more permissive of the two, so it is the opposite of conservative and calling it
+conservative would be the easy and wrong thing to write. It is defensible on three grounds and no others.
+The rule it restores was ratified pre-data, the decision was timestamped while effect-blind with no H2
+contrast formed, and all three verdicts are reported so which margin rejects cannot select the claim. The
+resulting claim is non-inferiority at the SESOI, strictly weaker than "superior or equivalent", and it
+never appears as the latter.

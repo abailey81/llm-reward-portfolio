@@ -46,7 +46,7 @@ the rigorous backdrop that makes it credible:
   in LLM-reward-design and in RL-for-finance, where prior work conflates at least two of the three.
 
 - **C2 — A pre-registered comparative-inference protocol that yields a bankable result of either
-  sign.** A cryptographically frozen design (hypotheses, arms, budget, seeds, splits, embargo,
+  sign.**A cryptographically frozen design (hypotheses, arms, budget, seeds, splits, embargo,
   tail-diagnostic set, and analysis plan fixed before the sealed test leg) with intersection–union
   tests, a placebo and a structure-shuffled ("deranged-tail") control, deflated Sharpe ratios, and
   combinatorial probability-of-backtest-overfitting. A non-rejection is reported as a bounded,
@@ -64,7 +64,7 @@ the rigorous backdrop that makes it credible:
 
 - **C4 — A mechanism characterization that *locates* where the feedback channel acts (the headline).** A
   pre-specified, report-only causal decomposition of the chain *fed tail signal → authored reward code →
-  trained policy → realized tail* into three sub-questions — **responsiveness** (does the signal move the
+  trained policy → realized tail*into three sub-questions — **responsiveness** (does the signal move the
   code?), **transmission** (does the code move the outcome?), and **specificity** (is it genuine use of the
   tail content or a surface echo, and is any failure a numeric-legibility bottleneck?) — instrumented by a
   responsiveness statistic, a fed→code→outcome mediation, an identifier-invariant structural test, and a
@@ -91,7 +91,7 @@ feedback helps but *where* the channel acts or breaks.
 We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed soft
 actor–critic agent, one matched candidate budget and identical prompts, differing *only* in the feedback
 block; four non-LLM search baselines (the H4 optimiser portfolio) bound the procedure. The design is **pre-registered and
-cryptographically frozen** before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
+cryptographically frozen**before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
 candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
 conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
 the channel rather than to a self-grading estimator. The performance contrast is decided by co-primary
@@ -125,11 +125,14 @@ and CARD (2025) reports beating a human reward oracle without any distribution. 
 work occupies is the *conjunction*: (i) the LLM authors reward **code**, (ii) the iteration signal is
 the realized-return **lower-tail distribution of outcomes** (not point statistics of reward
 components), (iii) in a **risk-sensitive financial, no-oracle** domain, (iv) under **pre-registered
-comparative inference** with the off-critic three-way decoupling. The nearest neighbour is the
+comparative inference**with the off-critic three-way decoupling. The nearest neighbour is the
 Decision-Language Model (Behari et al., NeurIPS 2024), which also proposes reward code and iterates on
-a simulated *distribution* — but its distribution is a population-across-states spread in public-health
-resource allocation, the agent is not held fixed off-critic, and there is no pre-registered tail
-inference. In finance the cell stays empty too: GIFT (2026) may only select/transform/compose rewards from
+a simulated *distribution* — but its distribution is a spread over demographic state-features in
+public-health resource allocation rather than over realised returns, and there is no pre-registered tail
+inference. ⛔ **"the agent is not held fixed off-critic" was RETRACTED 2026-08-10 and is deleted here.** DLM
+§4.3 p. 5 trains one PPO policy network under each proposed reward, so it *does* hold a learner fixed; the
+old claim rested on a quotation taken from DLM's §2 Related Work. See Appendix H.2 item 7. The conjunction
+survives on domain, feedback content and risk-sensitivity. In finance the cell stays empty too: GIFT (2026) may only select/transform/compose rewards from
 a registered risk-rule library (parameters clipped before execution — constrained, not open-ended,
 authorship), jointly with the state, on generic scalar diagnostics; ELfolio (2025) evolves strategy code on
 a scalar Sharpe fitness — our control condition; AlgoEvolve (June 2026) meta-evolves trading-strategy
@@ -143,7 +146,7 @@ never let the abstract elevate the (descriptive, comparator-snooped) "beat-the-h
 novelty axis.
 
 **The outward one-sentence positioning (D2, integrated 2026-07-13 — abstract-grade; softened per the
-honesty register):** To our knowledge this is the first theory-grounded, pre-registered test of whether
+honesty register):**To our knowledge this is the first theory-grounded, pre-registered test of whether
 an LLM reward-designer is a **Bayes-responsive user of risk information**: whether the *content* of
 distributional feedback — not its format, length, or vocabulary — changes the reward code the model
 writes, and whether that change propagates to the trained agent's realised tail behaviour. The question
@@ -207,7 +210,7 @@ grade-weight; everything marked **[NOW]** is bankable regardless of the campaign
 | Limitations appendix (word-excluded) | — | **[NOW]** | L1–L19 + endogeneity (V6), single-Claude (V10), softmax-cash (V14), training adequacy |
 | Rigour-ledger table (in-body, CH4 Table 4.1) | — | **[built]** | docs/RIGOUR_LEDGER.md → examiner-facing in-body table (consolidated from the former appendix plan, 2026-07-04) |
 
-\* Data chapter: F3 (stylised facts) regenerates from the ACTIVE univ5 panel's Split-C train window
+\*Data chapter: F3 (stylised facts) regenerates from the ACTIVE univ5 panel's Split-C train window
 (2005–2016) via `scripts/make_figures.py` — the Split-C numbers (excess kurtosis 15.25, −5σ ×~10⁴,
 CVaR crossover ×0.84→×1.66, co-crash 3.3%→19.7%) supersede any pre-Split-C EDA figures (14.52/20.4%
 were the old 2005–2014 window; a superseded IQN brief is older still).

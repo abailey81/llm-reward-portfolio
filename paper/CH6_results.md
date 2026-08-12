@@ -1,269 +1,521 @@
-# Chapter 6 — Results
+# Chapter 5 — Results
 
 ## Reporting rules (apply throughout this chapter)
 
-These rules are pre-committed and govern every result statement below:
+Table 5.1 governs every statement below.
 
-1. **Present every null as a bounded equivalence with a confidence interval — never as "p > 0.05".** A
-   non-rejection is reported as a TOST equivalence against the pre-registered ±0.05-DSR SESOI, with the
-   equivalence bound stated; "inconclusive" is reserved for the case where the bound is wider than the SESOI.
-2. **Lead with TOST.** For each co-primary leg, state the equivalence result *first* (the bound vs the SESOI),
-   and only then the one-sided IUT *p*-value. The equivalence is the headline; the IUT is the confirmatory check.
-3. **Show controls visually.** The placebo and placebo_shuffled controls are presented as an overlay on the same
-   axes as the manipulated arm, so that a reader sees the null/effect against its own controls, not in a separate
-   table.
-4. **A null with a mechanism is a finding.** A confirmed null is reported as a corroborated §3.7 prediction and is
-   always accompanied by the §6.5 mechanism evidence (responsiveness, reward-code differential, reward-distance),
-   never as a bare absence of effect.
-5. **Rung-freshness tagging (v2 convention — machine-checked).** Every campaign-derived number, when filled,
-   carries an invisible freshness tag: numbers computed on the E1 core ladder append `<!--RUNG:n-->` (n = the
-   rung the number was computed at); replication-leg numbers append `<!--LEG-TIER:30-->` (legs run at the
-   floor tier by design and never refresh on the ladder). `scripts/check_rung_freshness.py --achieved N`
-   fails on any core tag whose rung ≠ the achieved rung (a stale number surviving a rung refresh);
-   `--final` additionally fails on any remaining unfilled `[FROM CAMPAIGN…]` slot. While the ladder climbs,
-   interim drafts are labelled provisional at the chapter head; the single confirmatory look is unaffected
-   (the tags govern prose freshness, never data collection).
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.1 — The pre-committed reporting rules.** Rules 1 to 5 were fixed before any sealed number existed and govern every result statement in this chapter. Rule 6 was added at write-up, is marked as such, and is presentational.
+```{=latex}
+\par\endgroup
+```
 
----
+| # | Rule | What it requires |
+|---|---|---|
+| 1 | no bare nulls | a TOST bound against the ±0.05-DSR margin, never "$p>0.05$" |
+| 2 | equivalence first | the TOST result precedes the one-sided IUT $p$ |
+| 3 | controls on the same axes | the placebo and scrambled controls overlaid, not tabulated apart |
+| 4 | a null carries its mechanism | reported with the §5.5 evidence, never as a bare absence |
+| 5 | rung-freshness tagging | machine-checked; the checker fails on any stale tag |
+| 6 | every interval states its unit | coverage and resampling unit named, the wider governing |
 
-## 6.1 Campaign execution and integrity
+Two marks below are disclosures.[^marks] Figures 5.1 and 5.2 are descriptive and neither gives a
+decision.[^adds]
 
-This section establishes that the reported campaign is the frozen, pre-registered one and that it ran without
-material deviation, before any inferential result is shown. It presents the run ledger (arms × seeds × candidate
-budget), confirms the freeze hash matches the pre-registration, and reports the count and disposition of any
-logged deviations. It also records the realised compute, the per-candidate PopArt normalisation-scale range, and
-the count of critic-divergence / candidate-rejection events, so the reader can judge execution adequacy before
-interpreting effects.
+Printing those contrasts does not spend the single look. Look-inflation works one way: the sample
+size becomes a function of the data. Here it cannot. Stopping is a calendar date fixed in advance, and
+every analytic degree of freedom was bound into the hash before any sealed number existed. What would
+break this is acting on a look, and no rung, leg, seed or stop moved. A reader cannot verify that
+abstention. The hash, the date and the deviations log are verifiable.
 
-- Frozen design hash (must match `PREREGISTRATION.md`): `[FROM CAMPAIGN: freeze SHA-256]`.
-- Arms run: **7** (distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt);
-  seeds per arm: `[FROM CAMPAIGN: n_seeds; E1 ladder [30,100,189,279,340,403,568], primary target 403, stopping tier reached]`; candidate budget per arm: `[FROM CAMPAIGN: 30 = 6 gen × 5]`.
-- Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 400,000]`.
-- Logged deviations (append-only log): `[FROM CAMPAIGN: count]`; disposition: `[FROM CAMPAIGN: summary]`.
-- Realised wall-clock / cost: `[FROM CAMPAIGN: hours / $]`; serial-parallel byte-equivalence: `[FROM CAMPAIGN: confirmed?]`.
-- Untrusted-code screen rejections: `[FROM CAMPAIGN: count]`; critic-divergence events: `[FROM CAMPAIGN: count]`.
-- **E1 achieved rung + realised power (v2 slot):** rung reached at the bank gate `[FROM CAMPAIGN: rung of
-  [30,100,189,279,340,403,568]]`; assurance at that rung `[FROM CAMPAIGN: %]`; the rung-100 σ_D re-estimate at
-  B\* = 400k `[FROM CAMPAIGN: σ_D; vs the 200k pilot value]`. Every §6.2–§6.6 number is tagged `RUNG:` at this
-  achieved rung (reporting rule 5); leg numbers (§6.7–§6.8) are `LEG-TIER:30` by design.
-- Replication-leg execution (v2): legs completed by the 2026-08-27T23:59Z calendar gate `[FROM CAMPAIGN: k of
-  10 + the truncated-by-calendar list, in queue order]`; per-leg bank-gate verdicts `[FROM CAMPAIGN: pass
-  list]`; realised total LLM spend vs the $30 advisory ceiling (R83) `[FROM CAMPAIGN: $ per provider, summed]`.
+<!-- COMPRESSED 2026-08-11, 213 counted words to 108, with nothing conceded. What went was
+     restatement rather than argument: the enumeration of the six bound quantities (already in Table
+     4.4 and in the freeze record), the sentence naming freeze.py --check (named twice more in this
+     chapter and in the Declaration), and the clause explaining that the seed tier follows throughput
+     (stated in Table 5.2's own rung row). Every load-bearing move survives in order: the mechanism of
+     look-inflation, why it cannot operate here, what WOULD break it, the honest concession that
+     abstention is unverifiable from the artefact, the three things that ARE verifiable, and the
+     closing refusal to claim that vigilance is unnecessary.
+     WHY IT WAS WORTH DOING RATHER THAN LEAVING. The body stood at 50 words under an 11,000 limit,
+     which is no headroom at all, and this was the single largest passage of METHODOLOGY sitting
+     inside the results chapter -- Stefan's M8. Compressing it buys the argument room and moves the
+     chapter toward reporting what came out rather than re-defending how it was obtained. -->
 
-*Table 6.1 (run ledger) — see `FIGURE_TABLE_MANIFEST.md` T1.*
 
-## 6.2 Primary result — the two co-primary H2 IUTs (equivalence-first)
+## 5.1 The campaign that ran is the frozen one, banked at 102 seeds in every cell
 
-This is the headline. Following the reporting rules, each co-primary intersection–union test is presented
-equivalence-first: the TOST bound against the ±0.05-DSR SESOI, then the one-sided IUT *p* per leg. **H2-RA**
-(risk-adjusted, Sharpe contrast) and **H2-Tail** (left tail, CVaR-5% contrast) are each an IUT over three legs —
-distributional vs *scalar*, *placebo* and *scalar_cvar5* — one-sided at α = 0.05. The section leads with the
-`rliable` IQM interval figure (headline interval, per-seed, stratified-bootstrap) and the TOST equivalence figure,
-then tabulates the per-leg statistics.
+The reported campaign is the frozen one and ran without material deviation, so Table 5.2 settles
+execution adequacy first.
 
-**H2-RA (Sharpe legs).**
 
-- TOST equivalence vs ±0.05 SESOI: `[FROM CAMPAIGN: 90% CI / equivalence bound in DSR units]` →
-  `[FROM CAMPAIGN: EQUIVALENT / INCONCLUSIVE / NON-EQUIVALENT]`.
-- One-sided IUT *p* (max over legs): `[FROM CAMPAIGN: p]`; per-leg *p*: scalar `[FROM CAMPAIGN]`,
-  placebo `[FROM CAMPAIGN]`, scalar_cvar5 `[FROM CAMPAIGN]`.
+```{=latex}
+\Needspace{3\baselineskip}
+```
 
-**H2-Tail (CVaR-5% legs).**
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.2 — The execution ledger, read from the archive rather than from the plan.** *stop* marks a report-only count read at the exogenous stop of 2026-08-27; *sealed* marks a quantity held closed until the single confirmatory look.
+```{=latex}
+\par\endgroup
+```
 
-- TOST equivalence vs ±0.05 SESOI: `[FROM CAMPAIGN: 90% CI / equivalence bound]` →
-  `[FROM CAMPAIGN: EQUIVALENT / INCONCLUSIVE / NON-EQUIVALENT]`.
-- One-sided IUT *p* (max over legs): `[FROM CAMPAIGN: p]`; per-leg *p*: scalar `[FROM CAMPAIGN]`,
-  placebo `[FROM CAMPAIGN]`, scalar_cvar5 `[FROM CAMPAIGN]`.
-- Corroborating FZ0 / DM-HLN Expected-Shortfall backtest: `[FROM CAMPAIGN: DM stat, p, with size/power caveat]`; loss-differential Hill tail-index (B.5.2 heavy-tail size check): `[FROM CAMPAIGN: hill_alpha, flag]`.
+| Quantity | Value | Status |
+|---|---:|---|
+| Arms run | 9 | |
+| Cells in the eleven-line grid | 70 | |
+| Seeds banked in every cell | <!--RUNG:100-->102 | stop |
+| Achieved rung on the E1 ladder | <!--RUNG:100-->100 | stop |
+| Candidate budget per arm | 30 | |
+| Trainings executed and archived | 25,602 | stop |
+| Environment steps | 10.24 billion | stop |
+| Task-hours consumed | 36,446 | stop |
+| Processor-hours consumed | 288,533 | stop |
+| Candidates rejected by the static gate | 193 | stop |
+| Replication legs executing, none truncated | 10 of 10 | stop |
+| Logged deviations, all ops-only | 1 | |
+| Authoring spend on this archive | $45.50 | stop |
+| Rung-100 $\sigma_D$ re-estimate at $B^{*}=400$k | — | sealed |
+| Per-leg bank-gate verdicts | — | sealed |
 
-*Figure 6.1 (rliable IQM headline interval) — manifest F5; Figure 6.2 (TOST equivalence) — manifest F6;
-Table 6.2 (IUT per-leg results) — manifest T2.*
+The E1 ladder is [30, 100, 189, 279, 340, 403, 568] and the registered target is rung 403. The ten
+legs climb it in lockstep, so every number below is tagged at one achieved rung, and five already hold
+the 568-seed ceiling. Both compute figures sum per-task durations rather than calendar time, because
+tasks run in parallel: the calendar age at the 2026-08-09 read was roughly 280 hours. Both are lower
+bounds, since a task counts only once its ledger line returns.
 
-## 6.3 Controls and robustness
+The spend figure needs its account. R81 registered the $30 total as a hard cap in code, and R83
+superseded it the next day, still pre-data, leaving a planning ceiling.[^spend] No code here ever
+stopped an experiment for cost, and what does stop it is the seed-rung rule and the leg calendar
+gate. The two levers that would have held the total under $30, dropping legs or seating a cheaper
+model, would both have removed open-weight evidence, so the overrun is its authorised price.
 
-This section defends the primary result against construct-validity and specification threats, shown visually per
-the reporting rules. The placebo (receiving-any-feedback confound) and placebo_shuffled (format-vs-information
-confound, a **disjoint** control, not a fourth IUT leg) are overlaid on the same axes as the manipulated arm.
-Robustness sweeps follow: the delisting-return band $d\in\{0,-30,-55,-100\}\%$, a transaction-cost sweep, and the
-overfitting guards (PBO via CSCV, with the Deflated-Sharpe cross-check). The pre-registered BAB/QMJ factor
-attribution rules out a low-volatility-beta explanation of any headline.
+## 5.2 Both co-primary tests, read by a rule fixed in advance
 
-- Placebo overlay: `[FROM CAMPAIGN: placebo tail/Sharpe vs distributional]`; placebo_shuffled overlay:
-  `[FROM CAMPAIGN: shuffled tail/Sharpe vs distributional]` (format artefact ruled `[in/out]`).
-- Delisting band sensitivity: pooled test CVaR-5% moves by `[FROM CAMPAIGN: ~pp]` across the band; hypothesis
-  ordering `[FROM CAMPAIGN: invariant?]`.
-- Cost sweep: `[FROM CAMPAIGN: ordering across cost levels]`.
-- PBO (CSCV): `[FROM CAMPAIGN: probability]`; Deflated-Sharpe cross-check: `[FROM CAMPAIGN: value]`.
-- Factor attribution (CAPM→6-factor + BAB/QMJ, Newey–West): `[FROM CAMPAIGN: alphas/loadings]`.
-- Regime-conditional analysis (calm/normal/stress VIX strata on the median-tail-seed realized path,
-  promised in §1.6/§3.7): `[FROM CAMPAIGN: per-regime CVaR-5%/Sharpe by arm; episode-count power bound]`.
-- Synthetic-null falsification (the identical inference stack on shuffled labels must return null):
-  `[FROM CAMPAIGN: null-calibration verdict]`.
-- Model-Confidence-Set membership + the triangulated Bayesian null evidence (JZS BF, ROPE):
-  `[FROM CAMPAIGN: MCS members at 90%; BF01; ROPE mass]` — Figures 6.4–6.5 (manifest F-D/F-E).
+The headline is the pair of co-primary tests: the TOST bound against
+the ±0.05-DSR SESOI, then the one-sided IUT *p* per leg. H2-RA (deflated net Sharpe at the
+headline 10 bps) and H2-Tail (CVaR-5%) are each an IUT over the same three legs, distributional
+against *scalar*, *placebo* and *scalar_cvar5*, one-sided at $\alpha=0.05$. Table 5.3 carries each
+co-primary, and Figures 5.1 and 5.2 the per-leg statistics by line and against seed count.
 
-*Figure 6.3 (controls overlay) — manifest F7; Figure 6.4 (per-seed risk–return clouds) — manifest F-D;
-Figure 6.5 (Bayesian null-evidence gauge, MCS membership) — manifest F-E; Table 6.3 (robustness) — manifest T3.*
+The interval below is a difference between two selected programs, the unit §4.7 registers.[^unit]
 
-## 6.4 Secondary hypotheses
+[^unit]: The confirmatory unit is the (program, seed) pair, so the paired bootstrap resamples the training seed alone and authoring variance sits outside the interval by construction.
 
-This section reports H1, H3 and H4, each scoped exactly as pre-registered.
+The instrument's power is stated before the verdict, not after it. Table A.4 fires it on generated
+data whose answer is known, at the banked 102 paired seeds: on a true zero it returns EQUIVALENT in
+74.8 per cent of replications, and 43.0 in the algebraic worst pairing case, and never the opposite
+verdict.[^powerread] The predicted branch is available at this depth rather than assured, and
+INCONCLUSIVE is a likely answer the design names in advance.
 
-**H1 — the designed reward dominates the hand-reward canon (confirmatory, node N6).** Whether the best LLM
-reward beats the *best* human-crafted reward. The obvious way to ask that question is not usable: naming which
-hand-reward is "best" by its sealed-test result is precisely the comparator data-snoop of White (2000)
-[`white2000reality`], and it is what forced an earlier framing of H1 to a descriptive observation. The registered
-formulation dissolves the problem instead of disclosing it. Because the best member of a family is its pointwise
-**maximum**, "beats the best" is logically identical to "beats **every** member" — so H1 is tested as an
-**intersection–union test** [`berger1982iut`] over the *full eleven-name hand-reward canon*: the node rejects only
-if the designed reward beats all eleven, each one-sided at level $\alpha$, with the IUT $p$-value the **maximum**
-of the eleven leg $p$-values. Nothing is selected, so there is nothing to snoop; the test is level-$\alpha$ for
-free, conservative, and uses the same inference tool as the H2 co-primaries. Comparing against the entire standard
-toolkit rather than one incumbent baseline is, to our knowledge, a first in this lineage, where Eureka, Text2Reward
-and REvolve each contest a single hand-written reward [`ma2024eureka`; `xie2024text2reward`; `hazra2025revolve`].
+[^powerread]: At the pilot pairing correlation of -0.14 the rate is 71.5 per cent, and the median number of lines returning EQUIVALENT on a true zero is 8 of 11 at that correlation and 5 of 11 in the worst case.
 
-One asymmetry remains and is disclosed rather than dissolved: the hand-designed rewards are fixed, un-tuned
-reference specifications, not the output of a matched search, so any gap is not a like-for-like optimisation
-comparison and the bias **flatters the designed reward**. It is bounded in the conservative direction by the
-selection structure on the other side — the designed reward is the survivor of a thirty-candidate search whose
-scores are deflated for that multiplicity, while each hand-reward is a single un-searched specification — so the
-human bar sits conservatively high. Dominating it anyway is therefore a strong result, and failing to dominate it
-is an informative one.
+<!-- ⛔ NO SPACE RESERVE HERE, AND THAT IS MEASURED RATHER THAN CHOSEN (2026-08-10). A
+     \Needspace reserve was added before this caption and before Table 5.8's, and both were
+     REMOVED again. Where the reserve fires beside a longtable whose first row is taller than
+     the space it leaves, longtable emits its column header ONCE at the top of the new page,
+     then the caption, then the header AGAIN above the first row. Measured on the compiled
+     artefact: two toprule/midrule pairs on one page with the caption sitting between them, on
+     the pages carrying Table 5.3 and Table 5.8. An orphaned header above a caption is a worse
+     defect than the one the reserve was added to fix, and both tables sit with their bodies
+     without it -- Table 5.8 because it is now set at \footnotesize. The same reserve works
+     cleanly at Tables 1.3 and 4.1, where it fires at a plain paragraph boundary with no table
+     already in flight. Re-measure before ever reintroducing it here. -->
 
-H1/N6 carries $\alpha$ only on upstream rejection (initial weight zero in the graph of §4.7), so promoting it
-costs the headline nothing. It is reported with the full **dominance profile** rather than a bare verdict —
-per hand-reward: significantly beaten, statistically tied, or lost, with effect sizes — because "dominates nine of
-eleven, ties the deflated-Sharpe specification, loses to none" is a more mature and more useful statement than a
-binary. [FROM CAMPAIGN: the IUT verdict, the max-leg $p$, and the eleven-row dominance profile.]
 
-- `[FROM CAMPAIGN: best-LLM vs max-baseline on sealed leg, descriptive — gap and direction only, no test]`.
+```{=latex}
+\Needspace{3\baselineskip}
+```
 
-**H3 — reflection vs single-shot (TOST-bounded equivalence).** Whether iterative reflection beats single-shot
-best-of-N at matched budget; reported as a TOST-bounded equivalence against the SESOI, not as a bare *p*.
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.3 — The two co-primary verdicts, sealed until the confirmatory look of 2026-08-27.** How the sealed numbers will be read is committed before either verdict exists. *Observation:* each row will carry the 90 per cent equivalence bound with its EQUIVALENT, INCONCLUSIVE or NON-EQUIVALENT verdict, and the one-sided intersection-union $p$ as the maximum over the scalar, placebo and `scalar_cvar5` legs.
+```{=latex}
+\par\endgroup
+```
 
-- TOST equivalence: `[FROM CAMPAIGN: bound vs SESOI]` → `[FROM CAMPAIGN: EQUIVALENT / INCONCLUSIVE / NON-EQ]`.
+<!-- CAPTION, 2026-08-10. It read "The two co-primary verdicts, each with its mechanism, uncertainty
+     and counterfactual" — which promised verdicts the exhibit does not yet contain, and spent its
+     remaining words restating the four row labels the reader can already see in the stub column.
+     The seal is now stated in the caption itself, so a reader meets the reason for the empty cells
+     before the cells. Word-neutral: eleven words out, eleven words in. -->
 
-**H4 — LLM vs the best black-box optimiser (matched compute).** Whether the LLM designer beats the pointwise
-maximum over the optimiser portfolio {random-search, GP-EI, CMA-ES, TPE} at the matched 30-candidate budget —
-the confirmatory beat-the-best intersection–union test (node N4), decided superiority-or-non-inferiority.
 
-- `[FROM CAMPAIGN: LLM vs random_search]`; `[FROM CAMPAIGN: LLM vs bayes_opt]`.
+| | H2-RA, Sharpe legs | H2-Tail, CVaR-5% legs |
+|---|---|---|
+| Observation | sealed | sealed |
+| Mechanism, the instrument | SQ1, responsiveness | SQ2, transmission |
+| Mechanism, the design fact | tail-blind selection at $\lambda=0$ | fed on training, tested on a sealed CVaR |
+| Uncertainty | $\rho\approx-0.14$, so pairing does not help | the lowest-power leg of the family |
+| Counterfactual | a tail-rewarded selector, or a responsive designer | a larger fed delta, finer rendering, or a corner-reaching action space |
 
-*Table 6.4 (secondary hypotheses) — manifest T4.*
+The depth-matched pool is the better estimate of the selection step. Table A.3 re-selects every winner at
+its line's shallowest depth, and the winner changes in 5 of the 55 cells. Repairing our own allowlist gap
+returns twelve wrongly rejected candidates to the confirmatory line, whose depths become 29, 30, 29, 28
+and 28, moving the deepest pool from the treatment arm to its comparator. Both corrections run against
+this study's own hypothesis. Neither becomes the headline outcome pool, and the reason is the archive:
+only the winners that actually froze were re-run on the sealed leg, so no depth-matched or repaired winner
+has a test record at all.[^equalk]
 
-## 6.5 Mechanism
 
-This section supplies the mechanism that turns a null into a finding (reporting rule 4). It estimates
-**responsiveness** — the change in the authored reward code as a function of the change in the fed tail signal
-(the mediation/indirect-effect quantity of §3.7 [`imai2010identification`; `mackinnon2000equivalence`]) — and
-reports its sign. It quantifies the **reward-program
-differential** across arms with the EPIC/STARC reward pseudometrics (do tail-fed arms author measurably different
-reward code?). Finally it presents the **learning-curve / training-budget diagnostic**, disclosing the budget verdict
-at the 400,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
-Figure 6.6 renders the paper's three-link chain — fed tail signal → authored reward code → trained policy →
-realised tail — as a single spine, with the cut glyph marking the link the evidence severs.
+![**Figure 5.1 — The treatment-minus-control contrast, one row per authoring line.** Almost every interval excludes zero and the lines still disagree in SIGN, five of eleven favouring the treatment. Each row is the distributional-minus-scalar difference, paired on the seed index; bars are 95 per cent percentile bootstrap intervals over 102 paired seeds.
+](../outputs/figures/F5_cross_line_forest.png)
 
-- Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
-- Mediation (fed → code → realized tail; a·b indirect effect): `[FROM CAMPAIGN: a, b, indirect, CI]`.
-- §2a(f) fingerprint rows (per-arm responsiveness incl. the scalar arm's own-scalar row — the A4
-  discriminator — and the placebo_shuffled floor): `[FROM CAMPAIGN: table]`.
-- Reward-program differential (EPIC/STARC distances between arms): `[FROM CAMPAIGN: distances]`;
-  prompt-leak fingerprint / tail-construct count by arm: `[FROM CAMPAIGN: counts]`.
-- Learning-curve / training-budget diagnostic: `[FROM CAMPAIGN: critic-loss trajectory, budget verdict, extended-ladder verdict]`.
-  The measured per-seed validation-DSR-versus-budget curve, with $B^\*$ marked at the empirical knee, is shown in
-  Figure 6.9 (manifest F11, the R77-mandatory budget exhibit).
+![**Figure 5.2 — The estimator, not just the estimate: how the contrast settled as seeds accumulated.** Seeds enter in the registered order 0, 1, 2 and so on, never sorted. **What to conclude:** no inference was drawn at any prefix, and the curve is a diagnostic of whether the estimate had settled, not a result.
+](../outputs/figures/F5_seed_trajectory.png)
 
-*Figure 6.6 (three-link mechanism chain) — manifest F10; Figure 6.7 (mechanism / responsiveness) — manifest F8;
-Figure 6.8 (learning curves) — manifest F9; Figure 6.9 (measured training-budget curve, R77) — manifest F11.*
+## 5.3 Nine controls, each answering a threat named before the data were seen
 
-## 6.6 Summary against the §3.7 prediction table
+Nine registered controls defend the primary result, all specified in Chapter 4 rather than restated
+here: five in Table 4.7, four in Table E.4. The placebo and scrambled controls are overlaid on the
+manipulated arm's own axes under rule 3, the scrambled one entering outside the conjunction.
+Figures 5.3 and 5.4 draw the seed clouds beneath.
 
-This closing section maps the realised results onto the three pre-registered mechanism branches (Strict / Weak /
-Null) of the Chapter 3 §3.7 table, stating which branch the evidence corroborates and why. The verdict is read off
-the conjunction of the four signature columns — H2-RA (Sharpe), H2-Tail (CVaR-5%), responsiveness sign, and the
-reward-code differential — exactly as pre-registered (Table 6.5), so the outcome is a *decided prediction* of either
-sign rather than a bare measurement.
+![**Figure 5.3 — The random object behind the mean: every seed, every arm.** The arms overlap heavily and the within-arm spread is large relative to the distance between arm centres, which is why a table of means alone would overstate how far apart these conditions are.
+](../outputs/figures/F5_seed_dispersion.png)
 
-| §3.7 signature | Pre-registered prediction (Null branch) | Realised | Branch corroborated |
-|---|---|---|---|
-| H2-RA (Sharpe legs) | tie (equivalence) | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
-| H2-Tail (CVaR-5% legs) | tie (equivalence) | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
-| Responsiveness | $\le 0$ | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
-| Reward-code differential | none / reversed | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
+![**Figure 5.4 — The same clouds for all eleven lines, so the dispersion claim rests on the panel rather than on one author.** One point per seed, 102 per arm. Arms run left to right in the legend's order and are identified by colour; panels are ordered by across-arm median interquartile range, most stable first.
+](../outputs/figures/F5_dispersion_all_lines.png)
 
-*Table 6.5 — Realised results mapped onto the §3.7 pre-registered prediction branches (Strict / Weak / Null); the
-corroborated branch is read off the conjunction of the four signature columns, as pre-registered.*
+## 5.4 The designer is set against the whole hand-written canon, not one incumbent
 
-Verdict: `[FROM CAMPAIGN: Strict / Weak / Null branch corroborated]`, with `[FROM CAMPAIGN: one-line theory-tied
-interpretation per §3.7]`.
 
-## 6.7 The model replication suite (v2 — report-only)
+The designed reward is set against the whole hand-written canon, at node N6. Naming which hand-reward is
+best by its sealed-test result would be the comparator data-snoop of White [`white2000reality`], so H1 is
+an intersection-union test over all eleven names whose $p$-value is the maximum of the eleven legs.
+Nothing is selected. Contesting the entire standard toolkit is, to our knowledge, a first in this lineage,
+since Eureka, Text2Reward and REvolve each contest a single hand-written reward [`ma2024eureka`;
+`xie2024text2reward`; `hazra2025revolve`].
 
-Ten further models author the identical five LLM arms under byte-identical prompts at the 30-seed floor tier
-(R80/R82): the executed roster, pins (provider / quantization / reasoning mode / output caps), queue order and
-the 2026-08-27T23:59Z calendar gate are frozen in `model_suite`. **Nothing in this section or §6.8 gates
-H1–H4** — the suite is the registered external-validity and capability-gradient instrument wrapped around the
-confirmatory core, and every number here is floor-tier by design (`LEG-TIER:30`; claims are calibrated to
-floor power and stated as such). Each leg's archive passed the same write→verify bank gate as the campaign
-root before its numbers entered any table.
+One asymmetry remains and it favours us. The designed reward is the survivor of a thirty-candidate
+search. Each hand-designed reward is a single un-tuned specification, and no deflation counterweight
+corrects for that (§B.6.5). Dominating an un-tuned bar is the weaker claim, and only the weaker one is
+made.
 
-- Legs completed vs truncated-by-calendar (queue order): `[FROM CAMPAIGN: k of 10; truncated list]`; the
-  DeepSeek contamination-gate disposition (pass, or GLM-5.2 absorbed seat 1 as pre-declared):
-  `[FROM CAMPAIGN: verdict + archived screen pointer]`.
-- Per-leg headline contrasts (distributional − scalar, CVaR-5% and Sharpe, floor-30, 90% CI): Table 6.6
-  `[FROM CAMPAIGN]`.
-- T0-floor inclusion (the registered leg-inclusion criterion): included `[FROM CAMPAIGN: list]`; excluded as
-  authoring/search failures — **a finding, never a vote** — `[FROM CAMPAIGN: list + failure mode]`.
-- Authoring reliability (Table 6.7, the practitioner-facing table): pre-launch format-compliance baseline,
-  sandbox pass rate, contract-violation taxonomy, refusal/truncation rates, code diversity, and the per-model
-  reward-program taxonomy: `[FROM CAMPAIGN: per-model rows]`. **Fairness note (binding on the table and
-  Figure 6.12): per-leg registered output caps differ (2,048 tokens for gpt-5.6-luna and gemini-3.5-flash vs
-  4,096 elsewhere, R82) — truncation rates are conditional on each leg's cap and the caps are annotated in
-  the table, so a capped model is never misread as an unreliable one.**
-- The ten winners side-by-side (one annotated winning reward program per model, tail-constructs highlighted):
-  Figure 6.13 `[FROM CAMPAIGN]` — the qualitative exhibit of *what different model families write*.
+Two reporting rules follow, both about power. H1 carries $\alpha$ only on upstream rejection, so the
+local $\alpha$ it inherits at node N6 is printed beside its verdict, and at zero it is reported as
+report-only.[^h1n] The verdict is a dominance profile rather than a binary, because *dominates ten of
+eleven, ties one, loses to none* is the more useful statement. Each quantity is sealed until the single
+confirmatory look.
+H3 and H4 are read by rules fixed in advance, and what a verdict licenses matters more than the
+verdict.[^h34] **An H4 non-rejection licenses nothing at all**, because no inferiority test is
+registered.
 
-*Figure 6.10 (cross-leg forest) — manifest F12; Figure 6.12 (authoring-reliability heatmap) — manifest F14;
-Figure 6.13 (ten-winners annotated code exhibit) — manifest F15; Table 6.6 (per-leg contrasts) — manifest T6;
-Table 6.7 (authoring reliability) — manifest T7.*
+[^h34]: H3 bounds reflection against best-of-$N$ at matched budget by TOST, so a non-rejection there licenses nothing unless the bound clears the margin. H4 is a beat-the-best intersection-union test against the four optimisers at node N4, so a rejection licenses that and nothing else.
 
-## 6.8 Cross-model synthesis and the capability gradient (v2 — report-only)
+## 5.5 What a reward design changes is how heavily the policy trades
 
-The legs share the market panel and the CRN seed set *by design* (pairing), so they are not independent
-replications and are never counted as if they were (the registered dependence discipline). The synthesis has
-two tiers — a descriptive count and a dependence-honest permutation test — plus the two registered
-capability instruments. [SLOT R97 — the ten-name hand-reward panel: the six secondary canon members (incl. the differential downside deviation ratio) run report-only at the tier-30 floor post-headline (runbook §9(h)); report the executed subset VERBATIM here — a deadline-truncated subset is disclosed, never silently narrowed.] Any starred statement in this section survives BH across the ten-leg report-only
-family.
+Table 5.5 runs the chain from the fed signal to the authored code, the policy and the tail.
+Table 5.4 gives each link its instrument. All five are registered report-only, so no cell there is
+sealed.[^mechreg] Figures 5.5 and 5.6 draw the sealed-window path and the turnover channel. Table 5.6 carries the two links measured by executing the archived programs.
 
-- Descriptive replication count (CVaR-leg contrast, T0-filtered — the Sharpe leg is predicted-tie for every
-  model and is not counted): `[FROM CAMPAIGN: k dist-safer of n included]`.
-- The per-seed joint-flip permutation test (statistic = the POOLED MEAN difference; 10,000 reps, one-sided
-  toward dist-safer; shared-seed/panel dependence inside the null): observed pooled mean
-  `[FROM CAMPAIGN]`; *p* `[FROM CAMPAIGN]`.
-- **The bounded-effect statement (R86 — the synthesis's equivalence-first tier):** the 90% seed-block-bootstrap
-  CI on the pooled mean CVaR-5% difference: `[FROM CAMPAIGN: CI in daily-return units]`, i.e.
-  `[FROM CAMPAIGN: CI as % of the scalar-arm pooled CVaR level]` — *"across the included models the pooled
-  content effect on the realized tail is bounded within this interval."*
-- The three-signature gradient adjudication (R87: capacity = rising / representational = flat-at-zero, the
-  registered prediction / echo = decreasing): `[FROM CAMPAIGN: signature corroborated + the A1–A5
-  fingerprint read]`; the ex-ante sonnet-bridge direction (≤ 0, the pilot's direction):
-  `[FROM CAMPAIGN: replicated?]`.
-- Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
-  seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
-  pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`;
-  **the generation pair (R92/R102: the Opus 4.8 − Opus 5 contrast, same vendor and
-  tier, one generation apart — REALIZED under R102, since Opus 5 became the confirmatory author with
-  Opus 4.8 retained in M2 as the pair partner)** `[FROM CAMPAIGN]`.
-- Capability regression (registered primary = the pre-declared external composite anchor; M2 reading score
-  secondary): Spearman ρ `[FROM CAMPAIGN: ρ, n legs, p]`; the registered monotone-non-decreasing gradient
-  prediction `[FROM CAMPAIGN: corroborated / not]`.
-- Generation-indexed responsiveness (does feedback-use strengthen across the loop's six generations?):
-  per-generation SQ1 + trend Spearman `[FROM CAMPAIGN]`.
 
-The suite traces the envelope–realization gap $g(\text{capability})$ — the Blackwell envelope of Chapter 3
-binds every author; the legs measure the realized distance to it along the capability axis, with the numeracy
-bottleneck as the registered hypothesized shape (the interpretation is developed in §7). Whatever this
-section shows, it cannot alter the §6.6 confirmatory verdict: the suite refines *where* the mechanism story
-generalises, not *whether* the pre-registered result stands.
+```{=latex}
+\Needspace{3\baselineskip}
+```
 
-*Figure 6.11 (capability-gradient scatter) — manifest F13.*
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.4 — The mechanism instruments, and the limit each one carries.** Five instruments interrogate three links, and each carries a stated limit rather than an implied one.
+```{=latex}
+\par\endgroup
+```
+
+| Instrument | Link | The limit it carries |
+|---|---|---|
+| Responsiveness | 1, the designer | a break means the channel is unread, not unhelpful |
+| Mediation [`imai2010identification`; `mackinnon2000equivalence`] | 1 to 3 jointly | rests on sequential ignorability, so it is descriptive |
+| Per-arm fingerprint rows | 1, per arm | the scrambled row is the floor a real effect must clear |
+| Reward-program differential | 2, the code | near-zero distance means one objective re-shaped |
+| Learning-curve diagnostic | 3, reward to policy | separates mechanism-limited from budget-limited |
+
+
+```{=latex}
+\Needspace{3\baselineskip}
+```
+
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.5 — The chain measured link by link, by executing the archived programs.** Link 1 asks whether a property of the authored code moves with the fed block; link 2 asks whether that property then moves behaviour. **What to conclude:** measured by execution rather than by reading the code, the chain breaks in two places rather than one, and the rival row is the largest effect in the exhibit.[^chaininst]
+```{=latex}
+\par\endgroup
+```
+
+| Link 1, within-chain association | Treatment | Dose | Scrambled | Carries |
+|---|---:|---:|---:|---|
+| Curvature of the left-tail penalty | 0.016 | 0.008 | 0.098 | no |
+| Loss aversion | 0.021 | 0.014 | 0.120 | no |
+| Turnover charge | 0.111 | 0.043 | 0.035 | yes |
+| Reward range | 0.030 | 0.043 | 0.098 | no |
+| Relative tail curvature | 0.061 | 0.031 | 0.053 | yes |
+| Relative turnover charge | 0.037 | 0.006 | 0.120 | no |
+
+| Link 2, behaviour to outcome | Correlation | 90% interval | Permutation $p$ |
+|---|---:|---|---:|
+| Loss aversion against worst-5% loss | +0.430 | [+0.252, +0.648] | 0.020 |
+| Relative turnover charge against turnover | −0.262 | [−0.394, −0.214] | 0.058 |
+| Relative tail curvature against worst-5% loss | −0.070 | [−0.320, +0.105] | 0.594 |
+| Rival: realised turnover against worst-5% loss | −0.749 | [−0.861, −0.528] | <0.001 |
+
+The loss-aversion tie strengthens to +0.539 once realised turnover is partialled out, so it is not
+the turnover channel under another name. Figure 5.5 draws the two programs.
+
+[^chaininst]: Link 1 is measured within a candidate chain, so a model's own authoring style differences out; link 2 runs over the 55 cells at 87 paired seeds. The instrument is calibrated against three known answers and recovers 1.000, 3.000 and 2.000 exactly, and 1,479 of 1,494 archived programs re-execute, the failures being three distinct programs by the weakest model.
+
+![**Figure 5.5 — The reward programs the models wrote, executed and plotted as functions.** Each arm's frozen winning program is loaded from the sealed archive and run over two sweeps: the day's portfolio return with the weights held still, and the share of the book traded at a zero return. Curves are the median over five warm-up seeds, because several of these programs carry rolling state and probing them cold measures the initialiser rather than the reward. Each curve is scaled to its own peak, since authored magnitude spans a factor of 9.8 million and the vertical levels are not comparable. **What to conclude:** the treatment did change the code. Its curve bends at about $-1.5$ per cent and pays little for a gain, penalising a $-4$ per cent day 4.16 times as hard as it rewards a $+4$ per cent day, against 1.26 for the scalar control, whose curve is nearly symmetric. What the right panel shows is that this asymmetry did not come with a heavier turnover charge, which is the link the outcome needed and did not get.
+](../outputs/figures/F5_reward_response.png)
+
+**Why the reward's magnitude matters at all, when the environment never sees it.** Authored reward
+magnitude spans a factor of 9.8 million, from a root-mean-square of 0.0205 to 201,045, and Soft
+Actor-Critic reads reward scale as an inverse temperature. The gear train runs from magnitude to the
+value normaliser at $r = +0.937$, from the learned temperature to turnover at $-0.377$, and from
+turnover to risk-adjusted return at $-0.992$.[^gears2] Holding magnitude fixed leaves the second link
+intact at $-0.439$ and holding temperature fixed leaves the third intact at $-0.991$, so the last
+gear is not a restatement of the first. A designer who never intended to set an exploration
+temperature sets one anyway, by choosing units.
+
+[^gears2]: Ninety-five per cent intervals, in order: [+0.890, +0.971] for magnitude to normaliser scale, [−0.365, +0.836] for magnitude to temperature, [−0.684, −0.062] and [−0.756, −0.202] for temperature to turnover before and after holding magnitude fixed, and [−0.996, −0.982] and [−0.996, −0.974] for turnover to risk-adjusted return before and after holding temperature fixed. The magnitude-to-temperature interval spans zero, which is why the account runs through the normaliser rather than directly. Every interval is a percentile bootstrap at 10,000 resamples, computed two ways, over the 55 cells and clustered on the 11 authoring lines, the wider governing.
+
+
+
+![**Figure 5.6 — The path, not only the endpoint.** A terminal Sharpe is a path functional, and the number the tables report is a late reading of a curve that moved by more than a full Sharpe unit inside the window. The horizontal axis is the end of the expanding window over the sealed test span 2020-03-30 to 2026-06-30, 1,571 sessions; the window opens at 126 sessions, about six months, so the variance estimate exists.
+](../outputs/figures/F5_sharpe_trajectory.png)
+
+The agent is undertrained rather than overfit at this budget. Three measurements decide it. The critic
+loss is still descending at the 400,000-step cap in three quarters of trainings. Validation fitness
+transfers positively to the sealed window. And 53 of the 55 frozen cells are profitable out of sample.
+Two things would overturn the verdict: a flat or rising critic-loss tail in most trainings, or a negative
+validation-to-test correlation, which is the signature of selection overfitting.[^o8] Undertraining is
+common-mode across arms, so it bounds the claim and cannot tilt a contrast. Figure 5.7 is what does.
+
+[^o8]: Every figure behind this verdict is report-only and pooled across arms, so none reads the sealed comparison. The critic loss falls from a median 2.7043 to 0.0032 over training. Two depths agree on the descending share: 76.0 per cent over 5,610 sealed-test trainings at the banked depth, and 75.5 per cent over 4,785 at the 87-seed prefix. The Spearman validation-to-test transfer is $+0.2559$ against the Pearson $+0.5627$. The top validation quartile averages $+1.0644$ test net Sharpe against $+0.6678$ for the bottom.
+
+![**Figure 5.7 — The mechanism, measured: what a reward design changes is how heavily it trades.** One point per authoring line, at the mean paired change with 95 per cent percentile bootstrap intervals on both axes over 102 paired seeds. Spearman $\rho = -0.982$ at $p = 8.4\times10^{-8}$ over the eleven lines. **What to conclude:** turnover accounts for almost all of the between-line variation in outcome, so a reward design acts on performance predominantly through the cost of trading rather than through any tail-aware behaviour it was intended to induce. The fitted slope printed here is $-1.583$, the ordinary least-squares slope on the eleven line means, while Table 5.8 reports $-1.616$ from the analysis pipeline's own resampled estimate of the same relation. The figure's value sits inside the table's interval of $[-2.068, -1.456]$, and a third estimator over all 55 cells in levels gives $-1.670$. Nothing in this chapter rests on the third digit of any of them.
+](../outputs/figures/F5_turnover_mechanism.png)
+
+![**Figure 5.8 — Seed-to-seed instability by model, ordered.** The lines differ widely in how far a reward design's outcome moves when only the seed changes, which is why no mean is quoted anywhere in this chapter without its dispersion beside it. **What to conclude:** the left-to-right rise is arithmetic, because the axis is sorted by the quantity plotted; what the ordering licenses is the capability reading argued in the text.
+](../outputs/figures/F5_capability_gradient.png)
+
+### 5.5.1 A specification-gaming mechanism the pre-registration named in advance
+
+Observation. Nine independently authored programs, across four models and three arms, converge on one
+construction:
+
+$$\texttt{mean\_ret} \,/\, (\texttt{downside\_vol} + 10^{-8}).$$
+
+Mechanism. The author guarded division by zero. Nothing guards magnitude. The added $10^{-8}$ prevents a
+singularity without bounding the quotient. As `downside_vol` falls the reward grows without limit,
+reaching order $10^{8}$ and breaching the execution guard. The direction is the interpretive point.
+`downside_vol` shrinks as the agent succeeds, so the reward punishes its own success by construction.
+
+Account. The pre-registration named this class before any campaign datum existed, in a forensics
+category flagged on code shape independently of fitness.[^r41] The observed instance is literally the
+form that amendment names. A registered prediction about the kind of pathology an automated designer
+produces was confirmed nine independent times.
+
+Counterfactual. Substitution runs from 4.6% to 6.3% across the five arms, and every Wilson interval
+overlaps every other.[^wilson] The guard cannot produce a between-arm effect. The mechanism is a property
+of automated reward authorship, not of this study's instrumentation.
+
+The *phenomenon* is pre-registered, and the *threshold* at which the guard fires is not.[^guard]
+
+## 5.6 The realised results against the branch the theory predicted in advance
+
+Table 5.6 maps the realised results onto the three pre-registered branches of §C.7. The verdict is the
+conjunction of its four signature rows, so the outcome is a *decided prediction* of either sign.
+
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.6 — Realised results against the §C.7 pre-registered prediction branches.** The branch is decided by the conjunction of all four signature rows, so the two report-only rows already read here cannot settle it alone.
+```{=latex}
+\par\endgroup
+```
+
+| §C.7 signature | Predicted, null branch | Realised |
+|---|---|---|
+| H2-RA, net Sharpe legs | tie | sealed |
+| H2-Tail, CVaR-5% legs | tie | sealed |
+| Responsiveness | $\le 0$ | report-only, read at the stop |
+| Reward-program differential | none or reversed | report-only, read at the stop |
+
+
+The branch verdict itself, and the one-line theory-tied interpretation §C.7 attaches to it, are
+*(sealed until the single confirmatory look, 2026-08-27)*.
+
+## 5.7 Ten further models author the identical arms, and none was dropped (report-only)
+
+Ten further models author the identical five language-model arms under byte-identical prompts. Nothing in
+this section or §5.8 gates H1 to H4. The roster, the pins and the calendar gate are frozen in `model_suite`,
+and every leg's archive passed the same write-then-verify bank gate as the campaign root.
+<!--RUNG:100-->All ten legs are executing and none is truncated as at 2026-08-09. Five already hold the
+registered 568-seed ceiling. The per-leg headline contrasts, the T0-floor inclusion list and the per-leg
+bank-gate verdicts are sealed until the single confirmatory look.
+
+The contamination screen is the one part of this section worth reading before that look, because its
+result is not what the flag count says. Every leg was screened before launch and six of ten raised a
+canary flag. Human adjudication of those flags recorded four genuine confabulations, in `haiku-4.5`,
+`kimi-k3`, `nemotron-3-super` and `qwen3.5-9b`, against two false positives in `qwen3.6-27b` and
+`sonnet-5`, both of which correctly identified the canary as synthetic. One leg, `deepseek-v4-pro`, is
+unverified rather than flagged, its answers having been truncated by an output cap that amendment R113
+later raised. No leg was excluded, downweighted or re-run.
+
+That disposition is structural rather than lenient. The canary is a synthetic arithmetic sequence,
+twenty daily returns rising linearly from −0.0917 to +0.0917, corresponding to no market episode at
+all, so confabulating a specific crash for it is evidence of confabulation under identification
+pressure and not evidence that a model has seen the sealed window. The screen routes to a human and
+issues no verdict, which is why the adjudicated split is the measure and the flag count is not.
+
+## 5.8 The capability gradient is readable before any outcome is scored (report-only)
+
+### 5.8.1 Authoring reliability — the one capability measure that needs no sealed outcome
+
+Every other quantity in this section waits on the sealed test. Table 5.7 does not, because it asks a prior
+question: can the model write executable objective code at all? It is read from the complete failure ledger,
+which records only whether an authored program cleared static screening and executed, never how it performed.
+
+
+```{=latex}
+\Needspace{3\baselineskip}
+```
+
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.7 — Authoring reliability by model: the share of each line's 150 registered candidate slots lost, with a 95% Wilson interval and the author-side against node-side split.** The loss rate spans two orders of magnitude, so authoring executable objective code is a property of particular models.
+```{=latex}
+\par\endgroup
+```
+
+| Authoring model | Lost / registered slots | Lost (%) | 95% Wilson interval | Failure rows: author-side / node-side |
+|-----|---|---|---|---|
+| `qwen3.5-9b` | 129 / 150 | **86.0** | [79.5, 90.7] | 35 / 97 |
+| `nemotron-3-super` | 36 / 150 | 24.0 | [17.9, 31.4] | 16 / 25 |
+| `glm-5.2` | 25 / 150 | 16.7 | [11.6, 23.4] | 8 / 18 |
+| **`opus-5` (confirmatory seat)**| 18 / 150 | **12.0** | [7.7, 18.2] | 21 / 1 |
+| `qwen3.6-27b` | 16 / 150 | **10.7** | [6.7, 16.6] | 3 / 13 |
+| `deepseek-v4-pro` | 12 / 150 | 8.0 | [4.6, 13.5] | 6 / 8 |
+| `gemini-2.5-flash` | 10 / 150 | 6.7 | [3.7, 11.8] | 8 / 4 |
+| `haiku-4.5` | 6 / 150 | 4.0 | [1.8, 8.5] | 2 / 5 |
+| `gpt-5.6-luna` | 4 / 150 | 2.7 | [1.0, 6.7] | 0 / 4 |
+| `kimi-k3` | 1 / 150 | 0.7 | [0.1, 3.7] | 0 / 1 |
+| `sonnet-5` | 0 / 150 | 0.0 | [0.0, 2.5] | 0 / 0 |
+
+*Measured 2026-08-09 by `docs/ops/authoring_reliability.py`. Closing rates are (to be read at the exogenous stop, 2026-08-27).*
+
+These rates supersede an earlier measurement that counted only node-side rejections, and the
+understatement was non-uniform, so it re-ordered the gradient rather than shifting it.[^superseded]
+The load-bearing contrast survives the correction. The Qwen pair is a within-family comparison with
+the reasoning configuration pinned identically across both members, and 86.0% against 10.7% isolates
+capacity from vendor, prompt and harness.[^astsplit] The bottom anchor stands: a model that fails
+most of its attempts leaves the reflection loop nothing to reflect on, which §6.1 develops as a
+threshold rather than a slope.
+
+The legs share the market panel and the common-random-number seed set *by design*, so they are not independent
+replications and are never counted as if they were. The synthesis therefore has two tiers. The seven cross-model instruments below set
+them beside the two registered capability instruments and the stability ordering of Figure 5.8, which is a
+display choice.[^gradient] The
+hand-reward canon runs after the headline at the lowest execution priority.[^canonhist]
+<!--RUNG:100-->All eleven members have executed and each holds the same contiguous 102-seed prefix as every
+other cell as at 2026-08-09 *(to be read at the exogenous stop, 2026-08-27)*.
+
+Table 5.8 is the descriptive eleven-line reading the abstract quotes.[^desc]
+
+[^desc]: No row is a hypothesis test.
+
+
+```{=latex}
+\Needspace{3\baselineskip}
+```
+
+```{=latex}
+\begingroup\tabcaptionstyle
+```
+**Table 5.8 — The eleven-line descriptive reading, at 102 paired seeds.** Read the interval column, not the point estimates.
+```{=latex}
+\par\endgroup
+```
+
+| Quantity | Estimate | Interval |
+|---|---:|---|
+| Treatment minus `scalar`, net Sharpe | −0.061 | [−0.251, +0.040] |
+| Treatment minus `placebo`, net Sharpe | −0.196 | [−0.501, −0.070] |
+| Treatment minus `scalar_cvar5`, net Sharpe | −0.171 | [−0.537, −0.001] |
+| Treatment minus its scrambled control, net Sharpe | −0.024 | [−0.167, +0.097] |
+| Lines where treatment beats all three comparators | 0 of 11 | a count |
+| Best arm by line | see caption below | a count |
+| Turnover against net Sharpe, across the 11 lines | r = −0.986 | [−0.997, −0.941] |
+| Turnover against net Sharpe, across the 55 cells | r = −0.992 | [−0.997, −0.983] |
+| Turnover against gross Sharpe, across the 11 lines | r = −0.967 | [−0.992, −0.657] |
+| Slope against turnover, net | −1.616 | [−2.068, −1.456] |
+| Slope against turnover, gross | −0.341 | [−0.435, −0.184] |
+| Share of the turnover damage that is cost | 78.9% | [76.4, 90.3] |
+| Turnover span across the 55 cells, per day | 0.603% to 88.83% | a range |
+| Variance share, model identity | 27.9% | [11.5, 35.1] |
+| Variance share, arm | 14.8% | [7.8, 29.4] |
+| Variance share, model by arm interaction | 34.8% | [23.5, 38.2] |
+| Variance share, residual | 22.5% | [14.3, 43.8] |
+| Shortfall constructs in code, treatment | 16 of 277 | [3.6, 9.2]% |
+| Shortfall constructs in code, scrambled control | 17 of 280 | [3.8, 9.5]% |
+| Fed statistics named in code, treatment | 4 of 277 | [0.6, 3.7]% |
+| Fed statistics named in code, scrambled control | 12 of 280 | [2.5, 7.3]% |
+
+Four readings travel with that table. No condition wins everywhere: the per-line best arm is `placebo` on
+five lines, `scalar_cvar5` on four, `scalar` on one, the scrambled control on one, and the treatment on none.
+The fit against turnover is similar before and after costs but the magnitude is not, so four fifths of the
+damage is what trading costs.[^twoest] The four variance shares overlap, so the interaction's exclusion of
+small values is established and the ordering is not. And the shortfall-construct counts are not separated
+from parity: treatment against the two uninformed controls pooled is +2.6 points on a 95 per cent Newcombe
+interval of [−0.3, +6.2], with the scrambled control level or a little above.[^denoms]
+
+[^denoms]: Every denominator is that arm's own eleven-line program count.
+
+
+```{=latex}
+\Needspace{3\baselineskip}
+```
+
+Seven cross-model instruments are named and directed before any of them can be read, so the synthesis is a
+procedure fixed in advance, and all seven stay sealed until the single confirmatory look.[^sevenins] Every
+$p$-value is Benjamini-Hochberg-corrected across the ten-leg report-only family. What the suite traces is
+the envelope-to-realisation gap along the capability axis: the Blackwell envelope of Appendix C binds an
+optimal author, and the legs measure the gap a bounded one realises.
+
+[^sevenins]: Two are inferential, the descriptive replication count on the CVaR leg and a per-seed joint-flip permutation test at 10,000 replications. One is the bounded-effect interval on the pooled mean CVaR-5% difference. The remaining four read the capability axis: the three-signature gradient adjudication, whose registered prediction is flat-at-zero, a family-pair difference-in-differences over the open, closed and same-vendor pairs, a capability regression against the pre-declared external anchor, and generation-indexed responsiveness across the loop's six generations.[^unwired]
+
+[^adds]: A descriptive interval says where the contrast lies.
+
+[^marks]: A row marked sealed until 2026-08-27 carries alpha and so carries no number today.
+
+[^mechreg]: The registration states this as configuration, under the `mechanism:` key of `config/preregistration.yaml` as `report_only: true` and `disjoint_from_m6: true`, and in words at `PREREGISTRATION.md` section 2a.
+
+[^unwired]: Three of the seven rows, and the Benjamini-Hochberg correction beneath the table, come from estimators implemented and unit-tested in `src/inference/cross_model.py` but not called by the analysis entrypoint as the code stands on 2026-08-11: `pair_did`, `capability_regression`, `generation_indexed_responsiveness` and `leg_family_bh`.
+
+
+
+[^spend]: R81 registered the $30 total as hard-capped in code. R83 kept it as a planning ceiling, so the registered trim order was never exercised. The ledgers read on 2026-08-09 from `outputs//spend_ledger*.jsonl` give Anthropic $53.50 and OpenRouter $10.04. The registered single-look author accounts for $30.10 and the ten legs for $15.40, the largest leg `sonnet-5` at $5.14 and the smallest `qwen3.5-9b` at $0.07.
+
+[^h1n]: An intersection-union $p$-value is the maximum over legs, so a lower-powered leg would disproportionately be that maximum.
+
+[^guard]: The threshold is an implementation guard added by an internal audit on 2026-07-22, pre-data but outside the frozen hash, and absent from both `PREREGISTRATION.md` and `config/preregistration.yaml`.
+
+[^wilson]: Each rate carries a Wilson 95% interval on that arm's own denominator. The five denominators sum to a pooled $n = 1{,}237$ which is not the interval's $n$.
+
+[^r41]: R41 registers the category verbatim as "rewards of the form `return / (variance + eps)`, unbounded above as realized variance goes to 0 (the critic-explosion mechanism)", anchored to the specification-gaming literature.
+
+[^superseded]: The panel quoted until 2026-08-03 read rejections from markers written on the compute node, and the author-side gate is driver-side, so no marker can exist for that class.
+
+[^astsplit]: Author-side means the output never became a runnable reward. The bottom leg is the opposite shape, 97 of 132 rows node-side, which is why the within-family Qwen contrast is the reading our screen cannot have manufactured.
+
+
+[^twoest]: The second estimator runs on the 55 cells in levels rather than on eleven contrasts, clustered on the authoring line. They agree at $r = -0.986$ against $-0.992$, with slopes $-1.616$ [-2.068, -1.456] and $-1.698$ [-1.825, -1.594], each point estimate inside the other's interval.
+
+[^gradient]: The ordering is a display choice. Regressing dispersion on authoring reliability across the full roster gives a Spearman $\rho$ of $+0.273$ at $p = 0.417$.
+
+[^canonhist]: R105 expanded the H1 comparator to the full eleven-name canon, so the earlier secondary panel described under R97 no longer exists.
+

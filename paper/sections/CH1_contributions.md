@@ -1,9 +1,9 @@
 # CH1 (Introduction) — the numbered contributions, each with its evidence attached
 
 **Why numbered claims and not a paragraph.** Criterion 3 marks significance, and *"markers assessing
-significance are looking for something to point at."* A paragraph saying the work "contributes to
+significance are looking for something to point at."*A paragraph saying the work "contributes to
 understanding" gives them nothing. Each claim below is followed by **the specific result that supports
-it** and **the section where that result lives**, so the claim can be checked rather than believed.
+it**and **the section where that result lives**, so the claim can be checked rather than believed.
 
 **Status discipline.** Contributions 1–4 are **evidenced now**. Contribution 5 is the confirmatory
 hypothesis and is **marked pending until the sealed test is scored** — it is listed so the structure is
@@ -14,7 +14,7 @@ visible, not to bank a result in advance. Nothing here is asserted from an infer
 ## C1 — An instrument: multi-level tail feedback as a manipulable variable
 
 **The claim.** A reward-designing loop can be fed a *coherent-risk profile of the realized-return lower
-tail* — CVaR at 5/10/25/1 %, left-tail mass, robust skew — rather than a scalar, and that channel can be
+tail*— CVaR at 5/10/25/1 %, left-tail mass, robust skew — rather than a scalar, and that channel can be
 manipulated while everything else is held fixed. The estimator is **critic-agnostic and off-critic**: it
 reads no Q-network and fits only on realized returns.
 
@@ -36,7 +36,7 @@ reward-design literature. This is deliberately stated as a claim about a *practi
 cell: it is verifiable in an afternoon and cannot be defeated by naming an adjacent paper.
 
 **Evidence.** A frozen design hash (`3ca6f01ab7724d47…`, tag `prereg-v2.1`) binding nine files including
-the prompts and the arm specification, so the manipulated variable cannot change post-freeze; 115 dated
+the prompts and the arm specification, so the manipulated variable cannot change post-freeze; 105 dated
 amendments, every one pre-data; and the epistemic basis correctly named — Mayoian error-statistical
 severity rather than Popperian corroboration, re-based *pre-data* by amendment R61. → **CH2 positioning
 matrix (pre-registration column); CH3 severity paragraph; Quality-control appendix.**
@@ -44,10 +44,12 @@ matrix (pre-registration column); CH3 severity paragraph; Quality-control append
 ## C3 — A negative result with a mechanism: expert risk-aware objectives lose to an unpriced friction
 
 **The claim.** Over the sealed 2020-03-30 → 2026-06-30 window, ten of eleven expert-designed reward
-functions are **net-negative** risk-adjusted, four of them explicitly risk-aware; the eleventh — the one
-that charges for trading — is the only positive. **Gross** of transaction costs every design earns
-+0.82 … +1.17 Sharpe, so all carry real signal; **none beats an equal-weighted buy-and-hold of the same
-thirty assets (+1.283) even before costs**, and all but one surrender that signal entirely to a
+functions are **net-negative** risk-adjusted, **eight of the ten losers penalising risk explicitly**; the
+eleventh — the one that charges for trading — is the only positive. **Gross** of transaction costs every
+design earns +0.82 … +1.18 Sharpe, so all carry real signal; **none beats a costless, daily-rebalanced
+equal-weighted portfolio of the same thirty assets (+1.283) even before costs** — the drifting
+buy-and-hold variant (+1.258) also dominates, so the comparison does not turn on the rebalancing
+convention — and all but one surrender that signal entirely to a
 20 %/year turnover drag.
 
 **Evidence.** Mean net Sharpe **−0.1071** against mean gross **+0.9628** — a **1.07 Sharpe** cost wedge —
@@ -87,8 +89,8 @@ confirmatory nodes are fixed in advance and tabulated in CH4. **This slot is int
 
 ## Placement and cross-references
 
-* All five appear in the Introduction as a numbered list (~180 words), each with a forward reference.
-* C5's pending status is stated in the Introduction too — a reader must not infer that the confirmatory
+*All five appear in the Introduction as a numbered list (~180 words), each with a forward reference.
+*C5's pending status is stated in the Introduction too — a reader must not infer that the confirmatory
   result is being withheld or hedged.
-* The Conclusion answers the research question in its **original words** and then re-states C1–C4 with
+*The Conclusion answers the research question in its **original words** and then re-states C1–C4 with
   their final numbers.

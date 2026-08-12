@@ -1,30 +1,40 @@
 # The canonical research question (stated three times, identically) + the page-one framing
 
 **Why identical wording matters.** Criterion 2's title puts *"clear statement of objectives or research
-questions"* **before** methods, so this criterion is partly marked on legibility of purpose. Stating the
+questions"***before** methods, so this criterion is partly marked on legibility of purpose. Stating the
 question in three places in three different phrasings reads as three different questions. Stating it
 identically makes a marker recognise it and tick the box. This is not repetition; it is the criterion
 being satisfied.
 
-**⚠ Sourcing.** The canonical form below is taken **verbatim** from the existing `paper/CH1_introduction.md`
-§1.2 (the "mechanistic question at the centre of this dissertation"). It is **not** a new formulation —
-re-wording it now would create exactly the inconsistency this action exists to remove.
+**⚠ Sourcing — RE-BASED 2026-08-01, and the reason matters more than the edit.** This file defines
+canonicity, and it had gone **stale against the artefact it governs**. The string below was originally taken
+verbatim from an older `CH1_introduction.md`; Chapter 1 has since been rewritten twice, and the three live
+placements (Chapter 1's preamble, `CH4_methods.md` §4.1, `CH7_…` §7.1) now agree with **each other** and
+disagree with the text this file used to carry. The pre-submission gate at the foot of this file greps for
+the canonical string in all three places — so, left alone, **it would have failed on correct text**, which
+is the worst way for a gate to fail: it trains the operator to wave it through. The canonical form is
+therefore re-based on the live artefact rather than the artefact being reverted to the file.
 
 ---
 
 ## THE CANONICAL FORM — copy this text, character for character, into all three places
 
-> **Research question.** Does showing the reward-designer the *downside* — the lower-tail distribution of
-> realised outcomes, rather than a scalar — change the reward *code* it writes, and does that change
-> propagate to the trained agent's realised tail behaviour?
+> **Research question.** *Does showing the reward-designer the lower tail of the realised outcome
+> distribution, rather than a single score, change the reward code it writes, and does that change
+> propagate to the trained agent's realised tail behaviour?*
+
+*(The superseded wording, kept only so the change is auditable, was: "Does showing the reward-designer the
+**downside** — the lower-tail distribution of realised outcomes, rather than a **scalar** — change the
+reward **code** it writes …". The re-based form says the same thing without the em dashes and without the
+word "scalar", which the any-discipline second marker has no reason to know.)*
 
 With its decomposition, which may accompany the question but must not replace it:
 
-> We cast this as a **three-link causal chain** — fed tail signal → authored reward code → trained policy
-> → realised tail — and ask, through three sub-questions: **(SQ1)** does the signal move the code?
-> **(SQ2)** does the code move the outcome? **(SQ3)** is any effect genuine *use* of the tail content, or a
-> surface echo? The object is not merely *whether* richer feedback helps, but **where the channel acts or
-> breaks**.
+> The question decomposes into a three-link chain, from the fed tail signal to the authored reward code to
+> the trained policy and finally to the realised tail. Three sub-questions follow it. Does the signal move
+> the code (SQ1)? Does the code move the outcome (SQ2)? Is any effect genuine use of the tail content rather
+> than a surface echo of it (SQ3)? The object is not whether richer feedback helps, but where along that
+> chain the channel acts or breaks.
 
 ### Placement 1 — boxed, first page of the Introduction
 Immediately after the opening context paragraph, before §1.2's literature framing. Boxed or block-quoted
@@ -42,8 +52,8 @@ Template, to be completed with the sealed result:
 
 > Does showing the reward-designer the downside change the reward code it writes, and does that change
 > propagate to the trained agent's realised tail behaviour? **[Link 1: it does / does not move the code,
-> by …]** **[Link 2: the change does / does not propagate, by …]** **[Link 3: the effect is genuine use /
-> a surface echo, because …]** The chain therefore **[holds / breaks at link N]**, and the study's
+> by …]****[Link 2: the change does / does not propagate, by …]****[Link 3: the effect is genuine use /
+> a surface echo, because …]**The chain therefore **[holds / breaks at link N]**, and the study's
 > contribution is to have **located** that, rather than to have observed only that richer feedback did or
 > did not help.
 
@@ -66,13 +76,13 @@ believing the project failed has already formed a view and will not revise it. T
 > *location* of the mechanism's boundary, not a victory for one arm.
 
 **Teach the three unfamiliar ideas in one sentence each, here, because the second marker may be a
-structural engineer** — briefly, without condescension:
+structural engineer**— briefly, without condescension:
 
-* **Pre-registration** — the design, hypotheses, and analysis were fixed and hash-frozen before the test
+***Pre-registration** — the design, hypotheses, and analysis were fixed and hash-frozen before the test
   data was examined, so no analytic choice could be made after seeing the outcome.
-* **Equivalence testing** — a test that can conclude "no effect larger than *x*", which ordinary
+***Equivalence testing** — a test that can conclude "no effect larger than *x*", which ordinary
   significance testing cannot; it is what turns a predicted null into evidence.
-* **Intersection–union test** — a claim required to hold against *every* comparator at once; because the
+***Intersection–union test** — a claim required to hold against *every*comparator at once; because the
   composite null is only rejected when each component is, it needs no multiplicity correction.
 
 ---
@@ -88,7 +98,7 @@ nothing in registered terms.
 > **How to read this chapter.** The order below is the pre-registered analysis order and is deliberately
 > not the order of interest. It opens with **execution integrity** — evidence that the run is fit to be
 > interpreted at all — because every later number depends on it. It then reports the **co-primary
-> confirmatory tests** with their equivalence bounds, then the **controls** that separate content from
+> confirmatory tests**with their equivalence bounds, then the **controls**that separate content from
 > format, and only then the **mechanism decomposition** that explains *why* the confirmatory result came
 > out as it did. Reading the mechanism section first would be reading an explanation before the thing it
 > explains. Each section states its decision rule before its numbers, and every rule was fixed before the

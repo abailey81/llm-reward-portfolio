@@ -3,7 +3,7 @@
 Consolidated output of 24 strict web-research scouts (each forbidden from fabricating citations; every
 source tagged VERIFIED-FETCHED vs SNIPPET). This is the citation backbone, novelty defence, examiner
 alignment, grading-rubric targets, and publication plan for the dissertation. **Before any 2025-26
-arXiv id or any DOI enters `paper/refs.bib`, re-verify it first-hand** (the supervisor co-authors in
+arXiv id or any DOI enters `paper/refs.bib`, re-verify it first-hand**(the supervisor co-authors in
 this space). Flags at the end are load-bearing.
 
 ---
@@ -13,13 +13,13 @@ this space). Flags at the end are load-bearing.
 1. **The novelty cell is EMPTY (confirmed by 3 independent scouts + a dedicated scoop sweep).** No
    single work occupies the conjunction: *(LLM authors reward-function CODE) × (fed the realized-return
    lower-tail distribution / multi-level CVaR as off-critic iteration feedback) × (risk-sensitive
-   PORTFOLIO RL, fixed agent) × (pre-registered comparative inference).* Axis 4 (pre-registration) is
+   PORTFOLIO RL, fixed agent) × (pre-registered comparative inference).*Axis 4 (pre-registration) is
    essentially unique across the entire LLM-reward-design literature.
 2. **The 90%+ band is reachable but is gated on WRITING, not science.** UCL's own descriptors define
    86–100 as *"of publishable quality… would receive that judgement at a peer-reviewed journal… clearly
-   capable of doctoral research."* A pre-registered, well-disclosed null IS a publishable contribution.
+   capable of doctoral research."*A pre-registered, well-disclosed null IS a publishable contribution.
 3. **Best publication path for this (likely-null, single-instance) result:** a NeurIPS/ICAIF **finance
-   workshop** (null-friendly, non-archival) → **TMLR** (its acceptance criteria explicitly drop novelty/
+   workshop**(null-friendly, non-archival) → **TMLR**(its acceptance criteria explicitly drop novelty/
    SOTA; a well-evidenced null passes by design) → optionally ICAIF main. This sequencing also satisfies
    the dissertation's "publishable" grade descriptor.
 
@@ -41,23 +41,79 @@ this space). Flags at the end are load-bearing.
   portfolio RL**, under **pre-registration**.
 
 ### B.2 Nearest neighbours — cite-and-distinguish in Related Work (failing to cite = the most likely ding)
+
+> ⭐ **VERIFICATION PASS, 2026-08-10 — ALL NINE POSITIONING-MATRIX NEIGHBOURS RE-READ FROM THE ON-DISK PDFs,
+> AND THE RESULT NOW SHIPS INSIDE THE DISSERTATION AS APPENDIX H.** Every cell of the Table 10 matrix was
+> re-sourced page by page from the corpus copies (Eureka 45 pp · Text2Reward 37 pp · REvolve 42 pp ·
+> CARD 28 pp · DLM 38 pp · ELfolio 15 pp · FinRL-DeepSeek 5 pp · GIFT 25 pp · FINCON 30 pp). Of the 54
+> weight-bearing cells, **36 now carry a verbatim quotation with its page, 3 carry a page locator, and 15
+> are counted full-text searches** because the cell asserts an absence and no quotation can establish one.
+> (Counted mechanically from the shipped table, not by hand: a first hand tally read 37/2/15 and was wrong
+> on REvolve's agent cell, which is a locator rather than a quotation.)
+> ⚠ **THE READ-DATE RECORD WAS THINNER THAN THIS FILE IMPLIED, and Appendix H states it rather than fixing
+> it silently:** a dated first-hand read is recorded here for **three of the nine** (ELfolio 2026-07-02,
+> GIFT 2026-07-02, FINCON 2026-08-10). Eureka carries a quoted verbatim claim but no date; **Text2Reward,
+> REvolve, CARD, DLM and FinRL-DeepSeek carried neither** until this pass. Their rows in Appendix H
+> therefore read "none recorded" and give the 2026-08-10 *verification* date instead, which is a weaker
+> thing than a reading date and is labelled as one. **Do not backfill a reading date that was never taken.**
 - **DLM (Behari et al., NeurIPS 2024, arXiv:2402.14807)** — structural twin (LLM proposes reward code,
-  iterates on simulated feedback shown a distribution). Distinct: public-health RMABs not finance; no
-  risk/tail; no pre-registration; bandit not continuous-action SAC. **Disclose prominently.**
+  iterates on simulated feedback shown a distribution). Distinct: public-health RMABs not finance; the
+  distribution is over **demographic state-features**, not realised returns, so it is not a tail profile;
+  no risk/tail objective; no pre-registration. **Disclose prominently.**
+  ⛔ **THE "AGENT NOT HELD FIXED" DISTINCTION WAS WRONG AND IS WITHDRAWN, 2026-08-10.** This entry, and
+  Table 10's cell with it, read *"bandit not continuous-action SAC"* as if DLM trained no fixed learner.
+  It does. **§4.3, p. 5:** *"We evaluate each LLM-proposed reward function $R_{1:K}$ by training a policy
+  network $\theta$ under each proposed reward $R_i$"*, updated with PPO at Algorithm 1 line 13. The cell's
+  supporting quotation had been taken from DLM's **§2 Related Work**, where it describes how RMABs were
+  *classically* solved by the Whittle index — someone else's method, not DLM's. **DLM therefore holds one
+  learner fixed while the reward varies, which is this study's own identification structure, and the honest
+  distinction is narrower: the learner is discrete-action rather than continuous-action, and Algorithm 1
+  initialises the policy and critic once per iteration (line 5) outside the per-reward loop (line 6), so
+  candidates are not re-initialised between rewards.** The conjunction survives on domain, feedback content
+  and risk-sensitivity. **Lesson for every other row: check the enclosing SECTION of a quotation, not only
+  its page. A Related Work sentence cannot evidence what a paper does.**
 - **FinRL-DeepSeek (arXiv:2502.07393)** — finance + "risk-sensitive" + LLM. Distinct: LLM = sentiment/risk
   **score encoder** scaling actions; the **reward is the fixed hand-written CPPO/CVaR-PPO objective**; no
-  reward code authored; no tail fed to the LLM. (PDF fetch was corrupt across 2 scouts — re-verify the
-  "human-written reward" claim from the HTML before citing it as the key distinction.)
+  reward code authored; no tail fed to the LLM.
+  ✅ **THE CORRUPT-FETCH CAVEAT IS CLOSED, 2026-08-10.** It read: *"PDF fetch was corrupt across 2 scouts —
+  re-verify the 'human-written reward' claim from the HTML before citing it as the key distinction."* The
+  corpus copy (`C_signals_into_rewards/FinRL-DeepSeek__2502.07393.pdf`) opens and extracts cleanly at
+  **5 pages**, and the answer is sharper than the claim it was checked against: **the string `reward`
+  occurs ZERO times in the entire paper.** So nothing is authored, revised or fed back as a reward at all.
+  The paper's own statement of what it does, verbatim from p. 1: *"We extend the Conditional Value-at-Risk
+  Proximal Policy Optimization (CPPO) algorithm, by adding risk assessment and trading recommendation
+  signals generated by a LLM from financial news."* The LLM's scores enter as multiplicative perturbations
+  on the action (p. 2, *"Sf > 1: Amplifies actions under positive recommendation"*). Recorded in the
+  dissertation at Appendix H.
+- **FINCON (Yu et al., NeurIPS 2024, arXiv:2407.06567v3)** — [VERIFIED first-hand 2026-08-10 from
+  `01_literature/I_also_mentioned/FINCON__2024.pdf`, 30 pp.; cited `yu2024fincon`, row in T10] a
+  manager-analyst LLM multi-agent system for financial decision-making. Distinct on the column that
+  matters: **no numeric reward is trained into a policy at all.** Risk control is dual-level and
+  *verbal* — verbatim from the contributions list, "Within episodes, risk is supervised using the
+  Conditional Value at Risk (CVaR) ... Across episodes, we introduced a verbal reinforcement mechanism,
+  where investment beliefs are updated based on reasoning trajectories and profit-and-loss (PnL) trends".
+  ⚠ CORRECTED 2026-08-10: this quotation previously ended "based on reason[ing]", a truncation that the
+  PDF does not support; re-read from p. 2 of the on-disk copy. Full-text counts over the 30 pages:
+  `CVaR` 30, `Conditional Value at Risk` 4, `verbal reinforcement` **12**, `belief` **44**, counted
+  case-insensitively over the whole 30 pages with the source's line-break hyphenation joined. The PDF
+  prints no proceedings volume number, so none is asserted in `refs.bib`.
+  ⚠ CORRECTED 2026-08-10: this line read `verbal reinforcement` 7 and `belief` 42, and neither figure is
+  reproducible under any stated convention (case-sensitive gives 8 and 42, case-insensitive gives 12 and
+  44). The dissertation's Appendix H prints the case-insensitive figures and states the convention, which
+  is what makes them checkable; these are now the same numbers.
+  ⚠ ADDED 2026-08-10 BECAUSE ITS ABSENCE WAS A LIVE DEFECT: FINCON had occupied a full row of the
+  positioning matrix while having no entry here, no bibkey and no citation anywhere in the document —
+  four lines below a preamble pledging that every cell traces to a first-hand-read entry in this file.
 - **GIFT (Wu et al., arXiv:2606.08450, v1 2026-06-07)** — [VERIFIED first-hand 2026-07-02; cited
   `wu2026gift`, fenced in CH1+CH2; PDF in B_closest_neighbours] the **freshest finance neighbour**: LLM
   designs the PPO state-reward interface — FSE generates state features from factor primitives, RRS
   generates an LLM intrinsic reward term + a subset of a **fixed risk-rule library**, DGR refines on
   **generic rollout diagnostics** (ICs, reward trend/variability, drawdown). Distinct: co-varies **state
-  AND reward** (breaks our reward-only identification); library-constrained not free-form reward code;
+  AND reward**(breaks our reward-only identification); library-constrained not free-form reward code;
   **no CVaR/quantile/tail vector anywhere** (full-text scan: 0 hits); framework-vs-baselines with no
   feedback-content ablation; no pre-registration; PPO not SAC.
 - **ELfolio (Zeng, Chen, Wang & Liang, Intelligent Computing 4:0176, 2025-11-17, DOI
-  10.34133/icomputing.0176)** — [VERIFIED first-hand 2026-07-02; cited `zeng2025elfolio`, fenced in
+  10.34133/icomputing.0176)**— [VERIFIED first-hand 2026-07-02; cited `zeng2025elfolio`, fenced in
   CH1+CH2; PDF in I_also_mentioned] the **closest portfolio system**: evolves LLM-written trading-STRATEGY
   code across RL/evolutionary/DL path templates. Killer verbatim: candidates selected "with the Sharpe
   ratio serving as the fitness function" — **scalar-Sharpe fitness = precisely our CONTROL condition**.
@@ -69,7 +125,7 @@ this space). Flags at the end are load-bearing.
   2026-07-02; **verified-pending-cite** (write-time fence — key to be added when CH2 is next touched);
   PDF in B_closest_neighbours] ensemble of 3 LLM judges scores behavioural traces of an agentic
   stock-forecasting system on six dimensions; deficient scores become a **credit-assigned penalty ADDED
-  to a fixed hand-written SAC reward** (strength λ ≤ 0.20 stable). Distinct: LLM = score-**emitter**
+  to a fixed hand-written SAC reward**(strength λ ≤ 0.20 stable). Distinct: LLM = score-** emitter**
   (judge), never a reward-code author; SAC only tunes two hyperparameters (regime threshold + blending
   weight) of a forecasting pipeline — single-name MAPE, **not portfolio allocation**; zero CVaR/tail
   content (full-text scan: 0 "CVaR", 0 "portfolio"). Structurally the FinRL-DeepSeek pattern moved from
@@ -82,11 +138,11 @@ this space). Flags at the end are load-bearing.
   (beats humans on 83% of 29 tasks, +52%). The **−28.6% reward-reflection ablation** is your single
   strongest "feedback content matters" citation.
 - **MadEvolve (arXiv:2605.23007, 2026) / QuantEvolve (arXiv:2510.18569) / RF-Agent (arXiv:2602.23876,
-  NeurIPS'25 Spotlight?)** — evolve *strategy* code (not reward) or generate reward code in *robotics*; no
+  NeurIPS'25 Spotlight?)**— evolve *strategy* code (not reward) or generate reward code in *robotics*; no
   RL-portfolio + tail + pre-reg. MadEvolve is the freshest look-alike → cite + distinguish (whole-strategy
   code, not RL; scalar fitness; no pre-reg).
 - **ShinkaEvolve (arXiv:2509.19349) / OpenEvolve / AlphaEvolve (arXiv:2506.13131) / FunSearch (Nature 625,
-  2024)** — the "rich feedback channels already exist" objection. Concede the *channel*; your novelty is
+  2024)**— the "rich feedback channels already exist" objection. Concede the *channel*; your novelty is
   the **financial object placed in it** (a return tail). None feeds a return-distribution as fitness.
 
 ### B.3 SCOOP / COUNTER threats you MUST cite-and-rebut (an informed examiner knows these)
@@ -112,7 +168,7 @@ this space). Flags at the end are load-bearing.
   arXiv:2309.11489; Language-to-Reward — Yu et al., **CoRL 2023**, arXiv:2306.08647; DrEureka — **RSS 2024**,
   arXiv:2406.01967; Auto-MC-Reward — **CVPR 2024**, arXiv:2312.09238; REvolve — **ICLR 2025**,
   arXiv:2406.01309; CARD — arXiv:2410.14660 (+ KBS DOI — verify issue); Self-Refine — Madaan, **NeurIPS
-  2023**, arXiv:2303.17651; Survey: Cao et al. **IEEE TNNLS 2024** arXiv:2404.00282 (the "reward designer"
+  2023**, arXiv:2303.17651; Survey: Cao et al. **IEEE TNNLS 2024**arXiv:2404.00282 (the "reward designer"
   taxonomy slot to claim).
 - Program search: FunSearch — **Nature 625:468–475 (2024)**, DOI 10.1038/s41586-023-06924-6 (cite 2024 not
   2023); AlphaEvolve — arXiv:2506.13131 (DeepMind tech report, not peer-reviewed); ShinkaEvolve
@@ -133,10 +189,10 @@ this space). Flags at the end are load-bearing.
   arXiv:1911.02140; book: Bellemare-Dabney-Rowland, *Distributional RL*, **MIT Press 2023**.
 - Risk-sensitive: **DSAC — Ma et al., JAIR, arXiv:2004.14547** (the primary contrast; disambiguate from the
   autonomous-driving "DSAC"); WCSAC — **AAAI 2021**; Théate-Ernst arXiv:2212.14743 (+ their *Expert Systems
-  w/ Apps 2022* portfolio sibling) — **the cleanest "prior risk-sensitive portfolio RL needs a
+  w/ Apps 2022*portfolio sibling) — **the cleanest "prior risk-sensitive portfolio RL needs a
   distributional critic; you don't" contrast**; "Distributional Reward Shaping" (RLDM 2022, ssanner) —
   **the precedent that a scalar reward signal can carry CVaR/tail sensitivity without a distributional
-  critic** (FETCH + verify the title/authors — PDF wouldn't parse).
+  critic**(FETCH + verify the title/authors — PDF wouldn't parse).
 
 ### C.4 Risk-sensitive RL for portfolios + the reward family
 - **Sood et al. 2023** — FinPlan'23/ICAPS, JPMorgan; reward = Moody Differential Sharpe; cash-row state
@@ -155,8 +211,8 @@ this space). Flags at the end are load-bearing.
   a **unique** mixture of CVaRs (= spectral). **This single cite de-risks the "multi-level CVaR is a coherent
   basis" claim.**
 - Artzner-Delbaen-Eber-Heath 1999, *Math. Finance* 9(3):203–228, DOI 10.1111/1467-9965.00068; **Acerbi 2002
-  "Spectral measures" JBF 26(7):1505–1518 DOI …00281-9** and **Acerbi-Tasche 2002 "Coherence of ES" JBF
-  26(7):1487–1503 DOI …00283-2** (DISTINCT papers — the classic conflation); Rockafellar-Uryasev 2000
+  "Spectral measures" JBF 26(7):1505–1518 DOI …00281-9**and **Acerbi-Tasche 2002 "Coherence of ES" JBF
+  26(7):1487–1503 DOI …00283-2**(DISTINCT papers — the classic conflation); Rockafellar-Uryasev 2000
   *J. Risk* 2(3):21–41 (**no DOI — don't invent one**; the 2002 JBF version DOI 10.1016/S0378-4266(02)
   00271-6 has one); Föllmer-Schied 2002, *Finance & Stochastics* 6(4):429–447 DOI 10.1007/s007800200072;
   **Blackwell 1953**, *Ann. Math. Stat.* 24(2):265–272, DOI 10.1214/aoms/1177729032 (state the garbling/
@@ -171,7 +227,7 @@ this space). Flags at the end are load-bearing.
 - White 2000 *Econometrica* 68(5):1097–1126 DOI 10.1111/1468-0262.00152; Hansen 2005 SPA *JBES* 23(4):365–380
   DOI 10.1198/073500105000000063; Romano-Wolf 2005 *Econometrica* 73(4):1237–1282 DOI 10.1111/j.1468-0262.
   2005.00615.x; Harvey-Liu-Zhu 2016 *RFS* 29(1):5–68 DOI 10.1093/rfs/hhv059 (t>3 hurdle); **Harvey-Liu 2015
-  "Backtesting" *JPM* 42(1):13–28** (applies **BHY to Sharpe ratios** — the bridge to your BH-over-family);
+  "Backtesting" *JPM* 42(1):13–28**(applies **BHY to Sharpe ratios**— the bridge to your BH-over-family);
   BH 1995 *JRSS-B* 57(1):289–300; **BY 2001** *Ann. Stat.* 29(4):1165–1188 DOI 10.1214/aos/1013699998
   (**decide PRDS-BH vs BY arbitrary-dependence inflation and SAY which** — top citation flag);
   **Witzany 2021** *Risks* 9(1):18 DOI 10.3390/risks9010018 — the peer-reviewed CSCV-bias critique (negatively
@@ -212,7 +268,7 @@ this space). Flags at the end are load-bearing.
 - **Shumway 1997** *JF* 52(1):327–340 DOI 10.1111/j.1540-6261.1997.tb03818.x — **−30% = NYSE/AMEX**
   (empirical average, not a prescribed round number) [VERIFIED verbatim]; **Shumway-Warther 1999** *JF*
   54(6):2361–2379 DOI 10.1111/0022-1082.00192 — **−55% = NASDAQ**, and **explicitly excludes M&A/migration
-  (codes 501/502) from performance delistings; ≤1% of merger returns are even missing** [VERIFIED — this
+  (codes 501/502) from performance delistings; ≤1% of merger returns are even missing**[VERIFIED — this
   textually proves your univ4 M&A-surcharge limitation; quote it]; **Beaver-McNichols-Price 2007** *JAE*
   43(2-3):341–368 DOI 10.1016/j.jacceco.2006.12.002 (the operationalised −30/−55 rule — cite for *applying*
   it). Survivorship: Brown-Goetzmann-Ibbotson-Ross 1992 *RFS* 5(4):553–580; Kothari-Shanken-Sloan 1995
@@ -230,7 +286,7 @@ this space). Flags at the end are load-bearing.
 ### C.11 Pre-registration / equivalence / open science
 - **Lakens 2017** *SPPS* 8(4):355–362 DOI 10.1177/1948550617697177 + **Lakens-Scheel-Isager 2018** *AMPPS*
   1(2):259–269 DOI 10.1177/2515245918770963 [both VERIFIED] — TOST/SESOI backbone. (⚠ set a *substantive
-  economic* SESOI, not Lakens' power-based one.)
+  economic*SESOI, not Lakens' power-based one.)
 - Nosek et al. 2018 *PNAS* 115(11):2600–2606; **Olken 2015** *JEP* 29(3):61–80 DOI 10.1257/jep.29.3.61 (the
   econ/finance pre-analysis-plan precedent); NeurIPS Pre-registration-in-ML workshops (PMLR v148 2021 /
   v181 2022 — "rare and emerging", don't over-claim); Hofman et al. 2023 arXiv:2311.18807 (preprint);
@@ -255,7 +311,7 @@ this space). Flags at the end are load-bearing.
 
 ### C.13 Reward design THEORY (the intellectual license) + reward hacking
 - **Optimal Reward Problem (the license to design a reward that beats the true objective for a BOUNDED
-  agent):** Singh-Lewis-Barto 2009 "Where Do Rewards Come From?" **CogSci 2009** pp.2601–2606 (cite **2009**);
+  agent):**Singh-Lewis-Barto 2009 "Where Do Rewards Come From?" **CogSci 2009**pp.2601–2606 (cite **2009**);
   Sorg 2011 PhD thesis (UMich) — "one reward confounds defining preferences and guiding behaviour"; Sorg-
   Singh-Lewis 2010 "Internal Rewards Mitigate Agent Boundedness" **ICML 2010** + "Reward Design via Online
   Gradient Ascent" **NeurIPS 2010** (two distinct papers). **Lead the justification with Sorg's bounded-agent
@@ -270,9 +326,9 @@ this space). Flags at the end are load-bearing.
 - **Attack:** Boda-Filar 2006 *MMOR* 63(1):169–186 DOI 10.1007/s00186-005-0045-1 (CVaR need not be
   time-consistent); Lim-Malik **NeurIPS 2022** (the RL-native statement: optimal static-CVaR policy is
   non-Markovian; naive nesting converges to neither object). **Defence:** the static tail is *designer
-  feedback, not a nested risk-to-go* — Artzner et al. 2007 / Ruszczyński 2010 / Shapiro 2009,2012 constrain
+  feedback, not a nested risk-to-go*— Artzner et al. 2007 / Ruszczyński 2010 / Shapiro 2009,2012 constrain
   recursive Bellman risk mappings you never perform; the policy stays Markov; static CVaR is the *more
-  interpretable* practitioner object (Moghimi-Ku 2025 arXiv:2501.02087) and is a studied objective (Tamar
+  interpretable*practitioner object (Moghimi-Ku 2025 arXiv:2501.02087) and is a studied objective (Tamar
   et al. AAAI 2015; Chow et al. NeurIPS 2015; Bäuerle-Ott 2011 — Markov-optimal via state augmentation,
   which you deliberately don't need). **Pre-empt this in one paragraph.**
 
@@ -288,7 +344,7 @@ this space). Flags at the end are load-bearing.
   **CQL** — your prototype's family; **it is consumer-credit pricing, NOT portfolio — frame as offline-RL
   methodology + supervisor lineage, not a portfolio baseline**); Khraishi-Okhrati 2023 noisy-env-augmentation
   arXiv:2305.02882; **Hartley et al. 2025 ACL Findings "How Personality Traits Shape LLM Risk-Taking"
-  arXiv:2503.04735** (his own LLM×risk bridge — legitimises your premise); Okhrati-Schmock 2015 (non-smooth
+  arXiv:2503.04735**(his own LLM×risk bridge — legitimises your premise); Okhrati-Schmock 2015 (non-smooth
   Itô — cite when invoking non-smoothness of risk functionals); Garrido-Okhrati 2018 *Risks* 6(1):23
   (risk-measure-dependent portfolios — supports H2's "which risk functional the reward encodes").
 - **Alignment moves:** frame H2 as "which risk functional the reward encodes" (his sensibility); treat ES
@@ -304,7 +360,7 @@ this space). Flags at the end are load-bearing.
   highest-leverage artifact.
 - **86–100 band (verbatim):** *"of publishable quality… would receive that judgement if submitted to a
   peer-reviewed journal… clearly highly capable of doctoral research"*; *"analysis of such originality as to
-  potentially change conventional understanding"* (LSE); *"reads as if professionally copy-edited"* (UCL CS).
+  potentially change conventional understanding"*(LSE); *"reads as if professionally copy-edited"*(UCL CS).
 - **The 70→80→90 ladder:** 70s = sound + your own analysis; 80s = distinctive + a novel/creative move +
   excellent critical synthesis + best-practice rigour (significance tests, ablations, robustness); 90+ =
   publication-grade synthesis + sophisticated conceptual framework + flawless craft.
@@ -339,10 +395,10 @@ this space). Flags at the end are load-bearing.
 1. **Acerbi 2002 (spectral, …281-9) ≠ Acerbi-Tasche 2002 (ES coherence, …283-2)** — distinct, same JBF issue.
 2. **Kusuoka 2001 = Advances in Math. Economics Vol.3**, not RIMS Kokyuroku.
 3. **PBO/CSCV = JCF 2017 20(4):39–69 (Bailey-Borwein-LdP-Zhu)**; **PSR = J.Risk 2012**; **DSR = JPM 2014
-   (Bailey & LdP only)** — three different papers; don't merge or mis-author. No DOIs on the risk.net ones
+   (Bailey & LdP only)**— three different papers; don't merge or mis-author. No DOIs on the risk.net ones
    (use SSRN/RePEc; never invent a DOI).
 4. **FZ-2016 (theorem, AoS, has Erratum) ≠ FZG-2015 (DM-backtest note, arXiv) ≠ FZ0 (Patton-Ziegel-Chen
-   2019).** Don't conflate.
+   2019).**Don't conflate.
 5. **−30% = Shumway 1997 (NYSE/AMEX); −55% = Shumway-Warther 1999 (NASDAQ); rule = BMP 2007.**
 6. **BAB = 2014 (JFE), QMJ = 2019 (RAS), HLZ title starts with an ellipsis** ("… and the Cross-Section").
 7. **BH vs BY under dependence** — state PRDS-BH or BY-inflation explicitly.
@@ -350,9 +406,9 @@ this space). Flags at the end are load-bearing.
 9. **QR-DQN = 2018 (AAAI)**, not 2017; **FunSearch = Nature 2024**; **Sood = 2023 FinPlan** (ignore the 2602
    arXiv re-post); **DSAC (risk) = Ma et al. JAIR**, disambiguate from autonomous-driving DSAC.
 10. **Don't cite Okhrati for elicitability/EVT.** **Rockafellar-Uryasev 2000 has no DOI.** **REVSTAT has no
-    DOI.** **Krakovna/Clark-Amodei are blogs.** **Nie et al. & "Reward Is Enough" are workshop/preprint.**
+    DOI.****Krakovna/Clark-Amodei are blogs.****Nie et al. & "Reward Is Enough" are workshop/preprint.**
 11. **2026 arXiv ids (MadEvolve 2605.23007, RF-Agent 2602.23876, Heavy-Tails-DM 2605.16866, etc.) are
-    venue-unverified** — re-sweep ~2 weeks before submission; mark "concurrent/under review."
+    venue-unverified**— re-sweep ~2 weeks before submission; mark "concurrent/under review."
 
 ---
 
@@ -380,7 +436,7 @@ this space). Flags at the end are load-bearing.
 Theorem-level, frontier, and cross-disciplinary depth beyond Part I. Purpose: lift the dissertation from
 high-Distinction to *publishable / doctoral-capable* (the verified 86–100 band) and bulletproof it against an
 expert's subtlest objections. **Headline: many of these enable concrete NEW analyses computable on data already
-on disk (the 239 archived reward programs + the winner-seed-ladder × arm matrix — Amendment E1; tiers to n=568, primary target 403) with NO new compute** — see §M. All cites
+on disk (the 239 archived reward programs + the winner-seed-ladder × arm matrix — Amendment E1; tiers to n=568, primary target 403) with NO new compute**— see §M. All cites
 verified-vs-snippet tagged; new integrity flags in §N.
 
 ## I. THEORY PILLARS — three deep, rigorous foundations for the contribution
@@ -396,7 +452,7 @@ vector, `E_scalar = f∘E_vec` is a **garbling** of `E_vec`, hence weakly domina
 - **Quantitative sharpening — Le Cam deficiency:** **Le Cam 1964** "Sufficiency and approximate sufficiency"
   *Ann. Math. Stat.* 35:1419–1455, DOI 10.1214/aoms/1177700372 [VERIFIED] + **Le Cam 1986** book Thm 2 p.20;
   **Torgersen 1991** *Comparison of Statistical Experiments* (CUP, DOI 10.1017/CBO9780511666353); **Strasser
-  1985** (De Gruyter, Ch.9). Deficiency δ(E_scalar,E_vec) **uniformly bounds the excess risk** of the scalar
+  1985**(De Gruyter, Ch.9). Deficiency δ(E_scalar,E_vec) **uniformly bounds the excess risk**of the scalar
   over any bounded loss — converts binary dominance into "dominates, with a worst-case price δ."
 - **Sophistication move:** state the claim as a **two-line theorem + quantitative corollary** (BSS dominance +
   Le Cam-deficiency excess-risk bound). Disclose honestly: BSS bounds the *attainable* risk (optimal user),
@@ -405,7 +461,7 @@ vector, `E_scalar = f∘E_vec` is a **garbling** of `E_vec`, hence weakly domina
 
 ### I.2 Pillar A′ — Information theory (the *same* theorem in a second language → "bilingual" rigor)
 The information-theoretic twin: a scalar = (stochastic) channel applied to the tail vector ⇒ by the **Data-
-Processing Inequality** it cannot increase any f-divergence between good-tail and bad-tail return laws, with
+Processing Inequality**it cannot increase any f-divergence between good-tail and bad-tail return laws, with
 **strict** loss unless the scalar is a *sufficient statistic*.
 - **Polyanskiy–Wu 2024/25** *Information Theory: From Coding to Learning* (CUP, ISBN 978-1-108-83290-8) [VERIFIED
   full draft] — Thm 7.4 (DPI for f-divergences), Thm 2.17/3.9 (equality ⇔ sufficiency), Fisher-info DPI. The
@@ -421,7 +477,7 @@ Processing Inequality** it cannot increase any f-divergence between good-tail an
 - **Cabrales–Gossner–Serrano 2013** "Entropy and the Value of Information for Investors" *AER* 103(1):360–377,
   DOI 10.1257/aer.103.1.360 [VERIFIED] — **the bridge**: ties an information measure to the value of information
   for a *ruin-averse, no-arbitrage portfolio investor* — almost exactly your risk-sensitive setting. **Blackwell
-  1951/1953** (econ statement); **Kamenica–Gentzkow 2011** *AER* 101(6):2590–2615 (Bayesian persuasion — the
+  1951/1953**(econ statement); **Kamenica–Gentzkow 2011***AER*101(6):2590–2615 (Bayesian persuasion — the
   "what to put in the channel" framing); **Frankel–Kamenica 2019** *AER* 109(10):3650–3680; **Athey–Levin 2018**
   *Res. Econ.* 72(1):101–116; Hirshleifer–Riley textbook. ⚠ CGS ordering is *complete but prior-dependent*
   (opposite trade-off to Blackwell's *partial but prior-free*) — state which you invoke.
@@ -445,7 +501,7 @@ The fed signal is a *jointly identifiable + elicitable, hence sufficient, finite
   `CVaR_α(Z)=max_{ξ∈U} E_ξ[Z]`, density bounded by 1/α (a φ-divergence ball); **Prop.1**: minimizing CVaR =
   worst-case expected return under *budgeted perturbations of the transition kernel*. **The exact bridge: feeding
   the tail = feeding a distribution-shift-robustness signal — which is precisely what the sealed-OOS test
-  measures.** Support: Ben-Tal et al. 2013 *Mgmt Sci* 59(2):341–357; Duchi–Namkoong 2021 *Ann. Stat.*
+  measures.**Support: Ben-Tal et al. 2013 *Mgmt Sci* 59(2):341–357; Duchi–Namkoong 2021 *Ann. Stat.*
   49(3):1378–1406; Esfahani–Kuhn 2018 *Math. Prog.* 171:115–166 (Wasserstein DRO); Nilim–El Ghaoui 2005 / Iyengar
   2005 (robust MDPs); Föllmer–Schied (coherent = sup of expectations — the supervisor-facing parent).
 - **Sophistication move:** add a two-line dual-interpretation paragraph ("the tail-aware reward is a robustness
@@ -453,7 +509,7 @@ The fed signal is a *jointly identifiable + elicitable, hence sufficient, finite
 
 ### I.6 Pillar D — Reward-distance geometry (turns "is the reward actually different?" into a measurement)
 - **STARC** (Skalse et al., **ICLR 2024**, arXiv:2309.15257) — a reward pseudometric that **both upper- and
-  lower-bounds worst-case regret** (provably tight, essentially unique); VAL canonicalisation needs only sampling.
+  lower-bounds worst-case regret**(provably tight, essentially unique); VAL canonicalisation needs only sampling.
   **EPIC** (Gleave et al., **ICLR 2021**, arXiv:2006.13900) — the cheaper Pearson-distance predecessor. Skalse
   et al. **ICML 2023** (arXiv:2203.07475) — *partial identifiability* (many rewards → same optimal policy ⇒ why
   reward design is non-trivial). Ng–Harada–Russell 1999 (potential-shaping invariance — your non-invariant LLM
@@ -469,7 +525,7 @@ The fed signal is a *jointly identifiable + elicitable, hence sufficient, finite
 - **Shadish–Cook–Campbell 2002** (ISBN 0-395-61556-9) — four validity types + named threats (mono-operation/
   mono-method bias; confounding construct with levels). **Hauser–Ellsworth–Gonzalez 2018** *Front. Psychol.*
   9:998, DOI 10.3389/fpsyg.2018.00998 [VERIFIED] — your responsiveness probe + reward-program differential **are
-  behavioral manipulation checks** (the *superior* non-verbal class). Sigall–Mills 1998; Campbell–Stanley 1963.
+  behavioral manipulation checks**(the *superior* non-verbal class). Sigall–Mills 1998; Campbell–Stanley 1963.
 - **Sophistication move:** a "Construct Validity of the Manipulation" subsection mapping placebo / scalar_cvar5 /
   shuffled-placebo one-to-one onto named SCC threats. ⚠ Montgomery DOE cuts both ways (OFAT can't detect
   agent×feedback interaction) — frame single-factor isolation on causal-cleanliness grounds + disclose the
@@ -491,7 +547,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 - **Dienes 2014** *Front. Psychol.* 5:781, DOI 10.3389/fpsyg.2014.00781 [VERIFIED] — *natively about your
   problem*; thresholds B<1/3 (H0), B>3 (H1), between = **"data insensitive"** (the honest third category =
   reputational insurance). **Rouder et al. 2009** *PBR* 16(2):225–237 (JZS Bayes factor); **Kruschke–Liddell
-  2018** *PBR* 25(1):178–206 (ROPE+HDI — cite THIS for ROPE, not the 2013 BEST paper); Kass–Raftery 1995;
+  2018***PBR*25(1):178–206 (ROPE+HDI — cite THIS for ROPE, not the 2013 BEST paper); Kass–Raftery 1995;
   **Mayo 2018** *Statistical Inference as Severe Testing* + **Mayo–Spanos 2006** *BJPS* 57(2):323–357 (severity —
   a null that passes a severe test is corroborated); Schad et al. 2023 *Psych. Methods* 28(6):1404–1426 (BF prior-
   robustness). Benavoli et al. 2017 *JMLR* 18(77) (Bayesian classifier comparison).
@@ -524,7 +580,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 - **Hansen–Lunde–Nason 2011** "The Model Confidence Set" *Econometrica* 79(2):453–497, DOI 10.3982/ECTA5771
   [VERIFIED] — takes the loss matrix you already have, returns "the 90% MCS of the 9 arms is {…}", **natively
   family-wise-error-controlled (retires the conjunction-BH double-correction worry)**. ⚠ use the **range statistic
-  T_R** only (a corrigendum withdrew T_max). **Giacomini–White 2006** *Econometrica* 74(6):1545–1578 (conditional
+  T_R**only (a corrigendum withdrew T_max). **Giacomini–White 2006***Econometrica*74(6):1545–1578 (conditional
   predictive ability — regime-by-regime, preserves estimation error); West 1996; Hansen SPA 2005; Diebold 2015
   (forecast-vs-model distinction — the self-defense cite); Corradi–Swanson 2006 (predictive *density* eval — for
   the distributional arms).
@@ -535,7 +591,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 
 ### K.1 Regimes / structural breaks (pre-empts "your result is regime-specific")
 - **Hamilton 1989** *Econometrica* 57(2):357–384 (Markov-switching, endogenous regime dating); **Bai–Perron
-  1998** *Econometrica* 66(1):47–78 + **2003** *J. Appl. Econometrics* 18(1):1–22 (multiple breaks, tested, with
+  1998***Econometrica*66(1):47–78 + **2003***J. Appl. Econometrics* 18(1):1–22 (multiple breaks, tested, with
   CIs on break dates). Ang–Bekaert 2002 *RFS*; Guidolin–Timmermann 2007 *JEDC*; Pettenuzzo–Timmermann 2011
   *J. Econometrics* (+2022 corrigendum); Ang–Timmermann 2012 *Ann. Rev. Fin. Econ.* (instability-is-risk framing).
 - **Sophistication move (BUILDABLE):** a pre-registered **regime-conditional tail-channel breakdown** dated by
@@ -554,7 +610,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 - **Sophistication move (BUILDABLE):** replace/stress flat bps with the **empirical square-root impact law**
   `cost = Y·σ·√(turnover/ADV_frac)`, sweep Y∈{0.5,0.75,1.0} + a participation cap; report each arm under flat /
   square-root / square-root+half-spread. Bulletproofs baseline-fairness + the daily-RL **rebalancing-frequency
-  tax** + capacity at once. ⚠ FIM's 6 bps is AQR's *optimized/sliced* execution — a daily-rebalancing RL agent
+  tax**+ capacity at once. ⚠ FIM's 6 bps is AQR's *optimized/sliced* execution — a daily-rebalancing RL agent
   does not get it; disclose the execution-style gap.
 
 ### K.3 Action-space limitation (turns "softmax can't flee to cash" into a cited design decision)
@@ -574,7 +630,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 - **Sakana AI-Scientist** (Lu et al. 2024 arXiv:2408.06292; v2 Yamada et al. 2025 arXiv:2504.08066); **FunSearch**
   (Nature 625, 2024); **AlphaEvolve** (DeepMind 2025, arXiv:2506.13131); **survey** Zheng et al. 2025
   (arXiv:2505.13259, EMNLP'25) — Tool→Analyst→Scientist taxonomy, **explicitly notes no pre-registered/controlled
-  protocols exist** in the discovery line. Hypothesis-generation survey arXiv:2504.05496 (LLMs more novel, less
+  protocols exist**in the discovery line. Hypothesis-generation survey arXiv:2504.05496 (LLMs more novel, less
   valid).
 - **Sophistication move (intro sentence):** "We treat LLM-authored reward code not as reward engineering but as
   an instance of *automated discovery of objective functions* — the FunSearch/AlphaEvolve/AI-Scientist paradigm —
@@ -612,12 +668,12 @@ implicit/unbounded LLM search that PBO/DSR can't fully deflate)
 - Artifacts: **Datasheets** (Gebru et al., *CACM* 64(12), 2021, DOI 10.1145/3458723); **Model Cards** (Mitchell
   et al., FAccT 2019); **Pineau et al. 2021** *JMLR* 22(164) (repro checklist); **REFORMS** (Kapoor–Narayanan et
   al., *Science Advances* 10(18), 2024 — leakage-focused, your genre). LLM non-determinism: **Chen–Zaharia–Zou
-  2023** (arXiv:2307.09009, model-version *drift*); **Yuan et al. 2025** (arXiv:2506.09501 — FP non-associativity
+  2023**(arXiv:2307.09009, model-version *drift*); **Yuan et al. 2025**(arXiv:2506.09501 — FP non-associativity
   ⇒ up to 9% accuracy / 9,000-token variation on GPUs; the peer-reviewed-grade evidence); Thinking Machines blog
   (batch-invariance mechanism — cite alongside Yuan, it's a blog); Fu et al. 2026 (token-prob non-determinism).
 - **Sophistication move:** a "Provenance & Replay" subsection separating **(a) computational reproducibility** of
   the analysis (deterministic; your byte-identical equivalence proof IS the guarantee) from **(b) LLM-generation
-  reproducibility** which is *provably* impossible (cite drift + numerical). Design contract: "archive at
+  reproducibility**which is *provably* impossible (cite drift + numerical). Design contract: "archive at
   generation, replay not regenerate." Reframes the weakest point as a literature-grounded engineered strength.
 
 ### L.5 The rhetoric of a publishable null (the highest-leverage WRITING move)
@@ -631,7 +687,7 @@ implicit/unbounded LLM search that PBO/DSR can't fully deflate)
 - **Sophistication move:** write the abstract's result sentence in the Lucic/Dacrema two-clause cadence — *"Under
   a pre-registered, matched-budget, leakage-controlled protocol, LLM-designed reward code does not outperform a
   well-tuned human baseline …; apparent advantages elsewhere are consistent with [budget/tuning/leakage]. We
-  establish a boundary condition and a reusable protocol."* Lead with methodology-as-contribution; cite Kerr for
+  establish a boundary condition and a reusable protocol."*Lead with methodology-as-contribution; cite Kerr for
   no-HARKing.
 
 ## M. THE SOPHISTICATION MOVES — actionable register (★ = buildable on data already on disk, NO new compute)
