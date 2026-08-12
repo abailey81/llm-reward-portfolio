@@ -21,7 +21,7 @@ then writes what it did under **LOG** at the bottom and pushes.
      Leave it blank when you have nothing to say. -->
 
 ```
-Please push everyhting to the github npw. All recent files, all docs, especially dissertation.pdf, I cant see it on my github now 
+Please push everyhting to the github npw. All recent files, all docs, especially dissertation.pdf, I cant see it on my github now. Please listen here, thats me Tamer writing here literally right now.  
 ```
 
 ---
