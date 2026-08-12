@@ -69,7 +69,7 @@ CONTROL = "scalar"
 #: confirmatory author (``config/campaign.yaml: model_snapshot: claude-opus-5``); the ten legs are
 #: ``config/legs.yaml`` in registered order.
 LINES: tuple[tuple[str, str], ...] = (
-    ("test", "opus-5 (core)"),
+    ("test", "opus-5"),
     ("test_leg_deepseek_v4_pro", "deepseek-v4-pro"),
     ("test_leg_glm_5_2", "glm-5.2"),
     ("test_leg_qwen3_6_27b", "qwen3.6-27b"),
@@ -82,7 +82,7 @@ LINES: tuple[tuple[str, str], ...] = (
     ("test_leg_gemini_2_5_flash", "gemini-2.5-flash"),
 )
 LINE_LABELS: tuple[str, ...] = tuple(label for _, label in LINES)
-CORE_LINE = "opus-5 (core)"
+CORE_LINE = "opus-5"
 
 #: Test window, panel ``univ5`` rows [3835, 5406) — ``config/inference.yaml: splits.univ5.test``.
 TEST_SLICE = (3835, 5406)
@@ -416,9 +416,17 @@ def _place_labels(ax: Any, points: Sequence[tuple[float, float, str]], *,
     char_w, line_h = fontsize * 0.60 * px_per_pt, fontsize * 1.45 * px_per_pt
     # Candidate offsets: eight compass directions at four radii, near ones first. A point whose
     # near slots are all taken is pushed out and given a leader line rather than being stacked.
-    dirs = [(1, 0.4), (1, -1), (-1, 0.4), (-1, -1), (0, 1), (0, -1.4), (1, 1.2), (-1, 1.2)]
+    # ⚠ THE LONG RADII ARE NOT PADDING, THEY ARE WHAT STOPS THE CLUSTER FROM STACKING. Six of the
+    # eleven authoring lines sit inside a tenth of the panel around the origin, so their near slots
+    # are taken by each other and the greedy search used to run out of candidates and fall through
+    # to the "accept the crowding" branch, which is what produced the fan of crossing leaders in the
+    # top-left corner of the compiled figure. The panel has a genuinely empty middle-right; radii out
+    # to 96 px and two shallow horizontal directions let a blocked label reach it, and the leader
+    # then does its job, which is to say which marker the name belongs to.
+    dirs = [(1, 0.4), (1, -1), (-1, 0.4), (-1, -1), (0, 1), (0, -1.4), (1, 1.2), (-1, 1.2),
+            (1, 0.0), (-1, 0.0), (1, -0.35), (1, 0.9)]
     candidates = [(ux * r * px_per_pt, uy * r * px_per_pt)
-                  for r in (7, 14, 22, 32, 44) for ux, uy in dirs]
+                  for r in (7, 14, 22, 32, 44, 58, 74, 96) for ux, uy in dirs]
     x_lo, x_hi = ax.get_window_extent().x0, ax.get_window_extent().x1
     y_lo, y_hi = ax.get_window_extent().y0, ax.get_window_extent().y1
 
@@ -634,20 +642,17 @@ def fig_cross_line_forest(store: dict[str, np.ndarray]) -> Any:
     fig, ax = plt.subplots(figsize=(6.15, 4.25))
     ys = np.arange(len(rows))
     for y, (label, m, lo, hi) in zip(ys, rows):
-        is_core = label == CORE_LINE
-        colour = OKABE_ITO["vermillion"] if is_core else OKABE_ITO["blue"]
+        colour = OKABE_ITO["blue"]
         ax.plot([lo, hi], [y, y], color=colour, lw=1.6, solid_capstyle="butt", zorder=2)
         ax.plot([lo, lo], [y - 0.16, y + 0.16], color=colour, lw=1.2, zorder=2)
         ax.plot([hi, hi], [y - 0.16, y + 0.16], color=colour, lw=1.2, zorder=2)
-        ax.plot([m], [y], marker="D" if is_core else "o", ms=6 if is_core else 5,
-                color=colour, mec="white", mew=0.6, zorder=3)
+        ax.plot([m], [y], marker="o", ms=5, color=colour, mec="white", mew=0.6, zorder=3)
+        if label == CORE_LINE:
+            ax.plot([m], [y], marker="o", ms=10, mfc="none", mec="0.20", mew=1.1, zorder=4)
     ax.axvline(0.0, color="0.35", lw=1.0, ls="--", zorder=1)
 
     ax.set_yticks(ys)
     ax.set_yticklabels([r[0] for r in rows])
-    for tick, (label, *_rest) in zip(ax.get_yticklabels(), rows):
-        if label == CORE_LINE:
-            tick.set_fontweight("bold")
     ax.set_ylim(-0.7, len(rows) - 0.2)
     _note_xlabel(
         ax,
@@ -677,10 +682,10 @@ def fig_cross_line_forest(store: dict[str, np.ndarray]) -> Any:
     # full by the caption and by the bold row label, so nothing is lost. Both versions were rendered and
     # looked at before this one was kept.
     handles = [
-        plt.Line2D([], [], color=OKABE_ITO["vermillion"], marker="D", ls="-", ms=6,
-                   label="opus-5, registered node"),
         plt.Line2D([], [], color=OKABE_ITO["blue"], marker="o", ls="-", ms=5,
-                   label="replication leg"),
+                   label="one authoring line"),
+        plt.Line2D([], [], color="none", marker="o", ls="", ms=10, mfc="none", mec="0.20", mew=1.1,
+                   label="the registered node"),
         plt.Line2D([], [], color="0.35", ls="--", lw=1.0, label="no difference"),
     ]
     _outside_legend(fig, handles, [h.get_label() for h in handles], ncol=3)
@@ -824,13 +829,23 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
 
     for ax in flat[len(order):]:  # spare cells carry the legend rather than an empty frame
         ax.axis("off")
-    handles = [plt.Line2D([], [], marker="o", ls="", ms=4, color=arm_style(a)["color"],
-                          label=_arm_label(a)) for a in ARMS]
-    handles += [plt.Line2D([], [], color="0.10", lw=1.3, label="median"),
-                plt.Line2D([], [], color="0.10", lw=0.9, label="interquartile range"),
-                plt.Line2D([], [], marker="o", ls="", ms=9, mfc="none", mec="0.10", mew=1.2,
-                           label="best arm on this line")]
-    flat[len(order)].legend(handles=handles, loc="center", fontsize=10, frameon=False)
+    # ⚠ THE LEGEND IS SPLIT IN TWO, AND THE SPLIT IS ARITHMETIC RATHER THAN TASTE. Eight entries
+    # stacked at the 10 pt floor need about 112 pt of height; the spare grid cell is 1.50 in, i.e.
+    # 108 pt. So the single legend did not fit and matplotlib let it overflow UPWARD, out of its own
+    # cell and into the row above, which is what made the panel grid read as broken in the compiled
+    # figure: the block of keys appeared to float between rows three and four rather than sitting in
+    # a cell. Dropping to 9 pt would have fixed the height and broken the guide's 10 pt floor.
+    # Five arm keys fit the cell (5 x 14 = 70 pt) and the three annotation keys become a strip under
+    # the grid, where there is a whole figure width to put them in.
+    arm_handles = [plt.Line2D([], [], marker="o", ls="", ms=4, color=arm_style(a)["color"],
+                              label=_arm_label(a)) for a in ARMS]
+    flat[len(order)].legend(handles=arm_handles, loc="center", fontsize=10, frameon=False,
+                            labelspacing=0.55)
+    note_handles = [plt.Line2D([], [], color="0.10", lw=1.3, label="median"),
+                    plt.Line2D([], [], color="0.10", lw=0.9, label="interquartile range"),
+                    plt.Line2D([], [], marker="o", ls="", ms=9, mfc="none", mec="0.10", mew=1.2,
+                               label="best arm on this line")]
+    _outside_legend(fig, note_handles, [h.get_label() for h in note_handles], ncol=3)
 
     # ⚠ ONE SHARED Y-LABEL, NOT ONE PER ROW. Four two-line labels fitted while the panels were 2.0 in
     # tall. At 1.50 in they do not: each label is centred on its own row, the rows are now shorter
@@ -1105,10 +1120,12 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
 
     for label, tm, tlo, thi, sm, slo, shi in pts:
         is_core = label == CORE_LINE
-        colour = OKABE_ITO["vermillion"] if is_core else OKABE_ITO["blue"]
+        colour = OKABE_ITO["blue"]
         ax.errorbar([tm], [sm], xerr=[[tm - tlo], [thi - tm]], yerr=[[sm - slo], [shi - sm]],
-                    fmt="D" if is_core else "o", ms=6 if is_core else 5, color=colour,
+                    fmt="o", ms=5, color=colour,
                     ecolor=colour, elinewidth=0.9, capsize=1.8, mec="white", mew=0.6, zorder=3)
+        if is_core:
+            ax.plot([tm], [sm], marker="o", ms=10, mfc="none", mec="0.20", mew=1.1, zorder=4)
     pad_x = 0.16 * (xs.max() - xs.min())
     pad_y = 0.12 * (ys.max() - ys.min())
     ax.set_xlim(xs.min() - pad_x, xs.max() + pad_x)
@@ -1127,10 +1144,10 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     # redundant in any case: the caption already opens "The mechanism, measured".
     ax.set_title("What the reward changes is how heavily the policy trades")
     handles = [
-        plt.Line2D([], [], color=OKABE_ITO["vermillion"], marker="D", ls="", ms=6,
-                   label="the registered node"),
         plt.Line2D([], [], color=OKABE_ITO["blue"], marker="o", ls="", ms=5,
-                   label="one of ten legs"),
+                   label="one authoring line"),
+        plt.Line2D([], [], color="none", marker="o", ls="", ms=10, mfc="none", mec="0.20", mew=1.1,
+                   label="the registered node"),
         plt.Line2D([], [], color="0.45", ls="--", lw=1.0,
                    label=f"fitted slope {slope:+.2f}"),
     ]
@@ -1144,7 +1161,7 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     # already carries. Direct labels remove both. `_place_labels` searches eight directions at five
     # radii per point and draws a leader, so a name never lands on a marker, on another name or on
     # the fit. The Spearman statistic belongs in the caption, which is word-excluded and read anyway.
-    label_colours = [OKABE_ITO["vermillion"] if p[0] == CORE_LINE else "0.25" for p in pts]
+    label_colours = ["0.25"] * len(pts)
     xline = np.linspace(*ax.get_xlim(), 200)
     _place_labels(ax, [(p[1], p[4], p[0]) for p in pts],
                   avoid_curves=[(xline, slope * xline + intercept)], colors=label_colours,
@@ -1214,9 +1231,12 @@ def fig_gross_vs_net(store: dict[str, np.ndarray]) -> Any:
     ax.grid(axis="y", visible=False)
     ax.grid(axis="x", alpha=0.25)
     _note_xlabel(ax, "Median terminal Sharpe ratio over 102 sealed seeds (annualised)")
-    for tick, line in zip(ax.get_yticklabels(), order):
-        if line == CORE_LINE:
-            tick.set_fontweight("bold")
+    # ⛔ THE BOLD ROW LABEL FOR THE REGISTERED NODE IS GONE, ON THE STANDING RULE (Tamer,
+    # 2026-08-08): "Opus keeps no special status anywhere -- not in the abstract, not in CH5's
+    # ordering, not in a figure's highlighting, not in a table's row order." This figure's rows are
+    # ordered by how much cost took from each line, so nothing here depends on which line is which,
+    # and the registration is disclosed where it belongs, in Chapter 4 and in the caption of the two
+    # figures that actually show a per-line contrast.
     # The two sub-rows are named in the legend rather than on the canvas. An in-canvas label has to
     # anchor somewhere, and every anchor tried collided with something: attached to the top row's
     # leftmost marker it sat on the y tick label, attached to its rightmost it sat on the bar.
@@ -1277,6 +1297,17 @@ def fig_wealth_and_drawdown(store: dict[str, np.ndarray]) -> Any:
             axes[0].plot(x, row, color=st["color"], lw=0.4, alpha=0.20, zorder=1)
         axes[0].plot(x, np.median(eq, axis=0), color=st["color"], lw=1.7, zorder=3,
                      label=_arm_label(arm))
+        # ⚠ THE PER-LINE DRAWDOWN PATHS ARE DRAWN, AND UNTIL 2026-08-12 THEY WERE NOT. The lower
+        # panel carried the five cross-line MEDIANS only, so its axis stopped near -22 per cent
+        # while the caption's sharpest sentence -- "the worst single line under the tail-fed
+        # condition falls 48.2 per cent from its peak" -- described something the reader could not
+        # see anywhere on the page. A caption that states a number its own exhibit contradicts is a
+        # worse defect than a missing number, because the reader who checks finds a disagreement.
+        # Drawing the eleven faint paths behind each median makes the claim visible and costs
+        # nothing: it is the same treatment the wealth panel already gives, and it is what O2 asks
+        # for, the object behind the summary.
+        for row in dd:
+            axes[1].plot(x, row, color=st["color"], lw=0.35, alpha=0.16, zorder=1)
         axes[1].plot(x, np.median(dd, axis=0), color=st["color"], lw=1.4, zorder=3)
 
     axes[0].axhline(1.0, color="0.35", lw=0.9, ls="--", zorder=2)
@@ -1331,9 +1362,11 @@ def render_all(store: dict[str, np.ndarray], only: Sequence[str] | None = None) 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from docs.analysis.figure_typeface import use_document_typeface
     from src.viz.style import apply_house_style
 
     apply_house_style()
+    use_document_typeface()   # the body typeface, so the exhibit matches the page it sits on
 
     # ⚠ THE HOUSE STYLE SETS EVERY DEFAULT TYPE SIZE BELOW THE GUIDELINE FLOOR, AND IT IS FENCED.
     # src/viz/style.py::apply_house_style sets font.size 9, axes.labelsize 9, legend.fontsize 8,

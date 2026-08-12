@@ -163,14 +163,29 @@ def system_diagram() -> Canvas:
 # ------------------------------------------------------------------------------------------------- #
 # F2 -- the pre-registered outcome tree                                                               #
 # ------------------------------------------------------------------------------------------------- #
+# ⚠ THIS EXHIBIT WAS WRITTEN IN THE PROJECT'S OWN SHORTHAND AND IS NOW WRITTEN IN ENGLISH, FOR TWO
+# INDEPENDENT REASONS, AND THE SECOND ONE IS A RENDERING BUG.
+#  (1) S10, and Stefan hit exactly this. Shown a paragraph opening "The headline is H2" he did not
+#      say it was badly ordered, he said "I don't understand what you mean": H2, IUT, TOST, SESOI and
+#      MDE are names that exist only inside this project. This is the SECOND exhibit an examiner
+#      meets, before any of them has been defined, and the guide's second marker "may come from any
+#      discipline". A tree whose three branch conditions are unreadable teaches nothing.
+#  (2) THE SUBSET SIGN DID NOT RENDER. "TOST ⊂ ±SESOI" printed as a tofu box in the compiled PDF
+#      once the figure suite moved to the document's own typeface, because TeX Gyre Heros carries no
+#      U+2282. matplotlib draws a missing glyph as an empty rectangle and says nothing, and the
+#      build's own missing-character gate reads the TeX engine's channel, which never sees inside a
+#      figure. So the defect was invisible to every gate in the project.
+# The registered labels are not lost: they are printed in Chapter 4 where the machinery is defined,
+# and the caption names the test. What changes is that the PICTURE now says what it means.
 _F2_TITLE = "Pre-registered outcome tree (read BEFORE the data)"
-_F2_ROOT = "H2: tail-vector vs scalar\n(co-primary IUT vs ±SESOI)"
+_F2_ROOT = ("Does the tail summary beat the score alone?\n"
+            "H2: tail-vector vs scalar (co-primary IUT vs ±SESOI)")
 _F2_BRANCHES = [
-    ("TOST ⊂ ±SESOI", "green", "EQUIVALENT",
+    ("the whole interval falls\ninside the margin\n(TOST within ±SESOI)", "green", "EQUIVALENT",
      "bankable NULL:\ntail specificity adds\nno marginal value\n(the prediction)"),
-    ("lower-CI > 0", "blue", "POSITIVE",
+    ("the interval sits\nwholly above zero\n(lower-CI > 0)", "blue", "POSITIVE",
      "channel works:\nricher feedback →\nbetter risk-adjusted\npolicy"),
-    ("MDE > SESOI", "vermillion", "INCONCLUSIVE",
+    ("the interval is wider\nthan the margin\n(MDE > SESOI)", "vermillion", "INCONCLUSIVE",
      "underpowered:\nreport effect + CI,\nclaim neither"),
 ]
 #: Removed from the canvas with the rest of the baked-in captions; see the note at ``_F1_TITLE``.
@@ -194,7 +209,11 @@ def prediction_branch() -> Canvas:
     verdict_w = max(c.box_size(v, size=BODY_PT, weight="bold")[0] for _, _, v, _ in _F2_BRANCHES)
     _, verdict_h = c.box_size(_F2_BRANCHES[0][2], size=BODY_PT, weight="bold")
     mean_h = max(c.measure(m, size=BODY_PT)[1] for _, _, _, m in _F2_BRANCHES)
-    edge = 62.0                                    # depth of the band the branch conditions live in
+    # 96, not 62. Each branch condition is now THREE lines instead of one: a plain-English
+    # statement of what the interval has to do, then the registered shorthand in brackets. The
+    # band has to be deep enough to hold three lines without the condition text touching either
+    # the root box above it or the verdict box below it.
+    edge = 96.0                                    # depth of the band the branch conditions live in
     c.set_height(MARGIN + title_h + 8.0 + root_h + edge + verdict_h + 10.0 + mean_h + MARGIN)
 
     y_title = c.height_pt - MARGIN
@@ -372,6 +391,10 @@ def build_all() -> list[Path]:
 
 
 def main() -> int:
+    from docs.analysis.figure_typeface import use_document_typeface
+
+    # Before build_all, not after: a Text artist reads its family at construction time.
+    use_document_typeface()
     build_all()
     return 0
 

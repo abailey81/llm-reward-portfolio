@@ -18,6 +18,8 @@
      a direction, or a correction that runs against us. Compressing an argument into a table cell
      loses the reasoning that makes it worth marks, which is the opposite of the intent here. -->
 
+*On the numbering.* B.1 to B.6 are the six groups of Table B.1's register and are numbered there rather than as headings, so the prose sections below resume at B.7. Every entry the register names is present.
+
 Table B.1 is a complete register of the study's limitations, each with its rationale, its direction of bias where known, and its mitigation or disclosure. Eleven more carry an argument rather than a disclosure and follow each register in prose: B.2.7, B.2.8, B.3.1, B.5.1 and B.6.5 on the design, and B.8.5, B.8.7, B.8.9, B.8.10, B.8.14 and B.8.15 on the executed run.
 
 ```{=latex}

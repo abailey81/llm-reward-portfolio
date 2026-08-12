@@ -3,6 +3,134 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-13] WRITE-UP PASS 9 — the designed title page restored, the declaration removed, and the figure suite put into the document's own typeface
+
+**Tamer's instruction, in his words:** *"Remove the declaration of originality for now. And bring back
+my designed title page, and make the abstract well positioned."* plus a standing ask to analyse every
+visualisation individually and enhance it, and a marking assessment to assess fairly and act on.
+
+### 1. THE FRONT MATTER
+
+* **Tamer's designed title page is back on page 1.** The design of record is
+  `docs/figures/titlepage.tex` — the 54 mm full-bleed uclDeep band with the primary lockup reversed
+  out of it, the 36 mm coat of arms, Libertinus Display at 26 pt. It is transcribed unchanged into a
+  preamble macro `\ucltitlepage` in `paper/FRONT_MATTER.md`, with three adaptations forced by
+  embedding and each recorded at its site: `\newgeometry`/`\restoregeometry` instead of a package
+  option, a preamble macro instead of body LaTeX (pandoc reads a line beginning `{` as markdown, so a
+  body transcription leaked `{\fontsize{26}{33}\selectfont` onto page 1 as literal text), and
+  `\thispagestyle{plain}` added because the guide requires Arabic numerals from the title page.
+* **The Declaration of Originality is removed**, as asked. What went is the DECLARATION: the signed
+  originality statement and the signed freeze confirmation. What deliberately did NOT go is the
+  third-party and AI-assistance DISCLOSURE nested inside it, which is a UCL compliance obligation
+  rather than a declaration; it now sits under the acknowledgements with the ethics statement and the
+  word count. The acknowledgements' pointer to "the Declaration of Originality" was a dangling
+  reference the moment the section went and is repaired.
+* **The abstract is positioned.** The front matter is now in the guide's own order (Cover · Title ·
+  Abstract · Acknowledgements · Contents). The ethics and word-count paragraphs used to stand between
+  the title page and the abstract, so the abstract began two thirds down page 3 and spilled its last
+  two paragraphs onto page 4, which then carried 9 lines and 88 per cent white. The abstract now
+  opens its own page and ends on it.
+
+### 2. ⚠ THE DEFECT THIS PASS CAUGHT IN ITS OWN WORK, AND IT WAS THE WORST ONE
+
+Embedding the title page silently **reverted the whole document to single spacing.** `\restoregeometry`
+restores `\baselineskip` to the value geometry snapshotted in the preamble, and pandoc emits
+`\setstretch{1.5}` as the FIRST line after `\begin{document}`, i.e. after that snapshot. So the restore
+put the body back to 14.4 pt leading while `\baselinestretch` still read 1.5, and nothing warned.
+
+MEASURED over pages 21-45: modal body leading fell from 21.7 pt to 14.4 pt and the document went from
+130 pages to 116. **The IFTE0008 guide (p.10) REQUIRES 1.5 spacing in the main text**, so that build
+breached a graded typography rule on every page — and the compile was clean, the citation gate green,
+the word gate green and the scorecard green. Isolated in a minimal document before the fix was written
+(`\newgeometry`/`\restoregeometry` with no `\normalsize`: 14.5 pt; with it: 21.75 pt). Fixed by
+`\normalsize` after the restore, which recomputes from `\baselinestretch` rather than hardcoding 1.5.
+
+### 3. EVERY FIGURE, INDIVIDUALLY
+
+**The systemic finding: the whole figure suite was set in DejaVu Sans while the document is set in TeX
+Gyre Heros.** Measured from the embedded font list of every exhibit page. An examiner met one typeface
+in the prose and a different one in the exhibit six centimetres below it, and no gate in this project
+looks at what a figure is SET IN.
+
+* `docs/analysis/figure_typeface.py` (new) registers the four Heros faces with matplotlib and is called
+  by all eight render modules. The faces are copied into `docs/figures/fonts/` from the pinned Tectonic
+  bundle rather than read from a cache directory, because a silent fallback would restore the defect.
+  **Result: 0 DejaVu subsets in the compiled PDF, from 5 pages before.**
+* `docs/analysis/figure_glyph_audit.py` (new) is the gate that would have caught the regression the
+  typeface change caused: TeX Gyre Heros carries no U+2282, so Figure 1.2's "TOST ⊂ ±SESOI" printed as
+  an empty rectangle. matplotlib warns to a channel nobody reads, the build's own missing-character
+  gate reads the TeX engine and never sees inside a figure, and the PDF still EXTRACTS the original
+  character because ToUnicode records what was requested. Visible only to a person looking at the page.
+* **Figure 6.2, the 3-D cost surface** ("your 3d visulisation is trash as well"): rebuilt. The
+  duplicate scale is gone — it carried "Sharpe" on a z-axis and "Sharpe (annualised)" on a detached
+  colourbar. Colour now carries the SIGN through a diverging map pinned at zero, the iso-Sharpe
+  contours are projected onto the floor as a map of the (turnover, cost) plane with the break-even
+  locus drawn heavy, the 10 bps price this study charges is drawn as a dashed rib across the surface,
+  and the panes are white with a hairline grid instead of matplotlib's grey box.
+* **Figure 1.2**: written in the project's own shorthand (H2, IUT, TOST, SESOI, MDE) as the SECOND
+  exhibit an examiner meets, before any of it is defined. Each branch now leads in English with the
+  registered shorthand in brackets, so nothing is lost and the picture says what it means.
+* **Figure 5.7**: the label cluster fanned into crossing leaders in one corner because the greedy
+  placer ran out of candidate slots. Radii extended to 96 px with two shallow horizontal directions.
+* **Figure 5.4**: eight legend entries at the 10 pt floor need 112 pt and the spare grid cell is 108,
+  so the legend overflowed upward out of its cell and the panel grid read as broken. Split: five arm
+  keys in the cell, three annotation keys as a strip below.
+* **Figure 6.4**: the lower panel drew the five cross-line MEDIANS only, so its axis stopped near
+  −22 per cent while the caption's sharpest sentence described a 48.2 per cent fall the reader could
+  not see. The eleven per-line paths are now drawn behind each median.
+* **Figure 4.2**: the validation-split arrow ran through the bold "Outer problem" heading and its head
+  landed on a letter. Drawn in two segments, the drawing convention for a link crossing an annotation.
+* **The registered node stops being privileged in five figures.** CLAUDE.md (2026-08-08) is explicit
+  that Opus keeps no special status "not in a figure's highlighting"; it was painted vermillion among
+  ten blues, given a diamond among circles and set bold in two row lists. It now takes the same neutral
+  open ring Figure 5.4 already uses, so the registration is still disclosed without being asserted.
+  The "(core)" tag goes with it — an internal label of exactly the kind S10 forbids.
+* **A latent bug caught while renaming**: `render_cost_surface.LINES` holds CACHE KEYS, and `_cells`
+  skipped a missing key SILENTLY. The label rename would have quietly drawn 50 cells instead of 55 at
+  the next regeneration, printing a smaller count nobody reads. It now raises.
+
+### 4. THE MARKING ASSESSMENT, ASSESSED AGAINST THE LIVE DOCUMENT
+
+Its Communication blockers were checked one by one rather than accepted. **Four are FALSE against the
+document as it stands** and were not acted on: there are zero "not been rendered yet" placeholders
+(it names four); CH7 measures 20.5 words per sentence, not 30.5; the figures compute 95 per cent
+intervals and the captions say 95 per cent, so there is no contradiction; and prose semicolons outside
+citation brackets are zero in every chapter. **Two are TRUE and are fixed**: Table 4.6 pointed at a
+§A.7 that does not exist (the margin is worked in A.6), and Appendix E credited Table 1.2 with counts
+that are in Table 1.1.
+
+Acted on from the rest:
+
+* **The finance literature now appears where the finding lands.** Gârleanu and Pedersen was cited once,
+  in a Chapter 4 table row, and Almgren and Chriss not at all, while the turnover result sits in §6.2
+  with no connection to the optimal-trading-under-costs literature. A footnote (word-excluded) places
+  it and carries the **practitioner translation** the assessment also asks for: at 10 bps a side an arm
+  turning over a fraction $x$ of the book per session pays $252 \times 0.001x$ of capital a year, so
+  the canon's survivor pays about 0.2 per cent and the ten losers 19 to 23 per cent.
+* **The registration asymmetry is met in the open.** §7.1 now states that the frozen plan seats its
+  single alpha-carrying look on one line while the reading rests on eleven, so the count extends the
+  registration rather than discharging it. Funded by compression elsewhere in the same chapter: the
+  body still measures **10,992** words against the approved 11,000, and the printed figure still matches.
+* **Three appendix numbering notes.** A reader meeting "C.2" as an appendix's first section reads it as
+  an error until proven otherwise; the same for B resuming at B.7 and for A.2b/A.5b. One sentence each.
+  ⚠ Both the A and C notes were WRITTEN WRONG FIRST and corrected before shipping: the first draft
+  attributed A's suffixes to hash-bound files citing them, which is true of Appendix B and NOT of A.
+
+### 5. STATE AT CLOSE (every figure read from its own output)
+
+130 pages · body **10,992 / 11,000** words · scorecard **28/28, 0 FAIL** · mark preservation **23/23,
+0 missing** · cross-references **CLEAN**, 0 dangling, 0 orphans · citations clean on dangling and
+verify-in-use · freeze hash **MATCHES** · reproducibility **8 pass / 0 warn / 0 fail** · exhibit page
+stamps **VERIFIED** (63 located, 0 unresolved) · glyph audit **CLEAN** · **0 DejaVu subsets** ·
+build exit 0, 0 missing characters, 0 U+FFFF.
+
+**Known residual, disclosed rather than hidden:** the last bibliography entry, Ziegel (2016), sits
+alone on page 90. The References begin on a fresh page, so nothing before them can shift the break, and
+the only lever inside the list is inert — measured, line tops in the rendered list are 11.9 to 12.0 pt
+apart, which is the 10 pt leading with no inter-entry gap at all, so pandoc sets `\parskip` after this
+document's hook and the value never reaches the page. Lowering it from 3 pt to 2.2 pt was tried, changed
+nothing, and was reverted rather than left in as a line that provably does nothing.
+
 ## [2026-08-12b] EVERY FIGURE REBUILT AND LOOKED AT ON THE PAGE; A 300-WORD ABSTRACT; A 12-PAGE DISCUSSION THAT ANSWERS WHY.
 
 **Session type:** write-up. `src/**`, `scripts/**`, `config/**`, `prompts/**`, `PREREGISTRATION.md`
@@ -1464,6 +1592,365 @@ prompts verbatim** (his explicit instruction, with the opening prompt and the At
 ones marked ★★★), the five golden standards with the Vaswani inclusion rule derived from diffing the
 paper against its own abstract, every re-derived number, the binding-law changes, the premium-design
 position, ten ranked open items, and nine named traps. Cursor updated; `HANDOFF.md` §1 regenerated.
+
+## [2026-08-12m] ★★★★★★★ RUN 30 (OPS) — **THE OUTAGE IS PASSED, AND THE 184 CORES WERE OURS: WE HELD 300 JOBS AND LEFT THE SCHEDULER NOTHING TO DISPATCH**
+
+**Session type:** live cluster ops. No `src/**`, `scripts/**`, `config/**` or `prompts/**` change;
+freeze MATCHES, drift 0.
+
+**TAMER'S QUESTION: "did we pass the outage? can we get back to the full cores?"** Both answered by
+measurement, and the second answer was uncomfortable.
+
+**1. THE OUTAGE IS PASSED — MEASURED BY DISPATCH, NOT BY THE CALENDAR.** From one
+`qstat -u ucestes -r`, **22 of our 23 running jobs STARTED on 12 August after the 08:00 at-risk
+threshold** (09:42Z-09:48Z, then 11:39Z-11:56Z, then 20:17Z). The decisive one is the last: a **15 h**
+job admitted at **20:17Z**, which cannot finish before **11:17Z on Thursday 13 August**, the
+extension day. **A scheduler still draining for an outage refuses exactly that job.** MOTD carries
+only the standing second-Tuesday rule; `qhost` shows a fully loaded fleet. **UCL's walltime drain
+filter is off and E4's dispatch cliff never bit us on the day.**
+
+**2. ⛔ THE LOW CORE COUNT WAS OURS.** Measured before any action: `h=300 hu=300 hs=298`,
+**ELIGIBLE (qw) = 0**, `r=23`, cores 184. `job_rank_governor`: *pending 0 · TO HOLD 0 · TO RELEASE 0*.
+⇒ **λ = 0.00/h with `eligible at A: {}` was never a fact about the cluster.** A dispatch rate measured
+over an empty eligible set measures **us**. The R30-200 non-finding has now been recorded five passes
+running and this entry names its cause: **we cannot lose a race we did not enter.**
+
+**3. ⚠ AND EVERY COVERAGE INSTRUMENT WAS GREEN THROUGHOUT.** S17 at rung 279 reads
+`144 owed / 144 RUNNING / 0 ELIG / 0 HELD / 0 ORPHANED`, and at rung 340 `536 / 536 / 0 / 0 / 0`.
+**Coverage asks "is the owed work inside a job?" It never asks "are we using the machine?"** Those are
+different questions, and we had only been asking the first while two thirds of our fleet capacity sat
+idle. **Recorded as a standing gap, not as a one-off.**
+
+**4. ⭐ THE HOLD IS TWO-STAGE AND THE SITE STAGE BINDS — PROVEN ON ONE JOB BEFORE TOUCHING 247.**
+`qrls 107417` returned *"modified hold of job-array task 107417.1"*, `hu` fell 300 -> 299, and the job
+**stayed `hqw` carrying `hs=1`**. Our own `docs/ops/hold_ids.sh` (2026-08-06) already names that second
+flag: *"a bulk release drains through the **site JSV** at **~400/h**; hqw stays high, record S7."*
+⇒ **`qrls` is necessary but not sufficient; stage two runs on UCL's clock.** ⚠ **Operational rule:
+after a bulk release `hqw` STAYS HIGH and that is CORRECT — read `hu` to see whether the release took,
+`hs` to see the site draining it. The composite `h` tells you nothing.**
+
+**5. ⭐⭐ THE SAME FILE HOLDS THE MEASURED MODEL, AND IT INVERTS THE QUESTION.** *"~200 jobs won per
+night x (duration/24h) = the equilibrium running count... **We were never losing cores. We were
+failing to KEEP them.** So the lever is duration, and **the job of the queue is simply to be DEEP when
+the window opens**"*, with *"in the 03:00-08:00Z window the cluster empties and we take ~40 jobs/h,
+and at that moment **DEPTH is everything and a held queue is pure loss**."*
+⇒ **We were four and a half hours from entering tonight's window with ZERO eligible jobs** — the one
+state the model names as pure loss. **Nothing was broken and nothing alarmed. We would simply have won
+nothing overnight and found out at dawn.** *The absence of a fault is not the presence of throughput.*
+
+**6. ✅ ACTION: 247 LEG JOBS RELEASED IN 7 AUDITED BATCHES, 247/247 CONFIRMED.** `hu` **300 -> 53**.
+Within two minutes the first job through the throttle went `qw` -> `r` and **`r` rose 23 -> 24**, which
+is the direct evidence that the cluster had capacity and our empty eligible pool was the only brake.
+⛔ **`c1`'s 51 stay held DELIBERATELY, on two independent grounds:** dispatch is strictly by job id
+(R30-40) and `c1`'s ids are **104992+** against the legs' **107287+**, so releasing them takes 100% of
+dispatches ahead of the laggards; and **`c1` is banked at 279 while `leg1`/`leg2`/`leg7` are at 189**,
+so with the reported result a MINIMUM a deeper `c1` moves the headline by nothing. `hold_ids.sh`
+excludes `c1` for the same reason in its own words. The 2 remaining holds are dead 08-06 probes
+holding the lowest ids in the queue.
+✅ **This also closes `line_balance`'s `leg10` HELD-OUT flag** (21 held / 0 running / 0 eligible) —
+the exact failure mode that check exists to catch: *"a line can be held to a standstill and still read
+healthy."*
+
+**FALSIFIABLE PREDICTION, so the next pass grades this rather than admires it:** at ~400/h the 297
+`hs` jobs clear within about 45 minutes, giving a deep eligible queue before 03:00Z, which the
+overnight window then converts at ~40 jobs/h. **If `hu` is still 53 and `hs` has NOT fallen next pass,
+the JSV rate is wrong and the release did not take.**
+
+**BOARD.** COMMON RUNG **189** · rung 279 needs **144**, all RUNNING · rung 340 needs **536**, all
+RUNNING, 0 orphaned · rung 403 needs **2688** (`test` orphans at seeds 378-402, above the live rung,
+not yet actionable) · records **33,079** · cores **184 -> 192 and rising** · freeze **MATCHES** ·
+drift **0** · `line_balance` **CLEAN**. Ledger **R30-224..R30-229** (229 entries).
+
+## [2026-08-12l] ★★★★★★★ RUN 30 (OPS) — **THE DRIVER DID RESUBMIT. THE REQUEST IS WITHDRAWN, AND THE PERMISSION DENIAL PREVENTED A DUPLICATE.**
+
+### ⛔⛔⛔ R30-220 — R30-215 WAS WRONG; THE TRANSITION FIRED 28 MINUTES AFTER I DECLARED IT DEAD
+
+`qstat`: **`c1_sweep_t4_r1` id 129151, running since 20:17:53Z.** Driver: `[c1_sweep_t4] 1212/1220
+done, 8 pending`. **S17@340: rc=0 — `TOTAL owes 536 · RUNNING 536 · ORPHANED 0`** (`test` 8 owed,
+8 RUNNING). **Three confirmations; the orphans are covered.**
+⛔ **WITHDRAW R30-218's request. DO NOT RUN `--go`** — it would put two concurrent jobs on the same
+eight unarchived specs. **The permission denial prevented a DUPLICATE, not a repair.**
+**Why I was wrong:** R30-215 argued the branch needs an alive→empty edge and a fresh `run_batch`
+starts `alive_seen=False`. **`_run_batch_unlocked` polls in a LOOP inside ONE call** — the driver was
+inside that call the whole time, the two `qacct` timeouts were its harvest, and it submitted after
+working through the parts at 120 s apiece.
+
+### ⚠ R30-221 — A REAL, MEASURED TOOL LIMITATION — THE OPPOSITE OF THE ONE I INVENTED
+
+With the driver's job running, the tool STILL says `TO SUBMIT: 1 part / 8 specs`, because
+`alive_jobnames` matches **part** names and the resubmission is `c1_sweep_t4_r1`. ⇒ **an `_rN`
+resubmission is INVISIBLE to the alive check.**
+⚠ R30-212 hypothesised an over-report of stale parts and was refuted; the real defect is a **blind
+spot for `_rN` coverage** — same symptom, opposite cause. **Guessing the mechanism failed twice;
+measuring it worked.**
+⇒ **RULE UNTIL FIXED: before `--go`, check `qstat` for a live `<base>_rN`.** ⇒ **FIX (next task):
+treat a live `<base>_rN` as covering that base, with a falsifying test + mutation.**
+
+### ⛔⛔ R30-222 — THE META-LESSON, THIRD TIME IN THIS SEQUENCE
+
+R30-206 concluded the driver owns the repair. R30-211 re-confirmed it. **R30-215 reversed both, forty
+minutes early, on "no `submitted` line yet."** ⇒ **"IT HAS NOT HAPPENED YET" IS NOT "IT WILL NOT
+HAPPEN"** — against an instrument budgeting **120 s per part**, a harvest takes hours and I gave it
+two. **Read a slow instrument's RATE, not its silence.**
+⭐ **Procedure saved it, not judgement:** the dry-run rule, the permission gate, and recording the
+request as a request. **The judgement failed and the discipline held.**
+
+### R30-223 — THE BOARD
+
+⭐ **279 needs 144** (168→146→144). **COMMON RUNG 189** · 340 needs **536, all 536 RUNNING, 0
+ORPHANED** · records **33,079** · `300 hqw · 0 qw · 23 r` · cores **184** ·
+`{'162000': 22, '54000': 1}` (the single 15 h job is the `_r1` repair) · freeze MATCHES · drift 0 ·
+CLEAN · S16 `23 inspected, 0 SHORT, 23 ok`. ⇒ **Nothing to do; the correct action this pass was to
+withdraw a request.**
+
+## [2026-08-12k] ★★★★★★★ RUN 30 (OPS) — **A CONFIRMED ORPHAN ON THE CORE LINE, MY OWN HYPOTHESIS REFUTED, AND RUNG 279 MOVES AT LAST**
+
+### ⛔ R30-215 — THE DRAIN TRANSITION DID NOT RESUBMIT, AND CANNOT RE-FIRE
+
+Two `qacct` harvest timeouts (123517 at 18:35, 123518 at 18:37), then the driver **left the round**
+and moved to `t5`/`t6` (20:19, 20:30). **No `submitted c1_sweep_t4` line; zero such rows in the
+queue.** ⚠ **And it cannot re-fire** — the branch needs an **alive→empty edge** (`driver.py:575`), and
+a fresh `run_batch` starts `alive_seen=False`. **Waiting is no longer a path.**
+
+### ⛔⛔ R30-216 — MY R30-212 "OVER-REPORT" HYPOTHESIS IS REFUTED, AND THE ERROR WAS MINE
+
+Re-run now: `local parts 153 · ALIVE 0 · ARCHIVED 152 · **TO SUBMIT 1 part(s), 8 spec(s)**`. And the
+code never had the defect: `:177-180` calls `pending_specs` and skips parts with nothing outstanding.
+⇒ **The 29 was CORRECT at 13:40Z** (40 alive, 29 not yet archived); it collapsed to 1 as they
+completed. ⇒ **I compared a 13:40Z reading from one instrument against a 17:35Z reading from another
+and blamed the instrument — R30-156's phantom-orphan error in a new costume.**
+✅ What I got right was the FORM: recorded as *"a hypothesis, not a verdict"* with the untested test
+named. ⇒ **STANDING RULE, paid for twice: before blaming an instrument for a disagreement, RE-READ
+BOTH AT THE SAME INSTANT.** R30-212 is retracted in place.
+
+### ⭐⭐⭐ R30-217 — THREE INSTRUMENTS AGREE: 8 ORPHANED TRAININGS ON THE CORE LINE
+
+`--dry` **1 part / 8 specs (`p02`)** · direct `pending_specs` over **all 153** parts **8 pending, all
+in p02** · **S17@340 rc=1: `ORPHANED: test` at seed **296** across **8** baseline arms.**
+**The chain is measured end to end:** `p02` ran at 42-48% of fleet speed on `node-d00b-020` → killed
+at 15 h (`failed 37`, `exit 143`) → **a limit kill does not requeue** → the drain transition timed out
+and moved on → **8 trainings owed for rung 340 sit in no live job.** ⚠ `test` is the **CORE** line and
+seed 296 is **below** 340, so this is ON the critical path.
+
+### ⛔ R30-218 — THE REPAIR IS ONE COMMAND AND IS BLOCKED ON PERMISSION (FOR TAMER)
+
+`docs/ops/resubmit_truncated_round.py --base c1_sweep_t4 --go` — **DENIED by the environment's
+permission classifier; not worked around.** It would submit **one** job (8 specs), queue **326 → 327**
+against a cap of 1000, with a new id that ranks BELOW the 107k gating work. Dry run clean; tool
+journalled, selftest 5/5, mutation 3/3. ⇒ **Until it runs, S17@340 stays rc=1 and `c1` cannot bank
+340. Not urgent (561 away) but NOTHING ELSE WILL DO IT.**
+
+### ⭐ R30-219 — RUNG 279 HAS MOVED FOR THE FIRST TIME IN DAYS
+
+⭐ **`common rung 279 needs` 168 → **146**.** The nine gating jobs' first wave has begun archiving,
+exactly as projected. **22 of 168 banked.**
+**COMMON RUNG 189** · 340 needs **561** with **8 ORPHANED** · records **33,053** · `300 hqw · 0 qw ·
+26 r` · cores **208** · freeze MATCHES · drift 0 · CLEAN. ⚠ Near-flat `records=` between waves is
+correct behaviour, not a stall.
+
+## [2026-08-12j] ★★★★★★ RUN 30 (OPS) — **THE DRAIN TRANSITION IS IN PROGRESS, NOT STUCK — AND THE TOOL AND THE DRIVER DISAGREE BY 20x**
+
+### ✅ R30-211 — THE TEST I SET DID NOT RESOLVE AGAINST THE DRIVER; IT HAS NOT FINISHED ITS FIRST ATTEMPT
+
+`c1_sweep_t4` has FULLY DRAINED (0 rows, `running by h_rt: {'162000': 28}`, max job id in our queue
+**107,648** ⇒ nothing new submitted). **On the surface that reads as "the driver did not fire." The
+driver log says otherwise:** `[c1_sweep_t4] 1210/1220 done, 10 pending, round 0` at 18:22 and 18:26,
+then `qacct harvest failed for job 123517 … timed out after 120.0 seconds` at 18:35.
+**Three measured facts:** the driver is ALIVE and holds the round · it is INSIDE the drain transition
+(`_harvest_qacct` is called only there, `driver.py:589`, and **123517 is `p02`**, R30-208's walltime
+kill) · **this is the FIRST such failure in the entire 8.9 MB log** (`grep -c` = **1**).
+⭐ **And the designed path has completed before:** `2026-08-03 [c1_tpe_c23] drain with NO qacct trace
+(1/3) — requeueing 1 spec(s) WITHOUT a retry bump` → **`submitted` five seconds later.** The P13
+branch exists for exactly a harvest that yields nothing.
+⇒ **DO NOT INTERVENE.** Re-read next pass; if `10 pending` is still unsubmitted past the three-strike
+P13 bound, the manual tool becomes correct **then**.
+
+### ⛔⛔ R30-212 — THE TOOL SAYS 228 SPECS, THE DRIVER SAYS 10. A SECOND REASON `--go` WOULD HAVE BEEN WRONG.
+
+`resubmit_truncated_round --dry`: **29 parts / 228 specs**. The driver's own poll: **10 pending**.
+**The driver's is operative** — it is what gets requeued. **Measured evidence for the gap:**
+`submitted c1_sweep_t4 as 110` on 12 Aug, against **153 local part dirs** (`p01..p153`), **all created
+before that submission** (153 of 153 by mtime). ⇒ **the tool treats every local part dir as part of
+the current round, and at least 43 are not.**
+⚠ **A HYPOTHESIS, NOT A VERDICT** — 84 archived + 40 alive = 124 already exceeds 110, so some dirs
+belong to earlier submissions. The clean test (submitted part list vs local dirs) is NOT yet run.
+⇒ **Established: `--go` could have submitted parts from an EARLIER round of the same base.** Last pass
+I declined it because the driver owns the repair; **this is an independent reason, about the tool.**
+
+### ⭐ R30-213 — ONE ROOT CAUSE, TWO INSTRUMENTS
+
+The 17:32:35Z ATTN is `vanished_array_watch rc=2` ⇒ `UNRESOLVED core c1_sweep_t4 10 pending (qacct
+unreachable)`. **Same round, same TEN units, same unreachable `qacct`** ⇒ the watcher's UNKNOWN and the
+driver's stalled harvest are **one event seen from two sides**. ⚠ Its own rule governs: *"An UNKNOWN is
+not a negative."*
+⚠ **My exposure, stated:** I ran `qacct -j c1_sweep_t4_p02` by hand at ~15:40Z (a whole-file scan); the
+guard now reads `qacct=2`. **Two hours earlier, so I do not claim causation — but heavy `qacct` on a
+shared login node is exactly what the guard watches.** Noted so it is not rediscovered.
+
+### R30-214 — THE BOARD
+
+**COMMON RUNG 189** · 279 needs **168** (nine running, ETA **08-13 ~10:36-12:16Z**) · 340 needs **584**
+(633→584) · records **33,030** · `300 hqw · 0 qw · 28 r` · cores **224** · freeze MATCHES · drift 0 ·
+CLEAN · S16 `28 inspected, 0 SHORT, 28 ok`.
+⇒ **The fleet is now ENTIRELY 24-spec/45 h: 28 jobs.** Records stay nearly FLAT until the first wave
+archives (~18:00Z), then step. **A flat `records=` for the next few hours is CORRECT BEHAVIOUR and
+must not be diagnosed as a stall.**
+
+## [2026-08-12i] ★★★★★★★ RUN 30 (OPS) — **A WALLTIME KILL DOES NOT REQUEUE, AND MY OWN IDEMPOTENCY PROOF STOPPED ME BANKING A WRONG ANSWER**
+
+### ⛔⛔⛔ R30-208 — `p02` WAS KILLED BY ITS WALLTIME AND DID NOT REQUEUE
+
+I predicted it would "be killed and requeued". **Wrong, and `qacct` says why:** job **123517**,
+`failed 37 : qmaster enforced h_rt`, `exit_status 143`, `ru_wallclock 54028s` against `h_rt=54000`.
+**Two derivations:** absent from `qstat` entirely, and the accounting row.
+⇒ **`-r y` / `rerun TRUE` govern host and queue FAILURE. A limit kill is a deliberate termination and
+SGE does not requeue it.** ⚠ **The outage conclusion stands for the mechanism analysed (nodes down =
+host failure), but the blanket sentence "a mid-wave kill costs ~nothing because SGE requeues" does
+not.** R30-185 is bounded in place.
+⇒ **S16 WAS RIGHT AND I DISCOUNTED IT** — it said *"8 spec(s) LOST unless repaired"* for seven passes
+and I softened it to "requeue and resume". **The repair path is real but it is the DRIVER's, not
+SGE's** (the drain transition, R30-206).
+
+### ⭐⭐ R30-209 — THE SAME `qacct` OUTPUT OFFERED A CLEAN NODE-VS-JOB ANSWER, AND IT IS FALSE
+
+A second row for the same part name: **8 Aug, job 104925, `node-d00a-240`, 31,493 s (8.75 h), exit
+0** against **12 Aug, job 123517, `node-d00b-020`, 54,028 s, killed unfinished**. Tempting: same part,
+1.7x+ slower ⇒ the node.
+⛔ **Refuted by R30-176, which I proved myself two passes ago:** had the specs been identical,
+`_already_archived` would have skipped all eight and the job would have exited **in seconds**. It ran
+**fifteen hours** ⇒ **the specs differed, the part NAME was reused across rounds, the runs are not
+comparable.** ⇒ **node-vs-job stays OPEN.**
+⭐ **The guard built to protect the archive is also a REASONING instrument:** "would the idempotency
+skip have fired?" cheaply decides whether two runs are the same work. **Two matching names are not two
+matching runs.**
+
+### R30-210 — THE BOARD
+
+**COMMON RUNG 189** · 279 needs **168** (nine running, ETA **08-13 ~10:36-12:16Z**) · 340 needs
+**633** (861→633, **−228/2 h**) · records **32,965** (**+270**) · `300 hqw · 0 qw · 36 r` · cores
+**288** · freeze MATCHES · drift 0 · CLEAN · **S16 `36 inspected, 0 SHORT, 36 ok` — unqualified again
+now p02 has gone.** ⚠ λ 0.00/h with `eligible at A: {}` — the R30-200 non-finding, not R30-5.
+⭐ **`c1_sweep_t4` is 8 jobs from the FULL DRAIN that fires the driver's resubmit of its 29 missing
+parts. Next pass should see it — and if it does NOT, the manual tool becomes correct.**
+
+## [2026-08-12h] ★★★★★★★ RUN 30 (OPS) — **A LIVE TRUNCATED ROUND ON THE CORE LINE, AND THE CORRECT ACTION IS TO LEAVE IT ALONE**
+
+### ✅ R30-205 — ALL 19 DISPATCHED; THE WHOLE PATH TO RUNG 340 IS IN FLIGHT, NOTHING ORPHANED
+
+By identity: `dispatched by h_rt: {'162000': 19}` — every dispatch in the window was the released set
+(λ **9.53/h**). `running by h_rt` = **`{'162000': 28, '54000': 40}`**.
+**S17@340: `TOTAL owes 860 · RUNNING 860 · ELIG 0 · HELD 0 · ORPHANED 0`** ⇒ **"what feeds the fleet
+next?" answers itself: nothing needs to.** `c1`'s 284 sit inside its 40 running `t4` jobs.
+⛔ **Declining to release the remaining 300, for the OPPOSITE reason to last pass:** then the next
+rung's work was HELD and starving; now it is entirely RUNNING, so releasing `t5`/`t6` buys depth past
+the common rung while putting `c1`'s **104k** ids ahead of the 107k work we need. **Idle cores are not
+a cost when the critical path is saturated — and it is, 860 of 860.**
+
+### ⛔⛔⛔ R30-206 — `c1_sweep_t4` IS MISSING 29 PARTS / 228 SPECS, AND `--go` WOULD BE WRONG
+
+`local parts 153 · ALIVE 40 · ARCHIVED 84 · TO SUBMIT 29 parts / 228 specs (p118..p153)`, plus **6
+PARTIAL parts correctly SKIPPED**.
+**Two instruments appeared to disagree and the resolution is the finding:** S17**@340** says 0
+orphaned (the specs are at seeds ABOVE 340); S17**@403** says `*** ORPHANED: test ('tpe', 393…402)`;
+S15 says `test … 85 HOLE(S) below its frontier 406`. ⇒ **the missing parts ARE the holes that cap the
+CORE line** — not "running ahead".
+⛔⛔ **THEN THE ACTION INVERTED ON THE EVIDENCE.** `driver.py:575-600`: *"DRAIN TRANSITION: a round
+finished with work remaining → bounded requeue"* — **when the 40 alive jobs finish, the driver
+resubmits these specs itself.** Running `--go` now would put **two concurrent jobs on the same
+unarchived spec**; `_already_archived` only prevents a duplicate when one finishes BEFORE the other
+starts, so concurrently both train and one **overwrites the other's record with a different node
+fingerprint**. ⇒ **DO NOT `--go`.**
+⭐ **THE RULE: R30-1/R30-2's defect is what happens when the DRIVER DIES. The manual tool is for a DEAD
+driver. Ask "is the driver alive?" BEFORE reaching for it.** Ours is alive (+181 records in 2 h,
+cycle OK), so the designed path will fire.
+
+### R30-207 — THE BOARD, AND p02 REACHES ITS WALLTIME
+
+**COMMON RUNG 189** · 279 needs **168** (nine running, ETA **08-13 ~10:36-12:16Z**) · 340 needs
+**861**, **860 of 860 running** · records **32,695** (+181/2 h) · `300 hqw · 0 qw · 68 r` · cores
+**544** · λ **9.53/h** · freeze MATCHES · drift 0 · CLEAN · S16 `67 inspected, 1 SHORT, 66 ok`.
+⭐ **`c1_sweep_t4_p02` headroom 0.16 h** — it hits its 15 h walltime within ~10 min and is requeued.
+⇒ **the node-versus-job experiment arrives NOW rather than at the outage:** relocated and fast = the
+node; slow again = the job. **Next pass reads it.**
+
+## [2026-08-12g] ★★★★★★★ RUN 30 (OPS) — **ALL NINE GATING JOBS ARE RUNNING, AND THE SAME AUDIT FREED 19 MORE CARRYING 408 TRAININGS**
+
+### ⭐⭐⭐⭐ R30-202 — THE 168 THAT GATE RUNG 279 ARE IN FLIGHT FOR THE FIRST TIME SINCE 8 AUGUST
+
+Two hours after the release: **still USER-held 0 · SYSTEM-held 0 · r = 9**, fleet `hu 328 → 319`,
+exactly our nine. **Confirmed BY IDENTITY, not inference:** `dispatched by h_rt: {'162000': 9}` — every
+dispatch in the window was the 45 h class (λ 4.50/h is entirely those nine); `running by h_rt` now
+`{'162000': 9, '54000': 66}`.
+⭐ **It closes last pass's open question:** I refused to call the `hs` hold UCL's maintenance drain
+because it predates today. **It drained normally DURING the "at risk" window and all nine dispatched
+within ~2 h** ⇒ **the site hold is the standing two-stage mechanism, not a drain.**
+**They went out together, 10.5 min end to end** (10:42:06 → 10:52:30 host-local).
+⇒ ★ **FIRST CONCRETE CAMPAIGN ETA IN DAYS: three waves at 8.3-8.8 h each ⇒ rung 279 banks
+2026-08-13 ~10:36-12:16Z.** ⚠ **A BOUND, NOT AN ESTIMATE** — three of the nine carry only 8 owed
+trainings and those *could* land in wave 1 (~18:00Z tonight), **but I cannot assume which wave holds
+them**, so the honest figure is when the LAST of the nine finishes.
+
+### ⭐⭐ R30-203 — THE SAME AUDIT, APPLIED TO THE NEXT RUNG: 19 MORE JOBS, 408 TRAININGS
+
+R30-199 found ONE hold outliving its purpose; **the obvious question is whether it was the only one**,
+and with **0 eligible and cores falling 776 → 600** it was urgent. **Reused the tool:**
+`--rung 340 --release-list` ⇒ **19 jobs carrying 408** (leg1 104 · leg2 104 · leg3 96 · leg7 104),
+**the only held work serving the next common rung**, every one `hqw` with both hold types.
+Nothing is starved — rung 279's work is already running. ⛔ **Not the R30-40 error, which is releasing
+low-id work that is NOT needed.**
+**RELEASED by id, journalled (19 rows), all rc=0.** ✅ **still USER-held 0 · SYSTEM-held 18**; fleet
+`hu 319 → 300`, exactly our 19. ⛔ **DO NOT RE-ISSUE.**
+⚠ **296 remain held and I have NOT touched them:** the tool says they carry nothing for 279 or 340 —
+they are `t5`/`t6` (rung 403+) plus `c1`'s `t5`/`t6` at **104k** ids, which **would** outrank every
+107k job now running the rung we need. **Two holds had outlived their purpose; 296 have not.**
+
+### R30-204 — THE BOARD
+
+**COMMON RUNG 189** · 279 needs **168, all nine carriers RUNNING**, ETA **08-13 ~10:36-12:16Z** · 340
+needs **1,073** with **408 released** · records **32,514** (+252/2 h) · `300 hqw · 0 qw · 75 r` ·
+cores **600** · λ **4.50/h** (entirely the nine) · freeze MATCHES · drift 0 · CLEAN · S16 `72
+inspected, 1 SHORT, 71 ok`. `c1_sweep_t4_p02` 7th window **5.8 @ 12.76 h**, headroom 2.24 h — it will
+hit its own walltime, requeue and resume.
+★ **The `8-spec/15 h` reshape is a LIVE question for Tamer again**, not a post-outage one: the nine
+and the nineteen are all 24-spec/45 h and the outage has not materialised.
+
+## [2026-08-12f] ★★★★★★★ RUN 30 (OPS) — **THE OUTAGE DID NOT START, AND THE NINE GATING JOBS ARE RELEASED. THE HOLD WAS A LADDER LOCK WHOSE PURPOSE HAD INVERTED.**
+
+### ⭐⭐⭐ R30-199 — 1.55 h PAST THE BOUNDARY AND THE CLUSTER IS FULLY ALIVE
+
+`loginnode_guard` rc=0, cycle log **OK** at 09:29:04Z, records **32,262** (+136 in 2 h), 97 running,
+cores 776. ⇒ **"AT RISK all day from 08:00" is a WINDOW, not an EVENT.** Last night's forecasts were
+framed against 08:00Z as a hard stop — right to plan on, and it has not happened. **18 more jobs
+completed**; the trainings I forecast as lost are finishing.
+⛔ **That made the real question urgent: 0 eligible, 328 held, cores decaying 920→800→776 on a LIVE
+cluster.** So I established WHY the nine were held before touching them, **and it is not what the plan
+said**: NONE of them is in `JOB_RANK_HOLDS.json` (so the governor's `--release-from` would never have
+released them); **9 of 9 are in `~/r30_ladderlock_applied.txt`** — the RUN 30 ladder lock of 08-08,
+whose stated purpose was to hold jobs sitting ABOVE their line's next-needed block.
+⇒ **THE PURPOSE HAS INVERTED: the next-needed block IS rung 279, and the nine ARE that work.** Held
+four days by a rule that now points the other way, invisible to the governor (`TO HOLD 0` — held jobs
+are not candidates to it). **A hold that outlived its purpose, hiding behind a second justification
+that has also lapsed.**
+⇒ **RE-DERIVED at release time (same nine, same 168), then RELEASED by id, journalled to
+`~/r30_released_gating_2026-08-12.txt`:** all nine `modified hold of job-array task … rc=0`.
+✅ **VERIFIED BY HOLD TYPE:** `still USER-held = 0 · SYSTEM-held = 9 · qw = 0`; fleet `hu 328 → 319`,
+exactly our nine. **The qrls SUCCEEDED**; they still read held because the SITE hold remains and
+drains on UCL's schedule. ⛔ **DO NOT RE-ISSUE.**
+⚠ **NOT established:** whether today's `hs` is UCL's maintenance drain or the standing site hold this
+run has recorded all along. **It predates today in our own notes, so I do not claim it is the drain.**
+
+### ⚠ R30-200 — λ = 0.00/h IS NOT R30-5's OPEN QUESTION
+
+The same report says why one line later: **`eligible by h_rt at A: {}`** — nothing to dispatch. R30-5
+is λ=0 **with eligible work and free slots**; this is λ=0 with an **empty eligible set**, i.e.
+arithmetic. Recorded so the two are never conflated. **The release above is what refills that set.**
+
+### R30-201 — THE BOARD
+
+**COMMON RUNG 189** · 279 needs **168, released and awaiting the site hold — no longer blocked by
+us** · 340 needs **1,306** (1,664→1,464→1,306) · records **32,262** · `319 hqw · 0 qw · 97 r` ·
+cores **776** · freeze MATCHES · drift 0 · CLEAN · S16 `95 inspected, 1 SHORT, 94 ok`.
+`c1_sweep_t4_p02` 6th window **5.6 @ 10.79 h** (6.3·6.0·6.0·5.6·6.0·5.6 over 10 h). A/B unchanged.
 
 ## [2026-08-12e] ★★★★★★★ RUN 30 (OPS) — **CORRECTION: THE AUDIT RUNS IN 545 s AND RETURNS 0. I BLAMED ARCHIVE GROWTH WITHOUT TIMING IT ALONE — THE SECOND TIME THIS SESSION.**
 

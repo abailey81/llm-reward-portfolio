@@ -152,7 +152,15 @@ def rl_loop() -> Canvas:
     c.text(prog.cx - 6.0, inner_bot - 16.0, "installed as the reward", size=EDGE_PT,
            ha="right", va="center", color=orange)
 
-    c.arrow((ret.cx, inner_bot - 3.0), (ret.cx, ret.y1 + 3.0), color="0.25", lw=1.3)
+    # ⚠ THIS LINK IS DRAWN IN TWO SEGMENTS, AND THE BREAK IS THE POINT. Drawn as one arrow it ran
+    # straight through the bold heading "Outer problem: a bandit over candidate reward programs",
+    # and the arrowhead landed on the "b" of "bandit" in the compiled figure. The heading starts at
+    # the panel's left inset and the returns box sits under it, so there is no x where a straight
+    # line clears both. A line that stops before a label and resumes after it is the ordinary
+    # engineering-drawing convention for a link crossing an annotation, and it reads as one link.
+    # The upper segment is headless; the lower one carries the head, so the direction still reads.
+    c.arrow((ret.cx, inner_bot - 3.0), (ret.cx, outer_top + 2.0), color="0.25", lw=1.3, style="-")
+    c.arrow((ret.cx, outer_top - 20.0), (ret.cx, ret.y1 + 3.0), color="0.25", lw=1.3)
     c.text(ret.cx + 6.0, inner_bot - 16.0, "read on the validation split", size=EDGE_PT,
            ha="left", va="center")
 
@@ -163,6 +171,9 @@ def rl_loop() -> Canvas:
 def main() -> int:
     import matplotlib.pyplot as plt
 
+    from docs.analysis.figure_typeface import use_document_typeface
+
+    use_document_typeface()
     FIGDIR.mkdir(parents=True, exist_ok=True)
     canvas = rl_loop()
     out = canvas.save(FIGDIR / "F0_rl_loop.png")

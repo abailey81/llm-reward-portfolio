@@ -100,9 +100,11 @@ def build(out: Path = FIG_DIR) -> Path:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from docs.analysis.figure_typeface import use_document_typeface
     from src.viz.style import OKABE_ITO, apply_house_style
 
     apply_house_style()
+    use_document_typeface()   # the body typeface, so the exhibit matches the page it sits on
     matplotlib.rcParams.update({
         "font.size": 10.0, "axes.titlesize": 11.0, "axes.labelsize": 10.0,
         "legend.fontsize": 10.0, "xtick.labelsize": 10.0, "ytick.labelsize": 10.0,

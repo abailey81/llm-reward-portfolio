@@ -8,6 +8,8 @@ grades the realised results against.
 
 The control-theoretic reading, in one paragraph, because it makes the design legible at once. Posed that way it has a classical solution through the Hamilton-Jacobi-Bellman equation [`merton1969lifetime`; `merton1971optimum`], but that solution presumes the dynamics are known, and ours are unknown, sampled and non-stationary. In those terms the feedback channel is a sensor on a design loop, and "does tail feedback help" is an instrumentation question.
 
+*On the numbering.* This appendix has no C.1: its opening material is the two unnumbered paragraphs above, and the numbered sequence begins with the first derivation. Nothing is missing between them.
+
 ## C.2 Reward design for a bounded agent
 
 Let an agent interact with a Markov decision process $\mathcal M = (\mathcal S, \mathcal A, \mathcal P, r, \mu_0, \gamma)$, and let $F$ denote the *designer's objective*, here a risk-adjusted measure of realised performance on the sealed split, whose operational proxy inside the loop is the validation fitness $F_{\mathrm{val}}$. The optimal reward problem observes that this identification is a convenience rather than a necessity: when the agent is *bounded* in representational capacity, optimisation budget or planning horizon, the reward that maximises the designer's expected $F$ "need not bear a direct relationship to the fitness function but may confer significant advantages over rewards based only on fitness" [`singh2009where`; `sorg2010orp`; `sorg2011optimal`; `sorg2010internal`]. A single reward otherwise conflates two roles, expressing preferences and shaping a tractable learning signal, and decoupling them is what reward design exploits [`hadfieldmenell2017ird`; `abel2021expressivity`].

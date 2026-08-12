@@ -34,8 +34,10 @@ OUT = REPO / "outputs" / "figures" / "F1_system_diagram.png"
 
 
 def main() -> int:
+    from docs.analysis.figure_typeface import use_document_typeface
     from docs.analysis.render_schematics_legible import system_diagram
 
+    use_document_typeface()
     canvas = system_diagram()
     canvas.save(OUT)
     print(f"wrote {OUT} (+ .pdf) via render_schematics_legible.system_diagram")

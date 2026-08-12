@@ -516,6 +516,11 @@ def audit(fig: Any) -> None:
 def main() -> int:
     import matplotlib.pyplot as plt
 
+    from docs.analysis.figure_typeface import use_document_typeface
+
+    # BEFORE the figure is built, never after: a Text artist resolves its family from rcParams at
+    # CONSTRUCTION, so setting the typeface once the artists exist changes nothing on the page.
+    use_document_typeface()
     fig = _capture_fenced_figure()
     print(f"[F3] label corrections applied: {correct_labels(fig)}")
     # Both of these CHANGE THE WORDING, so they run before the snapshot that forbids wording changes.

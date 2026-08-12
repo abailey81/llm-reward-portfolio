@@ -57,14 +57,14 @@ the full *feature lookback*, so no observation's feature window straddles a boun
 [`lopezdeprado2018afml`]. The property is unit-tested adversarially. Corrupting every
 row at or after a decision row leaves the constructed observation byte-identical.
 
+![**Figure 3.2** — The Split-C timeline: training (2005–2016), validation (2017–2019) and the sealed test window (2020–2026H1), with the 60-session purge at each boundary. The purge places the COVID crash inside the test-boundary embargo, so sealed execution opens on 30 March 2020. **What to conclude:** The sealed window opens after the COVID drawdown, which bounds every absolute figure taken from it.
+](F4_splits_timeline.pdf)
+
 One consequence is disclosed. The COVID crash falls *inside* the test-boundary purge (Figure 3.2), so
 the sealed window opens near the trough and captures the recovery rather than the drawdown. Moving
 the boundary would trade away the leakage guarantee the purge exists for, and would let one
 three-week episode dominate the sealed CVaR estimand. The 2022 bear market stays fully in-window, and
 the boundary is shared by all arms, so it cannot confound the between-arm contrast.
-
-![**Figure 3.2** — The Split-C timeline: training (2005–2016), validation (2017–2019) and the sealed test window (2020–2026H1), with the 60-session purge at each boundary. The purge places the COVID crash inside the test-boundary embargo, so sealed execution opens on 30 March 2020. **What to conclude:** The sealed window opens after the COVID drawdown, which bounds every absolute figure taken from it.
-](F4_splits_timeline.pdf)
 
 
 ## 3.4 Delisting is zero-filled, because a surcharge fabricates M&A losses
@@ -503,7 +503,7 @@ report-only exhibits, which cannot propagate $\alpha$, sit in Table E.4.
 | Equivalence power | tier-conditional, reported at the achieved rung |
 | Tail-leg bound | on the CVaR scale, and as a fraction of the baseline arm's CVaR |
 | Overfitting guard | PBO by combinatorially symmetric cross-validation [`bailey2017pbo`], biased near zero mean return [`witzany2021bayesian`] |
-| Estimator provenance | Table E.5 attributes every estimator; §A.7 works the margin |
+| Estimator provenance | Table E.5 attributes every estimator; §A.6 works the margin |
 
 
 ```{=latex}

@@ -141,9 +141,11 @@ def build(out: Path = FIG_DIR) -> list[Path]:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from docs.analysis.figure_typeface import use_document_typeface
     from src.viz.style import apply_house_style, arm_style
 
     apply_house_style()
+    use_document_typeface()   # the body typeface, so the exhibit matches the page it sits on
     # The house style sets every default type size below the IFTE0008 10pt floor and lives in a
     # drift-fenced module, so the override lands here, exactly as it does in render_results_figures.
     matplotlib.rcParams.update({

@@ -181,8 +181,7 @@ leads to less trading, that less trading wins, and that the first link is unexpl
 `scalar_cvar5` is the exception that sharpens the rule. It takes four of the eleven lines, and on
 three of those four it is also the best arm *before* costs. A single conditional value-at-risk
 number added to the score is the only feedback change in this study that shows up in gross terms. It
-carries no registered test, so it is offered as the most promising thread for the next study rather
-than as a finding.
+carries no registered test, so it is a thread for the next study rather than a finding.
 
 **The same channel decides the human-written objectives, which is what makes this a property of reward
 design rather than of language models.** Of the eleven published rewards in the canon of Table 4.5,
@@ -193,7 +192,9 @@ cent of the book per session and the ten losers move between 77 and 91 per cent,
 hundred.[^canonn] Eight of those ten penalise risk explicitly, several of them by exactly the coherent
 tail measure this study feeds. Figure 6.3 puts all twenty on one axis and Figure 6.4 draws the paths.
 Sophistication about risk did not substitute for pricing trading, for a
-model or for a person.
+model or for a person.[^costlit]
+
+[^costlit]: This result is not new to finance, and placing it there is what makes it usable. Gârleanu and Pedersen show that with predictable returns and quadratic trading costs the optimal policy trades only partway towards the frictionless target, so the cost belongs *inside* the objective rather than being netted off after it [`garleanu2013dynamic`]. Almgren and Chriss derive the same trade-off for a single order [`almgren2000optimal`], and the impact estimates that calibrate it are of the order charged here [`almgren2005direct`]. `return_minus_turnover` is the one member of the canon that follows that prescription, and it is the one that survives. What is new is the direction of travel: nothing here compared the objectives on a theoretical criterion, it sorted them by a sealed outcome, and the sort recovered the prescription. In a practitioner's units, at 10 bps a side an arm turning over a fraction $x$ of the book per session pays $252 \times 0.001x$ of capital a year, so the survivor's 0.86 per cent costs about 0.2 per cent a year while the ten losers' 77 to 91 per cent costs 19 to 23 per cent, and every one of those ten ends the sealed window with a negative net Sharpe.
 
 [^canonn]: Means over the sealed baseline records, 305 or 306 per reward name, read from `outputs/campaign_cluster_run4`. The net-positive count of one, and the survivor's rank, are invariant across the mean, the median and the interquartile mean the confirmatory family uses. The ordering *within* the ten losers is not: two adjacent pairs exchange places between estimators, over a range of 0.20 net Sharpe, which is why nothing here rests on their order.
 
@@ -322,16 +323,18 @@ that removing the charge removes most of what separates the arms. Table 6.4 take
 
 ## 7.1 The eleven lines return a count rather than a winner, and the count is the finding
 
-The question was whether showing a language-model reward-designer the lower tail of the realised outcome
-distribution, instead of a single score, would change the reward code it writes, and whether that change
-would propagate to the trained agent's realised tail behaviour. The eleven authoring lines return a count
-rather than a winner, and the count is the answer. In none of
+The question was whether showing a language-model reward-designer the lower tail, instead of a single
+score, would change the reward code it writes and what its agent then does. The eleven authoring lines
+return a count rather than a winner, and the count is the answer. In none of
 them does the tail-fed condition beat all three registered comparators at once on annualised net
 Sharpe, where higher is better, and it is the best arm on no line: `placebo` takes five,
 `scalar_cvar5` four, `scalar` one and the structure-destroyed twin one. Pooled by interquartile
 mean, that condition sits 0.061 net Sharpe units behind `scalar` and
 0.024 behind its own scrambled control, both governing intervals spanning zero, so any advantage of real
 tail values over the same values scrambled is bounded above at $+0.097$ and never signed.[^ledger]
+One asymmetry belongs in the open. The frozen plan seats its single alpha-carrying look on one line
+while the reading above rests on eleven, so the count extends the registration rather than
+discharging it (§B.3.1).
 
 What separates the lines is not what they were shown but how heavily they trade. The change in daily
 turnover between the tail-fed condition and `scalar` accounts for 97.2 per cent of the variation in their
@@ -340,14 +343,12 @@ cent.[^turnover] Turnover itself runs from 0.603 to 88.83 per cent of the portfo
 cells, a factor of 147, where lower is better. Although the shared prompt tells every designer to think
 about turnover, no arm's feedback block ever reported it (§4.4).
 
-The same friction fixes the human bar, which §6.2 sets out: the eleven expert-written objectives cross
-from positive gross to negative net, and the sole survivor is the only one whose formula charges for
-turnover directly.[^canonx]
+The same friction fixes the human bar (§6.2): the eleven expert-written objectives cross from positive
+gross to negative net, and the survivor is the only one whose formula charges for turnover.[^canonx]
 
 No single line's answer generalises, because the effect of the feedback depends on who is reading it.
-Model identity, the arm, their interaction and residual seed noise take 27.9, 14.8, 34.8 and 22.5 per cent
-of the variance in terminal net Sharpe, with overlapping intervals, so what is established is not their
-ordering but that the model-by-arm interaction is substantial.[^shares] The same feedback does different
+Model identity, the arm, their interaction and seed noise take 27.9, 14.8, 34.8 and 22.5 per cent of
+the variance, and only the interaction's size is established.[^shares] The same feedback does different
 things to different authors. The capability gradient behind that is readable before any outcome is scored,
 since the share of a line's 150 registered candidate slots lost runs from 0.0 to 86.0 per cent, and a
 designer that fails most of its attempts leaves the reflection loop nothing to reflect on.

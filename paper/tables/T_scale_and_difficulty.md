@@ -1,7 +1,7 @@
 # Appendix E — What was built, and the specification in full
 
 Criterion 3 scores an outcome against the difficulty of obtaining it, and difficulty is the one property
-of a computational study that leaves no trace in its prose. **Table 1.2 supplies the counts.** This
+of a computational study that leaves no trace in its prose. **Table 1.1 supplies the counts.** This
 appendix carries the two things a count cannot convey: which parts of the system were taken off the shelf
 and which had to be built, and what the hard part actually was. It then prints the full specification,
 so every parameter the body states can be diffed against the frozen configuration it was read from.

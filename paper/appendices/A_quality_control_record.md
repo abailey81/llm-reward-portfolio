@@ -14,6 +14,8 @@
 
 Faultless execution is a property of the study that was executed, not of the development process that produced it. The full dated narrative is `docs/CAMPAIGN_EXECUTION_RECORD.md`, and every item below carries its identifier there.
 
+*On the numbering.* A letter suffix marks a section that belongs with the one it follows, so A.2b and A.2c belong with A.2 and A.5b with A.5. The same convention runs on the exhibits and is stated with the lists at the front.
+
 ## A.1 The headline fact
 
 One campaign run was discarded. A project that has never discarded anything has not shown that its checks can bind.

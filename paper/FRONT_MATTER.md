@@ -44,6 +44,26 @@ header-includes:
     \setcounter{topnumber}{3}
     \setcounter{bottomnumber}{2}
     \setcounter{totalnumber}{4}
+    % FLOAT PAGES FILL FROM THE TOP. When LaTeX cannot fit a deferred float anywhere it makes a page
+    % of nothing but floats, and on such a page it CENTRES them vertically (\@fptop defaults to
+    % 0pt plus 1fil). MEASURED on the 2026-08-12 build: page 32 carried Figure 3.2 and its caption,
+    % 123 words, floating in the middle with roughly 45 per cent of the page blank ABOVE it and
+    % nothing at all below. It was the only page in 129 with under 130 words. Setting \@fptop rigid
+    % pins any such page's content to the top margin, where a reader expects a page to begin.
+    % This is a safety net rather than the fix: the real repair is to give the float somewhere to
+    % land, which is why Figure 3.2 also moved one paragraph earlier in its own section.
+    \makeatletter
+    \setlength{\@fptop}{0pt}
+    \setlength{\@fpsep}{10pt plus 1fil}
+    % !! \renewcommand{\fps@figure}{!htbp} WAS TRIED HERE AND REMOVED, AND THE REMOVAL IS THE
+    % FINDING. pandoc emits a bare \begin{figure}, which `report` reads as [tbp], so no figure can
+    % ever sit where it was written. Adding "h!" looked like the obvious repair for the one sparse
+    % page. It was built and measured: 129 pages before and after, the same single page under 140
+    % words, and all eighteen captions on exactly the same pages. A preamble line that provably
+    % changes nothing is not neutral, it is a trap for the next reader, so it is gone rather than
+    % kept "in case". The residual is Figure 3.2 sharing page 32 with nothing else, which is a
+    % four-page chapter ending on its second exhibit rather than a defect in the figure.
+    \makeatother
     % --------------------------------------------------------------------------------------------
     % WIDOWS, ORPHANS AND STRANDED HEADINGS. LaTeX's defaults (\widowpenalty and \clubpenalty at 150)
     % permit a paragraph's last line to sit alone at the top of a page, its first line to sit alone at
@@ -165,6 +185,13 @@ header-includes:
     % reference list, and it recovers roughly three pages without touching a single character.
     % !! THE ORDER MATTERS: \footnotesize must be issued BEFORE \parskip is read, because \baselineskip
     % is size-dependent. Setting an absolute length instead avoids depending on that ordering at all.
+    % !! THIS \parskip IS INERT, AND THAT WAS MEASURED RATHER THAN ASSUMED (2026-08-13). Lowering it
+    % from 3pt to 2.2pt was tried, to pull one orphaned reference back off its own page. It changed
+    % nothing: line tops inside the rendered list sit 11.9 to 12.0pt apart everywhere, which is the
+    % 10pt leading with NO inter-entry gap at all, so pandoc's own CSLReferences definition sets the
+    % length after this hook runs and the value written here never reaches the page. The line stays
+    % because \footnotesize and \setstretch{1} in the same hook DO reach it, and they are what
+    % recovered the pages the note above records. Do not re-tune the number expecting an effect.
     \AtBeginEnvironment{CSLReferences}{\footnotesize\setstretch{1}\setlength{\parskip}{3pt}}
     % --------------------------------------------------------------------------------------------
     % A CAPTION MUST NOT LOOK LIKE A SENTENCE OF THE ARGUMENT (added 2026-08-11, Tamer's instruction:
@@ -366,6 +393,137 @@ header-includes:
     % "5.8.1" IN PROSE AND LOOKS UNDER 5.8, WHICH IS LISTED. That step is small and its location is
     % known, so depth 1 stands. Both auditors rated the omission minor and neither disputed it.
     \setcounter{tocdepth}{1}
+    % --------------------------------------------------------------------------------------------
+    % THE DESIGNED TITLE PAGE, RESTORED 2026-08-12 ON TAMER'S INSTRUCTION ("bring back my designed
+    % title page"). Its design of record is docs/figures/titlepage.tex, which compiles standalone and
+    % whose header carries the full provenance of every measurement below: the 54mm full-bleed band,
+    % the 35mm reversed lockup that measures out the page's content extent, and the 36mm coat of arms.
+    % NOTHING HERE IS A NEW DESIGN DECISION. The geometry, the sizes, the anchors and the colours are
+    % transcribed from that file unchanged, and the only adaptations are the three that embedding
+    % forces:
+    %   * the standalone file is `article` with its own \usepackage[...]{geometry}; here geometry is
+    %     already loaded, so the page takes \newgeometry / \restoregeometry around itself alone;
+    %   * the whole page is a PREAMBLE MACRO rather than body LaTeX. pandoc's raw_tex reader treats a
+    %     line beginning "{" as markdown, so a body-level transcription would have leaked
+    %     "{\fontsize{26}{33}\selectfont" onto page 1 as literal text. One \ucltitlepage call in the
+    %     body is unambiguously raw TeX and cannot be misparsed;
+    %   * \thispagestyle{plain} is ADDED. The standalone file sets \pagestyle{empty}, but the guide
+    %     (p.10) requires Arabic numerals "from the title page to the last page", and the compiled
+    %     document has carried a "1" on page 1 since the first build. Removing it to match the
+    %     standalone file would trade a graded requirement for a design preference.
+    % !! THE TWO MARKS ARE REAL FILES AND ARE NOW ON THE PAGE, WHICH REVIVES A DISCLOSURE OBLIGATION.
+    % The institutional-marks bullet was deleted on 2026-08-10 with the recorded reason that page 1
+    % carried zero images, so the bullet attributed material that did not exist. That reason has now
+    % expired. Verify after every build, and keep the disclosure in step with the answer:
+    %   python -c "import fitz; p=fitz.Document('paper/_build/dissertation.pdf')[0]; print(len(p.get_images(full=True)), len(p.get_drawings()))"
+    \usepackage{tikz}
+    \usetikzlibrary{calc}
+    % Sampled from the official mark: #361A54 is 47.2% of its pixels.
+    \definecolor{uclDeep}{HTML}{361A54}
+    \definecolor{uclInk}{HTML}{16161A}
+    \definecolor{uclQuiet}{HTML}{6A6A72}
+    % !! LOADED BY FILE, NEVER BY NAME. By-name resolution falls back to scanning C:/WINDOWS/fonts,
+    % which is the system-font dependency Priority 5 forbids. By file the faces come from the pinned
+    % Tectonic bundle; VERIFIED 2026-08-12 by compiling docs/figures/titlepage.tex, which fetched
+    % LibertinusSerif-{Regular,Bold,Italic,BoldItalic}.otf and LibertinusSerifDisplay-Regular.otf
+    % from the bundle rather than from the box.
+    % WHY A SERIF ON THIS PAGE WHEN THE BODY IS HEROS: the guide RECOMMENDS Arial or Helvetica and
+    % REQUIRES only legibility at 10pt or more. The body honours the recommendation throughout. The
+    % title page is a display setting, it carries no running text, and Libertinus is where its design
+    % was resolved.
+    % !! `Scale = 1` IS LOAD-BEARING AND MUST NOT BE DROPPED. pandoc's LaTeX template emits
+    % `\defaultfontfeatures{Scale=MatchLowercase}` and then exempts only `\rmfamily` from it, so a
+    % bare \newfontfamily here silently inherits MatchLowercase and is scaled until ITS x-height
+    % matches TeX Gyre Heros's. Heros is a grotesque with a large x-height and Libertinus is not, so
+    % MEASURED on the first embedded build: the 26pt title set at 33.19pt and the 10.5pt institute
+    % line at 12.78pt -- two DIFFERENT factors, 1.2815 and 1.2218, because the two faces have
+    % different x-heights. The title then wrapped onto seven lines and pushed the page's foot onto a
+    % second page. With Scale=1 the title sets at 25.90pt, which is what docs/figures/titlepage.tex
+    % renders standalone, to the hundredth of a point.
+    \newfontfamily\tpserif{LibertinusSerif-Regular.otf}[
+      BoldFont = LibertinusSerif-Bold.otf, ItalicFont = LibertinusSerif-Italic.otf,
+      BoldItalicFont = LibertinusSerif-BoldItalic.otf, Numbers = OldStyle, Ligatures = TeX,
+      Scale = 1]
+    % The title is a DISPLAY line, so it takes the display cut of the same family.
+    \newfontfamily\tpdisplay{LibertinusSerifDisplay-Regular.otf}[Ligatures = TeX, Scale = 1]
+    \newcommand{\ucltitlepage}{%
+      % Right margin 74mm = the 54mm band plus a 20mm gutter, so type never crowds the colour.
+      % footskip=47pt is ARITHMETIC, not taste. Every other page in the document carries its number
+      % on a baseline 809.5pt from the top (text block bottom 779.6 at the body's 2.2cm, plus
+      % geometry's default 30pt footskip). This page's block ends at 762.6, so it needs 46.9pt to put
+      % its number on the SAME line as page 2's. Without it the "1" sat 17pt high and page 1 was the
+      % one page in the document whose folio did not line up with the rest.
+      \newgeometry{left=34mm,right=74mm,top=32mm,bottom=28mm,footskip=47pt}%
+      \thispagestyle{plain}%
+      \begingroup
+      % !! \setstretch{1} IS PART OF THE DESIGN, NOT A TIDYING. Every vertical measurement on this
+      % page was resolved in a standalone document with no setspace, so the title's own
+      % \fontsize{26}{33} means a 33pt baseline. Under the document's 1.5 stretch it becomes 49.5pt,
+      % and MEASURED on the build before this line the four title lines and the candidate's details
+      % no longer fitted: "Supervised by Dr Ramin Okhrati" and "September 2026" were pushed onto a
+      % second page. The guide's 1.5 rule governs the MAIN TEXT; a display title page is not main
+      % text, and it is set to the leading it was designed at.
+      \setstretch{1}%
+      \tpserif\raggedright\setlength{\parindent}{0pt}\color{uclInk}%
+      % ---- the band, and the lockup reversed out of it ----
+      % 35mm x 3.563 = 124.7mm of run; head at 260.44mm, foot at 135.72mm from the trim, so the mark's
+      % head sits on the head of the arms and its foot on the baseline of the title's last line.
+      \begin{tikzpicture}[remember picture, overlay]
+        \fill[uclDeep]
+          ($(current page.north east)+(-54mm,0mm)$) rectangle (current page.south east);
+        \node[anchor=center, rotate=-90, inner sep=0pt]
+             at ($(current page.east)+(-27mm,49.58mm)$)
+             {\includegraphics[width=124.7mm]{docs/figures/ucl-logo-primary.pdf}};
+      \end{tikzpicture}%
+      % ---- the coat of arms. 36mm is the size at which the armour and the laurels resolve ----
+      \includegraphics[width=36mm]{docs/figures/ucl-crest.pdf}\par
+      \vspace{8mm}%
+      {\fontsize{10.5}{15}\selectfont\itshape\color{uclQuiet}%
+        UCL Institute of Finance and Technology\par}%
+      \vspace{26mm}%
+      % Registered 2026-08-02. Twelve words, no acronyms, per the guide. The line breaks are VERIFIED
+      % against the compiled page rather than predicted; re-verify if the measure or the title changes.
+      {\tpdisplay\fontsize{26}{33}\selectfont\color{uclDeep}%
+        Downside Risk Measures\\
+        in Language Model\\
+        Reward Design for Deep\\
+        Reinforcement Learning\par}%
+      \vspace{24mm}%
+      {\fontsize{15}{21}\selectfont Tamer Atesyakar\par}%
+      \vfill
+      % Wording taken from the guide itself (p.8), not paraphrased.
+      {\fontsize{10.5}{16}\selectfont\itshape\color{uclQuiet}%
+        Submitted in partial fulfilment of the requirements for the\par}%
+      \vspace{3mm}%
+      {\fontsize{13}{18}\selectfont MSc in Banking and Digital Finance\par}%
+      \vspace{2.5mm}%
+      {\fontsize{10.5}{16}\selectfont\color{uclQuiet}University College London\par}%
+      \vspace{8mm}%
+      % !! ONE SUPERVISOR IS NAMED HERE AND THAT IS DELIBERATE. The guide's title-page field is "the
+      % supervisor's name"; Stefan Wagner's is INDUSTRY supervision and is acknowledged as such on the
+      % acknowledgements page. An earlier draft of this page FABRICATED his surname before Tamer
+      % supplied it, which is why the rule is that a name reaches this page from Tamer or not at all.
+      {\fontsize{10.5}{16}\selectfont\color{uclQuiet}Supervised by Dr Ramin Okhrati\par}%
+      \vspace{8mm}%
+      {\fontsize{10.5}{16}\selectfont\color{uclQuiet}September 2026\par}%
+      \endgroup
+      \clearpage
+      \restoregeometry
+      % !!!! \normalsize HERE IS THE MOST IMPORTANT LINE IN THIS MACRO. DO NOT DELETE IT.
+      % `\restoregeometry` RESTORES \baselineskip TO THE VALUE GEOMETRY SAVED IN THE PREAMBLE, and
+      % pandoc's template emits `\setstretch{1.5}` as the FIRST LINE AFTER \begin{document}, i.e.
+      % AFTER geometry took that snapshot. So the restore silently reverts the whole document to
+      % single spacing while leaving \baselinestretch reading 1.5, which is why nothing warns.
+      % MEASURED on the first embedded build, over pages 21-45: modal body leading fell from 21.7pt
+      % to 14.4pt and the document went from 130 pages to 116. The IFTE0008 guide (p.10) REQUIRES
+      % 1.5 spacing in the main text, so that build breached a graded typography rule on every one
+      % of its pages, and the compile was clean, the citation gate green and the word gate green.
+      % \normalsize recomputes \baselineskip from \baselinestretch, which is still 1.5, so it
+      % restores the stretch WITHOUT hardcoding the number here. Isolated and proven in a minimal
+      % document before this line was written: with \newgeometry/\restoregeometry and no
+      % \normalsize, baselineskip=14.5pt; with it, 21.75pt.
+      \normalsize
+    }
     ```
 ---
 
@@ -468,157 +626,32 @@ header-includes:
      Verify in the RENDERED PDF, never in the source: page 1 carries no heading, no horizontal
      rule, a centred display title, and both the supervisor line and the date. -->
 
-\begin{center}
-\vspace*{0.6cm}
-{\large\bfseries UNIVERSITY COLLEGE LONDON}\\[0.35cm]
-{\large\bfseries UCL Institute of Finance and Technology}\\[2.4cm]
-{\Large\bfseries Downside Risk Measures in Language Model\\[0.35cm]
-Reward Design for Deep Reinforcement Learning}\\[2.4cm]
-% SIZE IS MEASURED, NOT CHOSEN. Text block is 453.5pt. At \LARGE (20.66pt) the second line sets to
-% 481pt and wrapped onto a third line reading "Learning" alone; at \Large (17.28pt) the two lines
-% set to 369pt and 402pt. Re-measure from the compiled PDF if the title ever changes.
-{\large\bfseries Tamer Atesyakar}\\[2.0cm]
-A dissertation submitted in partial fulfilment of the requirements\\
-for the degree of\\[0.35cm]
-{\bfseries MSc in Banking and Digital Finance}\\[1.6cm]
-UCL Institute of Finance and Technology\\
-University College London\\[1.6cm]
-Supervisor: Dr Ramin Okhrati\\[1.6cm]
-September 2026
-\end{center}
+\ucltitlepage
 
-\clearpage
+<!-- ⛔ THE DECLARATION OF ORIGINALITY WAS REMOVED ON 2026-08-12, ON TAMER'S INSTRUCTION ("remove the
+     declaration of originality for now"). What was removed, precisely, is the DECLARATION: the
+     first-person originality statement and the confirmation that the frozen configuration still
+     matches its hash. Both are statements a candidate signs, and at submission the official IFTE0008
+     cover page from Moodle is what carries that signature.
+     ⚠ WHAT WAS DELIBERATELY **NOT** REMOVED, because removing it would breach UCL policy rather than
+     satisfy an instruction: the third-party and AI-assistance DISCLOSURES that were nested inside the
+     removed section. They are a compliance obligation, not a declaration, and they now sit under
+     "Ethics, data and disclosures" on the acknowledgements page, which is also where the ethics
+     statement and the word count already lived. Nothing was lost; one heading and one signed
+     paragraph were.
+     The freeze hash and the command that re-derives it remain in Appendix A, which is where the
+     removed sentence already pointed the reader. -->
 
-## Declaration of Originality
-
-I, Tamer Atesyakar, confirm that the work presented in this dissertation is my own. Where information has been
-derived from other sources, I confirm that this has been indicated in the work. Where I have consulted the
-published work of others, this is always clearly attributed. Where I have quoted from the work of others, the
-source is always given. With the exception of such quotations, this dissertation is entirely my own work. I have
-acknowledged all main sources of help. This work has not been submitted, in whole or in part, for any other
-degree or qualification at this or any other institution.
-
-**Third-party tools and resources.** I disclose the following third-party tools, services and data used in the
-production of this work, all employed under my own direction and with the outputs verified by me:
-
-<!-- ⛔ THE LIST BELOW IS INDENTATION-CRITICAL. Until 2026-08-10 the last three items rendered as literal
-     inline hyphens run into a paragraph ("... involved no generation. - **Software.** ... - **Institutional
-     marks ...**"), i.e. half the third-party disclosure lost its bullets on page 3 of the compiled PDF.
-     CAUSE: the third item carries a table and then a continuation paragraph, and both were indented to a
-     column that does not match the item's own content column, so the list ENDED at the table and everything
-     after it became one lazy paragraph in which "- " is ordinary text.
-     THE RULE THIS FILE NOW FOLLOWS: the marker is "- " (two columns), so EVERY block belonging to an item —
-     wrapped prose, the table, the continuation paragraph — is indented by exactly TWO spaces, and blank
-     lines separate the blocks. Verify in the RENDERED PDF, never in the source: six bullets must appear. -->
-
-- Market data. A licensed Refinitiv/LSEG point-in-time, survivorship-free US equity panel (the gold
-  panel), used under the terms of the applicable institutional licence.
-
-- Reference data. FRED (risk-free rate, DGS3MO), an equal-weighted market benchmark, and Fama–French
-  factor series, used for evaluation and factor attribution.
-
-- **Language models as the object of study.** Language models are what this dissertation *investigates*. They are not authorship aids here, and the distinction is kept sharp because both uses appear in one project. Every model named in the roster wrote reward code inside the experiment, under the frozen prompts, and every one of those outputs is archived and reported as data. None of it is prose in this document.
-
-- Software. Open-source scientific Python (including Stable-Baselines3, NumPy, SciPy, pandas and the
-  `rliable` evaluation library), used under their respective open-source licences.
-
-<!-- ⛔ THE INSTITUTIONAL-MARKS BULLET WAS REMOVED ON 2026-08-10, AND REMOVING IT IS THE HONEST ACTION.
-     It declared third-party attribution for a UCL coat of arms and a UCL logo -- naming the Wikimedia
-     source files, the two uploaders and the CC BY-SA 3.0 licence. MEASURED on the compiled artefact:
-     page 1 carries ZERO images and ZERO vector drawings. The marks were never in the document, so the
-     bullet attributed material that does not exist, inside the Declaration of Originality, which is the
-     single worst place in a dissertation to state something untrue.
-     The alternative -- sourcing and embedding a UCL crest to make the disclosure true -- was REFUSED:
-     an institutional mark that has not been verified against UCL's own brand assets should not be
-     placed on a document submitted to UCL, and the guidelines' required OFFICIAL COVER PAGE (attached
-     at submission from the IFTE0008 Moodle page) is what carries institutional identity anyway.
-     ⚠ IF A CREST OR LOGO IS EVER ADDED TO THE TITLE PAGE, THIS BULLET MUST COME BACK, with the source,
-     uploader and licence restated. Verify with:
-       python -c "import fitz; p=fitz.Document('paper/_build/dissertation.pdf')[0]; print(len(p.get_images(full=True)), len(p.get_drawings()))" -->
-
-
-- **AI assistance.** Generative-AI assistance (Anthropic Claude) was used as a coding and drafting aid: code scaffolding and refactoring, literature triage, and prose editing of text I had already written. No generated text is presented as my own reasoning, no result was produced by it, and I take full responsibility for every word and number in this document.
-
-<!-- TO COMPLETE AT SUBMISSION: confirm with the UCL brand team that reproduction of the COAT OF ARMS on the
-     title page is permitted. UCL's published logo guidelines are silent on the arms and refer such questions
-     to the brand team, and ceremonial marks are frequently reserved. If permission is withheld, the title
-     page falls back to the portico device (docs/figures/ucl-portico.pdf), which UCL's guidelines expressly
-     release: "The graphic pillars ... can be used in any design." Kept in source, not on the page, because
-     a visible placeholder forfeits the Criterion 4 band. -->
-
-I confirm that every reported result is produced by the frozen, pre-registered pipeline, and that the
-frozen configuration still matches the canonical hash recorded when it was sealed. The hash itself, and
-the command that re-derives it, are in Appendix A.
-
-<!-- ⛔ DO NOT "RESTORE" PREREGISTRATION.md HERE (corrected 2026-08-10). This sentence used to read
-     "recorded in `PREREGISTRATION.md` and in the execution ledger of Chapter 5", and the first half was
-     FALSE: that file contains no 64-hex string anywhere, and its freeze-record table still carries an
-     unfilled placeholder, `| Content hash (SHA-256) | _(emitted by scripts/freeze.py)_ |`. The absence is
-     STRUCTURAL rather than an oversight, which is why the fix is to the sentence and never to the file:
-     `scripts/freeze.py::canonical_bytes` hashes `PREREGISTRATION.md` WHOLE (only the YAML mirror gets
-     `_strip_freeze_state`), so writing the hash into that file would change the bytes the hash is taken
-     over and break the seal it records. The value therefore lives in the machine-readable mirror,
-     `config/preregistration.yaml`, whose freeze-state lines are stripped before hashing precisely so it
-     CAN carry it. The Chapter 5 half of the sentence was already true and is unchanged. -->
-
-
-<!-- WHY THE HASH IS PRINTED HERE AS WELL AS IN TABLE 5.2 (2026-08-09). In the compiled PDF the Table 5.2
-     cell printed only 48 of the 64 hex characters and ran past the right text edge, because the value sits
-     in a single unbreakable \texttt run inside a narrow longtable column, so LaTeX could neither wrap it
-     nor shrink it and the tail was clipped. The study's most load-bearing reproducibility datum was
-     therefore NOT verifiable from the artefact. This paragraph is full-text-width, so the whole 64
-     characters fit on one line with room to spare (MEASURED in the compiled PDF: the code span ends well
-     inside the right margin). The Table 5.2 cell still needs its own fix, which belongs to whoever owns
-     paper/CH6_results.md. The replacement cell text that was verified to render complete is recorded in
-     paper/PRESENTATION_CHECKLIST.md under "Open hand-offs". -->
-
-**Ethics and data protection.** This project involved no human participants, no personal data, and no animal
-subjects. It is a low-risk computational study and did not require UCL research-ethics committee review. The
-data are firm-level financial securities prices (a licensed Refinitiv/LSEG point-in-time, survivorship-free
-equity panel), which are not personal data under UK GDPR. They are used under the applicable institutional
-licence and are not redistributed. They reach the experimental code only as anonymised, integer-indexed return
-arrays carrying no security identifiers, issuer names or calendar dates, which serves simultaneously as a
-data-licensing safeguard and as a sandbox-security control on the untrusted model-authored reward code
-(Chapter 4).
-
-<!-- ETHICS WAS A SEPARATE FRONT-MATTER SECTION UNTIL 2026-08-11 AND IS NOW A PARAGRAPH HERE. The
-     IFTE0008 guide fixes the front matter at Cover, Title, Abstract, Acknowledgements, Table of
-     Contents, List of Figures and List of Tables; an Ethics section is not among them, and the guide
-     treats ethics as a process requirement (forms approved before the research begins) rather than as
-     a section of the write-up. The statement itself is retained in full because it is an integrity
-     asset and because the anonymisation it describes is load-bearing for Chapter 4's sandbox argument.
-     Only the heading and its page break are gone. -->
-
-**Word count.** The main text measures 10,992 words, within the 11,000-word limit approved for this
-dissertation, being the programme's 10,000 plus a 1,000-word extension granted through the route the
-guidelines name. Mathematics, code, figures, tables, captions, footnotes, the reference list and the
-appendices are excluded, as the guidelines provide. The figure is produced by
-`python docs/analysis/criteria_scorecard.py`.
-
-<!-- THE THREE-PAGE "WORD-COUNT STATEMENT" WAS REMOVED ON 2026-08-11 AND REPLACED BY THIS PARAGRAPH.
-     Two reasons, and the second is the stronger one.
-     (1) The guide does not ask for one. It is not among the sixteen sections the guide fixes, and no
-         exemplar distinction dissertation carries anything comparable.
-     (2) IT HAD GONE STALE FOR THE FOURTH TIME, and it was the one passage in the document whose entire
-         purpose is to be checkable by a reader with a calculator. MEASURED against the artefact on
-         2026-08-11, it was wrong in seven numbers at once: it stated 10,433 words against a real
-         10,504; 567 of the allowance unspent against a real 496; Results 2,304 against 2,306;
-         Discussion 2,198 against 2,267; word_budget.py at 11,912 against a real 11,981; and a
-         difference of 1,479 "with nothing left over" against a real 1,477 of which captions explain
-         1,474, leaving three words unexplained. Its own hidden comment recorded that an examiner had
-         already caught an earlier pass "by subtracting".
-     A page that must be re-derived at every build, and that has been wrong on four consecutive
-     passes, is a standing Criterion 4 liability. One sentence carrying one number has one thing to
-     keep true instead of seven.
-     !! THE NUMBER ABOVE IS LIVE AND MUST BE RE-DERIVED AFTER EVERY EDIT TO A BODY CHAPTER. It reads
-     10,504 as measured on 2026-08-11 by `python docs/analysis/criteria_scorecard.py`, which is the
-     figure that tool prints for the seven body chapters with the UCL exclusions applied. A greppable
-     placeholder was considered and REJECTED: it would leave the scorecard's own placeholder check red
-     for the whole editing pass, and a gate that is expected to be red is a gate nobody reads. Keeping
-     a true number and re-deriving it is the discipline that failed on the four previous passes, so it
-     is the discipline to hold. Re-derive with the command named on the page, never from memory. -->
-
----
+<!-- THE FRONT MATTER WAS RE-ORDERED ON 2026-08-12 TO THE GUIDE'S OWN ORDER, AND THAT IS ALSO WHAT
+     FIXES THE ABSTRACT'S POSITION. MSc_Project_Guidelines_2025-2026.pdf p.8-9 fixes it as
+     Cover · Title · Abstract · Acknowledgements · Contents · List of Figures · List of Tables.
+     Until today the ethics paragraph and the word-count paragraph sat BETWEEN the title page and the
+     Abstract, so the Abstract began two thirds of the way down page 3 and spilled its last two
+     paragraphs onto page 4, which then carried nothing else: MEASURED on the 2026-08-12 build, page 4
+     held 9 lines and 88 per cent white. The Abstract is the second thing an examiner reads and it was
+     broken across a page turn by material that the guide does not put in front of it.
+     Both paragraphs now follow the Acknowledgements. Verify in the RENDERED PDF, never in the source:
+     the Abstract must open at the top of its own page and end on it. -->
 
 ## Abstract
 
@@ -709,6 +742,7 @@ measurable, and a bounded negative result that arrives with its mechanism named.
      campaign is live and every figure above refreshes as the ladder climbs. -->
 
 
+
 \newpage
 
 ## Acknowledgements
@@ -730,7 +764,7 @@ redistributed with this dissertation. The experiments ran on the UCL Myriad High
 Facility, and I thank UCL Research Computing for the facility and its support services.
 
 Language models are the object of study in this dissertation and were also used as a coding and drafting
-aid, both disclosed in full in the Declaration of Originality.
+aid, both disclosed in full in the statement of data, software and AI assistance below.
 
 <!-- ACKNOWLEDGEMENTS — three notes kept in source so they stop printing into the deliverable.
      A visible [TO COMPLETE] placeholder forfeits the Criterion 4 band on its own; an invisible
@@ -771,6 +805,126 @@ aid, both disclosed in full in the Declaration of Originality.
      page. ⚠ Raw TeX is dropped by pandoc's docx writer, so the break shows in the PDF and not in the
      .docx. -->
 
+
+
+<!-- THE DISCLOSURES MOVED HERE FROM THE REMOVED DECLARATION ON 2026-08-12. They are a UCL
+     compliance obligation rather than a signed declaration, so they survive the removal, and the
+     acknowledgements page is where the ethics statement and the word count already sat. The
+     run-in bold label matches those two paragraphs so the page reads as one block. -->
+
+**Data, software and AI assistance.** I disclose the third-party tools, services and data used in the production of this work, all employed under my own direction and with the outputs verified by me:
+<!-- ⛔ THE LIST BELOW IS INDENTATION-CRITICAL. Until 2026-08-10 the last three items rendered as literal
+     inline hyphens run into a paragraph ("... involved no generation. - **Software.** ... - **Institutional
+     marks ...**"), i.e. half the third-party disclosure lost its bullets on page 3 of the compiled PDF.
+     CAUSE: the third item carries a table and then a continuation paragraph, and both were indented to a
+     column that does not match the item's own content column, so the list ENDED at the table and everything
+     after it became one lazy paragraph in which "- " is ordinary text.
+     THE RULE THIS FILE NOW FOLLOWS: the marker is "- " (two columns), so EVERY block belonging to an item —
+     wrapped prose, the table, the continuation paragraph — is indented by exactly TWO spaces, and blank
+     lines separate the blocks. Verify in the RENDERED PDF, never in the source: six bullets must appear. -->
+
+- Market data. A licensed Refinitiv/LSEG point-in-time, survivorship-free US equity panel (the gold
+  panel), used under the terms of the applicable institutional licence.
+
+- Reference data. FRED (risk-free rate, DGS3MO), an equal-weighted market benchmark, and Fama–French
+  factor series, used for evaluation and factor attribution.
+
+- **Language models as the object of study.** Language models are what this dissertation *investigates*. They are not authorship aids here, and the distinction is kept sharp because both uses appear in one project. Every model named in the roster wrote reward code inside the experiment, under the frozen prompts, and every one of those outputs is archived and reported as data. None of it is prose in this document.
+
+- Software. Open-source scientific Python (including Stable-Baselines3, NumPy, SciPy, pandas and the
+  `rliable` evaluation library), used under their respective open-source licences.
+
+<!-- ⛔ THE INSTITUTIONAL-MARKS BULLET WAS REMOVED ON 2026-08-10, AND REMOVING IT IS THE HONEST ACTION.
+     It declared third-party attribution for a UCL coat of arms and a UCL logo -- naming the Wikimedia
+     source files, the two uploaders and the CC BY-SA 3.0 licence. MEASURED on the compiled artefact:
+     page 1 carries ZERO images and ZERO vector drawings. The marks were never in the document, so the
+     bullet attributed material that does not exist, inside the Declaration of Originality, which is the
+     single worst place in a dissertation to state something untrue.
+     The alternative -- sourcing and embedding a UCL crest to make the disclosure true -- was REFUSED:
+     an institutional mark that has not been verified against UCL's own brand assets should not be
+     placed on a document submitted to UCL, and the guidelines' required OFFICIAL COVER PAGE (attached
+     at submission from the IFTE0008 Moodle page) is what carries institutional identity anyway.
+     ⚠ IF A CREST OR LOGO IS EVER ADDED TO THE TITLE PAGE, THIS BULLET MUST COME BACK, with the source,
+     uploader and licence restated. Verify with:
+       python -c "import fitz; p=fitz.Document('paper/_build/dissertation.pdf')[0]; print(len(p.get_images(full=True)), len(p.get_drawings()))" -->
+
+
+- **AI assistance.** Generative-AI assistance (Anthropic Claude) was used as a coding and drafting aid: code scaffolding and refactoring, literature triage, and prose editing of text I had already written. No generated text is presented as my own reasoning, no result was produced by it, and I take full responsibility for every word and number in this document.
+
+<!-- TO COMPLETE AT SUBMISSION: confirm with the UCL brand team that reproduction of the COAT OF ARMS on the
+     title page is permitted. UCL's published logo guidelines are silent on the arms and refer such questions
+     to the brand team, and ceremonial marks are frequently reserved. If permission is withheld, the title
+     page falls back to the portico device (docs/figures/ucl-portico.pdf), which UCL's guidelines expressly
+     release: "The graphic pillars ... can be used in any design." Kept in source, not on the page, because
+     a visible placeholder forfeits the Criterion 4 band. -->
+
+<!-- ⛔ DO NOT "RESTORE" PREREGISTRATION.md HERE (corrected 2026-08-10). This sentence used to read
+     "recorded in `PREREGISTRATION.md` and in the execution ledger of Chapter 5", and the first half was
+     FALSE: that file contains no 64-hex string anywhere, and its freeze-record table still carries an
+     unfilled placeholder, `| Content hash (SHA-256) | _(emitted by scripts/freeze.py)_ |`. The absence is
+     STRUCTURAL rather than an oversight, which is why the fix is to the sentence and never to the file:
+     `scripts/freeze.py::canonical_bytes` hashes `PREREGISTRATION.md` WHOLE (only the YAML mirror gets
+     `_strip_freeze_state`), so writing the hash into that file would change the bytes the hash is taken
+     over and break the seal it records. The value therefore lives in the machine-readable mirror,
+     `config/preregistration.yaml`, whose freeze-state lines are stripped before hashing precisely so it
+     CAN carry it. The Chapter 5 half of the sentence was already true and is unchanged. -->
+
+
+<!-- WHY THE HASH IS PRINTED HERE AS WELL AS IN TABLE 5.2 (2026-08-09). In the compiled PDF the Table 5.2
+     cell printed only 48 of the 64 hex characters and ran past the right text edge, because the value sits
+     in a single unbreakable \texttt run inside a narrow longtable column, so LaTeX could neither wrap it
+     nor shrink it and the tail was clipped. The study's most load-bearing reproducibility datum was
+     therefore NOT verifiable from the artefact. This paragraph is full-text-width, so the whole 64
+     characters fit on one line with room to spare (MEASURED in the compiled PDF: the code span ends well
+     inside the right margin). The Table 5.2 cell still needs its own fix, which belongs to whoever owns
+     paper/CH6_results.md. The replacement cell text that was verified to render complete is recorded in
+     paper/PRESENTATION_CHECKLIST.md under "Open hand-offs". -->
+
+**Ethics and data protection.** This project involved no human participants, no personal data, and no animal
+subjects. It is a low-risk computational study and did not require UCL research-ethics committee review. The
+data are firm-level financial securities prices (a licensed Refinitiv/LSEG point-in-time, survivorship-free
+equity panel), which are not personal data under UK GDPR. They are used under the applicable institutional
+licence and are not redistributed. They reach the experimental code only as anonymised, integer-indexed return
+arrays carrying no security identifiers, issuer names or calendar dates, which serves simultaneously as a
+data-licensing safeguard and as a sandbox-security control on the untrusted model-authored reward code
+(Chapter 4).
+
+<!-- ETHICS WAS A SEPARATE FRONT-MATTER SECTION UNTIL 2026-08-11 AND IS NOW A PARAGRAPH HERE. The
+     IFTE0008 guide fixes the front matter at Cover, Title, Abstract, Acknowledgements, Table of
+     Contents, List of Figures and List of Tables; an Ethics section is not among them, and the guide
+     treats ethics as a process requirement (forms approved before the research begins) rather than as
+     a section of the write-up. The statement itself is retained in full because it is an integrity
+     asset and because the anonymisation it describes is load-bearing for Chapter 4's sandbox argument.
+     Only the heading and its page break are gone. -->
+
+**Word count.** The main text measures 10,992 words, within the 11,000-word limit approved for this
+dissertation, being the programme's 10,000 plus a 1,000-word extension granted through the route the
+guidelines name. Mathematics, code, figures, tables, captions, footnotes, the reference list and the
+appendices are excluded, as the guidelines provide. The figure is produced by
+`python docs/analysis/criteria_scorecard.py`.
+
+<!-- THE THREE-PAGE "WORD-COUNT STATEMENT" WAS REMOVED ON 2026-08-11 AND REPLACED BY THIS PARAGRAPH.
+     Two reasons, and the second is the stronger one.
+     (1) The guide does not ask for one. It is not among the sixteen sections the guide fixes, and no
+         exemplar distinction dissertation carries anything comparable.
+     (2) IT HAD GONE STALE FOR THE FOURTH TIME, and it was the one passage in the document whose entire
+         purpose is to be checkable by a reader with a calculator. MEASURED against the artefact on
+         2026-08-11, it was wrong in seven numbers at once: it stated 10,433 words against a real
+         10,504; 567 of the allowance unspent against a real 496; Results 2,304 against 2,306;
+         Discussion 2,198 against 2,267; word_budget.py at 11,912 against a real 11,981; and a
+         difference of 1,479 "with nothing left over" against a real 1,477 of which captions explain
+         1,474, leaving three words unexplained. Its own hidden comment recorded that an examiner had
+         already caught an earlier pass "by subtracting".
+     A page that must be re-derived at every build, and that has been wrong on four consecutive
+     passes, is a standing Criterion 4 liability. One sentence carrying one number has one thing to
+     keep true instead of seven.
+     !! THE NUMBER ABOVE IS LIVE AND MUST BE RE-DERIVED AFTER EVERY EDIT TO A BODY CHAPTER. It reads
+     10,504 as measured on 2026-08-11 by `python docs/analysis/criteria_scorecard.py`, which is the
+     figure that tool prints for the seven body chapters with the UCL exclusions applied. A greppable
+     placeholder was considered and REJECTED: it would leave the scorecard's own placeholder check red
+     for the whole editing pass, and a gate that is expected to be red is a gate nobody reads. Keeping
+     a true number and re-deriving it is the discipline that failed on the four previous passes, so it
+     is the discipline to hold. Re-derive with the command named on the page, never from memory. -->
 
 ---
 
@@ -813,26 +967,26 @@ aid, both disclosed in full in the Declaration of Originality.
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Figure 1.1 | The experiment on one page | Chapter 1 | 16 |
-| Figure 1.2 | The three outcomes, and the reading each was | Chapter 1 | 21 |
-| Figure 3.1 | Stylised tail facts of the training window | Chapter 3 | 32 |
-| Figure 3.2 | The Split-C timeline: training (2005–2016), | Chapter 3 | 33 |
-| Figure 4.1 | The experimental loop and the off-critic | Chapter 4 | 34 |
-| Figure 4.2 | The two nested decision problems | Chapter 4 | 35 |
-| Figure 5.1 | The treatment-minus-control contrast, one row | Chapter 5 | 51 |
-| Figure 5.2 | The estimator, not just the estimate: how the | Chapter 5 | 52 |
-| Figure 5.3 | The random object behind the mean: every | Chapter 5 | 53 |
-| Figure 5.4 | The same clouds for all eleven lines, so the | Chapter 5 | 55 |
-| Figure 5.5 | The reward programs the models wrote, | Chapter 5 | 56 |
-| Figure 5.6 | The path, not only the endpoint | Chapter 5 | 57 |
-| Figure 5.7 | The mechanism, measured: what a reward design | Chapter 5 | 58 |
-| Figure 5.8 | Seed-to-seed instability by model, ordered | Chapter 5 | 59 |
-| Figure 6.1 | The same arms, priced twice: gross of | Chapter 6 | 71 |
-| Figure 6.2 | The same result as a response surface: what a | Chapter 6 | 72 |
-| Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 73 |
-| Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 74 |
-| Listing 1.1 | The entire manipulation | Chapter 1 | 15 |
-| Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 38 |
+| Figure 1.1 | The experiment on one page | Chapter 1 | 15 |
+| Figure 1.2 | The three outcomes, and the reading each was | Chapter 1 | 20 |
+| Figure 3.1 | Stylised tail facts of the training window | Chapter 3 | 31 |
+| Figure 3.2 | The Split-C timeline: training (2005–2016), | Chapter 3 | 32 |
+| Figure 4.1 | The experimental loop and the off-critic | Chapter 4 | 33 |
+| Figure 4.2 | The two nested decision problems | Chapter 4 | 34 |
+| Figure 5.1 | The treatment-minus-control contrast, one row | Chapter 5 | 50 |
+| Figure 5.2 | The estimator, not just the estimate: how the | Chapter 5 | 51 |
+| Figure 5.3 | The random object behind the mean: every | Chapter 5 | 52 |
+| Figure 5.4 | The same clouds for all eleven lines, so the | Chapter 5 | 54 |
+| Figure 5.5 | The reward programs the models wrote, | Chapter 5 | 55 |
+| Figure 5.6 | The path, not only the endpoint | Chapter 5 | 56 |
+| Figure 5.7 | The mechanism, measured: what a reward design | Chapter 5 | 57 |
+| Figure 5.8 | Seed-to-seed instability by model, ordered | Chapter 5 | 58 |
+| Figure 6.1 | The same arms, priced twice: gross of | Chapter 6 | 70 |
+| Figure 6.2 | The same result as a response surface: what a | Chapter 6 | 71 |
+| Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 72 |
+| Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 73 |
+| Listing 1.1 | The entire manipulation | Chapter 1 | 14 |
+| Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 37 |
 
 <!-- THE LISTING AND THE ALGORITHM SIT HERE RATHER THAN IN A LIST OF THEIR OWN (2026-08-11). They
      previously had a third front-matter list, "List of Listings and Algorithms", carrying these two
@@ -898,35 +1052,35 @@ executed archive.*
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Table 1.1 | The scale of the executed system | Chapter 1 | 19 |
-| Table 1.2 | The four pre-registered hypotheses | Chapter 1 | 19 |
-| Table 1.3 | The seven contributions, the evidence for | Chapter 1 | 20 |
-| Table 2.1 | Literature positioning matrix: the nearest | Chapter 2 | 27 |
-| Table 3.1 | The panel, the action space and the splits | Chapter 3 | 30 |
-| Table 4.1 | The four lines that carry the identification | Chapter 4 | 38 |
-| Table 4.2 | The nine arms (`config/arms.yaml`) | Chapter 4 | 39 |
-| Table 4.3 | Each arm's fed block, and the contrast it | Chapter 4 | 40 |
-| Table 4.4 | The confirmatory decision rules, fixed in | Chapter 4 | 41 |
-| Table 4.5 | The eleven-reward canon: the human bar | Chapter 4 | 42 |
-| Table 4.6 | The inference plan as registered | Chapter 4 | 43 |
-| Table 4.7 | Each threat to the headline inference, and | Chapter 4 | 44 |
-| Table 4.8 | The ten load-bearing design decisions | Chapter 4 | 45 |
-| Table 5.1 | The pre-committed reporting rules | Chapter 5 | 48 |
-| Table 5.2 | The execution ledger, read from the archive | Chapter 5 | 49 |
-| Table 5.3 | The two co-primary verdicts, sealed until the | Chapter 5 | 50 |
-| Table 5.4 | The mechanism instruments, and the limit each | Chapter 5 | 53 |
-| Table 5.5 | The chain measured link by link, by executing | Chapter 5 | 54 |
-| Table 5.6 | Realised results against the §C.7 | Chapter 5 | 59 |
-| Table 5.7 | Authoring reliability by model: the share of | Chapter 5 | 61 |
-| Table 5.8 | The eleven-line descriptive reading, at 102 | Chapter 5 | 62 |
-| Table 5.9 | Nine published allocators, one costed | Chapter 5 | 64 |
-| Table 5.9b | The estimation-error test behind `min_cvar`'s | Chapter 5 | 65 |
-| Table 6.1 | The pre-registered questions, their | Chapter 6 | 66 |
+| Table 1.1 | The scale of the executed system | Chapter 1 | 18 |
+| Table 1.2 | The four pre-registered hypotheses | Chapter 1 | 18 |
+| Table 1.3 | The seven contributions, the evidence for | Chapter 1 | 19 |
+| Table 2.1 | Literature positioning matrix: the nearest | Chapter 2 | 26 |
+| Table 3.1 | The panel, the action space and the splits | Chapter 3 | 29 |
+| Table 4.1 | The four lines that carry the identification | Chapter 4 | 37 |
+| Table 4.2 | The nine arms (`config/arms.yaml`) | Chapter 4 | 38 |
+| Table 4.3 | Each arm's fed block, and the contrast it | Chapter 4 | 39 |
+| Table 4.4 | The confirmatory decision rules, fixed in | Chapter 4 | 40 |
+| Table 4.5 | The eleven-reward canon: the human bar | Chapter 4 | 41 |
+| Table 4.6 | The inference plan as registered | Chapter 4 | 42 |
+| Table 4.7 | Each threat to the headline inference, and | Chapter 4 | 43 |
+| Table 4.8 | The ten load-bearing design decisions | Chapter 4 | 44 |
+| Table 5.1 | The pre-committed reporting rules | Chapter 5 | 47 |
+| Table 5.2 | The execution ledger, read from the archive | Chapter 5 | 48 |
+| Table 5.3 | The two co-primary verdicts, sealed until the | Chapter 5 | 49 |
+| Table 5.4 | The mechanism instruments, and the limit each | Chapter 5 | 52 |
+| Table 5.5 | The chain measured link by link, by executing | Chapter 5 | 53 |
+| Table 5.6 | Realised results against the §C.7 | Chapter 5 | 58 |
+| Table 5.7 | Authoring reliability by model: the share of | Chapter 5 | 60 |
+| Table 5.8 | The eleven-line descriptive reading, at 102 | Chapter 5 | 61 |
+| Table 5.9 | Nine published allocators, one costed | Chapter 5 | 63 |
+| Table 5.9b | The estimation-error test behind `min_cvar`'s | Chapter 5 | 64 |
+| Table 6.1 | The pre-registered questions, their | Chapter 6 | 65 |
 | Table 6.2 | Four accounts of a negative sign, and what | Chapter 6 | 74 |
 | Table 6.3 | The five foregrounded limitations, and the | Chapter 6 | 75 |
-| Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 77 |
-| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 79 |
-| Table 7.2 | A practitioner's checklist for | Chapter 7 | 80 |
+| Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 76 |
+| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 78 |
+| Table 7.2 | A practitioner's checklist for | Chapter 7 | 79 |
 | Table A.1 | The candidate-population denominators, | Appendix A | 91 |
 | Table A.2 | The execution record in counts | Appendix A | 92 |
 | Table A.3 | Selection re-read on the depth-matched pool, | Appendix A | 97 |

@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-12"
-  head: "b8b868675"
+  head: "3d9acc7bb"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "write-up pass 8: 130pp, Discussion 12pp, all 16 figures rebuilt + 2 new, 28/28 scorecard, 23/23 marks, crossref 0 orphans"
+  suite_status: "write-up pass 9: designed title page restored, declaration removed, abstract repositioned, figure suite in the document typeface (0 DejaVu), 28/28 scorecard"
   gate_checks: 23
   backup_branch: backup-2026-08-03-run17
 ```

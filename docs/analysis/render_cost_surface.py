@@ -55,7 +55,13 @@ SWEEP = REPO / "outputs" / "cost_sweep_run4" / "cost_sweep.json"
 FIG_DIR = REPO / "outputs" / "figures"
 
 ARMS: tuple[str, ...] = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
-LINES: tuple[str, ...] = ("opus-5 (core)", "deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b",
+# ⚠ THESE STRINGS ARE CACHE KEYS, NOT DISPLAY LABELS, AND THEY MUST TRACK
+# `render_results_figures.LINE_LABELS` EXACTLY. The cache is keyed "<line>|<arm>|<field>" and a key
+# that does not match is SKIPPED SILENTLY by `_cells`, so a drifted name here does not raise: it
+# quietly draws 50 cells instead of 55 and prints a smaller count nobody reads. The first entry read
+# "opus-5 (core)" until 2026-08-12, when the display label lost its "(core)" tag; a run against the
+# stale cache still printed 55 and would have started dropping that line at the next regeneration.
+LINES: tuple[str, ...] = ("opus-5", "deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b",
                           "haiku-4.5", "gpt-5.6-luna", "nemotron-3-super", "sonnet-5",
                           "gemini-2.5-flash", "kimi-k3")
 #: The cost grid registered report-only in config/environment.yaml.
@@ -77,15 +83,24 @@ def iqm(x: np.ndarray) -> float:
 def _cells() -> list[dict[str, float | str]]:
     z = np.load(CACHE, allow_pickle=False)
     out: list[dict[str, float | str]] = []
+    missing: list[str] = []
     for line in LINES:
         for arm in ARMS:
             key = f"{line}|{arm}"
             if f"{key}|turnover" not in z.files:
+                # FAIL LOUD. This branch used to `continue`, which is how a renamed display label
+                # would have removed a whole authoring line from the surface without a word.
+                missing.append(key)
                 continue
             out.append({"line": line, "arm": arm,
                         "turnover": iqm(z[f"{key}|turnover"]),
                         "gross": iqm(z[f"{key}|sharpe_gross"]),
                         "net10": iqm(z[f"{key}|sharpe_net"])})
+    if missing:
+        raise KeyError(
+            f"{len(missing)} of {len(LINES) * len(ARMS)} (line, arm) cells are absent from "
+            f"{CACHE.name}: {missing[:6]}{'...' if len(missing) > 6 else ''}. LINES here must match "
+            f"render_results_figures.LINE_LABELS exactly; regenerate the cache or fix the names.")
     return out
 
 
@@ -168,8 +183,10 @@ def build(out: Path = FIG_DIR) -> Path:
     cells = _cells()
     bps = np.linspace(0.0, 50.0, 26)
 
+    from docs.analysis.figure_typeface import use_document_typeface
     from src.viz.style import apply_house_style
     apply_house_style()
+    use_document_typeface()   # the body typeface, so the exhibit matches the page it sits on
     matplotlib.rcParams.update({
         "font.size": 10.0, "axes.labelsize": 10.0, "legend.fontsize": 10.0,
         "xtick.labelsize": 9.0, "ytick.labelsize": 9.0,
@@ -194,19 +211,48 @@ def build(out: Path = FIG_DIR) -> Path:
 
     zmin = -5.2
     Zc = np.clip(Z, zmin, None)
-    cmap = plt.get_cmap("viridis")
-    norm = plt.Normalize(zmin, float(np.nanmax(Z)))
+    # ⚠ A DIVERGING MAP CENTRED ON ZERO, NOT A SEQUENTIAL ONE. `viridis` runs dark-to-bright and
+    # encodes MAGNITUDE, so the one thing a reader of this surface actually needs -- does this cell
+    # make money or lose it -- was carried by height alone and had to be read off a projected axis.
+    # A diverging map pinned at zero puts the answer in the colour: everything warm is a loss.
+    # TwoSlopeNorm is what pins it; a plain Normalize would put the neutral tone at the midpoint of
+    # the RANGE, which here is about -1.8 Sharpe and would paint profitable cells as losses.
+    from matplotlib.colors import TwoSlopeNorm
+    cmap = plt.get_cmap("RdYlBu")
+    zmax = float(np.nanmax(Z))
+    norm = TwoSlopeNorm(vmin=zmin, vcenter=0.0, vmax=max(zmax, 0.05))
     # !! `cmap=`/`norm=`, NOT `facecolors=`. Passing pre-computed face colours and then calling
     # `set_facecolor` to suppress the solid fallback renders the whole surface BLACK on matplotlib
     # 3.11: the second call overwrites the per-face array it was meant to preserve. Handing the
     # colormap to the artist is the supported route and the one that actually colours the faces.
     ax.plot_surface(X, Y, Zc, cmap=cmap, norm=norm, rstride=1, cstride=1,
-                    linewidth=0, antialiased=True, alpha=0.95, shade=False, zorder=1)
+                    linewidth=0, antialiased=True, alpha=0.97, shade=False, zorder=2)
 
-    # The zero-Sharpe contour, projected onto the surface. This is the line a practitioner reads: on
+    # ⭐ THE FLOOR MAP IS THE ADDITION THAT MAKES THIS EXHIBIT READABLE, AND IT IS THE PART A
+    # PRACTITIONER USES. A surface shows a shape; it does not let anyone read a value off it,
+    # because a projected height cannot be measured by eye. Projecting the iso-Sharpe contours onto
+    # the floor turns the same object into a MAP of the (turnover, cost) plane: the reader can put a
+    # finger on a turnover, run it along to a cost, and see which band they are standing in. The
+    # thick line is the break-even locus, which is the answer to the only question a desk asks of
+    # this figure -- how much trading a given cost regime will pay for.
+    ax.contourf(X, Y, Zc, levels=np.linspace(zmin, max(zmax, 0.05), 22), cmap=cmap, norm=norm,
+                zdir="z", offset=zmin, alpha=0.55, zorder=0)
+    ax.contour(X, Y, Zc, levels=[-2.0, -1.0, -0.5], colors="0.35", linewidths=0.5,
+               linestyles=":", zdir="z", offset=zmin, zorder=1)
+    ax.contour(X, Y, Zc, levels=[0.0], colors="0.10", linewidths=1.6,
+               zdir="z", offset=zmin, zorder=1)
+
+    # The zero-Sharpe contour, on the surface itself. This is the line a practitioner reads: on
     # its far side the cell has stopped paying for the trading it does.
     cs = ax.contour(X, Y, Zc, levels=[0.0], colors="white", linewidths=1.8, zorder=3)
     ax.contour(X, Y, Zc, levels=[0.0], colors="0.15", linewidths=0.7, zorder=4)
+
+    # THE PRICE THIS STUDY ACTUALLY CHARGES, drawn as a rib across the surface. Every number in
+    # Chapters 5 and 6 is a reading taken along this one line, and until it was drawn the reader had
+    # no way to see where on the surface the whole dissertation lives.
+    ridge = np.polyval(g_coef, gx) - (HEADLINE_BPS / HEADLINE_BPS) * (10.0 ** np.polyval(d_coef, gx))
+    ax.plot(gx, np.full_like(gx, HEADLINE_BPS), np.clip(ridge, zmin, None),
+            color="0.10", lw=1.6, ls=(0, (4, 1.6)), zorder=6)
 
     # The 55 measured cells, at the two costs the archive actually holds: 0 bps (the gross series)
     # and the headline 10 bps. Everything between and beyond is the arithmetic the module validated.
@@ -232,29 +278,42 @@ def build(out: Path = FIG_DIR) -> Path:
     # the near corner and printed as "0 5 10" run together. The grid itself is stated in the caption.
     ax.set_yticks([b for b in GRID_BPS if b != 5.0])
     ax.set_zlim(zmin, 1.6)
-    ax.view_init(elev=22, azim=-58)
-    ax.set_box_aspect((1.35, 1.00, 0.66))
+    ax.view_init(elev=24, azim=-56)
+    ax.set_box_aspect((1.35, 1.00, 0.70))
     ax.tick_params(pad=1.5)
+    # ⚠ THE PANES ARE MADE WHITE AND THE GRID FAINT, WHICH IS NOT DECORATION. Matplotlib's 3-D
+    # default fills all three panes with a tinted grey and draws a heavy grid on each, so a coloured
+    # surface sits inside a grey box that competes with it for attention and prints muddy. White
+    # panes with a hairline grid put every unit of contrast on the data, which is what the rest of
+    # the figure suite already does in two dimensions.
+    for pane_axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        pane_axis.set_pane_color((1.0, 1.0, 1.0, 1.0))
+        pane_axis.pane.set_edgecolor("0.85")
+        pane_axis.pane.set_linewidth(0.6)
+        pane_axis._axinfo["grid"].update(color="0.88", linewidth=0.5)
     ax.set_title("The cost surface: what every cell earns at every price of trading",
                  fontsize=11, y=0.99)
 
-    # The colourbar goes in its own axes on the LEFT, where the projection leaves a genuinely empty
-    # wedge. On the right, which is the default, it printed straight through the z tick labels and
-    # the z-axis label: a 3-D axes reserves no margin, so `pad` cannot move a bar out of the way.
-    cax = fig.add_axes((0.055, 0.30, 0.018, 0.40))
-    cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax)
-    cb.set_label("Sharpe (annualised)", fontsize=9.6)
-    cb.ax.tick_params(labelsize=9)
-    cb.outline.set_linewidth(0.6)
-    # The two marker classes and the contour are named here rather than on the canvas: a 3-D axes has
-    # no empty corner that stays empty when the view angle changes.
+    # ⛔ THE SEPARATE COLOURBAR IS GONE, AND REMOVING IT IS THE FIX RATHER THAN A SIMPLIFICATION.
+    # It was labelled "Sharpe (annualised)" and stood beside a z-axis labelled "Sharpe", so the
+    # panel carried the SAME quantity on two different scales, in two different places, one of them
+    # floating unattached in the left margin. Two scales for one variable is a reader's problem, not
+    # a completeness virtue. The colour now says one thing the height cannot say at a glance, the
+    # SIGN, and the legend below states that in words.
+    # The marker classes, the contour and the ridge are named here rather than on the canvas: a 3-D
+    # axes has no empty corner that stays empty when the view angle changes.
     import matplotlib.lines as mlines
+    import matplotlib.patches as mpatches
     fig.legend(handles=[
         mlines.Line2D([], [], ls="", marker="o", ms=4.5, mfc="white", mec="0.20",
                       label="a measured cell, gross (0 bps)"),
         mlines.Line2D([], [], ls="", marker="o", ms=4.5, mfc="0.12", mec="white",
                       label="the same cell at 10 bps"),
-        mlines.Line2D([], [], color="0.15", lw=1.4, label="zero Sharpe"),
+        mlines.Line2D([], [], color="0.10", lw=1.6, ls=(0, (4, 1.6)),
+                      label="the 10 bps price this study charges"),
+        mlines.Line2D([], [], color="0.10", lw=1.6, label="break even, zero Sharpe"),
+        mpatches.Patch(facecolor=cmap(norm(-3.0)), edgecolor="none", label="loses money"),
+        mpatches.Patch(facecolor=cmap(norm(1.0)), edgecolor="none", label="makes money"),
     ], loc="lower center", ncol=3, frameon=False, fontsize=9.6, bbox_to_anchor=(0.5, 0.005))
     # The 3-D axes is stretched to fill the canvas by hand. A projected cube leaves large empty
     # wedges at two corners whatever the view angle, so leaving the default position wastes roughly a
