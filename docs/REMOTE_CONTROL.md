@@ -21,7 +21,7 @@ then writes what it did under **LOG** at the bottom and pushes.
      Leave it blank when you have nothing to say. -->
 
 ```
-Make sure absolutely everything is strictly flawless, also to the run4_status dont forget to add teh cores active, and current eta's as well. Ultrathink 
+Please push everything into the github now
 ```
 
 ---
