@@ -12,7 +12,7 @@
 
 # Appendix A — Quality-control record
 
-Faultless execution is a property of the study that was executed, not of the development process that produced it. The full dated narrative is `docs/CAMPAIGN_EXECUTION_RECORD.md`, and every item below carries its identifier there.
+Faultless execution is a property of the study that was executed, not of the development process that produced it. Every item below carries its identifier in the full dated narrative, `docs/CAMPAIGN_EXECUTION_RECORD.md`.
 
 *On the numbering.* A letter suffix marks a section that belongs with the one it follows, so A.2b and A.2c belong with A.2 and A.5b with A.5. The same convention runs on the exhibits and is stated with the lists at the front.
 
@@ -293,7 +293,7 @@ Process errors P1 to P106 are recorded with root cause, how each was found, and 
 
 \endgroup
 
-[^tostcal]: Every number in the table is generated and none is a result. One quantity comes from the archive: the within-arm across-seed standard deviation of test Sharpe, pooled at 0.1871. The pairing correlation is assumed, and $\rho=-1$ is the algebraic worst case.
+[^tostcal]: Every number in the table is generated and none is a result. One quantity comes from the archive: the within-arm across-seed standard deviation of test net Sharpe, pooled at 0.1871. The pairing correlation is assumed, and $\rho=-1$ is the algebraic worst case.
 
 
 ```{=latex}

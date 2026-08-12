@@ -3,6 +3,89 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-13b] PASS 9 CONTINUED — the skills sweep I had skipped, and the exhibit the headline number never had
+
+**Tamer asked whether pass 9 had missed anything. It had, and the answer was worth the asking.**
+
+### 1. THE MISS: THIRTY SKILLS, NEVER OPENED
+
+His instruction was to "inspect very deeply all skills we have". I ran `ls .claude/skills/` from the
+REPOSITORY root, got nothing, and moved on. The skills are at `../.claude/skills/` — **thirty of
+them**, including `critique-typography`, `critique-color`, `critique-composition`,
+`critique-visual-hierarchy`, `research-figures`, `faultless-gate`, `showing-gate` and
+`presentation-sweep`, three of which ship RUNNABLE GATES that had never been run against this
+document. Checking one directory and concluding is exactly the shallow check the operating rules
+forbid.
+
+**What the three gates found once run, each verified first-hand before acting:**
+
+* **`showing-gate`: ten unlabelled Sharpe figures**, against the repo's own scorecard reporting zero.
+  Two instruments disagreeing had to be resolved rather than have the convenient one quoted: the
+  scorecard scans body chapters with a narrower pattern, the skill scans appendices and wired tables
+  too. **Eight were real and are now labelled** (Figure 6.4's caption, two allocator-table readings,
+  Appendix B's retraction note, Appendix A's pooled dispersion, and two in Chapter 6). One of the
+  eight was NOT simply "net": the 0.0018 tolerance spans the whole 0-50 bps grid, so it is labelled
+  as what it is rather than mislabelled as net. The three that remain sit in `DRAFTS_*` and
+  `paper/sections/`, neither of which `build_paper.ASSEMBLY` wires into the deliverable.
+* **`presentation-sweep`: one page overflowing the right margin.** A comma sat 2.6 pt past the modal
+  text edge on page 91, because it followed an unbreakable `\texttt` path. The sentence is
+  restructured so nothing follows the path. Now 0 FAIL.
+* **`faultless-gate`: 34 hard findings, and every one inside a deliverable file is a FALSE POSITIVE**,
+  established individually rather than dismissed: the "empty sections" are chapter titles followed by
+  their first heading, the "five captions sharing Table 6.2" are routing notes inside HTML comments
+  the gate does not strip, and "orphan Table 5.9b" is referenced in a Chapter 1 footnote the gate
+  cannot see. The repo's own `crossref_audit.py`, which strips comments and reads footnotes, agrees.
+
+### 2. THE NOTEBOOK HE ASKED ME TO MINE, TWICE
+
+`notebooks/preliminary_results.ipynb` (90 cells) and `presentation_results.ipynb` (67) were never
+opened either. Read now, they carry roughly thirty figure ideas, and the comparison against the
+document's eighteen exhibits exposes one real gap.
+
+**`CLAUDE.md` R7 calls the variance decomposition "THE HEADLINE NUMBER OF THE DISSERTATION". It had
+no exhibit** — one sentence of §7.1 prose and a footnote of four intervals.
+
+**Figure 7.1 now draws it** (`docs/analysis/render_variance_shares.py`). Author identity 27.9, the
+feedback condition 14.8, their interaction 34.8 and seed noise 22.5 per cent of the variance in
+terminal net Sharpe. The reading it makes visible is the dissertation's own central argument: the
+largest single component is the INTERACTION, so the absence of a universally best condition is a real
+model-dependent effect rather than luck, and only 22.5 per cent is luck rather than the 57 per cent a
+decomposition without an interaction term reports. **And the four intervals overlap**, drawn so that
+this is obvious rather than buried, because forcing a clean ranking is the pattern-forcing R1 forbids.
+
+⚠ **ONE COMPUTATION, TWO CONSUMERS.** The arithmetic is IMPORTED from
+`abstract_quantities.variance_shares`, the instrument the abstract's own quantities come from, so the
+figure cannot drift from the text by carrying a second implementation. Verified before the module was
+written: rebuilding the cell dictionary from the figure cache and calling that function returns
+27.9 / 14.8 / 34.8 / 22.5, exactly what the document already prints. The intervals are computed in the
+same run and §7.1's footnote now quotes what that run prints, at a fixed bootstrap seed.
+
+### 3. THE TRADE THE 130-PAGE CEILING FORCED, STATED RATHER THAN HIDDEN
+
+Adding Figure 7.1 took the document to 131 pages against Tamer's 130 ceiling, and the
+mark-preservation audit failed on exactly that. Three repairs were tried and MEASURED before one was
+kept: shortening the figure (no page change), shortening its caption from 142 to 95 words (no page
+change), moving it earlier in its own section (no page change).
+
+**The page came from somewhere else entirely.** Citing Almgren and Chriss (2000) added a previously
+unused entry to a 283-entry bibliography sitting exactly on a page boundary, which pushed the final
+entry, Ziegel (2016), onto a page of its own carrying two lines. Dropping that one citation recovered
+the page AND removed the orphan. **The trade is one canonical execution reference against one page and
+one near-blank page**, and it is recorded here because it is a judgement rather than a fix: Gârleanu
+and Pedersen, the load-bearing positioning for a TURNOVER finding, is retained, as is Almgren's impact
+estimate for the cost magnitude.
+
+### 4. STATE AT CLOSE
+
+130 pages · body **10,995 / 11,000** · scorecard **28/28, 0 FAIL** · mark preservation **23/23** ·
+cross-references CLEAN · citations clean · freeze **MATCHES** · reproducibility **8/0/0** · exhibit
+stamps **VERIFIED** · presentation sweep **0 FAIL** · glyph audit CLEAN · **0 DejaVu** · nineteen
+exhibits, all in the document's own typeface.
+
+**STILL OPEN, and it is the one thing I should not do myself:** a fresh-eyes adversarial re-mark of
+the compiled PDF against the four criteria, section by section. The author must not grade his own
+work, and twenty-eight mechanical gates passing is not the same as the argument landing.
+
 ## [2026-08-13] WRITE-UP PASS 9 — the designed title page restored, the declaration removed, and the figure suite put into the document's own typeface
 
 **Tamer's instruction, in his words:** *"Remove the declaration of originality for now. And bring back
@@ -1592,6 +1675,78 @@ prompts verbatim** (his explicit instruction, with the opening prompt and the At
 ones marked ★★★), the five golden standards with the Vaswani inclusion rule derived from diffing the
 paper against its own abstract, every re-derived number, the binding-law changes, the premium-design
 position, ten ranked open items, and nine named traps. Cursor updated; `HANDOFF.md` §1 regenerated.
+
+## [2026-08-12n] ★★★★★★★ RUN 30 (OPS) — **THE RELEASE WORKED AND MISFIRED AT THE SAME TIME: CORES 184 → 256, BUT 8 OF 9 DISPATCHES WENT TO A LINE THAT OWES NOTHING**
+
+**Session type:** live cluster ops. No `src/**`, `scripts/**`, `config/**` or `prompts/**` change;
+freeze **MATCHES**, drift **0**, guard **OK** (`cores=0.00/6.0`, `qacct=0`).
+
+**1. ✅ THE PREDICTION FROM [2026-08-12m] HELD, AND IT WAS GRADED RATHER THAN ADMIRED.**
+
+```
+22:17Z  hu=300  hs=298  qw=  0  r=23  cores 184
+23:32Z  hu= 53  hs= 51  qw=238  r=32  cores 256
+```
+
+The site JSV admitted **246 jobs in 60 minutes (~246/h)** against the ~400/h recorded in
+`hold_ids.sh`. ⚠ **Same order, and the gap is worth naming: ours was measured on a night with 3,766
+cluster-wide pending jobs, so the throttle rate is a function of site load, not a constant. Quote it
+as ~250-400/h with the load stated.** The residual `hs=51` is exactly `c1`'s deliberately-held
+51 — **every job we released cleared the site stage.**
+
+**2. ⛔⛔ MY OWN RELEASE MISFIRED, AND THE CAUSE IS A RULE I WROTE DOWN LAST PASS AND THEN OVERRODE.**
+Of the nine jobs dispatched since the release, **eight went to `leg10` (kimi)** — banked **340**,
+owing **zero** at rung 279 **and** zero at rung 340, so worth nothing to the reported result until the
+ladder reaches 403. **Cause: dispatch is strictly by job id (R30-40), and `leg10`'s ids are
+107287-107313, below `leg1`'s 107317.** I identified `leg10` as the lowest-id member of the release
+set, reasoned it should go last or not at all, and released it in the same sweep regardless.
+⚠ **Release ORDER is irrelevant; ID order decides. Sending it in the final batch bought nothing.**
+✅ **FIXED, with running work untouched:** `qhold` on `leg10`'s **13 eligible** ids (107301-107313),
+disjoint by construction from its **8 running** (107287-107300); verified after as running **8**,
+eligible **0**. **The eligible queue is now 225 jobs whose lowest ids belong to `leg1`/`leg2`/`leg7`,
+which owe all 144 of rung 279.**
+⭐ **RULE EARNED: when a release set spans several lines, sort by ID and release only from the gating
+line downward. A batch is not a plan.**
+
+**3. ⛔⛔⛔ THE `c1` LADDER-LOCK RETIREMENT RULE FIRES ON ALL THREE CONDITIONS AND IS WRONG ON ALL
+THREE.** Measured: `c1` held = **51** (`t5` x24 + `t6` x27, **no `t1` anywhere**), `c1` running = **1**,
+`c1` eligible = **0** — so *"next-needed block off `t1`"*, *"running < 20"* and *"zero eligible, no
+`t1` left"* all hold. **Retiring it would be a clear loss, on two independent derivations:**
+(a) `job_rank_governor` reads `test c1 banked 279 owes->279 = 0` → *"ZERO marginal value"*, and S17
+@279 independently agrees `test` owes 0; (b) `c1`'s ids **104992-105113** sit below every leg id, so a
+release takes **100% of dispatches** — and it would take them tonight, in the 03:00-08:00Z window
+where the cluster empties and depth converts at ~40 jobs/h.
+⇒ **The rule was written in RUN 29 when `c1` was the gating line owing 83% of rung 100. `c1` has since
+climbed to 279 while the legs sit at 189: the PREMISE inverted and the TEXT did not.**
+⭐ **The standing warning is "a hold that outlives its purpose is the failure mode". This is its mirror
+image and deserves its own rule: A RETIREMENT CRITERION CAN OUTLIVE ITS PURPOSE TOO. Before firing a
+rule, re-derive the condition it was written to DETECT, not the condition it literally TESTS.**
+**`c1` stays held; re-open when the common rung reaches 279 and both derivations flip together.**
+
+**4. ✅ R30-5 IS HALF-ANSWERED, AND THE HALF THAT RESOLVED WAS THE ONE ABOUT US.** The first non-zero
+λ in many passes arrived the instant we had eligible work: **λ = 4.45/h over 2.02 h, 9 dispatches, all
+`h_rt=162000`**, on a window whose own report reads `eligible by h_rt at A: {}`. ⇒ **"Something in our
+request blocks placement" is REFUTED for this period** — 45 h / 24-spec / 8-core jobs placed fine, nine
+times. ⚠ **The rank question stays OPEN and is cleanly measurable for the first time**: with 225
+eligible across the overnight window, next pass yields a λ over a full burst period with a non-empty
+pool. **Do not close R30-5 before that.**
+
+**5. ✅ ALSO DUE, DISCHARGED PERMANENTLY.** `docs/ops/MAINTENANCE_2026-08-12.md` **§11** closes the
+mitigation: 22 of 23 running jobs started on the at-risk day after 08:00, including a **15 h** job
+admitted at **20:17Z** that must run into Thursday — which a walltime-draining scheduler refuses. The
+drain never applied to us, so the ~30 h the mitigation would have recovered **did not exist**, and the
+decline was right on the outcome as well as on the reasoning. ⚠ **Recorded as luck confirming a
+judgement, not as proof of it.** §11 also records the day's real lesson: **attention went to the
+exogenous risk while the endogenous one — our own queue depth — was what actually cost throughput.**
+
+**BOARD.** COMMON RUNG **189** · 279 needs **144** · 340 needs **536** · 403 needs **2688** · records
+**33,079** · **cores 256** (31 x 45 h + one 15 h `_r1`) · eligible **225**, all 45 h · `hqw` = 51 `c1`
++ 13 `leg10` + 2 dead probes · `line_balance` **CLEAN** with its `leg10` HELD-OUT flag cleared ·
+**S15 rc=1 as expected** — the three gating lines are capped by `distributional` holes (nemotron **74**,
+glm **29**, deepseek **25**), **128 of the 144 owed, so the deficit and the holes are one object seen
+twice.** Capacity against the stop rises **~7,047 → ~9,151** trainings. **STEP 3b:** probes
+110358-110363 absent from all 323 rows, A/B complete, verdict unchanged, nothing deleted. **No new
+truncated rounds.** Ledger **R30-230..234** (234 entries).
 
 ## [2026-08-12m] ★★★★★★★ RUN 30 (OPS) — **THE OUTAGE IS PASSED, AND THE 184 CORES WERE OURS: WE HELD 300 JOBS AND LEFT THE SCHEDULER NOTHING TO DISPATCH**
 

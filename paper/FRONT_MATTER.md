@@ -897,7 +897,7 @@ data-licensing safeguard and as a sandbox-security control on the untrusted mode
      asset and because the anonymisation it describes is load-bearing for Chapter 4's sandbox argument.
      Only the heading and its page break are gone. -->
 
-**Word count.** The main text measures 10,992 words, within the 11,000-word limit approved for this
+**Word count.** The main text measures 10,995 words, within the 11,000-word limit approved for this
 dissertation, being the programme's 10,000 plus a 1,000-word extension granted through the route the
 guidelines name. Mathematics, code, figures, tables, captions, footnotes, the reference list and the
 appendices are excluded, as the guidelines provide. The figure is produced by
@@ -985,6 +985,7 @@ appendices are excluded, as the guidelines provide. The figure is produced by
 | Figure 6.2 | The same result as a response surface: what a | Chapter 6 | 71 |
 | Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 72 |
 | Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 73 |
+| Figure 7.1 | Where the outcome variance comes from, and how | Chapter 7 | 78 |
 | Listing 1.1 | The entire manipulation | Chapter 1 | 14 |
 | Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 37 |
 
@@ -1079,7 +1080,7 @@ executed archive.*
 | Table 6.2 | Four accounts of a negative sign, and what | Chapter 6 | 74 |
 | Table 6.3 | The five foregrounded limitations, and the | Chapter 6 | 75 |
 | Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 76 |
-| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 78 |
+| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 79 |
 | Table 7.2 | A practitioner's checklist for | Chapter 7 | 79 |
 | Table A.1 | The candidate-population denominators, | Appendix A | 91 |
 | Table A.2 | The execution record in counts | Appendix A | 92 |

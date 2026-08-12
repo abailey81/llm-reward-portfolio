@@ -128,7 +128,7 @@ so every comparator searched a shallower pool than the treatment. This entry rea
 **B.8.4 The sealed window opens sixty sessions late, and the purge silently removes the COVID crash.**
 Execution begins 2020-03-30 because the production lookback of 60 dominates the 21-session embargo floor.
 An earlier benchmark computed over 1,631 sessions rather than the traded 1,571 understated the passive
-comparator by about 0.47 Sharpe and retracted two headline claims. Every benchmark now derives its window
+comparator by about 0.47 net Sharpe and retracted two headline claims. Every benchmark now derives its window
 from the record's own test-return series.
 
 **B.8.6 The blocking review gate is blind to the inhomogeneity its own message promises to catch.** The
