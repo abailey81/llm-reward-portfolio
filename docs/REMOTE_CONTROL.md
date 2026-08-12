@@ -21,7 +21,7 @@ then writes what it did under **LOG** at the bottom and pushes.
      Leave it blank when you have nothing to say. -->
 
 ```
-PLease push everything now, especially dissertation.pdf and all docs, make sure you push the most recent versions and update them every 5 minutes
+PLease push everything now, especially dissertation.pdf and all docs, make sure you push the most recent versions and update them every 5 minutes. Please listennn, tahts me, tamer, I am not near the laptop rn
 ```
 
 ---
