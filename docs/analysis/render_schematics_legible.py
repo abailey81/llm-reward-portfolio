@@ -88,7 +88,11 @@ def tint(hex_colour: str, keep: float = 0.16) -> str:
 # nothing a reader was not already being shown.
 _F1_TOP = [
     "Gold panel\n(survivorship-free,\npoint-in-time)",
-    "Portfolio env\n+ fixed SAC\nagent",
+    # ⚠ FOUR SHORT LINES, NOT THREE LONGER ONES, AND THE WRAP IS FORCED BY THE ROW. `distribute`
+    # needs 22 pt between the four boxes on this row and refuses to lay them out otherwise, so
+    # writing "Portfolio environment" on one line overflowed by 37 pt and raised. The box height is
+    # shared across the row, so a fourth line costs nothing but a slightly deeper band.
+    "Portfolio\nenvironment\n+ fixed SAC\nagent",
     "Realised\nreturns\n(out of sample)",
     "Tail measurement\n(CVaR 1/5/10/25%,\nmass, skew)",
 ]
@@ -156,7 +160,7 @@ def system_diagram() -> Canvas:
            color=green)
     # the feedback block is what the designer reads, each generation
     c.arrow((feedback.x0 - 2.0, feedback.cy), (designer.x1 + 2.0, designer.cy), color=blue, lw=1.4)
-    c.text((feedback.x0 + designer.x1) / 2, y_bot_hi + 5.0, "fed each gen", size=BODY_PT,
+    c.text((feedback.x0 + designer.x1) / 2, y_bot_hi + 5.0, "fed each generation", size=BODY_PT,
            ha="center", va="bottom", color=blue)
     # the designer emits reward code
     c.arrow((designer.x0 - 2.0, designer.cy), (code.x1 + 2.0, code.cy))
@@ -186,16 +190,29 @@ def system_diagram() -> Canvas:
 #      figure. So the defect was invisible to every gate in the project.
 # The registered labels are not lost: they are printed in Chapter 4 where the machinery is defined,
 # and the caption names the test. What changes is that the PICTURE now says what it means.
-_F2_TITLE = "Pre-registered outcome tree (read BEFORE the data)"
-_F2_ROOT = ("Does the tail summary beat the score alone?\n"
-            "H2: tail-vector vs scalar (co-primary IUT vs ±SESOI)")
+# ⛔ EVERY REGISTERED ACRONYM WAS STRIPPED FROM THIS CANVAS ON 2026-08-13, AND THE REASON IS A
+# RECORDED FAILURE RATHER THAN A PREFERENCE. This exhibit is Figure 1.2, roughly page fourteen, and
+# the second marker "may come from any discipline". It previously read "H2: tail-vector vs scalar
+# (co-primary IUT vs ±SESOI)" above branches labelled TOST, lower-CI and MDE > SESOI: six internal
+# labels, none glossed, in the first schematic a marker meets. Stefan hit exactly one such label in
+# the two-page exposé, "The headline is H2", and his response was not that it was unclear but "I
+# don't understand what you mean" (S10). A label is an index for a reader who is already convinced.
+# It cannot introduce anything. The conditions are now written as what the interval has to DO, and
+# the registered shorthand lives in the caption, which is where a reader who wants it will look.
+_F2_TITLE = "Every outcome, and the reading fixed for it before the data were seen"
+_F2_ROOT = ("Does showing the designer the shape of the downside\n"
+            "beat showing it one performance score?\n"
+            "The registered headline test, decided on two outcomes at once.")
 _F2_BRANCHES = [
-    ("the whole interval falls\ninside the margin\n(TOST within ±SESOI)", "green", "EQUIVALENT",
-     "bankable NULL:\ntail specificity adds\nno marginal value\n(the prediction)"),
-    ("the interval sits\nwholly above zero\n(lower-CI > 0)", "blue", "POSITIVE",
-     "channel works:\nricher feedback →\nbetter risk-adjusted\npolicy"),
-    ("the interval is wider\nthan the margin\n(MDE > SESOI)", "vermillion", "INCONCLUSIVE",
-     "underpowered:\nreport effect + CI,\nclaim neither"),
+    ("the whole interval falls\ninside the margin fixed\nin advance as too small\nto matter",
+     "green", "Equivalent",
+     "the registered prediction:\nshowing the tail adds\nno value worth having"),
+    ("the interval sits\nwholly above zero",
+     "blue", "Positive",
+     "the channel works:\nricher feedback buys\na better policy for\nthe risk taken"),
+    ("the interval is wider\nthan that margin, so the\nstudy could not have seen\nan effect of that size",
+     "vermillion", "Inconclusive",
+     "underpowered:\nreport the effect and\nits interval, and\nclaim neither"),
 ]
 #: Removed from the canvas with the rest of the baked-in captions; see the note at ``_F1_TITLE``.
 _F2_FOOT = ""
@@ -208,21 +225,22 @@ def prediction_branch() -> Canvas:
     W = FIG_WIDTH_PT
     col_w = (W - 2 * MARGIN) / 3.0
     centres = [MARGIN + (i + 0.5) * col_w for i in range(3)]
-    #: Nudge the outer conditions toward the diagonal edge each one names (the middle edge is vertical,
-    #: so its label already sits on it). Keeps every condition next to its own arrow without letting the
-    #: three labels collide, which is what happens if they are placed at the arrow midpoints.
-    cond_dx = [20.0, 0.0, -20.0]
 
     _, title_h = c.measure(_F2_TITLE, size=TITLE_PT)
     root_w, root_h = c.box_size(_F2_ROOT, size=BODY_PT)
     verdict_w = max(c.box_size(v, size=BODY_PT, weight="bold")[0] for _, _, v, _ in _F2_BRANCHES)
     _, verdict_h = c.box_size(_F2_BRANCHES[0][2], size=BODY_PT, weight="bold")
     mean_h = max(c.measure(m, size=BODY_PT)[1] for _, _, _, m in _F2_BRANCHES)
-    # 96, not 62. Each branch condition is now THREE lines instead of one: a plain-English
-    # statement of what the interval has to do, then the registered shorthand in brackets. The
-    # band has to be deep enough to hold three lines without the condition text touching either
-    # the root box above it or the verdict box below it.
-    edge = 96.0                                    # depth of the band the branch conditions live in
+    # ⭐ AN ELBOW TREE, NOT THREE DIAGONALS, AND THE CHANGE IS ABOUT WHAT THE READER SEES RATHER
+    # THAN ABOUT NEATNESS. The old layout ran one straight diagonal from the root to each verdict
+    # and then knocked a white patch out of the middle of it to seat the branch condition. On the
+    # page that reads as a broken line: a stub leaves the root, vanishes, and an unrelated short
+    # arrow appears above the box. The connector now runs down, along a horizontal bus, and down
+    # again, and NOTHING is drawn through the label at all. The chain a reader follows is bus,
+    # then condition, then one unbroken arrow, then verdict.
+    cond_h = max(c.measure(cond, size=BODY_PT)[1] for cond, _, _, _ in _F2_BRANCHES)
+    bus_drop, stub, cond_gap, arrow_len = 15.0, 5.0, 7.0, 20.0
+    edge = bus_drop + stub + cond_gap + cond_h + cond_gap + arrow_len
     c.set_height(MARGIN + title_h + 8.0 + root_h + edge + verdict_h + 10.0 + mean_h + MARGIN)
 
     y_title = c.height_pt - MARGIN
@@ -236,11 +254,21 @@ def prediction_branch() -> Canvas:
     root = c.box(W / 2, (y_root_hi + y_root_lo) / 2, _F2_ROOT, fc="0.92", size=BODY_PT,
                  width=root_w, height=root_h)
 
-    for cx, dx, (cond, colour, verdict, meaning) in zip(centres, cond_dx, _F2_BRANCHES):
-        c.arrow((root.cx, root.y0 - 2.0), (cx, y_verdict_hi + 2.0), color="0.40")
-        # the condition rides its own edge, on an opaque patch so the rule reads through cleanly
-        c.text(cx + dx, (root.y0 + y_verdict_hi) / 2, cond, size=BODY_PT, color="0.25",
-               bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="none"))
+    y_bus = root.y0 - bus_drop
+    c.arrow((root.cx, root.y0 - 1.0), (root.cx, y_bus), color="0.40", style="-")
+    c.arrow((centres[0], y_bus), (centres[-1], y_bus), color="0.40", style="-")
+    # Every condition is TOP-aligned under the bus and every arrow starts at the same height, so the
+    # three drops are the same length whether their label runs to two lines or to four.
+    y_cond_top = y_bus - stub - cond_gap
+    y_arrow_top = y_cond_top - cond_h - cond_gap
+
+    for cx, (cond, colour, verdict, meaning) in zip(centres, _F2_BRANCHES):
+        # A five-point stub ties each column to the bus, then the label, then ONE arrow. Running the
+        # connector all the way down would put a rule through four lines of text, which is the same
+        # defect the diagonals had and the reason they were replaced.
+        c.arrow((cx, y_bus), (cx, y_bus - stub), color="0.40", style="-")
+        c.arrow((cx, y_arrow_top), (cx, y_verdict_hi + 2.0), color="0.40")
+        c.text(cx, y_cond_top, cond, size=BODY_PT, color="0.25", va="top")
         c.box(cx, (y_verdict_hi + y_verdict_lo) / 2, verdict, fc=tint(pal[colour]), tc="black",
               ec=pal[colour], lw=1.4, size=BODY_PT, weight="bold", width=verdict_w, height=verdict_h)
         c.text(cx, y_mean, meaning, size=BODY_PT, ha="center", va="top", color="0.25")
@@ -250,12 +278,20 @@ def prediction_branch() -> Canvas:
 
 
 # ------------------------------------------------------------------------------------------------- #
-# F4 -- the walk-forward split timeline                                                               #
+# F4 -- the chronological split timeline                                                              #
 # ------------------------------------------------------------------------------------------------- #
-_F4_TITLE = "Walk-forward splits with purge + embargo (leakage control)"
+# ⛔ THE TITLE SAID "WALK-FORWARD SPLITS" UNTIL 2026-08-13 AND THAT WAS INACCURATE, NOT LOOSE. This
+# study runs ONE chronological partition. Walk-forward re-selection is the alternative it did NOT
+# take, and `CH4_methods.md:591` lists it in the alternatives column of the design-decisions table
+# for exactly that reason, while `config/preregistration.yaml` carries the walk-forward parameters
+# under `deferred_walk_forward`. So the figure claimed a scheme the methods chapter says was
+# declined, on the first exhibit of Chapter 3, where a reader forms their model of the design. An
+# examiner who read both would have found the document contradicting itself.
+_F4_TITLE = "One chronological split, with purge and embargo at each boundary"
 _F4_BANDS = [
     ("train", "2005–2016", 2005.0, 2017.0, "blue", "agent learns + tail feedback measured"),
-    ("val", "2017–2019", 2017.17, 2020.0, "green", "winner selection (reward-independent DSR)"),
+    ("validation", "2017–2019", 2017.17, 2020.0, "green",
+     "winner selection (reward-independent deflated Sharpe)"),
     ("sealed test", "2020–2026", 2020.17, 2026.5, "vermillion", "scored once, never tuned"),
 ]
 _F4_PURGE = "purge + embargo\n= max(embargo 21, lookback 60) = 60 sessions"
@@ -314,12 +350,20 @@ def splits_timeline() -> Canvas:
     # 2020 gap already carries the sealed-leg opening marker, so an arrowhead there would land on it.
     c.arrow((x_of(2013.5), y_purge - purge_h + 2.0), (x_of(2017.08), bar_hi + 2.0),
             color="0.20", lw=1.0, rad=-0.18)
-    c.text(right, y_bear, _F4_BEAR, size=BODY_PT, ha="right", va="top", color="0.20")
-    c.ax.plot([x_of(2022.3)], [bar_hi], marker="v", color="0.2", markersize=5, zorder=5)
-    c.ax.plot([x_of(2022.3), x_of(2022.3)], [bar_hi, y_bear - line_h], color="0.2", lw=0.7, zorder=1)
-    c.text(right, y_crash, _F4_CRASH, size=BODY_PT, ha="right", va="top", color="0.20")
+    # ⚠ THE LONGER LABEL TAKES THE UPPER ROW, AND THE ORDER IS LOAD-BEARING RATHER THAN TIDY. Both
+    # labels are right-aligned to the page edge and both leaders rise from the bar, so whichever
+    # label sits LOWER is crossed by the upper one's leader. With the bear label on top its leader
+    # ran from the bar at 2022.3 straight through the middle of "post-crash start (crash in purge)".
+    # Putting the WIDER label above inverts the geometry: the crash leader at 2020.25 now passes to
+    # the left of the bear label, which starts near 2021.3, so neither rule touches any glyph.
+    # This is invisible to `c.audit`, which compares text against text and never against a line, so
+    # it can only be caught by looking at the rendered page.
+    c.text(right, y_bear, _F4_CRASH, size=BODY_PT, ha="right", va="top", color="0.20")
     c.ax.plot([x_of(2020.25)], [bar_hi], marker="^", color="0.2", markersize=5, zorder=5)
-    c.ax.plot([x_of(2020.25), x_of(2020.25)], [bar_hi, y_crash - line_h], color="0.2", lw=0.7, zorder=1)
+    c.ax.plot([x_of(2020.25), x_of(2020.25)], [bar_hi, y_bear - line_h], color="0.2", lw=0.7, zorder=1)
+    c.text(right, y_crash, _F4_BEAR, size=BODY_PT, ha="right", va="top", color="0.20")
+    c.ax.plot([x_of(2022.3)], [bar_hi], marker="v", color="0.2", markersize=5, zorder=5)
+    c.ax.plot([x_of(2022.3), x_of(2022.3)], [bar_hi, y_crash - line_h], color="0.2", lw=0.7, zorder=1)
 
     # -- the year axis ---------------------------------------------------------------------------- #
     c.ax.plot([left, right], [y_axis, y_axis], color="0.3", lw=0.9, zorder=1)
@@ -364,10 +408,64 @@ _RELOCATED_TO_CAPTION: dict[str, tuple[str, ...]] = {
         "Arms vary ONLY the feedback channel; the agent (SAC) is held fixed.",
         "The fed tail is the trained policy's OWN realised returns (endogenous; critic-agnostic).",
     ),
+    # ⭐ THE REGISTERED SHORTHAND MOVED TO THE CAPTION ON 2026-08-13, AND MOVING IT IS THE WHOLE
+    # POINT. This canvas is Figure 1.2, roughly page fourteen, and it carried six internal labels a
+    # marker from another discipline cannot read: H2, co-primary IUT, ±SESOI, TOST, lower-CI and
+    # MDE. Deleting them outright would have broken the mapping to the pre-registration, which is
+    # the single most valuable asset the document owns, so every one of them is now stated in the
+    # LaTeX caption against the plain-English branch it names. The diagram needs no decoding and the
+    # registered vocabulary is still there for a reader who wants to check it against §10.
     "F2_prediction_branch.png": (
         "Every branch has a fixed, pre-registered reading",
         "the result cannot be reinterpreted post hoc.",
+        # The registered shorthand, listed VERBATIM as the canvas used to print it, so this table is
+        # a literal record of what moved rather than a paraphrase of it. Each of these strings is
+        # answered in the LaTeX caption against the plain-English branch that replaced it.
+        "H2: tail-vector vs scalar (co-primary IUT vs ±SESOI)",
+        "TOST within ±SESOI",
+        "lower-CI > 0",
+        "MDE > SESOI",
+        "bankable NULL: tail specificity adds no marginal value",
+        "channel works: richer feedback -> better risk-adjusted policy",
+        "underpowered: report effect + CI, claim neither",
     ),
+}
+
+
+#: ⚠ ABBREVIATIONS DELIBERATELY EXPANDED OUT OF EXISTENCE, EACH WITH THE WORDS THAT REPLACED IT.
+#: `assert_no_content_lost` is one-sided by design: it fails when a rebuild DROPS a word the fenced
+#: original carried, which is what catches a deleted branch, a lost number or a quietly removed
+#: caveat. Replacing an abbreviation with the words it stood for trips that guard while making the
+#: figure strictly more legible, so the exemption is recorded here rather than the guard being
+#: weakened. The expansion itself is then asserted to be PRESENT on the rebuilt canvas, so an entry
+#: in this table cannot be used to smuggle a genuine deletion past the check: removing "point-in-time"
+#: from the figure would still fail, because "pit" is only forgiven while its expansion is drawn.
+_EXPANDED_ABBREVIATIONS: dict[str, dict[str, str]] = {
+    "F1_system_diagram.png": {
+        "oos": "out of sample",
+        "pit": "point-in-time",
+        "env": "environment",
+        "gen": "generation",
+    },
+    "F4_splits_timeline.png": {
+        "val": "validation",
+        "dsr": "deflated Sharpe",
+    },
+}
+
+#: ⚠ WORDS REMOVED BECAUSE THEY WERE WRONG, WHICH IS A DIFFERENT CLASS FROM THE TWO ABOVE AND MUST
+#: STAY SMALL. `_RELOCATED_TO_CAPTION` says "this is now stated elsewhere" and
+#: `_EXPANDED_ABBREVIATIONS` says "this is now spelled out". Neither fits a phrase that should never
+#: have been on the canvas at all, and forcing one of them to cover it would corrupt the record. An
+#: entry here is an assertion that the words were INACCURATE, with the evidence beside it, and every
+#: entry should be readable as a defect report years later.
+_REMOVED_AS_INACCURATE: dict[str, dict[str, str]] = {
+    "F4_splits_timeline.png": {
+        "walk-forward": (
+            "The design is one chronological split. Walk-forward re-selection is the alternative "
+            "the study declined, listed as such in the CH4 design-decisions table and parked in "
+            "config/preregistration.yaml under `deferred_walk_forward`. The old title claimed it."),
+    },
 }
 
 
@@ -375,7 +473,7 @@ def build_all() -> list[Path]:
     """Render F1/F2/F4, each checked against the fenced original for lost content, and save them."""
     import matplotlib.pyplot as plt
 
-    from docs.analysis.figure_typography import _words
+    from docs.analysis.figure_typography import _words, figure_words
 
     jobs = [
         ("system_diagram", system_diagram, "F1_system_diagram.png"),
@@ -389,12 +487,27 @@ def build_all() -> list[Path]:
         # Put the relocated words back into the comparison as if they were still drawn, so the guard
         # checks everything else exactly as before, then take the stand-in straight back out so it
         # can never reach the saved page.
-        stand_in = None
+        stand_ins = []
         if out_name in _RELOCATED_TO_CAPTION:
-            stand_in = canvas.fig.text(0.5, 0.5, " ".join(_RELOCATED_TO_CAPTION[out_name]),
-                                       alpha=0.0, fontsize=1.0)
+            stand_ins.append(canvas.fig.text(0.5, 0.5, " ".join(_RELOCATED_TO_CAPTION[out_name]),
+                                             alpha=0.0, fontsize=1.0))
+        expansions = _EXPANDED_ABBREVIATIONS.get(out_name, {})
+        if expansions:
+            drawn = figure_words(canvas.fig)
+            for abbrev, replacement in sorted(expansions.items()):
+                absent = _words([replacement]) - drawn
+                if absent:
+                    raise RuntimeError(
+                        f"[{out_name}] {abbrev!r} is registered as expanded to {replacement!r}, but "
+                        f"the rebuilt figure does not carry {sorted(absent)}. Draw the expansion or "
+                        f"drop the entry. This table forgives an abbreviation, never a deletion.")
+            stand_ins.append(canvas.fig.text(0.5, 0.5, " ".join(expansions),
+                                             alpha=0.0, fontsize=1.0))
+        wrong = _REMOVED_AS_INACCURATE.get(out_name, {})
+        if wrong:
+            stand_ins.append(canvas.fig.text(0.5, 0.5, " ".join(wrong), alpha=0.0, fontsize=1.0))
         assert_no_content_lost(reference, canvas.fig, name=out_name)
-        if stand_in is not None:
+        for stand_in in stand_ins:
             stand_in.remove()
         plt.close(reference)
         written.append(canvas.save(FIGDIR / out_name))

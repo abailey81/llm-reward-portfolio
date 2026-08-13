@@ -776,12 +776,31 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
     # caption needs roughly 60, so 4 x 1.72 in = 495 pt leaves the figure and its caption on one page
     # with room to spare. A caption on a different page from its figure is a Criterion-4 defect and
     # this is the only lever that fixes it, because the caption length is not negotiable.
-    # !! sharey=False DELIBERATELY. Nine of the eleven lines cluster inside about 0.4 Sharpe and
-    # two spread over 1.6. Sharing the axis put those nine on the wide range, so each used the top
-    # fifth of its panel and four fifths were empty -- the dispersion this exhibit exists to show
-    # became invisible in exactly the panels where it is tightest. Each panel now sets its own
-    # range and the caption states that the ranges differ, which is the honest way to show shape.
-    fig, axes = plt.subplots(nrow, ncol, figsize=(6.15, 1.50 * nrow), sharey=False)
+    # ⛔ sharey=True, AND THE COMMENT THAT USED TO SIT HERE WAS REFUTED BY MEASURING IT. It argued
+    # for eleven independent y-axes on the grounds that a shared one would leave each tight panel
+    # "using the top fifth of its panel with four fifths empty". That is not what the data do. The
+    # global range is -0.905 to +1.647, a span of 2.552, and the share of it each line occupies runs
+    # deepseek 29%, haiku 37%, opus 38%, gpt 48%, kimi 61%, nemotron and qwen3.6 68%, glm 73%,
+    # sonnet 76%, qwen3.5 84%, gemini 96%, for a median of 68%. Not one panel is anywhere near a
+    # fifth. The stated cost of sharing was roughly three times the real one.
+    #
+    # And the cost of NOT sharing is severe, because it is paid by the reader rather than by the
+    # figure. Eleven panels on eleven rulers cannot be compared by eye, yet comparing them is the
+    # entire purpose of the exhibit: this is where the capability-against-stability thread lives.
+    # Worse, several of the independent ranges came out looking ALIKE (six panels printed
+    # 0.0/0.5/1.0/1.5 and five printed 0/1), so the differing scales were not even visibly
+    # different. A reader would have compared cloud heights and been wrong, with nothing on the page
+    # to warn them. One ruler for eleven panels, with each panel's spread also printed as a number
+    # for the distinctions too fine to see, is both the honest design and the legible one.
+    # ⚠ 1.86 in PER ROW, RAISED FROM 1.50 ON 2026-08-13 BECAUSE THE PANELS WERE TOO SMALL TO READ.
+    # Tamer's report was that he could not tell what was in them, and the arithmetic says he was
+    # right: at 1.50 in each panel held 510 points in about 108 pt of height, and the seed clouds
+    # for the nine tight lines collapsed into a smear roughly six points deep. The height had been
+    # cut to keep the four-line caption on the same page as the figure, which is a real Criterion-4
+    # constraint, but trading the legibility of the science for the placement of its caption is the
+    # wrong side of that trade. 4 x 1.86 in = 536 pt against roughly 700 pt of A4 text height, so
+    # the caption still fits beneath it, and the build is re-checked rather than assumed.
+    fig, axes = plt.subplots(nrow, ncol, figsize=(6.15, 1.86 * nrow), sharey=True)
     flat = axes.ravel()
     rng = np.random.default_rng(3)
     lo = min(get(store, lb, a, "sharpe_net").min() for lb in order for a in ARMS)
@@ -799,19 +818,32 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
         for i, arm in enumerate(ARMS):
             x = get(store, label, arm, "sharpe_net")
             st = arm_style(arm)
-            ax.scatter(i + rng.uniform(-0.26, 0.26, x.size), x, s=2.2, color=st["color"],
-                       alpha=0.45, lw=0, zorder=2)
+            # s=4.4 and alpha=0.60, up from 2.2 and 0.45. A 2.2 pt marker is 1.7 pt across on the
+            # page, below the width of the hairlines around it, so 102 seeds printed as grey haze
+            # rather than as points a reader could count. The alpha rises with the size to keep the
+            # dense middle of each cloud from filling in solid.
+            ax.scatter(i + rng.uniform(-0.28, 0.28, x.size), x, s=4.4, color=st["color"],
+                       alpha=0.60, lw=0, zorder=2)
             q1, med, q3 = np.quantile(x, [0.25, 0.5, 0.75])
             medians.append(med)
-            ax.plot([i - 0.34, i + 0.34], [med, med], color="0.10", lw=1.3, zorder=4)
-            ax.plot([i, i], [q1, q3], color="0.10", lw=0.9, zorder=3)
+            ax.plot([i - 0.36, i + 0.36], [med, med], color="0.10", lw=1.7, zorder=4)
+            ax.plot([i, i], [q1, q3], color="0.10", lw=1.1, zorder=3)
         # ⭐ RING THE WINNING ARM. This is the one addition that turns a page of clouds into the
         # dissertation's central claim, and it costs no words: the reader sees at a glance that the
         # ringed arm MOVES from panel to panel. A stable mechanism with an unstable winner is the
         # argument the whole document is built to deliver, and here it is visible rather than counted.
         best = int(np.argmax(medians))
         ax.plot([best], [medians[best]], marker="o", ms=9, mfc="none", mec="0.10", mew=1.2, zorder=5)
-        ax.set_title(label, fontsize=10)
+        # ⭐ THE SPREAD IS PRINTED AS A NUMBER, AND THAT IS WHAT MAKES THE UNSHARED AXIS SAFE. These
+        # eleven panels do not share a y-scale, for the reason recorded above, and a reader who
+        # compares two panels BY EYE is therefore comparing two different rulers. Until 2026-08-13
+        # the only warning of that was a sentence in the caption, which is precisely the "reader does
+        # your work for you" defect: the panels are ORDERED by this quantity, so a reader could see
+        # the ordering existed and could not see what it was ordered on. Printing the median
+        # within-arm interquartile range in every title converts the cross-panel comparison from a
+        # visual one, which the differing scales corrupt, into a numeric one, which they cannot.
+        spread = float(np.median([iqr(get(store, label, a, "sharpe_net")) for a in ARMS]))
+        ax.set_title(f"{label}   IQR {spread:.2f}", fontsize=10)
         ax.set_xticks(range(len(ARMS)))
         if idx == bottom_of_col.get(idx % ncol):
             ax.set_xticklabels(["dist", "scalar", "+CVaR", "placebo", "scram"],
@@ -821,11 +853,15 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
         ax.set_xlim(-0.6, len(ARMS) - 0.4)
         ax.axhline(0.0, color="0.6", lw=0.6, ls=":", zorder=1)
         ax.tick_params(labelsize=10)
-    # !! THE GLOBAL set_ylim THAT STOOD HERE IS GONE WITH sharey. It ran after the loop, so it bound
-    # only the LAST axis, which under sharey propagated to all eleven and now would leave one panel
-    # on the global range while its ten neighbours autoscale. That is worse than either policy
-    # applied consistently, and it is exactly the kind of half-applied change a rendered check
-    # catches and a code read does not: the glm-5.2 panel came back with a visibly different scale.
+    # ⚠ THE RANGE IS SET FROM THE DATA AND APPLIED TO THE FIRST AXIS, NOT THE LAST. Under sharey any
+    # one axis binds all eleven, so where the call sits is invisible in the output and lethal if the
+    # policy is ever changed back: an earlier revision left this after the loop, where it bound only
+    # `flat[-1]`, and when sharey was turned off that silently gave ten autoscaled panels and one on
+    # the global range. Binding `flat[0]` explicitly makes the intent readable from the code.
+    # No point is clipped: the limits are the true extremes with a small margin, so a reader can
+    # trust that nothing fell off an edge.
+    pad = 0.045 * (hi - lo)
+    flat[0].set_ylim(lo - pad, hi + pad)
 
     for ax in flat[len(order):]:  # spare cells carry the legend rather than an empty frame
         ax.axis("off")
@@ -1108,6 +1144,11 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     ax.axhline(0.0, color="0.55", lw=0.8, ls=":", zorder=1)
     ax.axvline(0.0, color="0.55", lw=0.8, ls=":", zorder=1)
     slope, intercept = np.polyfit(xs, ys, 1)
+    # ⭐ THE CORRELATION, NOT ONLY THE SLOPE. A slope says how far Sharpe moves per unit of turnover
+    # and says nothing about how tightly the eleven lines hold that relation, which is the entire
+    # claim this exhibit carries into Chapter 6. Reporting -1.58 alone left the load-bearing number
+    # off its own figure.
+    r_turnover = float(np.corrcoef(xs, ys)[0, 1])
     xf = np.linspace(xs.min() - 0.05, xs.max() + 0.05, 50)
     ax.plot(xf, slope * xf + intercept, color="0.45", lw=1.0, ls="--", zorder=2,
             label=f"least-squares fit (slope {slope:+.2f} Sharpe per unit turnover)")
@@ -1200,8 +1241,18 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     ins_note = axins.text(0.02, 0.04, f"zoom: the crowded middle, {len(cluster)} of {len(pts)} lines",
                           transform=axins.transAxes, ha="left", va="bottom", fontsize=10,
                           color="0.35")
-    for side in ("top", "right"):
-        axins.spines[side].set_visible(False)
+    # ⛔ ALL FOUR SPINES, NOT TWO, AND THE INSET IS OPAQUE. The house style drops the top and right
+    # spines, which is right for a panel bounded by the page and wrong for a panel floating inside
+    # another one: with two sides open and a 0.94 alpha patch, the inset had no edge a reader could
+    # find, so the eye read one scatter with a stray second cloud in it rather than a panel and its
+    # magnification. A closed grey frame on a fully opaque fill is what says "this is a different
+    # coordinate system", and it costs four lines.
+    for side, spine in axins.spines.items():
+        spine.set_visible(True)
+        spine.set_color("0.55")
+        spine.set_linewidth(0.8)
+    axins.patch.set_alpha(1.0)
+    axins.set_zorder(6)
     # The rectangle and its two connectors are what make the inset a zoom rather than a second,
     # unexplained scatter. Without them a reader has no way to know the corner panel is a magnified
     # region of the panel it sits inside.
@@ -1225,7 +1276,7 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
         plt.Line2D([], [], color="none", marker="o", ls="", ms=10, mfc="none", mec="0.20", mew=1.1,
                    label="the registered node"),
         plt.Line2D([], [], color="0.45", ls="--", lw=1.0,
-                   label=f"fitted slope {slope:+.2f}"),
+                   label=f"fitted slope {slope:+.2f}, r = {r_turnover:.3f}"),
     ]
     leg = _outside_legend(fig, handles, [h.get_label() for h in handles], ncol=3)
 
@@ -1400,6 +1451,13 @@ def fig_wealth_and_drawdown(store: dict[str, np.ndarray]) -> Any:
         dd = np.array([get(store, lb, arm, "drawdown") for lb in LINE_LABELS])
         for row in eq:
             axes[0].plot(x, row, color=st["color"], lw=0.4, alpha=0.20, zorder=1)
+        # ⚠ A WHITE CASING UNDER EVERY MEDIAN, AND IT IS THE ONLY THING THAT KEEPS FIVE OVERLAPPING
+        # LINES COUNTABLE. The five arm medians sit almost exactly on top of one another, which is
+        # the finding, but drawn flat the topmost simply hides the other four and the reader cannot
+        # tell whether the panel shows one path or five. A 3.4 pt white stroke behind a 1.7 pt
+        # coloured one leaves a hairline of white wherever two medians cross, so the bundle reads as
+        # a bundle. Cheaper and more honest than separating them with an offset they do not have.
+        axes[0].plot(x, np.median(eq, axis=0), color="white", lw=3.4, zorder=2, solid_capstyle="round")
         axes[0].plot(x, np.median(eq, axis=0), color=st["color"], lw=1.7, zorder=3,
                      label=_arm_label(arm))
         # ⚠ THE PER-LINE DRAWDOWN PATHS ARE DRAWN, AND UNTIL 2026-08-12 THEY WERE NOT. The lower
@@ -1413,6 +1471,7 @@ def fig_wealth_and_drawdown(store: dict[str, np.ndarray]) -> Any:
         # for, the object behind the summary.
         for row in dd:
             axes[1].plot(x, row, color=st["color"], lw=0.35, alpha=0.16, zorder=1)
+        axes[1].plot(x, np.median(dd, axis=0), color="white", lw=3.0, zorder=2, solid_capstyle="round")
         axes[1].plot(x, np.median(dd, axis=0), color=st["color"], lw=1.4, zorder=3)
 
     axes[0].axhline(1.0, color="0.35", lw=0.9, ls="--", zorder=2)
@@ -1436,6 +1495,33 @@ def fig_wealth_and_drawdown(store: dict[str, np.ndarray]) -> Any:
         axes[1].xaxis.set_major_locator(mdates.YearLocator())
         axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     axes[1].set_xlabel("Sealed test window, 2020-03-30 to 2026-06-30")
+
+    # ⭐ THE TWO SENTENCES THE CAPTION LEANS ON ARE NOW POINTED AT ON THE CANVAS, AND BOTH NUMBERS
+    # ARE DERIVED FROM THE DRAWN DATA RATHER THAN REMEMBERED. A caption that states a figure a reader
+    # cannot locate in the figure is a caption asking the reader to take it on trust, and this
+    # exhibit had two of them: five medians that a reader could not tell apart, and one strand out of
+    # fifty-five carrying the drawdown claim. Computing both here means neither label can ever drift
+    # from the exhibit it describes, which is exactly how the printed word count went stale twice.
+    finals = [float(np.median([get(store, lb, a, "equity") for lb in LINE_LABELS], axis=0)[-1])
+              for a in ARMS]
+    # ⚠ THE RANGE, NOT A "WITHIN X" PHRASE. An earlier draft of this note read "the five arm medians
+    # finish within 0.53 of one another", which is arithmetically true and rhetorically false: 0.53 on
+    # a terminal wealth near 2.3 is a quarter of the whole result, and "within" invites the reader to
+    # hear tightness. Printing both ends states the same fact and pre-judges nothing.
+    axes[0].text(0.014, 0.955,
+                 f"the five arm medians end between {min(finals):.2f} and {max(finals):.2f}",
+                 transform=axes[0].transAxes, ha="left", va="top", fontsize=9.2, color="0.30")
+
+    d_val, d_arm, d_line = min((float(get(store, lb, a, "drawdown").min()), a, lb)
+                               for a in ARMS for lb in LINE_LABELS)
+    j = int(np.argmin(get(store, d_line, d_arm, "drawdown")))
+    # va="bottom" ANCHORED ON THE VALUE ITSELF, so the label grows UPWARD into the empty wedge on the
+    # left rather than downward through the axis floor. Centred on d_val it was clipped by the -50%
+    # limit, which is the sort of thing only a rendered check catches.
+    axes[1].annotate(f"worst single line: {_arm_label(d_arm)}\non {d_line}, reaching {d_val:.1%}",
+                     xy=(x[j], d_val), xytext=(x[int(0.02 * len(x))], d_val),
+                     fontsize=9.0, color="0.30", ha="left", va="bottom",
+                     arrowprops=dict(arrowstyle="-", color="0.55", lw=0.7, shrinkA=3, shrinkB=2))
 
     handles, labels = axes[0].get_legend_handles_labels()
     # ⛔ THE FAINT PATHS WERE UNEXPLAINED, AND THEY ARE MOST OF THE INK. Each panel carries 55 pale

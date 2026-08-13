@@ -967,27 +967,27 @@ appendices are excluded, as the guidelines provide. The figure is produced by
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Figure 1.1 | The experiment on one page | Chapter 1 | 15 |
-| Figure 1.2 | The three outcomes, and the reading each was | Chapter 1 | 20 |
-| Figure 3.1 | Stylised tail facts of the training window | Chapter 3 | 31 |
-| Figure 3.2 | The Split-C timeline: training (2005–2016), | Chapter 3 | 32 |
-| Figure 4.1 | The experimental loop and the off-critic | Chapter 4 | 33 |
-| Figure 4.2 | The two nested decision problems | Chapter 4 | 34 |
-| Figure 5.1 | The treatment-minus-control contrast, one row | Chapter 5 | 50 |
-| Figure 5.2 | The estimator, not just the estimate: how the | Chapter 5 | 51 |
-| Figure 5.3 | The random object behind the mean: every | Chapter 5 | 52 |
-| Figure 5.4 | The same clouds for all eleven lines, so the | Chapter 5 | 54 |
-| Figure 5.5 | The reward programs the models wrote, | Chapter 5 | 55 |
-| Figure 5.6 | The path, not only the endpoint | Chapter 5 | 56 |
-| Figure 5.7 | The mechanism, measured: what a reward design | Chapter 5 | 57 |
-| Figure 5.8 | Seed-to-seed instability by model, ordered | Chapter 5 | 58 |
-| Figure 6.1 | The same arms, priced twice: gross of | Chapter 6 | 70 |
-| Figure 6.2 | The same result as a response surface: what a | Chapter 6 | 71 |
-| Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 72 |
-| Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 73 |
-| Figure 7.1 | Where the outcome variance comes from, and how | Chapter 7 | 78 |
-| Listing 1.1 | The entire manipulation | Chapter 1 | 14 |
-| Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 37 |
+| Figure 1.1 | The experiment on one page | Chapter 1 | 0 |
+| Figure 1.2 | The three outcomes, and the reading each was | Chapter 1 | 0 |
+| Figure 3.1 | Stylised tail facts of the training window | Chapter 3 | 0 |
+| Figure 3.2 | The Split-C timeline: training (2005–2016), | Chapter 3 | 0 |
+| Figure 4.1 | The experimental loop and the off-critic | Chapter 4 | 0 |
+| Figure 4.2 | The two nested decision problems, and the one | Chapter 4 | 0 |
+| Figure 5.1 | The treatment-minus-control contrast, one row | Chapter 5 | 0 |
+| Figure 5.2 | The estimator, not just the estimate: how the | Chapter 5 | 0 |
+| Figure 5.3 | The random object behind the mean: every | Chapter 5 | 0 |
+| Figure 5.4 | The same clouds for all eleven lines, so the | Chapter 5 | 0 |
+| Figure 5.5 | The reward programs the models wrote, | Chapter 5 | 0 |
+| Figure 5.6 | The path, not only the endpoint | Chapter 5 | 0 |
+| Figure 5.7 | The mechanism, measured: what a reward design | Chapter 5 | 0 |
+| Figure 5.8 | Seed-to-seed instability by model, ordered | Chapter 5 | 0 |
+| Figure 6.1 | The same arms, priced twice: gross of | Chapter 6 | 0 |
+| Figure 6.2 | What trading costs, in two views that share | Chapter 6 | 0 |
+| Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 0 |
+| Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 0 |
+| Figure 7.1 | Where the outcome variance comes from, and | Chapter 7 | 0 |
+| Listing 1.1 | The entire manipulation | Chapter 1 | 0 |
+| Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 0 |
 
 <!-- THE LISTING AND THE ALGORITHM SIT HERE RATHER THAN IN A LIST OF THEIR OWN (2026-08-11). They
      previously had a third front-matter list, "List of Listings and Algorithms", carrying these two
@@ -1053,49 +1053,49 @@ executed archive.*
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Table 1.1 | The scale of the executed system | Chapter 1 | 18 |
-| Table 1.2 | The four pre-registered hypotheses | Chapter 1 | 18 |
-| Table 1.3 | The seven contributions, the evidence for | Chapter 1 | 19 |
-| Table 2.1 | Literature positioning matrix: the nearest | Chapter 2 | 26 |
-| Table 3.1 | The panel, the action space and the splits | Chapter 3 | 29 |
-| Table 4.1 | The four lines that carry the identification | Chapter 4 | 37 |
-| Table 4.2 | The nine arms (`config/arms.yaml`) | Chapter 4 | 38 |
-| Table 4.3 | Each arm's fed block, and the contrast it | Chapter 4 | 39 |
-| Table 4.4 | The confirmatory decision rules, fixed in | Chapter 4 | 40 |
-| Table 4.5 | The eleven-reward canon: the human bar | Chapter 4 | 41 |
-| Table 4.6 | The inference plan as registered | Chapter 4 | 42 |
-| Table 4.7 | Each threat to the headline inference, and | Chapter 4 | 43 |
-| Table 4.8 | The ten load-bearing design decisions | Chapter 4 | 44 |
-| Table 5.1 | The pre-committed reporting rules | Chapter 5 | 47 |
-| Table 5.2 | The execution ledger, read from the archive | Chapter 5 | 48 |
-| Table 5.3 | The two co-primary verdicts, sealed until the | Chapter 5 | 49 |
-| Table 5.4 | The mechanism instruments, and the limit each | Chapter 5 | 52 |
-| Table 5.5 | The chain measured link by link, by executing | Chapter 5 | 53 |
-| Table 5.6 | Realised results against the §C.7 | Chapter 5 | 58 |
-| Table 5.7 | Authoring reliability by model: the share of | Chapter 5 | 60 |
-| Table 5.8 | The eleven-line descriptive reading, at 102 | Chapter 5 | 61 |
-| Table 5.9 | Nine published allocators, one costed | Chapter 5 | 63 |
-| Table 5.9b | The estimation-error test behind `min_cvar`'s | Chapter 5 | 64 |
-| Table 6.1 | The pre-registered questions, their | Chapter 6 | 65 |
-| Table 6.2 | Four accounts of a negative sign, and what | Chapter 6 | 74 |
-| Table 6.3 | The five foregrounded limitations, and the | Chapter 6 | 75 |
-| Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 76 |
-| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 79 |
-| Table 7.2 | A practitioner's checklist for | Chapter 7 | 79 |
-| Table A.1 | The candidate-population denominators, | Appendix A | 91 |
-| Table A.2 | The execution record in counts | Appendix A | 92 |
-| Table A.3 | Selection re-read on the depth-matched pool, | Appendix A | 97 |
-| Table A.4 | The Table 5.3 equivalence instrument, | Appendix A | 98 |
-| Table B.1 | The design register: what each limitation is, | Appendix B | 99 |
-| Table C.1 | Pre-registered mapping of mechanism | Appendix C | 116 |
-| Table E.1 | Off the shelf against written for this study | Appendix E | 119 |
-| Table E.2 | The fixed learner | Appendix E | 120 |
-| Table E.3 | Environment specification | Appendix E | 120 |
-| Table E.4 | The report-only exhibits, and what each guards | Appendix E | 121 |
-| Table E.5 | The inference machinery, and where each piece | Appendix E | 121 |
-| Table E.6 | The eleven reward-authoring models, with | Appendix E | 122 |
-| Table E.7 | The three-layer reproducibility statement | Appendix E | 123 |
-| Table E.8 | The four axes the lineage innovates on, and | Appendix E | 124 |
+| Table 1.1 | The scale of the executed system | Chapter 1 | 0 |
+| Table 1.2 | The four pre-registered hypotheses | Chapter 1 | 0 |
+| Table 1.3 | The seven contributions, the evidence for | Chapter 1 | 0 |
+| Table 2.1 | Literature positioning matrix: the nearest | Chapter 2 | 0 |
+| Table 3.1 | The panel, the action space and the splits | Chapter 3 | 0 |
+| Table 4.1 | The four lines that carry the identification | Chapter 4 | 0 |
+| Table 4.2 | The nine arms (`config/arms.yaml`) | Chapter 4 | 0 |
+| Table 4.3 | Each arm's fed block, and the contrast it | Chapter 4 | 0 |
+| Table 4.4 | The confirmatory decision rules, fixed in | Chapter 4 | 0 |
+| Table 4.5 | The eleven-reward canon: the human bar | Chapter 4 | 0 |
+| Table 4.6 | The inference plan as registered | Chapter 4 | 0 |
+| Table 4.7 | Each threat to the headline inference, and | Chapter 4 | 0 |
+| Table 4.8 | The ten load-bearing design decisions | Chapter 4 | 0 |
+| Table 5.1 | The pre-committed reporting rules | Chapter 5 | 0 |
+| Table 5.2 | The execution ledger, read from the archive | Chapter 5 | 0 |
+| Table 5.3 | The two co-primary verdicts, sealed until the | Chapter 5 | 0 |
+| Table 5.4 | The mechanism instruments, and the limit each | Chapter 5 | 0 |
+| Table 5.5 | The chain measured link by link, by executing | Chapter 5 | 0 |
+| Table 5.6 | Realised results against the §C.7 | Chapter 5 | 0 |
+| Table 5.7 | Authoring reliability by model: the share of | Chapter 5 | 0 |
+| Table 5.8 | The eleven-line descriptive reading, at 102 | Chapter 5 | 0 |
+| Table 5.9 | Nine published allocators, one costed | Chapter 5 | 0 |
+| Table 5.9b | The estimation-error test behind `min_cvar`'s | Chapter 5 | 0 |
+| Table 6.1 | The pre-registered questions, their | Chapter 6 | 0 |
+| Table 6.2 | Four accounts of a negative sign, and what | Chapter 6 | 0 |
+| Table 6.3 | The five foregrounded limitations, and the | Chapter 6 | 0 |
+| Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 0 |
+| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 0 |
+| Table 7.2 | A practitioner's checklist for | Chapter 7 | 0 |
+| Table A.1 | The candidate-population denominators, | Appendix A | 0 |
+| Table A.2 | The execution record in counts | Appendix A | 0 |
+| Table A.3 | Selection re-read on the depth-matched pool, | Appendix A | 0 |
+| Table A.4 | The Table 5.3 equivalence instrument, | Appendix A | 0 |
+| Table B.1 | The design register: what each limitation is, | Appendix B | 0 |
+| Table C.1 | Pre-registered mapping of mechanism | Appendix C | 0 |
+| Table E.1 | Off the shelf against written for this study | Appendix E | 0 |
+| Table E.2 | The fixed learner | Appendix E | 0 |
+| Table E.3 | Environment specification | Appendix E | 0 |
+| Table E.4 | The report-only exhibits, and what each guards | Appendix E | 0 |
+| Table E.5 | The inference machinery, and where each piece | Appendix E | 0 |
+| Table E.6 | The eleven reward-authoring models, with | Appendix E | 0 |
+| Table E.7 | The three-layer reproducibility statement | Appendix E | 0 |
+| Table E.8 | The four axes the lineage innovates on, and | Appendix E | 0 |
 
 <!-- TABLE C.1 WAS THE ONE REAL EXHIBIT MISSING FROM THIS LIST until 2026-08-10, and it could not have
      been added: `docs/analysis/exhibit_pages.py` matched a caption label only when a DIGIT followed

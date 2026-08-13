@@ -3,6 +3,227 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-13e] ★★★★★ WRITEUP — **EVERY EXHIBIT WORKED INDIVIDUALLY. THREE OF THEM WERE WRONG, NOT MERELY UNCLEAR.**
+
+**Session type:** figures only, in `docs/analysis/**`, `docs/figures/F_ch1_design.tex` and five
+`paper/*.md` captions. `src/**`, `scripts/**`, `config/**`, `prompts/**` untouched — freeze
+**MATCHES** (`3ca6f01a…`), reproducibility **8 pass / 0 warn / 0 fail**.
+
+**Trigger.** Tamer read the compiled PDF and reported the visualisations as weak and unclear, naming
+the three-dimensional cost surface: *"what is this 3d figure? I understand completely nothing from
+it."* Then, mid-pass: work each graph individually and deeply; make every figure carry clear
+information; the seed-dispersion panels are too small to read; and verify everything about the
+graphs as well. All nineteen exhibits were inspected as rendered images, one at a time.
+
+### 1. ⛔⛔⛔ THREE DEFECTS THAT WERE FACTUALLY WRONG, NOT STYLISTIC
+
+**(a) Figure 3.1 printed a tick labelled ZERO on a LOGARITHMIC axis. Twice.** `_plain_log_labels`
+in `render_f3_legible.py` set a `ScalarFormatter`, and its own docstring promised labels reading
+"0.1, 1, 10, 100". ScalarFormatter picks ONE precision for the whole axis from the tick range, and
+over 0.01 to 10000 that precision is zero decimals, so both sub-unit ticks printed as `0`. A log
+density axis cannot represent zero. Replaced with a per-tick `FuncFormatter`. **The docstring had
+described the intended behaviour for as long as the wrong behaviour had been shipping.**
+
+**(b) Figure 3.2 was titled "Walk-forward splits" and this study does not do walk-forward.** It runs
+ONE chronological partition. `CH4_methods.md:591` lists walk-forward re-selection in the
+*alternatives* column of the design-decisions table, and `config/preregistration.yaml` parks the
+parameters under `deferred_walk_forward`. So the first exhibit of Chapter 3 claimed a scheme the
+methods chapter says was declined. Retitled "One chronological split, with purge and embargo at each
+boundary". An examiner reading both would have found the document contradicting itself.
+
+**(c) Figure 7.1 left the treatment's own share unlabelled.** The stacked bar labelled three of four
+segments; the missing one was `arm` at 14.8 per cent, the quantity this dissertation exists to
+estimate. The suppressing rule was `if w > 20.0`, justified by a comment arguing that "14.8%" at 27 pt
+does not fit a 60 pt segment. Twenty-seven inside sixty leaves sixteen points of clearance each side.
+Replaced with a MEASURED fit: draw the label, read its rendered width back in data units, keep it
+inside if it clears both joins, otherwise move it above the bar with a tick. Every share is now
+labelled at every future value of the data and no threshold needs re-tuning.
+
+### 2. ⭐⭐⭐ THE COST SURFACE: A 3-D EXHIBIT REPLACED BY TWO FLAT PANELS, AND THE FIT REMOVED ENTIRELY
+
+Tamer's report was the only test that matters, and the diagnosis is structural rather than a tuning
+problem. **A projected height cannot be measured**, and the z-axis was drawn detached at the right
+margin, inches from the surface it scaled. **Colour and height carried the same variable.** The 55
+measured cells — the only real quantities in the panel — were squeezed into a band at the back-left
+edge where they read as specks, while a FITTED sheet dominated the canvas, and the gross fit
+generating half of that sheet has **R² = 0.38**. The exhibit gave a weak fit the visual authority of
+a measurement.
+
+**The replacement needs no fit at all, so the R² = 0.38 problem disappears rather than being
+disclosed.** Upper panel: one vertical spine per cell carrying its Sharpe at all five registered
+prices, the spine's LENGTH being what trading cost that cell. Lower panel: the price at which each
+cell breaks even, one division per cell. Both share the turnover axis.
+
+⭐ **And the flat form surfaced a law the surface had hidden.** The break-even price falls almost
+exactly in inverse proportion to turnover: **log-log slope −0.964 at r = −0.9962 over a 156-fold
+span**, from a cell trading 0.58 per cent of the book a session that survives to 1,098 bps down to
+one trading 83 per cent that dies at 7.9. Spans by price, all measured: 0 bps 0.335 with none losing
+money, 10 bps 1.498 with 2 of 55, 50 bps 6.639 with 15 of 55.
+
+### 3. ⭐⭐ FIGURE 5.4: THE STATED REASON FOR ELEVEN SEPARATE Y-AXES WAS REFUTED BY MEASURING IT
+
+The code argued for `sharey=False` because a shared axis would leave each tight panel "using the top
+fifth of its panel with four fifths empty". **Measured:** the global range is −0.905 to +1.647 and the
+share each line occupies runs deepseek 29%, haiku 37%, opus 38%, gpt 48%, kimi 61%, nemotron and
+qwen3.6 68%, glm 73%, sonnet 76%, qwen3.5 84%, gemini 96% — **median 68%, not one panel near a
+fifth.** The stated cost of sharing was roughly three times the real one.
+
+⚠ **And the cost of NOT sharing was severe and invisible.** Six panels autoscaled to 0.0/0.5/1.0/1.5
+and five to 0/1, so the eleven rulers *looked alike*. A reader comparing cloud heights would have
+been wrong with nothing on the page to warn them, on the exhibit that carries the
+capability-against-stability thread. Now one shared ruler, no point clipped, each panel printing its
+own median within-arm IQR (0.15 `kimi-k3` to 0.40 `glm-5.2`) for the distinctions too fine to see.
+Panels raised 1.50 → 1.86 in per row and markers 2.2 → 4.4 pt, because at 1.50 in the seed clouds
+collapsed into a smear six points deep — Tamer's "too small and not readable", confirmed by arithmetic.
+
+⚠ **The caption claimed something that was never written.** The code comment said "the caption states
+that the ranges differ". It did not. The load-bearing honesty clause for the whole design was absent.
+
+### 4. INTERNAL LABELS STRIPPED FROM THE EARLY SCHEMATICS (S10)
+
+**Figure 1.2**, roughly page fourteen, read `H2: tail-vector vs scalar (co-primary IUT vs ±SESOI)`
+over branches labelled TOST, lower-CI and MDE — six unglossed labels in the first schematic a marker
+meets, for a second marker who "may come from any discipline". Stefan hit exactly one such label in
+the exposé and said *"I don't understand what you mean."* Every branch is now written as what the
+interval has to DO, and the registered shorthand moved into the caption, so the mapping to the
+pre-registration is preserved and checkable. Its three diagonal connectors, each with a white patch
+knocked out of the middle to seat a label, became a proper elbow tree: nothing is drawn through a
+label. Also `env`→`environment`, `gen`→`generation` (4.1), `val`→`validation`, `DSR`→`deflated
+Sharpe` (3.2), `cvar_25`→`CVaR 25%` and `EW`→`equal-weighted` (3.1), and Figure 1.1's two
+`\MakeUppercase` section labels set to sentence case.
+
+⚠ **The content guard needed two new classes, and naming them honestly matters.** `assert_no_content_lost`
+is one-sided by design. `_RELOCATED_TO_CAPTION` says "stated elsewhere" and now also lists the F2
+shorthand VERBATIM as the canvas printed it. `_EXPANDED_ABBREVIATIONS` says "spelled out" and asserts
+the expansion is actually drawn, so it forgives an abbreviation and never a deletion.
+`_REMOVED_AS_INACCURATE` says the words should not have been there, and holds exactly one entry:
+"walk-forward".
+
+### 5. THE REST, AND WHAT WAS DELIBERATELY LEFT ALONE
+
+**5.7** the inset had two open spines and a 0.94 alpha patch, so it read as a stray second cloud
+rather than a magnification; closed grey frame, opaque fill, and `r = −0.994` added beside the slope,
+because a slope says nothing about how tightly eleven lines hold the relation. **6.4** a white casing
+under each median, so five overlapping paths stay countable; the terminal RANGE printed rather than a
+"within 0.53" phrase that invites the reader to hear tightness on a quarter of the result; and the
+caption's sharpest number, the −48.2 per cent worst line, pointed at with a leader, derived by argmin
+from the drawn data so the label can never drift. **4.2** caption given its missing middle third.
+
+**LEFT ALONE, each inspected and each for a reason:** 5.1, 5.2, 5.3, 5.5, 5.6, 5.8, 6.1, 6.3.
+⚠ **6.3's snake_case row labels were NOT prettified.** `return_minus_turnover` is this document's
+canonical name for that object, used in Table 4.5, CH7 prose and Appendix B, so renaming only the
+figure would breach the one-name rule (C1) and put the figure at odds with its own table. The
+LEAVE-ALONE discipline. ⚠ **6.3's top row was checked for a missing interval and has one**,
+[+1.1854, +1.2099]: genuinely narrow, because its turnover is 0.0083. ⚠ **3.1's σ labels were checked
+for mis-attachment and are exactly centred on their rules** — the apparent offset was my misreading
+of a rendered image, corrected by measuring the artists.
+
+### 6. ⚠ THE CROSSREF GATE WAS BUILT, AND IT ACCUSED THE DOCUMENT FOUR TIMES BEFORE IT WAS RIGHT
+
+CLAUDE.md 7a lists this gate and records that no committed script implements it. Written to the
+scratchpad, it reported: a duplicate `Table 5.9`, three orphaned figures, and a dangling
+`Listing 1.124`. **Every one was the instrument.** `Table 5.9b` is a separate sub-table the number
+regex swallowed. Figures 5.2, 5.4 and 5.6 are referenced as "Figures 5.1 and 5.2", "Figures 5.3 and
+5.4", "Figures 5.5 and 5.6", and the pattern needs a keyword immediately before a number so it saw
+the first of each pair and none of the rest. And `Listing 1.124` appears exactly once, inside an HTML
+comment that RECORDS THIS EXACT DEFECT being fixed on 2026-08-11 — the gate was reading the repair
+log as a live fault. Final: **49 exhibits, 0 dangling, 0 duplicate, 0 orphan.** The standing trap
+held: a surprising negative is a claim about your own measurement first, four times in one gate.
+
+### 7. VERIFIED
+
+130 pages · body **10,992 / 11,000** (unchanged: captions are word-excluded) · printed count equals
+measured · scorecard **28 of 28, 0 FAIL** · 0 em dashes, 0 semicolons, mean sentence 19.2, none over
+60 · crossref **CLEAN** · citations clean · freeze **MATCHES** · reproducibility **8/0/0** · rendered
+page **CLEAN** (0 overflows, 0 stray asterisks, 0 run-together words) · build 0 missing characters.
+Figures 5.4 and 6.2 checked on the compiled page: both sit with their captions, both legible at
+print size.
+
+### 8. ⚠ ONE REPRODUCIBILITY GAP CLOSED IN PASSING
+
+`docs/figures/F_ch1_design.tex` and its PDF were **untracked** — not ignored, simply never added — so
+the first exhibit a marker meets could not be regenerated by anyone. Both are now in version control,
+which is Priority 5 and was recorded as open in the previous pass.
+
+## [2026-08-13d] ★★★★★★★ RUN 30 (OPS) — **R30-5 ANSWERED: WE ARE RANK-LIMITED, NOT BLOCKED. AND A FALSE GREEN CLOSED — THE DEEP SCIENCE AUDIT NOW REACHES THE BOARD.**
+
+**Session type:** live cluster ops **plus one tested fix** in `docs/ops/` (NOT drift-fenced).
+`src/**`, `scripts/**`, `config/**`, `prompts/**` untouched — freeze **MATCHES**, drift **0** after.
+
+**1. ⭐⭐⭐ R30-5 IS CLOSED, AND ITS PREMISE WAS WRONG.** The standing question asked us to accumulate
+windows *longer than the dispatch burst period*. **No window length could ever have answered it,
+because every earlier window had an EMPTY eligible set** — the instrument's own report says
+`eligible by h_rt at A: {}` on each. **We were measuring our own holds, not the scheduler.** With the
+queue finally deep:
+
+```
+window 1.97 h   eligible at A: {'162000': 225}   DISPATCHED 19   lambda = 9.62/h   running 32 -> 51
+```
+
+**Derivation 1 — placement is not blocked, by positive control.** All 19 dispatches are
+`h_rt=162000`, i.e. exactly the 45 h / 24-spec / 8-core shape alleged to be unplaceable. **A blocked
+shape yields zero placements, not nineteen.** **Derivation 2 — capacity is not binding, independent
+instrument.** `qstat -g c` the same minute: `Bran USED 7989 RES 0 AVAIL 3242 TOTAL 12580`. Our whole
+202-job eligible queue would consume **1,616 slots**, so free capacity is **twice** what we could
+absorb. ⇒ **The meter is FAIR-SHARE RANK**, against 3,356 cluster-wide pending and 2,009 running.
+⚠ **Honest bound: 9.62/h was measured 23:32-01:32Z, BEFORE the 03:00-08:00Z window where
+`hold_ids.sh` records ~40 jobs/h. That is the CONTENDED rate, not our ceiling.**
+
+**2. ✅ THE `leg10` RE-HOLD WORKED, AND THE EFFECT IS ONE COLUMN WIDE.** `leg1` (owes 24 at rung 279,
+120 at 340) went **running 5 → 22, taking 17 of the 19 dispatches**; `leg10` (banked 340, owes zero at
+both live rungs) took **none** and stayed frozen at its 8 committed jobs. ⇒ **The id-order lever is
+confirmed in both directions: last pass it cost us 8 dispatches, this pass it bought us 17.**
+**Allocative efficiency stated rather than implied:** 38 of 51 running jobs (**75%**) sit on the three
+lines owing rung 279; with `leg3` and `c1`'s repair it is **43/51 = 84%**; the residual 16% is
+`leg10`'s already-committed work, which will not be touched.
+
+**3. ⛔⛔⛔ A FALSE GREEN, FOUND AND FIXED.** The deep science audit failed **twice tonight** —
+`record_science_audit rc=99` at **00:56:28Z** and **01:17:55Z**, the second on a cycle whose own
+`sweep=899.1s` shows the contention that causes it — and **`CYCLE_LOG.md` printed `sci=OK` on both
+rows**. Located in code rather than guessed: `_results_layer` stores the return code as
+`science["record_science_rc"]` (`cycle.py:1603`) and **`_sci_token` never read that key**, judging only
+the `sw_*`/`ra_*` archive-shape invariants.
+⇒ ⭐ **This is P230 exactly, one level further out.** P230 fixed *"a cycle whose science layer produced
+nothing printed `sci=OK`"* for the sweep layer and the function's docstring states **"`OK` must be
+able to mean exactly one thing"** — **the deep audit was outside that fence the whole time.** The two
+layers are not substitutes: `sw_*`/`ra_*` check archive SHAPE, S1-S9 check whether a record is
+scientifically SOUND (test length, training budget, degenerate series, determinism breach). ⚠ **ATTN
+lines land in `ALERTS.txt`; `sci=` is what `CYCLE_LOG.md` carries, and that is the file a session is
+instructed to read FIRST.** Third recurrence of that asymmetry.
+
+**THE FIX, test-first and mutation-proven.** (a) **Falsifying cases S1-S6 written FIRST and proven to
+fail: 35/39 pre-fix**, with S1/S2/S3/S5b failing — the live 01:17:55Z state reproduced. (b) `_sci_token`
+now reads `record_science_rc` **after** the existing branches so **no existing token string changes**:
+`rc == 1` → `!record_science_audit`; `rc` neither 0 nor None → `BLIND(deep_audit_rc=<rc>)`;
+`rc is None` → `BLIND(deep_audit)`. **A CACHED `rc=0` stays `OK`** — the rate limiter throttles the
+WORK, never the VERDICT (P298/P301). (c) The `all_zero()` fixture now carries `record_science_rc = 0`
+**deliberately**: leaving it absent would have made the healthy fixture assert that *"never audited"*
+reads clean, the very defect these cases close. (d) **Post-fix 39/39, rc 0.** (e) **Mutation 3 of 3
+caught** — `rsa is not None and rsa != 0` (absent-reads-clean) → 38/39 via S3; `rsa == 2`
+(breach folded into blindness) → 38/39 via S2; `rsa = 0` (key never read, the pre-fix state) → 35/39
+via S1/S2/S3/S5b.
+⭐ **S2 is the case worth keeping: it asserts the SHAPE (`!record_science_audit`), not merely
+"not OK"** — a mutation folding a breach into blindness keeps the board non-green while telling the
+reader the audit *could not look*, a different fact the weaker assertion would have missed.
+✅ **`session_preflight.check_cycle_log` compares `sci == "OK"` by equality, so every new token
+degrades that row to FAIL automatically. The fix propagates without further work.**
+
+**4. ⚠ AN ERROR OF MY OWN, RECORDED RATHER THAN DROPPED.** An ad-hoc one-liner counting `result.json`
+under `outputs/campaign_cluster_run4` returned **0 records**. **The glob is wrong, not the archive** —
+the authoritative instrument reads 33,079. A surprising negative is a claim about my own script first,
+and this one was. The number was not used anywhere.
+
+**BOARD.** COMMON RUNG **189** · 279 needs **144** · 340 needs **536** · 403 needs **2688** · records
+**33,079** (+0, correct between waves on an all-45 h fleet) · **cores 408**, `r=51` · eligible **202** ·
+`hqw` = 51 `c1` + 13 `leg10` + 2 dead probes · 319 rows · guard **OK** · `line_balance` **CLEAN**.
+**Capacity against the stop ~14,584 trainings**, from ~9,151 and ~7,047 on the two prior passes.
+**S15 not re-run: `records` unchanged at 33,079, so its input is byte-identical and a re-run cannot
+differ** — the measured holes stand at nemotron **74**, glm **29**, deepseek **25** = **128 of the 144
+owed**. **`loader_collision_watch` rc=1 unchanged and EXPECTED**: 2,840 shared `(arm, seed)` cells is
+what R101 lockstep means; the teardown exposure is a registered deferred fix. **STEP 3b:** probes
+110358-110363 absent from all 319 rows, verdict unchanged, nothing deleted. **No new truncated
+rounds.** Ledger **R30-235..238** (238 entries).
+
 ## [2026-08-13c] EVERY EXHIBIT INSPECTED AS AN IMAGE, AND THE REGISTER MEASURED AGAINST ITS TARGET
 
 **Two instructions from Tamer: make every visualisation clear, clean and accurate, and make the prose

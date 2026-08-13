@@ -155,7 +155,28 @@ def _panel_tag(ax: Any) -> str:
 #: The hyphenated form carries exactly the same referent, at one size, and is the convention the figure
 #: suite already uses: this very panel's callouts read ``cvar_25``/``cvar_01`` and F1's box reads
 #: "CVaR 1/5/10/25%". Revert this one entry to restore the subscript, at the cost of two 7 pt glyphs.
-_LABEL_FIXES = {"realized": "realised", "CVaR$_\\alpha$": "CVaR-α"}
+#: ``cvar_25`` -> ``CVaR 25%`` (and 10/05/01). These four are marker callouts on panel (b) and they
+#: printed the pre-registration's INTERNAL KEY on the face of a figure a marker meets in Chapter 3.
+#: `config/preregistration.yaml: tail_diagnostics.cvar_levels` is where that spelling belongs; a
+#: reader of the document needs the quantity, not the dictionary key that holds it. The prefix used
+#: to find these callouts elsewhere in this module is :data:`_CALLOUT_PREFIX`, which must track the
+#: replacement text: two code paths select them by prefix, one to place them and one to exempt them
+#: from wrapping, and a rename that missed either would silently stop treating them as callouts.
+#:
+#: ``EW`` -> ``equal-weighted`` and ``vol`` -> ``volatility``. The second marker may come from any
+#: discipline, and neither contraction saves a line of space once the label is re-wrapped.
+_LABEL_FIXES = {
+    "realized": "realised",
+    "CVaR$_\\alpha$": "CVaR-α",
+    "cvar_25": "CVaR 25%", "cvar_10": "CVaR 10%", "cvar_05": "CVaR 5%", "cvar_01": "CVaR 1%",
+    "observed (EW daily)": "observed, equal-weighted",
+    "EW portfolio daily return": "Equal-weighted portfolio, daily return",
+    "realised vol (annualised %)": "realised volatility (annualised %)",
+}
+
+#: The text every panel-(b) marker callout now begins with. Kept beside :data:`_LABEL_FIXES` because
+#: the two must change together.
+_CALLOUT_PREFIX = "CVaR "
 
 
 def correct_labels(fig: Any) -> dict[str, int]:
@@ -307,7 +328,7 @@ def resolve_collisions(fig: Any) -> None:
                 t.set_position((t.get_position()[0], base + dy))
                 t.set_va("bottom")
         elif tag == "b":
-            callouts = sorted((t for t in ax.texts if t.get_text().startswith("cvar_")),
+            callouts = sorted((t for t in ax.texts if t.get_text().startswith(_CALLOUT_PREFIX)),
                               key=lambda t: t.xy[0])
             if len(callouts) >= 2:
                 callouts[-1].set_ha("left")        # largest α = the LEFT end (the axis is inverted)
@@ -352,14 +373,24 @@ def _plain_log_labels(axis: Any) -> None:
     the same values, at one size, and read better at this scale. An axis whose labels were fixed by the
     author (panel (b) sets its own) is left alone.
     """
-    from matplotlib.ticker import LogFormatter, NullFormatter, ScalarFormatter
+    from matplotlib.ticker import FuncFormatter, LogFormatter, NullFormatter
 
     if not isinstance(axis.get_major_formatter(), LogFormatter):
         return  # a FixedFormatter or anything bespoke: the author chose these labels, keep them
-    fmt = ScalarFormatter()
-    fmt.set_scientific(False)
-    fmt.set_useOffset(False)
-    axis.set_major_formatter(fmt)
+
+    # ⛔ NOT ScalarFormatter, AND THE DIFFERENCE WAS A WRONG LABEL ON THE PAGE RATHER THAN AN
+    # AESTHETIC ONE. This function used `ScalarFormatter(scientific=False)` and its own docstring
+    # promised "0.1, 1, 10, 100". ScalarFormatter picks ONE precision for the whole axis from the
+    # tick range, and over 0.01 to 10000 that precision is zero decimal places, so the two sub-unit
+    # ticks both printed as "0". Panel (a) shipped in the compiled PDF with a tick labelled ZERO on
+    # a LOGARITHMIC DENSITY AXIS, twice, which is not a rounding infelicity: it is a value the axis
+    # cannot represent. Formatting each tick on its own terms is what the docstring always claimed.
+    def _tick(v: float, _pos: int) -> str:
+        if v <= 0.0:
+            return ""            # unreachable on a log axis, and a silent "" beats a false "0"
+        return f"{v:.0f}" if v >= 1.0 else f"{v:g}"
+
+    axis.set_major_formatter(FuncFormatter(_tick))
     axis.set_minor_formatter(NullFormatter())
 
 
@@ -431,10 +462,10 @@ def enlarge(fig: Any) -> Any:
             title_budget = min(ax_w * TITLE_WIDTH_FACTOR, fig_w - ax_x0 - 6.0)
             for t in _titles(ax):
                 t.set_text(wrap_to_width(fig, originals[id(t)][1], size=BODY_PT, max_pt=title_budget))
-            has_callouts = any(t.get_text().startswith("cvar_") for t in ax.texts)
+            has_callouts = any(t.get_text().startswith(_CALLOUT_PREFIX) for t in ax.texts)
             annot_w = ax_w * (CALLOUT_PANEL_ANNOT_FACTOR if has_callouts else ANNOT_WIDTH_FACTOR)
             for t in ax.texts:
-                if t.get_text().startswith("cvar_"):
+                if t.get_text().startswith(_CALLOUT_PREFIX):
                     continue                     # a marker callout, not a block: never wrapped
                 t.set_text(wrap_to_width(fig, originals[id(t)][1], size=BODY_PT, max_pt=annot_w))
             # The y-label runs along the axes HEIGHT, so that -- not the width -- is its budget.

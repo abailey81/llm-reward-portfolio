@@ -1,18 +1,43 @@
 # -*- coding: utf-8 -*-
-"""The registered transaction-cost grid as a response surface, in three dimensions.
+"""The registered transaction-cost grid, drawn flat, in two panels that share one axis.
 
-WHY THIS EXHIBIT IS THREE-DIMENSIONAL, AND WHY THAT IS NOT DECORATION. A three-dimensional scatter
-is almost always worse than two two-dimensional ones, because a reader cannot read a value off a
-projected axis. This exhibit is not a scatter. It is a RESPONSE SURFACE over two genuinely
-independent inputs, how heavily a policy trades and what trading costs, and the thing it shows is the
-SHAPE of that surface: flat along the cost axis where turnover is low, and plunging where turnover is
-high. That shape is the mechanism of this dissertation, and it cannot be drawn in one plane, because
-each of the 55 cells has its own curve and the point is how those curves fan out.
+⛔ THIS WAS A THREE-DIMENSIONAL SURFACE UNTIL 2026-08-13 AND THE SURFACE WAS THE DEFECT. Tamer read
+the compiled exhibit and reported that he understood nothing from it, which is the only test that
+matters, and the diagnosis is not a matter of taste. Four things were wrong at once, and each of
+them is structural rather than a tuning problem:
 
-⚠ THE EXISTING 3-D FIGURES IN THE REPOSITORY ARE NOT USABLE AND THIS ONE REPLACES THEM.
-`F_risk_return_generation_3d` carries a red banner reading "SYNTHETIC DEMO DATA - NOT RESULTS", is an
-unreadable point cloud, and its title overprints the banner. Wiring it would be a defect. This module
-reads the sealed archive.
+  1. **A projected height cannot be measured.** The z-axis was drawn detached at the right margin,
+     several inches from the surface it scaled, so the one question the exhibit existed to answer,
+     "what does this cell earn", had no answer a reader could read off. The old docstring conceded
+     this in its own first sentence and then argued the shape excused it. It does not.
+  2. **Colour and height carried the SAME variable**, so two thirds of the ink encoded one number
+     while the two-patch legend implied a categorical scale the continuous ramp did not have.
+  3. **The measured data were invisible.** The 55 cells were the only real quantities in the panel
+     and they were squeezed into a thin band at the back-left edge where they read as a line of
+     specks, while a FITTED sheet dominated the canvas. The gross fit that generated more than half
+     of that sheet has R2 = 0.38. The exhibit gave a weak fit the visual authority of a measurement.
+  4. **The floor contour was a second coloured object in a second plane**, and nothing told the
+     reader how it related to the first.
+
+WHAT REPLACES IT, AND WHY THE REPLACEMENT NEEDS NO FIT AT ALL. Both panels are exact arithmetic on
+measured cells. Nothing is smoothed, so the R2 = 0.38 problem disappears rather than being disclosed.
+
+  **Upper panel, the fan.** One vertical spine per cell, carrying that cell's Sharpe at all five
+  registered prices. At the left, where a policy trades under one per cent of the book a session,
+  the five prices land on top of one another and the spine is a dot. At the right the same spine is
+  a streak several Sharpe units long. The fan IS the mechanism, and the reader sees it in one look.
+
+  **Lower panel, the practitioner's threshold.** How dear trading would have to become before each
+  cell stopped paying, which is one division per cell and answers the only question a desk asks.
+  Measured, it falls almost exactly in inverse proportion to turnover: log-log slope -0.964 at
+  r = -0.996 over a 156-fold span.
+
+Both panels share the turnover axis, so a cell sits at the same horizontal position in each and the
+two views can be read against one another.
+
+⚠ THE OTHER 3-D FIGURES IN THE REPOSITORY ARE NOT USABLE EITHER. `F_risk_return_generation_3d`
+carries a red banner reading "SYNTHETIC DEMO DATA - NOT RESULTS", is an unreadable point cloud, and
+its title overprints the banner. Wiring it would be a defect. This module reads the sealed archive.
 
 HOW THE REPRICING IS DONE, AND WHY IT NEEDS NO RETRAINING. Cost is charged after the action, so the
 gross return series is cost-independent and every cell can be repriced arithmetically. For a cell
@@ -174,17 +199,41 @@ def fit_surface(cells: list[dict[str, float | str]]) -> tuple[Any, Any, float, f
     return g_coef, d_coef, g_r2, d_r2, float(lx.min()), float(lx.max())
 
 
+def facts(cells: list[dict[str, float | str]]) -> dict[str, object]:
+    """Every number the exhibit annotates, computed from the cells rather than remembered.
+
+    A figure that prints a measured quantity must derive it at draw time. Hard-coding "0.34" into a
+    label is how a caption goes stale in silence when the archive is regenerated, and this suite has
+    already lost a printed count that way once.
+    """
+    tau = np.array([float(c["turnover"]) for c in cells]) * 100.0
+    gross = np.array([float(c["gross"]) for c in cells])
+    net10 = np.array([float(c["net10"]) for c in cells])
+    drag = gross - net10
+    priced = {b: gross - (b / HEADLINE_BPS) * drag for b in GRID_BPS}
+    # The cost at which each cell exactly breaks even. Sharpe is linear in the price, so this is one
+    # division: S(c) = 0 at c = 10 * gross / drag. Exact, per cell, no fit.
+    breakeven = HEADLINE_BPS * gross / drag
+    lt, lb = np.log10(tau), np.log10(breakeven)
+    slope, intercept = np.polyfit(lt, lb, 1)
+    return {
+        "tau": tau, "gross": gross, "net10": net10, "priced": priced, "breakeven": breakeven,
+        "span": {b: float(v.max() - v.min()) for b, v in priced.items()},
+        "losers": {b: int((v < 0.0).sum()) for b, v in priced.items()},
+        "tau_ratio": float(tau.max() / tau.min()),
+        "be_slope": float(slope), "be_intercept": float(intercept),
+        "be_r": float(np.corrcoef(lt, lb)[0, 1]),
+        "gross_r": float(np.corrcoef(lt, gross)[0, 1]),
+    }
+
+
 def build(out: Path = FIG_DIR) -> Path:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    worst = validate()
-    cells = _cells()
-    bps = np.linspace(0.0, 50.0, 26)
-
     from docs.analysis.figure_typeface import use_document_typeface
-    from src.viz.style import apply_house_style
+    from src.viz.style import OKABE_ITO, apply_house_style
     apply_house_style()
     use_document_typeface()   # the body typeface, so the exhibit matches the page it sits on
     matplotlib.rcParams.update({
@@ -193,146 +242,150 @@ def build(out: Path = FIG_DIR) -> Path:
         "figure.constrained_layout.use": False, "savefig.bbox": "tight",
     })
 
-    g_coef, d_coef, g_r2, d_r2, lo, hi = fit_surface(cells)
+    worst = validate()
+    cells = _cells()
+    f = facts(cells)
+    tau, gross, priced, be = f["tau"], f["gross"], f["priced"], f["breakeven"]
 
-    # ⛔ A SURFACE, NOT FIFTY-FIVE RIBBONS. The first version of this exhibit drew one thin line per
-    # cell, which is a bundle of curves rather than a response surface: the eye cannot integrate 55
-    # overlapping strands into a shape, the strands hide one another wherever they cross, and the
-    # thing the figure exists to show is precisely the SHAPE. It is drawn as a shape now, and the 55
-    # measured cells sit on top of it as points, so the fit is shown together with its residuals
-    # rather than asserted.
-    fig = plt.figure(figsize=(FIG_WIDTH_IN, 5.15))
-    ax = fig.add_subplot(111, projection="3d", computed_zorder=False)
+    # The two functions of turnover are still FITTED and PRINTED, and the contrast between them is
+    # the whole finding: the drag tracks turnover at R2 = 0.99 while the gross Sharpe barely depends
+    # on it. Nothing is DRAWN from either fit any more, which is what retires the R2 = 0.38 problem.
+    _, _, g_r2, d_r2, _, _ = fit_surface(cells)
 
-    gx = np.linspace(lo, hi, 90)
-    gy = np.linspace(0.0, 50.0, 60)
-    X, Y = np.meshgrid(gx, gy)
-    Z = np.polyval(g_coef, X) - (Y / HEADLINE_BPS) * (10.0 ** np.polyval(d_coef, X))
+    # ⚠ ONE COLOUR PER PRICE, ORDERED LIGHT TO DARK, AND THE ORDER IS THE POINT. A reader must be
+    # able to say which marker is the dearest price without consulting the legend, so the ramp is
+    # monotone in the quantity it encodes. The 0 bps marker is hollow, which is the convention the
+    # rest of this figure suite already uses for "gross of costs" (see F5_gross_vs_net).
+    price_face = {0.0: "white", 5.0: "#FDBB84", 10.0: "#E34A33", 25.0: "#B30000", 50.0: "#4D0000"}
+    price_edge = {0.0: "0.30", 5.0: "0.35", 10.0: "white", 25.0: "white", 50.0: "white"}
 
-    zmin = -5.2
-    Zc = np.clip(Z, zmin, None)
-    # ⚠ A DIVERGING MAP CENTRED ON ZERO, NOT A SEQUENTIAL ONE. `viridis` runs dark-to-bright and
-    # encodes MAGNITUDE, so the one thing a reader of this surface actually needs -- does this cell
-    # make money or lose it -- was carried by height alone and had to be read off a projected axis.
-    # A diverging map pinned at zero puts the answer in the colour: everything warm is a loss.
-    # TwoSlopeNorm is what pins it; a plain Normalize would put the neutral tone at the midpoint of
-    # the RANGE, which here is about -1.8 Sharpe and would paint profitable cells as losses.
-    from matplotlib.colors import TwoSlopeNorm
-    cmap = plt.get_cmap("RdYlBu")
-    zmax = float(np.nanmax(Z))
-    norm = TwoSlopeNorm(vmin=zmin, vcenter=0.0, vmax=max(zmax, 0.05))
-    # !! `cmap=`/`norm=`, NOT `facecolors=`. Passing pre-computed face colours and then calling
-    # `set_facecolor` to suppress the solid fallback renders the whole surface BLACK on matplotlib
-    # 3.11: the second call overwrites the per-face array it was meant to preserve. Handing the
-    # colormap to the artist is the supported route and the one that actually colours the faces.
-    ax.plot_surface(X, Y, Zc, cmap=cmap, norm=norm, rstride=1, cstride=1,
-                    linewidth=0, antialiased=True, alpha=0.97, shade=False, zorder=2)
+    from matplotlib import gridspec
+    fig = plt.figure(figsize=(FIG_WIDTH_IN, 6.95))
+    gs = gridspec.GridSpec(2, 1, height_ratios=(1.32, 1.00), hspace=0.16,
+                           left=0.125, right=0.985, top=0.915, bottom=0.115)
+    ax = fig.add_subplot(gs[0])
+    bx = fig.add_subplot(gs[1], sharex=ax)
 
-    # ⭐ THE FLOOR MAP IS THE ADDITION THAT MAKES THIS EXHIBIT READABLE, AND IT IS THE PART A
-    # PRACTITIONER USES. A surface shows a shape; it does not let anyone read a value off it,
-    # because a projected height cannot be measured by eye. Projecting the iso-Sharpe contours onto
-    # the floor turns the same object into a MAP of the (turnover, cost) plane: the reader can put a
-    # finger on a turnover, run it along to a cost, and see which band they are standing in. The
-    # thick line is the break-even locus, which is the answer to the only question a desk asks of
-    # this figure -- how much trading a given cost regime will pay for.
-    ax.contourf(X, Y, Zc, levels=np.linspace(zmin, max(zmax, 0.05), 22), cmap=cmap, norm=norm,
-                zdir="z", offset=zmin, alpha=0.55, zorder=0)
-    ax.contour(X, Y, Zc, levels=[-2.0, -1.0, -0.5], colors="0.35", linewidths=0.5,
-               linestyles=":", zdir="z", offset=zmin, zorder=1)
-    ax.contour(X, Y, Zc, levels=[0.0], colors="0.10", linewidths=1.6,
-               zdir="z", offset=zmin, zorder=1)
+    # ---------------------------------------------------------------- upper panel: the fan
+    # ⭐ THE SPINE IS THE EXHIBIT. Each cell contributes one vertical line running from its dearest
+    # price to its cheapest, and the LENGTH of that line is what trading cost that cell. At the left
+    # the line is shorter than the marker and reads as a dot; at the right it is several Sharpe units
+    # long. Nothing else in this study makes the mechanism visible in a single glance.
+    for i in range(tau.size):
+        col = [priced[b][i] for b in GRID_BPS]
+        ax.plot([tau[i], tau[i]], [min(col), max(col)], color="0.78", lw=0.8, zorder=1,
+                solid_capstyle="round")
+    for b in GRID_BPS:
+        ax.scatter(tau, priced[b], s=27.0 if b == HEADLINE_BPS else 21.0,
+                   facecolors=price_face[b], edgecolors=price_edge[b], linewidths=0.55,
+                   zorder=4 if b == HEADLINE_BPS else 3, label=f"{b:g}")
 
-    # The zero-Sharpe contour, on the surface itself. This is the line a practitioner reads: on
-    # its far side the cell has stopped paying for the trading it does.
-    cs = ax.contour(X, Y, Zc, levels=[0.0], colors="white", linewidths=1.8, zorder=3)
-    ax.contour(X, Y, Zc, levels=[0.0], colors="0.15", linewidths=0.7, zorder=4)
+    ax.axhspan(-7.0, 0.0, color=OKABE_ITO["vermillion"], alpha=0.045, lw=0, zorder=0)
+    ax.axhline(0.0, color="0.15", lw=1.1, zorder=2)
+    # ⚠ THIS LABEL SITS ON THE LEFT, AND THE SIDE IS NOT ARBITRARY. On the right it printed straight
+    # through the two heaviest-trading spines, which are the only cells that cross the line and
+    # therefore the only ones a reader looks at here.
+    ax.text(0.012, 0.0, " break even", transform=ax.get_yaxis_transform(), ha="left",
+            va="bottom", fontsize=8.8, color="0.30", zorder=6)
 
-    # THE PRICE THIS STUDY ACTUALLY CHARGES, drawn as a rib across the surface. Every number in
-    # Chapters 5 and 6 is a reading taken along this one line, and until it was drawn the reader had
-    # no way to see where on the surface the whole dissertation lives.
-    ridge = np.polyval(g_coef, gx) - (HEADLINE_BPS / HEADLINE_BPS) * (10.0 ** np.polyval(d_coef, gx))
-    ax.plot(gx, np.full_like(gx, HEADLINE_BPS), np.clip(ridge, zmin, None),
-            color="0.10", lw=1.6, ls=(0, (4, 1.6)), zorder=6)
+    # ⭐ THE LEGEND AND THE TAKEAWAY BOTH LIVE BELOW THE ZERO LINE ON THE LEFT, AND THAT WHOLE
+    # QUADRANT IS EMPTY BY CONSTRUCTION rather than by luck: a cell that barely trades cannot lose
+    # money to trading costs, at any price on the grid. Nothing will ever be drawn there.
+    leg = ax.legend(loc="upper left", bbox_to_anchor=(0.012, 0.745), ncol=1, frameon=False,
+                    fontsize=9.0, handletextpad=0.35, labelspacing=0.34, borderpad=0.0,
+                    title="price charged\n(bps each way)")
+    leg.get_title().set_fontsize(9.0)
+    leg.get_title().set_color("0.30")
+    leg.get_title().set_multialignment("left")
 
-    # The 55 measured cells, at the two costs the archive actually holds: 0 bps (the gross series)
-    # and the headline 10 bps. Everything between and beyond is the arithmetic the module validated.
-    tx = np.log10(np.array([float(c["turnover"]) for c in cells]) * 100.0)
-    ax.scatter(tx, np.zeros_like(tx), [float(c["gross"]) for c in cells],
-               s=9, c="white", edgecolors="0.20", linewidths=0.5, depthshade=False, zorder=5)
-    ax.scatter(tx, np.full_like(tx, HEADLINE_BPS), [float(c["net10"]) for c in cells],
-               s=9, c="0.12", edgecolors="white", linewidths=0.4, depthshade=False, zorder=5)
+    ax.text(0.145, 0.055,
+            f"Before costs the {tau.size} cells sit in a band {f['span'][0.0]:.2f} Sharpe wide.\n"
+            f"Charge 50 bps and the same cells span {f['span'][50.0]:.2f}, and {f['losers'][50.0]} "
+            f"of {tau.size} lose money.\nTrading buys nothing before costs. It only ever costs.",
+            transform=ax.transAxes, ha="left", va="bottom", fontsize=9.3, color="0.20",
+            linespacing=1.45, zorder=6)
+    ax.set_ylim(-6.5, 1.62)
+    ax.set_ylabel("Sharpe, net of the price charged\n(annualised)")
+    ax.set_title("Every cell priced five times over, one spine per cell", fontsize=10.5, pad=4)
+    ax.tick_params(labelbottom=False)
 
-    # Short axis labels. A 3-D axis label is drawn along a projected edge, so a long one sweeps
-    # across the panel and lands on whatever is behind it; the units live in the caption instead.
-    ax.set_xlabel("turnover per session (% of book)", labelpad=8)
-    ax.set_ylabel("cost (bps each way)", labelpad=6)
-    # ⛔ NOT A BARE "Sharpe". R4 is explicit that every Sharpe in the document states whether it is
-    # gross or net, and this axis is the one place where the answer is neither constant nor obvious:
-    # the surface is the SAME cell repriced along the cost axis, so its z is gross at the 0 bps edge
-    # and net of a different charge at every other point. "Sharpe" alone invites the reader to take
-    # the whole surface as one condition, which is the exact error R4 was written to stop.
-    ax.set_zlabel("Sharpe, net of that cost (annualised)", labelpad=-2)
-    # ⚠ TICKS AT ROUND NUMBERS, NOT AT ROUND LOGARITHMS. Spacing the ticks evenly in log space
-    # printed "3.16228" and "31.6228", which is a decade root and not a quantity anyone reads.
-    # The positions are the logarithms of 1, 3, 10, 30 and 90 instead.
-    decades = [v for v in (0.5, 1, 3, 10, 30, 90) if lo - 0.02 <= np.log10(v) <= hi + 0.02]
-    ax.set_xticks([np.log10(v) for v in decades])
-    ax.set_xticklabels([f"{v:g}" for v in decades])
-    # 5 is dropped from the printed ticks. The registered grid is 0/5/10/25/50 and all five are
-    # drawn, but at this view angle the 0, 5 and 10 labels land within a few points of one another at
-    # the near corner and printed as "0 5 10" run together. The grid itself is stated in the caption.
-    ax.set_yticks([b for b in GRID_BPS if b != 5.0])
-    ax.set_zlim(zmin, 1.6)
-    ax.view_init(elev=24, azim=-56)
-    ax.set_box_aspect((1.35, 1.00, 0.70))
-    ax.tick_params(pad=1.5)
-    # ⚠ THE PANES ARE MADE WHITE AND THE GRID FAINT, WHICH IS NOT DECORATION. Matplotlib's 3-D
-    # default fills all three panes with a tinted grey and draws a heavy grid on each, so a coloured
-    # surface sits inside a grey box that competes with it for attention and prints muddy. White
-    # panes with a hairline grid put every unit of contrast on the data, which is what the rest of
-    # the figure suite already does in two dimensions.
-    for pane_axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-        pane_axis.set_pane_color((1.0, 1.0, 1.0, 1.0))
-        pane_axis.pane.set_edgecolor("0.85")
-        pane_axis.pane.set_linewidth(0.6)
-        pane_axis._axinfo["grid"].update(color="0.88", linewidth=0.5)
-    ax.set_title("The cost surface: what every cell earns at every price of trading",
-                 fontsize=11, y=0.99)
+    # ---------------------------------------------------------------- lower panel: the threshold
+    # ⭐ EXACT, NOT FITTED. Sharpe is linear in the price, so the price at which a cell breaks even
+    # is one division. This panel answers the only question a trading desk asks of the whole
+    # chapter, and it answers it per cell rather than through a model.
+    xs = np.array([tau.min() * 0.72, tau.max() * 1.30])
+    bx.fill_between(xs, 3.0, HEADLINE_BPS, color=OKABE_ITO["vermillion"], alpha=0.10, lw=0, zorder=0)
+    # ⛔ THE OTHER REGISTERED GRID LEVELS ARE NOT DRAWN HERE, AND LEAVING THEM OUT IS THE FIX. Faint
+    # rules at 5, 25 and 50 bps carried no label a reader could decode, so they read as unexplained
+    # furniture on a panel whose whole virtue is that every mark means something. The grid is stated
+    # in the caption and drawn, colour-coded, in the panel above.
+    bx.plot(xs, 10.0 ** (f["be_intercept"] + f["be_slope"] * np.log10(xs)),
+            color="0.45", lw=1.0, ls=(0, (5, 2)), zorder=2)
+    bx.axhline(HEADLINE_BPS, color="0.15", lw=1.3, zorder=3)
+    bx.scatter(tau, be, s=26, facecolors=OKABE_ITO["blue"], edgecolors="white", linewidths=0.45,
+               alpha=0.92, zorder=4)
 
-    # ⛔ THE SEPARATE COLOURBAR IS GONE, AND REMOVING IT IS THE FIX RATHER THAN A SIMPLIFICATION.
-    # It was labelled "Sharpe (annualised)" and stood beside a z-axis labelled "Sharpe", so the
-    # panel carried the SAME quantity on two different scales, in two different places, one of them
-    # floating unattached in the left margin. Two scales for one variable is a reader's problem, not
-    # a completeness virtue. The colour now says one thing the height cannot say at a glance, the
-    # SIGN, and the legend below states that in words.
-    # The marker classes, the contour and the ridge are named here rather than on the canvas: a 3-D
-    # axes has no empty corner that stays empty when the view angle changes.
-    import matplotlib.lines as mlines
-    import matplotlib.patches as mpatches
-    fig.legend(handles=[
-        mlines.Line2D([], [], ls="", marker="o", ms=4.5, mfc="white", mec="0.20",
-                      label="a measured cell, gross (0 bps)"),
-        mlines.Line2D([], [], ls="", marker="o", ms=4.5, mfc="0.12", mec="white",
-                      label="the same cell at 10 bps"),
-        mlines.Line2D([], [], color="0.10", lw=1.6, ls=(0, (4, 1.6)),
-                      label="the 10 bps price this study charges"),
-        mlines.Line2D([], [], color="0.10", lw=1.6, label="break even, zero Sharpe"),
-        mpatches.Patch(facecolor=cmap(norm(-3.0)), edgecolor="none", label="loses money"),
-        mpatches.Patch(facecolor=cmap(norm(1.0)), edgecolor="none", label="makes money"),
-    ], loc="lower center", ncol=3, frameon=False, fontsize=9.6, bbox_to_anchor=(0.5, 0.005))
-    # The 3-D axes is stretched to fill the canvas by hand. A projected cube leaves large empty
-    # wedges at two corners whatever the view angle, so leaving the default position wastes roughly a
-    # third of the figure; `bbox_inches="tight"` then crops the page rather than the axes and the
-    # exhibit arrives on the page smaller than it needs to be.
-    ax.set_position((0.03, 0.06, 0.99, 0.90))
+    # ⚠ EVERY LABEL IN THIS PANEL IS PLACED AGAINST THE DATA'S OWN SHAPE, NOT BY EYE. The cloud runs
+    # from upper left to lower right along a slope of -1, so exactly two large regions stay empty at
+    # every redraw: the wedge above the cloud on the RIGHT, and the strip below the 10 bps line. The
+    # first version put the takeaway bottom-left and the price label bottom-right, and both printed
+    # straight through the line they were describing.
+    bx.text(0.012, HEADLINE_BPS, " 10 bps, the price this study charges",
+            transform=bx.get_yaxis_transform(), ha="left", va="bottom", fontsize=8.8, color="0.20",
+            zorder=6)
+    bx.text(0.985, 0.955,
+            f"Only {f['losers'][10.0]} of {tau.size} cells break even below the price\n"
+            f"this study charges. The threshold falls almost exactly\n"
+            f"in proportion to turnover: log-log slope {f['be_slope']:.2f}, r = {f['be_r']:.3f}.",
+            transform=bx.transAxes, ha="right", va="top", fontsize=9.3, color="0.20",
+            linespacing=1.45, zorder=6)
+
+    i_hi, i_lo = int(np.argmax(be)), int(np.argmin(be))
+    bx.annotate(f"{tau[i_hi]:.2f}% a session survives to {be[i_hi]:.0f} bps",
+                xy=(tau[i_hi], be[i_hi]), xytext=(tau[i_hi] * 1.45, be[i_hi] * 1.9),
+                fontsize=8.6, color="0.30", ha="left", va="center",
+                arrowprops=dict(arrowstyle="-", color="0.55", lw=0.7, shrinkA=2, shrinkB=3))
+    bx.annotate(f"{tau[i_lo]:.0f}% a session dies at {be[i_lo]:.1f} bps",
+                xy=(tau[i_lo], be[i_lo]), xytext=(22.0, 6.4),
+                fontsize=8.6, color="0.30", ha="center", va="center",
+                arrowprops=dict(arrowstyle="-", color="0.55", lw=0.7, shrinkA=2, shrinkB=3))
+
+    bx.set_yscale("log")
+    bx.set_ylim(5.0, 3200.0)
+    bx.set_yticks([10, 30, 100, 300, 1000, 3000])
+    bx.set_yticklabels(["10", "30", "100", "300", "1000", "3000"])
+    bx.set_ylabel("The price at which this cell\nstops paying (bps each way)")
+    bx.set_title("How dear trading would have to become before each cell stopped paying",
+                 fontsize=10.5, pad=4)
+
+    # ⚠ TICKS AT ROUND NUMBERS, NOT AT ROUND LOGARITHMS. A log locator left to itself prints
+    # "3.16228" and "31.6228", which are decade roots rather than quantities anyone reads.
+    bx.set_xscale("log")
+    bx.set_xlim(*xs)
+    bx.set_xticks([0.5, 1, 3, 10, 30, 90])
+    bx.set_xticklabels(["0.5", "1", "3", "10", "30", "90"])
+    bx.minorticks_off()
+    bx.set_xlabel("Turnover: share of the book traded per session (%), logarithmic")
+
+    for a in (ax, bx):
+        a.grid(True, which="major", color="0.92", lw=0.6)
+        a.set_axisbelow(True)
+        for side in ("top", "right"):
+            a.spines[side].set_visible(False)
+
+    fig.suptitle("One number decides every cell: how heavily its policy trades",
+                 fontsize=11.5, y=0.978)
 
     out.mkdir(parents=True, exist_ok=True)
     png = out / "F5_cost_surface.png"
-    fig.savefig(png, dpi=600, bbox_inches=None, pad_inches=0.02)
-    fig.savefig(png.with_suffix(".pdf"), bbox_inches=None, pad_inches=0.02)
+    fig.savefig(png, dpi=600)
+    fig.savefig(png.with_suffix(".pdf"))
     plt.close(fig)
-    print(f"\nwrote {png} (+ .pdf); {len(cells)} cells on a surface fitted at "
-          f"R2 = {g_r2:.3f} (gross) and {d_r2:.3f} (cost drag), validated to {worst:.4f} Sharpe")
+    print(f"\nwrote {png} (+ .pdf); {len(cells)} cells drawn as exact repricings, no fitted "
+          f"geometry. Spans by price: " + ", ".join(f"{b:g} bps {f['span'][b]:.3f}" for b in GRID_BPS))
+    print(f"  break-even threshold vs turnover: log-log slope {f['be_slope']:.3f}, r = {f['be_r']:.4f}")
+    print(f"  gross Sharpe vs log turnover: r = {f['gross_r']:+.3f} (fits printed above: "
+          f"gross R2 {g_r2:.3f}, drag R2 {d_r2:.3f}); repricing validated to {worst:.4f} Sharpe")
     return png
 
 

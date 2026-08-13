@@ -141,19 +141,37 @@ def build(out: Path = FIG_DIR) -> Path:
     # ---- the composition strip: one bar, four segments, so the whole adds to 100 visibly ----------
     top = axes[0]
     left = 0.0
+    segments: list[tuple[float, float, str]] = []
     for key in order:
         w = point[key]
         top.barh([0], [w], left=left, height=0.62, color=colour[key], edgecolor="white", lw=1.0)
-        # 20% is the floor for an in-segment label, not 12. At 10 pt "14.8%" is about 27 pt wide
-        # against a 14.8 per cent segment's 60 pt, which LOOKS like it fits and does not once the
-        # 1 pt white separators are drawn: it printed across the join. The two narrow shares are read
-        # off the interval panel below, where every value is printed anyway.
-        if w > 20.0:
-            top.text(left + w / 2.0, 0, f"{w:.1f}%", ha="center", va="center",
-                     color="white", fontsize=10)
+        segments.append((left + w / 2.0, w, key))
         left += w
     top.set_xlim(0, 100)
-    top.set_ylim(-0.5, 0.5)
+    # ⛔ THE "> 20 PER CENT" FLOOR IS GONE, AND IT WAS SUPPRESSING A NUMBER THAT FITS. The comment
+    # that stood here argued a 14.8 per cent segment is 60 pt wide while "14.8%" is 27 pt, and then
+    # concluded the label would not fit. Twenty-seven inside sixty leaves sixteen points of clearance
+    # on each side. The measured axes is narrower than 60 pt per 14.8 per cent, but the label still
+    # fits, and the segment it silenced is THE TREATMENT'S OWN SHARE, which is the one quantity this
+    # dissertation exists to estimate. A stacked bar with an unlabelled band invites the reader to
+    # wonder what it is, and this one left the answer off the most important band on the page.
+    #
+    # ⭐ THE REPLACEMENT MEASURES INSTEAD OF GUESSING. Each label is drawn, its rendered width read
+    # back in data units, and kept inside the segment only if it clears both joins. Anything that
+    # does not fit is moved above the bar in its own colour with a tick, so EVERY share is labelled
+    # at every future value of the data, and no threshold has to be re-tuned when the shares move.
+    top.set_ylim(-0.5, 1.30)
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    inv = top.transData.inverted()
+    for cx, w, key in segments:
+        t = top.text(cx, 0, f"{w:.1f}%", ha="center", va="center", color="white", fontsize=10)
+        bb = t.get_window_extent(renderer=renderer)
+        need = abs(inv.transform((bb.x1, 0))[0] - inv.transform((bb.x0, 0))[0])
+        if need > w - 2.0:                      # 1 unit of clearance at each white separator
+            t.remove()
+            top.plot([cx, cx], [0.32, 0.58], color=colour[key], lw=0.9, zorder=3)
+            top.text(cx, 0.66, f"{w:.1f}%", ha="center", va="bottom", color=colour[key], fontsize=10)
     top.set_yticks([])
     top.set_xticks([0, 25, 50, 75, 100])
     top.set_xticklabels(["0", "25", "50", "75", "100%"])
