@@ -163,11 +163,18 @@ def build(out: Path = FIG_DIR) -> list[Path]:
     # is the better fix in any case: an axis label is a name, and the sweep it describes belongs in
     # the caption.
     fig, axes = plt.subplots(1, 2, figsize=(FIG_WIDTH_IN, 4.1))
+    # ⛔ THE TREATMENT AND ITS PRIMARY CONTROL USED TO BE DRAWN THICK AND SOLID WHILE THE OTHER THREE
+    # WERE THIN AND DASHED, AND THAT WAS A DEFECT RATHER THAN A CONVENTION. It told a reader, before
+    # they had read a number, that two of the five curves mattered and three were background. The
+    # study says otherwise on its own measurements: the treatment is the best design on NONE of the
+    # eleven authoring lines, while `placebo` takes five and `scalar_cvar5` four. Demoting three arms
+    # to dashed hairlines suppressed exactly the comparisons a reader most needs to make here, and
+    # the loss-aversion numbers this module prints are among the most interesting in the study for
+    # precisely those arms. All five are now drawn at one weight and told apart by colour, which the
+    # house palette already makes distinct, so the reader ranks them rather than being told.
     for arm in ARMS:
         st = arm_style(arm)
-        wide = arm in ("distributional", "scalar")
-        kw = dict(color=st["color"], lw=2.2 if wide else 1.3,
-                  ls="-" if wide else (0, (4, 2)), zorder=4 if wide else 2)
+        kw = dict(color=st["color"], lw=1.9, ls="-", zorder=3)
         axes[0].plot(data[arm]["returns"] * 100.0, _unit(data[arm]["r_curve"]), **kw)
         axes[1].plot(data[arm]["traded"] * 100.0, _unit(data[arm]["t_curve"]), **kw)
 
@@ -179,6 +186,13 @@ def build(out: Path = FIG_DIR) -> list[Path]:
 
     axes[1].axhline(0.0, color="0.7", lw=0.8, zorder=1)
     axes[1].set_xlabel("share of the book traded (%)")
+    # ⚠ THE RIGHT PANEL NAMES ITS OWN VERTICAL AXIS, AND UNTIL NOW IT DID NOT. The two panels are
+    # separate axes with separate autoscaling, not a shared pair, so this one drew its own ruler from
+    # -1.2 to +0.2 with nothing saying what those numbers were. The reader could reasonably have
+    # taken them for reward units, or for a fraction, or for the same scale as the left panel, and
+    # only the left panel said. Each is normalised to ITS OWN peak, so the two rulers are genuinely
+    # different objects and naming both is the only honest option.
+    axes[1].set_ylabel("reward, scaled to its own peak")
     axes[1].set_title("What it charges for trading", fontsize=11)
     for ax in axes:
         ax.grid(alpha=0.25)

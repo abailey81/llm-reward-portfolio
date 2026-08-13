@@ -174,11 +174,11 @@ should yield lower-turnover programs at all is not established here, and the pro
 support a clean "less information yields simpler code" story. The honest statement is that placebo
 leads to less trading, that less trading wins, and that the first link is unexplained.
 
-![**Figure 6.1** — The same arms, priced twice: gross of transaction costs and net of them. One row per authoring line, ordered by how much the costs took from it. Each row carries two bars on one shared horizontal scale: the upper, thin bar is the spread across the five arms before costs, the lower, thick bar the same spread after them, with each arm's marker on both. **What to conclude:** the reward designs agree about what to hold and disagree about how often to move, and only the second survives into the outcome. The between-arm spread is 0.067 gross against 0.302 net, and the net bar is the longer one on every one of the eleven lines. Where the upper bar is a stub and the lower one crosses half the panel, the whole difference between those designs was paid at the trading desk.
-](../outputs/figures/F5_gross_vs_net.png)
+![**Figure 6.1** — The same arms, priced twice: gross of transaction costs and net of them. One row per authoring line; the thin bar is the spread across the five arms before costs, the thick bar after. **What to conclude:** the designs agree about what to hold and disagree about how often to move, and only the second survives. The spread is 0.067 gross against 0.302 net.
+](../outputs/figures/F5_gross_vs_net.pdf)
 
-![**Figure 6.2 — What trading costs, in two views that share one turnover axis.** Both panels are exact arithmetic on the same 55 measured cells, and nothing in either is fitted or smoothed. Charging cost after the action makes the Sharpe at any price exactly the gross Sharpe less the drag the headline price removed, so every cell can be repriced by hand. **Upper panel:** one vertical spine per cell, carrying that cell's Sharpe at all five registered prices from 0 to 50 bps each way, with the marker darkening as the price rises. The length of a spine is what trading cost that cell. **Lower panel:** the price at which each cell exactly breaks even, which is one division per cell, plotted against the same turnover. The repricing reproduces an independent series-by-series sweep to 0.0018 Sharpe units at every price on the grid, gross and net alike, and the module refuses to draw at all beyond 0.01. **What to conclude:** before costs the 55 cells sit in a band 0.34 Sharpe wide and not one of them loses money, and at 50 bps the same cells span 6.64 and 15 of them do. In the lower panel the break-even price falls almost exactly in proportion to turnover, at a log-log slope of -0.96 and r = -0.996 across a 156-fold span, from a cell that trades 0.58 per cent of the book a session and survives to 1,098 bps down to one that trades 83 per cent and dies at 7.9. A design's fate at any price is therefore set almost entirely by one number, and the arms are ordered by that number rather than by what their designer was shown.
-](../outputs/figures/F5_cost_surface.png)
+![**Figure 6.2 — What trading costs, in two views that share one turnover axis.** Exact arithmetic on the same 55 cells: upper, one spine per cell at all five registered prices; lower, the price at which each breaks even. **What to conclude:** before costs the cells span 0.34 Sharpe and none loses money; at 50 bps they span 6.64 and 15 do. Break-even falls in proportion to turnover, slope -0.96 at r = -0.996.
+](../outputs/figures/F5_cost_surface.pdf)
 
 `scalar_cvar5` is the exception that sharpens the rule. It takes four of the eleven lines, and on
 three of those four it is also the best arm *before* costs. A single conditional value-at-risk
@@ -201,11 +201,11 @@ model or for a person.[^costlit]
 [^canonn]: Means over the sealed baseline records, 305 or 306 per reward name, read from `outputs/campaign_cluster_run4`. The net-positive count of one, and the survivor's rank, are invariant across the mean, the median and the interquartile mean the confirmatory family uses. The ordering *within* the ten losers is not: two adjacent pairs exchange places between estimators, over a range of 0.20 net Sharpe, which is why nothing here rests on their order.
 
 
-![**Figure 6.3 — The whole ladder on one axis: eleven hand-written objectives, four numerical optimisers and the five authored arms.** Points are the interquartile mean of the terminal net Sharpe over every sealed record of that arm, 305 to 308 per row, with 95 per cent bootstrap intervals. The shaded band is loss. **What to conclude:** the ordering is not by sophistication and it is not by who wrote the objective. Ten of the eleven published rewards sit inside the loss band, eight of them penalising risk explicitly, and the one that clears it is the one that charges for trading. Every automated arm clears it too, and they cluster: the treatment, its three comparators and Bayesian optimisation all land within 0.10 net Sharpe of one another, which is the separation the registered test was built to resolve.
-](../outputs/figures/F5_benchmark_ladder.png)
+![**Figure 6.3 — The whole ladder on one axis: eleven hand-written objectives, four numerical optimisers and the five authored arms.** Points are the interquartile mean of terminal net Sharpe with 95 per cent bootstrap intervals; the shaded band is loss. **What to conclude:** the ordering is not by sophistication nor by who wrote the objective. Ten of the eleven published rewards sit in the loss band, and the one that clears it is the one that charges for trading.
+](../outputs/figures/F5_benchmark_ladder.pdf)
 
-![**Figure 6.4 — The path, not the endpoint: what one pound did over the sealed window, and the worst it felt on the way.** Upper panel, compounded wealth from 1.00 invested at the window's open, net of costs, on a log scale; the faint lines are the eleven authoring lines and the heavy line each arm's median across them. Lower panel, the fall from the running peak of the same paths. **What to conclude:** the five conditions are not separated by where they end but by how much they gave back to reach it. The drawdown panel is nearly one curve, because it is dominated by an event common to all of them, the 2022 rate shock, which reaches roughly a fifth of capital; on that dimension the choice of reward design barely registers. The exception is worth naming rather than smoothing: the worst single line under the tail-fed condition falls 48.2 per cent from its peak, against 21.5 per cent for the deepest fall under `scalar_cvar5`. A terminal net Sharpe near 1.0 is compatible with both.
-](../outputs/figures/F5_wealth_drawdown.png)
+![**Figure 6.4 — The path, not the endpoint: what one pound did, and the worst it felt on the way.** Upper, compounded wealth from 1.00 net of costs on a log scale; lower, the fall from the running peak. **What to conclude:** the conditions differ less in where they end than in what they gave back. The worst tail-fed line falls 48.2 per cent against 21.5 under `scalar_cvar5`.
+](../outputs/figures/F5_wealth_drawdown.pdf)
 
 ## 6.3 Why the richer signal cost something, rather than merely failing to help
 
@@ -237,7 +237,7 @@ is untested at this rendering, which is why it heads Table 7.1 rather than being
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 6.2 — Four accounts of a negative sign, and what separates them.** The first is not a rival to the other three: it is the reason a negative sign is permitted at all, because the dominance envelope binds an optimal user and these designers are not one. Of the three that are rivals, two are measured here and agree, and the third is untested at the rendering precision this study happened to fix. No account is offered as settled, and the one with no evidence for it is named as such.
+**Table 6.2 — Four accounts of a negative sign, and what separates them.** The first is not a rival to the other three: it is why a negative sign is permitted at all. Of the three that are rivals, two are measured here and agree and the third is untested at the rendering precision this study fixed. No account is offered as settled.
 ```{=latex}
 \par\endgroup
 ```
@@ -254,8 +254,8 @@ is untested at this rendering, which is why it heads Table 7.1 rather than being
 Execution faults come before design limitations. Five faults in the executed run touched the
 confirmatory arm, and Appendix B.8 carries each with its measured size.[^fivefaults] Three widened
 the candidate pool in the treatment's favour, and by completion the pools stood at 28 / 27 / 25 / 26
-/ 26. The fourth is undertraining, the critic loss still descending at the step cap in 76.0 per cent
-of trainings. Only the fifth put records into the confirmatory data, four trainings of one canon
+/ 26. The fourth is the step cap itself, which bound every training in every arm identically. Only
+the fifth put records into the confirmatory data, four trainings of one canon
 reward on the wrong processor, caught before scoring. The bound that follows is one-sided and was
 knowable before the verdict: every asymmetry that is ours favours this study's own hypothesis, so a
 measured effect must be discounted against it and a measured null strengthened by it.
@@ -273,7 +273,7 @@ register is Appendix B. Every one is a disclosed design decision, never a hidden
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 6.3 — The five foregrounded limitations, and the claim each one blocks.** Every one is a disclosed design decision rather than a hidden assumption. Two of them cut deeper than the rest: the tail-blind selector is what makes a tail effect attributable to the channel and simultaneously places the study on the boundary of the null branch, and a single model family means the study cannot earn the plural *language models*. Search width is the mildest, because it is common-mode across arms and therefore conservative for the direction of any difference, and because the responsiveness it might otherwise bound is measured upstream of the search. Appendix B carries all thirty-one.
+**Table 6.3 — The five foregrounded limitations, and the claim each one blocks.** Every one is a disclosed design decision rather than a hidden assumption. Two cut deepest: the tail-blind selector, which makes a tail effect attributable to the channel and simultaneously places the study on the null branch, and the single model family, which means the plural *language models* is not earned. Appendix B carries all thirty-one.
 ```{=latex}
 \par\endgroup
 ```
@@ -307,7 +307,7 @@ that removing the charge removes most of what separates the arms. Table 6.4 take
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 6.4 — Three further attacks on the cost account, and what each one meets.** None of the three is answered by argument alone. The cost grid was registered before the window opened and is drawn in full at Figure 6.2, the linearity of the charge is disclosed in §4.3 and its error runs in the study's disfavour, and the outlier check was run for this section rather than carried over. The last row is the strongest of the three, because dropping the two lines a sceptic would name makes the relation *steeper* rather than weaker, and because the human canon of §6.2 reproduces it on data this study did not generate.
+**Table 6.4 — Three further attacks on the cost account, and what each one meets.** None is answered by argument alone. The cost grid was registered before the window opened, the linearity of the charge is disclosed in §4.3 and its error runs in the study's disfavour, and the outlier check was run for this section. Dropping the two lines a sceptic would name makes the relation *steeper*.
 ```{=latex}
 \par\endgroup
 ```
@@ -338,10 +338,14 @@ One asymmetry belongs in the open. The frozen plan seats its single alpha-carryi
 while the reading above rests on eleven, so the count extends the registration rather than
 discharging it (§B.3.1).
 
-![**Figure 7.1 — Where the outcome variance comes from, and how little of it is luck.** Shares of the variance in terminal net Sharpe over the eleven authoring lines at 102 paired seeds, balanced, with the interaction separated rather than absorbed into the residual. Intervals resample the AUTHORS, not the seeds. **What to conclude:** the largest single component is the interaction, so the absence of a universally best condition is a real model-dependent effect rather than noise, and only 22.5 per cent is luck. The four intervals overlap, so the ordering is not established.
-](../outputs/figures/F5_variance_shares.png)
+![**Figure 7.1 — Where the outcome variance comes from, and how little of it is luck.** Shares of the variance in terminal net Sharpe over the eleven authoring lines at 102 paired seeds, with the interaction separated rather than absorbed into the residual. Intervals resample the AUTHORS. **What to conclude:** the largest component is the interaction, so the absence of a universally best condition is a real model-dependent effect and only 22.5 per cent is luck.
+](../outputs/figures/F5_variance_shares.pdf)
 
-What separates the lines is not what they were shown but how heavily they trade. The change in daily
+![**Figure 7.2 — What trading costs, as one exact surface, with every design standing on it.** The cost is linear per unit traded, so the return given away in a year is price times turnover times 252 sessions. The surface is that identity, verified against 998 archived records at a max/min ratio of 1.00000. **What to conclude:** turnover is a bill. At 10 bps, 0.57 per cent of the book a session costs 0.14 per cent of capital a year and 88.87 per cent costs 22.40.
+](../outputs/figures/F5_cost_manifold.pdf)
+
+What separates the lines is not what they were shown but how heavily they trade, and Figure 7.2
+puts the price of that on one surface. The change in daily
 turnover between the tail-fed condition and `scalar` accounts for 97.2 per cent of the variation in their
 net Sharpe contrast, and a second estimator over all 55 cells in levels puts it at 98.4 per
 cent.[^turnover] Turnover itself runs from 0.603 to 88.83 per cent of the portfolio a day across those
@@ -387,7 +391,7 @@ practitioner faces.
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 7.1 — What to do next, ordered by how directly it attacks the located break.** The two interventions that attack the located link most directly are also the cheapest: a tail-rewarded selector needs one re-run of the search stage, and a responsiveness pre-screen needs no trained agents at all. The register entry in the second column is the evidence that motivates each row. The last row is Dr Okhrati's: showing several information streams at once might let a designer cover one signal's weakness with another's strength, and it is recorded here as future work because adding an arm is a data-collection decision and therefore outside the presentation-and-interpretation licence this study operates under.
+**Table 7.1 — What to do next, ordered by how directly it attacks the located break.** The two interventions that attack the located link most directly are also the cheapest: a tail-rewarded selector needs one re-run of the search stage, and a responsiveness pre-screen needs no trained agents at all. The second column gives the register entry that motivates each row. The last row is Dr Okhrati's, and it is future work because adding an arm is a data-collection decision.
 ```{=latex}
 \par\endgroup
 ```
@@ -424,7 +428,7 @@ practitioner faces.
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 7.2 — A practitioner's checklist for language-model-in-the-loop feedback design.** Richer feedback is not self-acting, so the two checks worth running come *before* the loop is built rather than after its output is measured: does the selector reward the dimension being fed, and does the designer's authored code move when that dimension moves. A designer that fails the second cannot transmit content however rich the feedback, and a selector that fails the first discards the candidates that used it. The fourth row is the one most often treated as an implementation detail: this study measured its own channel only at the rendering resolution it happened to fix, and at the original precision 229 of 240 fitness values printed as `0.00`.
+**Table 7.2 — A practitioner's checklist for language-model-in-the-loop feedback design.** Richer feedback is not self-acting, so both checks worth running come *before* the loop is built: does the selector reward the dimension being fed, and does the authored code move when that dimension moves. The fourth row is the one usually treated as an implementation detail, and at the original precision 229 of 240 fitness values printed as `0.00`.
 ```{=latex}
 \par\endgroup
 ```

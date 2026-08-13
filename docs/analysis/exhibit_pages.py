@@ -132,6 +132,14 @@ LABELLED = re.compile(
     rf"^(?:Figure|Table|Listing|Algorithm)\s+(?:\d+|[{APPENDIX_LETTERS}])(?:\.\d+)?[a-z]?$")
 #: A separator row: dashes and colons only.
 SEPARATOR = re.compile(r"^[-: ]+$")
+#: The link wrapper this script stamps around every cell of a list row. Matched non-greedily on the
+#: inner text so a cell containing braces of its own is still recovered whole.
+HYPERLINK = re.compile(r"\\hyperlink\{(page\.\d+)\}\{(.*)\}$")
+#: Characters that TeX treats specially and that pandoc would normally escape for us. A cell holding
+#: any of them must NOT be wrapped in a raw-LaTeX macro. Backticks are included because a markdown
+#: code span stops being one the moment the cell becomes raw TeX, which is how `min_cvar` broke a
+#: build: the backticks went literal and the underscore went subscript.
+LATEX_UNSAFE = re.compile(r"[$_^%&#~{}\\`]")
 #: The repeated column header LaTeX prints at the top of every page of a long list.
 #: ⚠ IT MUST BE MATCHED WHITESPACE-INSENSITIVELY. PyMuPDF returns each table cell on its own line, so
 #: the header extracts as "#\nTitle\nSection\nPage" and a literal "# Title Section" never matches. With
@@ -273,6 +281,12 @@ def rows(lines: list[str]):
         if not section.startswith(STAMPED_SECTION_PREFIXES) or not line.lstrip().startswith("|"):
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        # ⚠ THE HYPERLINK WRAPPER IS STRIPPED BEFORE ANYTHING ELSE READS A CELL. Every cell in a
+        # stamped row is `\hyperlink{page.N}{...}` so that a reader can click the LABEL and the TITLE
+        # rather than hunting for a two-digit page number, which is what Tamer reported clicking and
+        # getting nothing from. Every matching, verification and rewrite path downstream sees the
+        # plain text it has always seen, so wrapping the row costs those paths nothing.
+        cells = [HYPERLINK.sub(r"\2", c) for c in cells]
         if not cells or cells[0] in ("#", "") or SEPARATOR.match(cells[0]):
             continue
         yield idx, cells
@@ -359,6 +373,16 @@ def main() -> int:
         stale, mistitled = [], []
         for idx, (cells, pg) in found.items():
             was = cells[3] if len(cells) > 3 else ""
+            # The stamped cell is `\hyperlink{page.N}{N}`, so the comparison reads the number out of
+            # it rather than off the raw cell. Without this the verifier would call every row stale
+            # the moment the links went in, which is the shape of a false alarm that gets a real
+            # gate switched off.
+            m_pg = re.fullmatch(r"\\hyperlink\{page\.(\d+)\}\{(\d+)\}", was.strip())
+            if m_pg:
+                if m_pg.group(1) != m_pg.group(2):
+                    stale.append(f"{cells[0]}: the link points at p.{m_pg.group(1)} but prints "
+                                 f"{m_pg.group(2)}")
+                was = m_pg.group(2)
             if was.strip() != str(pg):
                 stale.append(f"{cells[0]}: list says {was.strip() or '(blank)'}, renders on p.{pg}")
             listed = cells[1] if len(cells) > 1 else ""
@@ -409,7 +433,33 @@ def main() -> int:
         # rebuilt from its first THREE fields and never appended to. Appending produced a
         # five-column row and silently corrupted the list the first time this was written.
         label, caption, sec = cells[0], cells[1] if len(cells) > 1 else "", cells[2] if len(cells) > 2 else ""
-        out_lines[idx] = f"| {label} | {caption} | {sec} | {pg} |"
+        # ⭐ THE PAGE NUMBER IS A LINK, NOT A NUMBER. The Table of Contents is a real
+        # `\tableofcontents`, so hyperref makes every one of its entries clickable for free, and the
+        # List of Figures and the List of Tables are markdown tables, so they were the only
+        # navigation in the document a reader could not click. `page.<n>` is the destination hyperref
+        # writes for each page when `pdfpagelabels` is on, which it is by default, so the target
+        # needs no anchor of our own at the exhibit.
+        # ⭐ EVERY CELL IS WRAPPED, NOT JUST THE PAGE NUMBER. An earlier pass linked the page cell
+        # alone and Tamer reported the lists still were not clickable, which is exactly right: a
+        # reader clicks the exhibit's NAME or its TITLE, not a two-digit number in the last column.
+        # The row-reading path strips the wrapper (see HYPERLINK), so every downstream check still
+        # sees the plain cell text it has always seen.
+        # ⛔ A WRAPPED CELL IS RAW LaTeX, AND THAT IS THE TRAP THIS GUARD EXISTS FOR. Once a cell sits
+        # inside `\hyperlink{...}{...}` pandoc stops escaping it, so anything that was harmless as
+        # markdown becomes live TeX. Measured: the List of Tables row for Table 5.9b carries the
+        # title "The estimation-error test behind `min_cvar`'s", and wrapping it turned the
+        # underscore into a subscript operator outside maths mode. TeX halted with "Missing $
+        # inserted" and the build refused to produce a PDF. The LABEL and the PAGE are always safe,
+        # because both are generated by this pipeline from digits and plain words. A TITLE is copied
+        # from a caption and may carry code spans, maths or per-cent signs, so it is linked only when
+        # it demonstrably carries none of them.
+        def _link(text: str) -> str:
+            if not text or LATEX_UNSAFE.search(text):
+                return text
+            return f"\\hyperlink{{page.{pg}}}{{{text}}}"
+
+        out_lines[idx] = (f"| {_link(label)} | {_link(caption)} | {sec} | "
+                          f"{_link(str(pg))} |")
     io.open(FM, "w", encoding="utf-8").write("\n".join(out_lines))
     print(f"  stamped into {FM.relative_to(REPO)}")
     print("  NOW REBUILD AND RUN --verify. A stamp taken from the previous build is the defect this")

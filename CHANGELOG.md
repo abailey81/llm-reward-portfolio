@@ -3,6 +3,261 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-13f] Figures: three unlabelled axes, a 3-D exhibit built three times, and the register cleaned
+
+**Tamer's asks, in the order he made them.** One of Figure 6.2's panels had no x axis label. Every
+figure needed the same sweep. The dissertation needed one premium 3-D exhibit. The seed-spread
+figures were too small. Every figure's quality, resolution and dpi should rise. The document should
+stop underselling the work. Every arm deserves an account, not just the treatment and its control.
+Opus is not a confirmatory line. The lists of figures and tables should be clickable. Captions should
+not run so long, on the model of "Attention Is All You Need".
+
+### 1. THE UNLABELLED AXES, FOUND MECHANICALLY RATHER THAN BY EYE
+
+Built an axis-label gate that runs every renderer, intercepts each figure at save time, and asks of
+every Axes whether a reader can read a NUMBER off it with nothing naming what the number measures.
+
+⚠ **THE INSTRUMENT ACCUSED THE DOCUMENT TWICE AND WAS WRONG BOTH TIMES BEFORE IT WAS RIGHT.**
+`ax.set_axis_off()` leaves every tick-label artist `visible`, so the first run reported twelve
+findings on six schematics whose axes are drawing canvases and print nothing. And it missed Tamer's
+own finding entirely, because Figure 6.2's upper panel has no visible ticks AT ALL. The corrected
+gate adds a verdict for that case, BORROWED-ACROSS-A-TITLE: a panel may borrow its neighbour's axis
+name only when the two read as one object, and a second panel title between them means they do not.
+
+Five real findings, all fixed:
+
+* **Figure 6.2, upper panel** — no x tick labels and no x axis name. Fifty-five spines spread
+  horizontally with no ruler and no name anywhere near them. Each panel now carries its own complete
+  axis. ⚠ The ticks are set on BOTH axes explicitly: `add_subplot(..., sharex=ax)` shares limits and
+  scale, not locators and formatters, so labelling the lower panel alone would have left the upper
+  one printing decade roots under its new name.
+* **Figure 7.1** — the composition strip printed a 0 to 100% ruler and named nothing.
+* **Figure 5.5** — the right panel drew its own ruler from -1.2 to +0.2 and only the left panel said
+  what such numbers were. The two are normalised to different peaks, so both must be named.
+* **Figure 3.1 panel (c)** — the only one of four panels with an unnamed x axis.
+* **Figure 3.1 panel (a)** — the only one of four in raw FRACTIONS while (b), (c) and (d) all read in
+  per cent. One figure asking a reader to hold two unit systems and convert by eye, on the panel that
+  carries the figure's opening claim. Converted, presentationally, with a loud guard that refuses to
+  rescale an axis already in per cent.
+
+✅ **AND ONE ACCUSATION THAT WAS THE INSTRUMENT AGAIN.** Figure 5.4 was reported unlabelled on four
+panels. It carries `fig.supylabel`, which the gate did not read. False positive, recorded.
+
+### 2. THE 3-D EXHIBIT, BUILT THREE TIMES, AND WHY THE FIRST TWO WERE WRONG
+
+* **Attempt 1, the interaction terrain** (11 authoring lines x 5 designs, height = net Sharpe).
+  Rejected. **Both horizontal axes were CATEGORICAL**, so perspective had nothing to encode, depth
+  competed with height, and eleven model names crowded the margin into collisions. Five styling
+  rounds did not fix a structural fault.
+* **Attempt 2, the price-response fan** (55 exact lines over the 0 to 50 bps grid). Rejected: "just a
+  bunch of lines". Correct. **Nobody reads fifty-five of anything.**
+* **Attempt 3, the cost hillside.** ⭐ A three-dimensional exhibit earns its place only when it is
+  ONE SURFACE whose SHAPE is the finding. The environment charges a linear cost per unit of book
+  traded, so the return given away in a year is `price x turnover x 252` and nothing else. That is
+  an identity, smooth, over two genuinely continuous inputs.
+
+⭐ **AND THE IDENTITY IS VERIFIED AGAINST THE ARCHIVE RATHER THAN TAKEN FROM THE CONFIGURATION.**
+Over 998 sealed-test records carrying gross, net and turnover series, the measured annual drag
+divided by daily turnover is **0.25200 at every single one, a max/min ratio of 1.00000**. The
+surface is the arithmetic the environment actually performed.
+
+Five markers, one per design at its median turnover, with the key doubling as the per-design table.
+The contour is where the cost equals the median gross return, 15.6% a year. Turnover stops being an
+abstraction and becomes a bill: **0.57% of the book a session costs 0.14% of capital a year, 88.87%
+costs 22.40%, and the whole median gross return is gone by 61.9% turnover.**
+
+⚠ Two drawing decisions are recorded because both were tried the other way and were worse. NaN above
+the ceiling gives a SAWTOOTH, because plot_surface drops a quad when any corner is NaN; the clip with
+a named flat top is honest and clean. And the five names are in the key, not on the surface, because
+five labels anchored to five points that project close together is five collisions.
+
+### 3. THE UNDERSELL SWEEP, AND THE ONE REAL DEFECT IT FOUND
+
+⛔ **THE DOCUMENT ASSERTED ITS OWN AGENT WAS UNDERTRAINED ON EVIDENCE THAT DOES NOT ESTABLISH IT.**
+The cited evidence is that the critic loss is still descending at the 400,000-step cap in about three
+quarters of trainings. A soft-actor-critic temporal-difference loss is measured against a MOVING
+bootstrapped target, so it descends for as long as the target moves: its slope is a property of the
+algorithm, not a convergence test. **The series that would settle it, `metrics.train_curve["return"]`,
+is NaN in every archived record, verified first-hand on 189 sampled records.** So the document
+conceded a deficiency its own measurement cannot show, and Stefan's S4 already said training depth is
+a scope condition rather than a wound.
+
+Struck in four places. CH6 now leads with the verdict the design was built to test and that the
+evidence does support: **the agent is not overfit**, on validation-to-test transfer, the top
+validation quartile at +1.0644 against +0.6678 for the bottom, and 53 of 55 frozen cells profitable
+out of sample. CH7 stops calling the step cap a FAULT and calls it the registered budget it is.
+
+**Then the whole counted body was swept for the same defect class, twice**, once line-by-line and
+once paragraph-joined with a wider lexicon including the abstract. **Sixteen candidates, and every
+one survives the test**: technical vocabulary (`naive` is DeMiguel's own benchmark, `deficiency` is
+Le Cam's), statements about OTHER work, or the strongest honest framing of ours. Also verified, not
+assumed: the difficulty table with its 16 hard counts is in the BODY at CH1, not stranded in an
+appendix, and the abstract leads with "Richer evidence cannot make an optimal decision-maker worse
+off. These designers are worse off."
+
+### 4. EVERY ARM, MEASURED — AND MY OWN SUSPICION REFUTED
+
+Tamer asked whether the other arms deserved more. Measured per arm across the eleven lines:
+
+| design | turnover %/session | median net | median GROSS | wins |
+|---|---:|---:|---:|---:|
+| placebo | 1.07 | 1.178 | 1.192 | 5 |
+| scalar_cvar5 | 2.14 | 1.143 | 1.181 | 4 |
+| scalar | 4.45 | 1.089 | 1.173 | 1 |
+| distributional | 5.28 | 1.063 | 1.181 | 0 |
+| placebo_shuffled | 10.21 | 0.974 | 1.179 | 1 |
+
+⭐ **The turnover order and the outcome order are IDENTICAL across all five.** Gross spans 0.019;
+net spans 0.204, ten times wider. `placebo` beats the treatment on **11 of 11** lines.
+
+⚠ **I SUSPECTED A BREAK IN THAT ORDER AND I WAS WRONG.** On the cross-line MEAN the scrambled arm
+appears to beat the treatment despite trading twice as much. On the median and the IQM it does not.
+The mean is exactly the outlier-dominated statistic rliable warns against, and checking three
+estimators rather than one is what caught it.
+
+⛔ **AND ONE CONCRETE INSTANCE OF THE PRIVILEGING TAMER NAMED.** Figure 5.5 drew the treatment and
+`scalar` thick and solid and the other three as thin dashed hairlines. That told a reader which two
+mattered before they had read a number, and the study's own measurement says otherwise: the treatment
+is best on NONE of the eleven lines while `placebo` takes five. All five are now drawn at one weight.
+
+### 5. THE ELEVEN-LINE READING, VERIFIED RATHER THAN ASSUMED
+
+CLAUDE.md carries an open remediation list of five files still carrying single-line framing. **All
+five are discharged.** Two mentions survive and both are correct: a table row naming `opus-5` as the
+"confirmatory seat", which is the registered node named as what it is, and B.3.1, already rewritten
+so the limitation is that the registered node sits on one line while the reported conclusion rests on
+eleven. The list is stale, not the document.
+
+### 6. QUALITY: VECTOR THROUGHOUT, NOT A HIGHER DPI
+
+Every results figure was embedded as a 600 dpi RASTER while Chapters 1 and 4 used vector. Vector is
+smaller on every single figure and infinitely crisp: **11.76 MB of PNG becomes 2.12 MB of PDF.**
+Fourteen references switched.
+
+⭐ **AND IT BOUGHT REAL COVERAGE.** The rendered-page collision detector could not see inside a PNG.
+Going vector exposed every figure's text to it for the first time.
+
+⚠ **WHICH IMMEDIATELY PRODUCED SIX FALSE POSITIVES, AND THE DETECTOR WAS THE FAULT.** It banded by
+baseline y and compared x extents, which is correct only for HORIZONTAL text. A rotated axis label's
+successive lines are offset along x by the leading while each bounding box is a glyph-height wide, so
+neighbours overlap by two or three points as ordinary typography. Measured on Figure 3.1: 296.4-310.7
+against 308.4-322.7, both at dir (0,-1), 2.3 pt, and nothing wrong on the page. Rewritten to measure
+every span in ITS OWN reading frame by projecting onto the line direction. This keeps the gate's
+power at every angle and removes the artefact: 6 findings became 0, and a 45-degree tick label set is
+no longer accused of the overlap it is rotated to avoid.
+
+### 7. CLICKABLE EXHIBIT LISTS
+
+The Table of Contents is a real `\tableofcontents`, so hyperref made it clickable for free. The two
+exhibit lists are markdown tables and were dead text. Each page cell is now
+`\hyperlink{page.N}{N}`, verified in the compiled PDF: the row reading 15 jumps to page 15.
+
+⚠ Another instrument false alarm on the way: a filter for `LINK_GOTO` reported ZERO links in the
+whole document. The links are `LINK_NAMED`. There were 878 of them and 87 bookmarks all along.
+
+### 8. CAPTIONS CUT TO THE REGISTER TAMER NAMED
+
+Measured over 48 captions: median 60 words, mean 89, **maximum 323**. The six longest carried 1,421
+words between them. Cut to 821, a reduction of 600, plus two table captions cut by 66. Every one
+keeps the three-part form a caption owes a reader who meets the exhibit alone. **Not one measured
+quantity is altered**: a number survives verbatim or is removed.
+
+### 9. SIZES
+
+Figure 5.4 from 6.15 x 7.44 in to 6.30 x 7.76, Figure 5.3 from 6.15 x 4.10 to 6.30 x 4.75, Figure
+3.1 from 7.45 to 8.30 in tall into the space its own shortened caption freed. ⚠ 2.03 in per row on
+5.4 was TOO tall and the gate caught it: page 53 clipped the last caption line six points off the
+bottom. 1.94 in per row leaves 1.96 in for the caption.
+
+### 10. STATE
+
+**131 pages against Tamer's 130 ceiling, and the one page is the new exhibit.** Two orphan pages were
+recovered on the way: a two-line widow that had a page of its own in Appendix B, and part of the
+Chapter 7 tables. The last page cannot be recovered without cutting Table 7.1, which is Okhrati's D4
+costed-intervention deliverable. **His call, not mine.**
+
+Everything else green: scorecard **28/28, 0 FAIL** · body **10,990/11,000** · 0 em dashes, 0
+semicolons, mean sentence 19.2 · crossref CLEAN · exhibit pages VERIFIED · citations clean · freeze
+**MATCHES** · reproducibility **8 pass / 0 warn / 0 fail** · build 0 missing characters, 0 U+FFFF.
+
+⚠ **AND ONE SELF-INFLICTED DEFECT, RECORDED.** A quoted bash heredoc ate the backslash in
+`$\alpha$` and wrote a BEL byte into APPENDIX_B. `build_paper.py`'s control-byte gate caught it and
+refused to compile. The rule is already on the record and was breached anyway: content with
+backslashes reaches a file through the Write tool, never a heredoc.
+
+## [2026-08-13f] ★★★★★★★ RUN 30 (OPS) — **I SHIPPED THE MIRROR OF THE DEFECT I FIXED, CAUGHT IT IN ONE PASS, AND THE FIXTURE IS WHAT HID IT. RUNG 279: 144 → 96.**
+
+**Session type:** live cluster ops **plus one corrected fix** in `docs/ops/` (NOT drift-fenced).
+`src/**`, `scripts/**`, `config/**`, `prompts/**` untouched — freeze **MATCHES**, drift **0** after.
+
+**1. ⛔⛔⛔⛔ THE FIX FROM [2026-08-13d] WAS ITSELF AN INSTRUMENT THAT MEASURED NOTHING, AND IT WAS LIVE
+FOR TWO HOURS.** Three consecutive `CYCLE_LOG.md` rows (03:27:40Z, 03:29:13Z, 03:30:48Z) read
+`sci=BLIND(deep_audit)`. **Measured cause, from `STATE.json` rather than reasoned:** the live
+`science` dict **does not contain `record_science_rc` at all** — `main` puts it at the **top level**
+of `STATE.json` — while the top-level value and the stamp's first line both read **`0`, clean**. So
+`science.get("record_science_rc")` returned **None on every cycle unconditionally**, and the board
+went amber against a healthy audit.
+⇒ **Same class as the defect being closed, inverted:** R30-237's bug was an instrument reporting
+CLEAN without looking; mine reported BLIND without looking. **A token that is always amber destroys
+signal exactly as one that is always green does.**
+⭐⭐ **WHAT HID IT WAS MY OWN FIXTURE, and that is the lesson.** I added `record_science_rc = 0` to
+`all_zero()` because the production dict *"should"* carry it. **It does not.** The fixture and the
+code agreed with each other and both were wrong about the world. ⇒ **A FIXTURE IS AN ASSERTION ABOUT
+PRODUCTION AND MUST BE DERIVED FROM IT, NEVER FROM WHAT THE CODE UNDER TEST HAPPENS TO READ.**
+⚠ **And mutation testing could not have caught it**: all three mutations flipped behaviour correctly
+*on the fixture*. **Mutation coverage proves a test DISCRIMINATES; it says nothing about whether the
+test's INPUT is real.**
+
+**2. ✅ THE CORRECTION — a required parameter, not a dict lookup.** Falsifying tests written first and
+failing loudly pre-fix (`TypeError: unexpected keyword argument`, i.e. the case could not even be
+expressed against the old signature): **T1** a one-argument call must raise `TypeError`, so the rc can
+no longer be silently absent; **T2** the **production-shaped** dict (built by REMOVING the key `main`
+never sets) plus a clean audit reads `OK` — the live 03:27Z state judged correctly; **T3** production
+shape + `rc=99` → `BLIND(deep_audit_rc=99)`; **T4** `rc=None` → `OK`.
+⛔ **S3 is WITHDRAWN IN PLACE, not deleted.** It asserted `None` must not read `OK` — **my assumption,
+contradicting `_cached_probe`'s own docstring**: *"`rc is None` -- NO VERDICT HAS EVER BEEN PRODUCED
+... this is the only value that must reach no alarm branch: it means 'not yet', not 'failed'."*
+**Acting on my assumption instead of the module's stated contract is exactly what produced the false
+amber.** ⚠ The residual — a verdict that never appears at all — is a STALENESS question and
+`record_science_age_s` already answers it. Left open, not papered over.
+**Signature:** `_sci_token(science, *, record_science_rc)`, required and keyword-only, call site
+passes `_record_science_rc`. **43/43 pass.** **Mutation 3 of 3 caught:** an optional arg defaulting to
+clean (the original bug's *shape*) → 42/43 via T1; the non-zero branch disabled → 40/43;
+`== 1` → `== 2` → 42/43 via S2.
+✅ **VERIFIED ON LIVE PRODUCTION DATA, which is the whole point:** replaying the live `science` dict
+and top-level rc gives `token OLD = BLIND(deep_audit)` against `token NEW = OK`.
+⇒ ⭐ **STANDING RULE EARNED: after fixing an instrument, REPLAY IT AGAINST LIVE STATE before calling
+it done. A green selftest proves the rule is self-consistent; only production data proves it is about
+the world.** I held a passing 39/39 suite and a broken board in the same moment.
+
+**3. ⭐ RUNG 279 HAS MOVED FOR THE FIRST TIME SINCE 11 AUGUST: 144 → 96**, and all three gating lines
+moved together — `leg7` 72 → **56**, `leg2` 48 → **32**, `leg1` 24 → **8**. Rung 340: 536 → **488**.
+Records **33,079 → 33,189**. **Cores 576**, running 72. **Capacity against the stop ~20,589
+trainings**, from ~14,584, ~9,151 and ~7,047 on the three prior passes — **2.9x in three passes,
+entirely from un-holding our own queue.**
+
+**4. ✅ R30-5 CORROBORATED ON A SECOND WINDOW, AND A RE-BALANCE REFUTED BEFORE IT WAS MADE.**
+`1.97 h / 225 eligible / 19 dispatched / 9.62 per h`, then `2.06 h / 202 eligible / 21 dispatched /
+**10.20 per h**`, both 100% `h_rt=162000`. **Rank-limited now stands on two windows.**
+⛔ The governor's table invites an intervention: `leg1` owes **8** while holding **248** running
+trainings (64x), and `leg7` — the critical path at **56** owed, *"8.6 h if it had the whole fleet"* —
+holds only **64** (10.7x), because `leg1`'s ids are lower. **S17 says the move is pointless:** rung
+279 is `96 owed / 96 RUNNING / 0 ELIG / 0 HELD / 0 ORPHANED` and rung 340 is `488 / 488 / 0 / 0 / 0`.
+**Both live rungs are fully covered by running work; the whole 174-job eligible queue is rung-403
+work.** ⭐ The governor's ratio column is **block-blind and says so in its own output**; **S17 is the
+spec audit and it is the instrument that decides.** ⇒ **NO ALLOCATION ACTION. Rung 279 banks when
+those 96 finish and nothing we do speeds it up** — the same shape as R30-205.
+
+**BOARD.** COMMON RUNG **189** · **279 needs 96** · 340 needs **488** · 403 needs **2640** · records
+**33,189** · **cores 576** (`r=72`) · eligible **174**, all 45 h · `hqw` = 51 `c1` + 13 `leg10` + 2
+dead probes · 312 rows · guard **OK** · `line_balance` **CLEAN**. Running by line: `leg1` 31, `leg2`
+20, `leg7` 8, `leg10` 8, `leg3` 4, `c1` 1 — **59 of 72 (82%) on the three lines owing rung 279.**
+⚠ **`CYCLE_LOG.md` has not appended since 03:30:48Z (10 min).** Consistent with a long sweep (899 s
+measured two hours earlier), **not diagnosed as a stall.** ⇒ **Falsifiable prediction: the next
+appended line must read `sci=OK`. If it still reads `BLIND(deep_audit)`, the running loop holds a
+stale import and needs a restart.** **STEP 3b:** probes 110358-110363 absent from all 312 rows,
+verdict unchanged, nothing deleted. **No new truncated rounds.** Ledger **R30-239..243** (243).
+
 ## [2026-08-13e] ★★★★★ WRITEUP — **EVERY EXHIBIT WORKED INDIVIDUALLY. THREE OF THEM WERE WRONG, NOT MERELY UNCLEAR.**
 
 **Session type:** figures only, in `docs/analysis/**`, `docs/figures/F_ch1_design.tex` and five

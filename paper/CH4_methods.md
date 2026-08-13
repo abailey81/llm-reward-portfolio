@@ -45,7 +45,7 @@ The training window's own distribution is why the fed signal is a *vector* (Figu
 level represents a tail whose severity against the Gaussian benchmark reverses across quantiles, and a
 vector of level-specific conditional shortfalls does. That vector is the manipulated variable.
 
-![**Figure 3.1** — Stylised tail facts of the training window (2005–2016), the empirical motivation for feeding a *multi-level* tail vector rather than a single downside number. Descriptive analysis on the TRAIN window only, development top-30, anonymised, delisted names liquidated to cash, and the sealed years are never read. **Reading the panels:** (a) plots density on a logarithmic axis, which is the only scale on which a crash day seen once in twelve years is visible at all, and the two dotted rules mark $-3\sigma$ and $-5\sigma$. (c) draws the dashed rule at the top-decile volatility threshold, 27.5 per cent annualised, with each shaded band one of the 19 episodes that sit above it. The four numbers the panels are built from, in order: excess kurtosis **15.2** against a Normal's zero, with 26 days below $-3\sigma$ where a matched Normal expects 4.1 and 9 below $-5\sigma$ where it expects 0.0009, a factor of **10,393**; at $\alpha = 0.01$ an empirical shortfall of $-5.58$ per cent a day against the Normal-implied $-3.35$; **19** volatility episodes holding all 301 top-decile days, the longest 90 sessions; and on stress days **19.7** per cent of names sit below their own 5 per cent quantile against 3.3 per cent on calm days, where independence would put both near 5. **What to conclude:** the data motivate the vector rather than a scalar, because the empirical-to-Normal ratio *reverses direction* between moderate and extreme levels, so no single level represents the tail.
+![**Figure 3.1** — Stylised tail facts of the training window (2005–2016), on the TRAIN split only. In (a) the dotted rules mark $-3\sigma$ and $-5\sigma$; in (c) the dashed rule is the top-decile volatility threshold and each band is one of the 19 episodes above it. **What to conclude:** no single tail level represents the tail. Excess kurtosis is **15.2**, and the empirical-to-Normal ratio *reverses direction* between moderate and extreme levels.
 ](F3_stylised_facts.pdf)
 
 
@@ -122,7 +122,7 @@ Two nested decision problems sit inside this study, and naming both is what iden
 We hold the inner one, the trading agent, fixed. The outer one searches over reward programs. Figure 4.2
 draws them.
 
-![**Figure 4.2** — The two nested decision problems, and the one edge that varies. The inner problem is a Markov decision process: the trading agent reads a state, plays portfolio weights on the simplex, and collects whatever the authored program pays it. That loop is byte-identical in every arm, optimiser arms included. The outer problem is a bandit whose arms are candidate reward programs, whose payoff is the tail-blind validation score, and whose proposal distribution is the reward designer conditioned on the fed block. Naming both is what makes the identification argument exact, and it also makes the matched thirty-candidate budget legible as a bandit budget. **What to conclude:** every edge in this figure is common to all nine arms except one, the fed block, so a difference between arms has a single possible source.
+![**Figure 4.2** — The two nested decision problems, and the one edge that varies. Inside is a Markov decision process: the agent reads a state, plays weights on the simplex, and collects what the authored program pays. Outside is a bandit whose arms are candidate reward programs. **What to conclude:** every edge here is common to all nine arms except the fed block, so a difference between arms has one possible source.
 ](F0_rl_loop.pdf)
 
 $$\mathcal{M}(\varphi)=(\mathcal S,\mathcal A,\mathcal P,r_\varphi,\mu_0,\gamma),\qquad
@@ -569,7 +569,7 @@ had, and those rows say so.
 ```{=latex}
 \begingroup\tabcaptionstyle
 ```
-**Table 4.8 — The ten load-bearing design decisions.** Panel A gives the choice and what it was chosen over, Panel B the reason and the price, and the rows marked **against us** are the two whose cost runs against the hypothesis under test. Three prices are worth the arithmetic. The step budget cost 288,533 processor-hours, and unequal budgets were refused because they confound reward quality with compute. The transaction cost, at 79 per cent daily turnover, is a 20 per cent annual drag and a 1.07 Sharpe wedge, which is why every figure in this document is reported gross and net. And the sealed split's 60-session purge removes the COVID crash, so benchmarks run on the agents' own 1,571 sessions rather than the panel's 1,631, an error that cost a retraction here.
+**Table 4.8 — The ten load-bearing design decisions.** Panel A gives the choice and what it was chosen over, Panel B the reason and the price. Rows marked **against us** are the two whose cost runs against the hypothesis under test. The step budget cost 288,533 processor-hours, and at 79 per cent daily turnover the transaction cost is a 20 per cent annual drag and a 1.07 Sharpe wedge.
 ```{=latex}
 \par\endgroup
 ```

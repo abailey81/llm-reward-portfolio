@@ -702,7 +702,12 @@ def fig_seed_dispersion(store: dict[str, np.ndarray], line: str = CORE_LINE) -> 
 
     from src.viz.style import arm_style, iqm_bootstrap_ci
 
-    fig, ax = plt.subplots(figsize=(6.15, 4.10))
+    # 6.30 x 4.75 in, up from 6.15 x 4.10. Same reasoning as the eleven-panel version below: the
+    # text block is 6.30 in and pandoc never enlarges a figure to fill it, so the narrower canvas was
+    # discarding width for nothing, and type sizes are fixed in points so extra canvas goes to the
+    # clouds rather than to the labels. This panel carries five kernel densities and 510 points, and
+    # it is the exhibit a reader meets FIRST when learning to read the dispersion figures.
+    fig, ax = plt.subplots(figsize=(6.30, 4.75))
     rng = np.random.default_rng(7)
     for i, arm in enumerate(ARMS):
         y0 = len(ARMS) - 1 - i  # house order top-to-bottom
@@ -800,7 +805,20 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
     # constraint, but trading the legibility of the science for the placement of its caption is the
     # wrong side of that trade. 4 x 1.86 in = 536 pt against roughly 700 pt of A4 text height, so
     # the caption still fits beneath it, and the build is re-checked rather than assumed.
-    fig, axes = plt.subplots(nrow, ncol, figsize=(6.15, 1.86 * nrow), sharey=True)
+    # ⚠ 6.30 in WIDE AND 2.03 in PER ROW, AND BOTH NUMBERS COME FROM THE PAGE RATHER THAN FROM TASTE.
+    # Tamer read this figure twice and reported both times that the panels were too small to make out.
+    # Pandoc's default graphics rule is `width=\maxwidth, keepaspectratio` with `\maxwidth` capped at
+    # `\linewidth`, so a figure narrower than the text block renders at its own natural size and
+    # simply leaves the margin empty: 6.15 in on a 6.30 in text block was throwing away 0.15 in of
+    # width for nothing. Height is the bigger lever. Type sizes are fixed in POINTS, so growing the
+    # canvas hands every extra millimetre to the data rather than to the labels, and 4 x 2.03 in
+    # gives each panel 140 pt of height against the 134 pt it had. The ceiling is the page: the
+    # figure plus its caption must not exceed the 9.72 in text block, or LaTeX floats the caption
+    # away from the exhibit it explains. ⚠ 2.03 in per row WAS TOO TALL AND THE CHECK CAUGHT IT:
+    # the compiled page 53 clipped the last line of the caption off the bottom of the page, six
+    # points past the block. 1.94 in per row is 7.76 in and leaves 1.96 in for the caption. The
+    # compiled page is CHECKED after every change here rather than assumed from this arithmetic.
+    fig, axes = plt.subplots(nrow, ncol, figsize=(6.30, 1.94 * nrow), sharey=True)
     flat = axes.ravel()
     rng = np.random.default_rng(3)
     lo = min(get(store, lb, a, "sharpe_net").min() for lb in order for a in ARMS)
@@ -834,14 +852,14 @@ def fig_dispersion_all_lines(store: dict[str, np.ndarray]) -> Any:
         # argument the whole document is built to deliver, and here it is visible rather than counted.
         best = int(np.argmax(medians))
         ax.plot([best], [medians[best]], marker="o", ms=9, mfc="none", mec="0.10", mew=1.2, zorder=5)
-        # ⭐ THE SPREAD IS PRINTED AS A NUMBER, AND THAT IS WHAT MAKES THE UNSHARED AXIS SAFE. These
-        # eleven panels do not share a y-scale, for the reason recorded above, and a reader who
-        # compares two panels BY EYE is therefore comparing two different rulers. Until 2026-08-13
-        # the only warning of that was a sentence in the caption, which is precisely the "reader does
-        # your work for you" defect: the panels are ORDERED by this quantity, so a reader could see
-        # the ordering existed and could not see what it was ordered on. Printing the median
-        # within-arm interquartile range in every title converts the cross-panel comparison from a
-        # visual one, which the differing scales corrupt, into a numeric one, which they cannot.
+        # ⭐ THE SPREAD IS PRINTED AS A NUMBER IN EVERY TITLE, AND IT IS THE ORDERING KEY MADE VISIBLE.
+        # ⚠ THE COMMENT THAT STOOD HERE WAS STALE AND SAID THE OPPOSITE OF THE CODE. It argued that
+        # printing the number was what made an UNSHARED y-axis safe. The axis has been shared since
+        # `sharey=True` went in on 2026-08-13, so the sentence described a policy this function had
+        # already abandoned, and a later reader repairing the "differing scales" it warned about would
+        # have gone looking for a defect that no longer exists. The number earns its place for a
+        # different reason: the eleven panels are ORDERED by this quantity, so without it a reader can
+        # see that an ordering exists and cannot see what it is ordered on.
         spread = float(np.median([iqr(get(store, label, a, "sharpe_net")) for a in ARMS]))
         ax.set_title(f"{label}   IQR {spread:.2f}", fontsize=10)
         ax.set_xticks(range(len(ARMS)))

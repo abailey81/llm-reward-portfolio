@@ -162,10 +162,10 @@ has a test record at all.[^equalk]
 
 
 ![**Figure 5.1 — The treatment-minus-control contrast, one row per authoring line.** Almost every interval excludes zero and the lines still disagree in SIGN, five of eleven favouring the treatment. Each row is the distributional-minus-scalar difference, paired on the seed index; bars are 95 per cent percentile bootstrap intervals over 102 paired seeds.
-](../outputs/figures/F5_cross_line_forest.png)
+](../outputs/figures/F5_cross_line_forest.pdf)
 
 ![**Figure 5.2 — The estimator, not just the estimate: how the contrast settled as seeds accumulated.** Seeds enter in the registered order 0, 1, 2 and so on, never sorted. **What to conclude:** no inference was drawn at any prefix, and the curve is a diagnostic of whether the estimate had settled, not a result.
-](../outputs/figures/F5_seed_trajectory.png)
+](../outputs/figures/F5_seed_trajectory.pdf)
 
 ## 5.3 Nine controls, each answering a threat named before the data were seen
 
@@ -175,10 +175,10 @@ manipulated arm's own axes under rule 3, the scrambled one entering outside the 
 Figures 5.3 and 5.4 draw the seed clouds beneath.
 
 ![**Figure 5.3 — The random object behind the mean: every seed, every arm.** The arms overlap heavily and the within-arm spread is large relative to the distance between arm centres, which is why a table of means alone would overstate how far apart these conditions are.
-](../outputs/figures/F5_seed_dispersion.png)
+](../outputs/figures/F5_seed_dispersion.pdf)
 
-![**Figure 5.4 — The same clouds for all eleven lines, so the dispersion claim rests on the panel rather than on one author.** One point per seed, 102 per arm. Arms run left to right in the legend's order and are identified by colour. **All eleven panels share one vertical scale**, so the clouds can be compared directly by eye rather than through eleven separate rulers, and no point is clipped at either edge. Each panel also prints its own spread as a number, the median interquartile range across the five arms, for the distinctions too fine to see, and the panels are ordered by that number, most stable first. **What to conclude:** the height of a cloud now means the same thing in every panel. They run from 0.15 on `kimi-k3` to 0.40 on `glm-5.2`, and the controlled within-family pair sits inside that range in the predicted order, 0.19 for `qwen3.6-27b` against 0.27 for its nine-billion-parameter sibling. `haiku-4.5` at 0.16 is the honest counterexample, a small model at the tight end. Meanwhile the ring marking the best arm moves from panel to panel with no pattern at all. A stable ordering of models beside an unstable ordering of arms is the central claim of this document, and here it is seen rather than counted.
-](../outputs/figures/F5_dispersion_all_lines.png)
+![**Figure 5.4 — The same clouds for all eleven lines, so the dispersion claim rests on the panel rather than on one author.** One point per seed, 102 per arm, **all eleven panels sharing one vertical scale**, each printing its own median within-arm interquartile range. **What to conclude:** spreads run 0.15 to 0.40, and the ring marking the best arm moves from panel to panel with no pattern.
+](../outputs/figures/F5_dispersion_all_lines.pdf)
 
 ## 5.4 The designer is set against the whole hand-written canon, not one incumbent
 
@@ -267,8 +267,8 @@ the turnover channel under another name. Figure 5.5 draws the two programs.
 
 [^chaininst]: Link 1 is measured within a candidate chain, so a model's own authoring style differences out; link 2 runs over the 55 cells at 87 paired seeds. The instrument is calibrated against three known answers and recovers 1.000, 3.000 and 2.000 exactly, and 1,479 of 1,494 archived programs re-execute, the failures being three distinct programs by the weakest model.
 
-![**Figure 5.5 — The reward programs the models wrote, executed and plotted as functions.** Each arm's frozen winning program is loaded from the sealed archive and run over two sweeps: the day's portfolio return with the weights held still, and the share of the book traded at a zero return. Curves are the median over five warm-up seeds, because several of these programs carry rolling state and probing them cold measures the initialiser rather than the reward. Each curve is scaled to its own peak, since authored magnitude spans a factor of 9.8 million and the vertical levels are not comparable. **What to conclude:** the treatment did change the code. Its curve bends at about $-1.5$ per cent and pays little for a gain, penalising a $-4$ per cent day 4.16 times as hard as it rewards a $+4$ per cent day, against 1.26 for the scalar control, whose curve is nearly symmetric. What the right panel shows is that this asymmetry did not come with a heavier turnover charge, which is the link the outcome needed and did not get.
-](../outputs/figures/F5_reward_response.png)
+![**Figure 5.5 — The reward programs the models wrote, executed and plotted as functions.** Each arm's frozen winner is run over two sweeps, as the median over five warm-up seeds, each curve scaled to its own peak. **What to conclude:** the treatment did change the code, penalising a $-4$ per cent day 4.16 times as hard as it rewards a $+4$ per cent day against 1.26 for the scalar control. That asymmetry did not come with a heavier turnover charge.
+](../outputs/figures/F5_reward_response.pdf)
 
 **Why the reward's magnitude matters at all, when the environment never sees it.** Authored reward
 magnitude spans a factor of 9.8 million, from a root-mean-square of 0.0205 to 201,045, and Soft
@@ -284,22 +284,22 @@ temperature sets one anyway, by choosing units.
 
 
 ![**Figure 5.6 — The path, not only the endpoint.** A terminal Sharpe is a path functional, and the number the tables report is a late reading of a curve that moved by more than a full Sharpe unit inside the window. The horizontal axis is the end of the expanding window over the sealed test span 2020-03-30 to 2026-06-30, 1,571 sessions; the window opens at 126 sessions, about six months, so the variance estimate exists.
-](../outputs/figures/F5_sharpe_trajectory.png)
+](../outputs/figures/F5_sharpe_trajectory.pdf)
 
-We find the agent undertrained rather than overfit at this budget. Three measurements decide it. The critic
-loss is still descending at the 400,000-step cap in three quarters of trainings. Validation fitness
-transfers positively to the sealed window. And 53 of the 55 frozen cells are profitable out of sample.
-Two things would overturn the verdict: a flat or rising critic-loss tail in most trainings, or a negative
-validation-to-test correlation, which is the signature of selection overfitting.[^o8] Undertraining is
-common-mode across arms, so it bounds the claim and cannot tilt a contrast. Figure 5.7 shows what does.
+The agent is not overfit, which is the verdict this design was built to test. Three measurements decide
+it. Validation fitness transfers positively to the sealed window. The top validation quartile averages
+$+1.0644$ test net Sharpe against $+0.6678$ for the bottom. And 53 of the 55 frozen cells are profitable
+out of sample. One thing would overturn the verdict: a negative validation-to-test correlation, which is
+the signature of selection overfitting.[^o8] The step budget is registered and identical in every arm, so
+it cannot tilt a contrast. Figure 5.7 shows what does.
 
-[^o8]: Every figure behind this verdict is report-only and pooled across arms, so none reads the sealed comparison. The critic loss falls from a median 2.7043 to 0.0032 over training. Two depths agree on the descending share: 76.0 per cent over 5,610 sealed-test trainings at the banked depth, and 75.5 per cent over 4,785 at the 87-seed prefix. The Spearman validation-to-test transfer is $+0.2559$ against the Pearson $+0.5627$. The top validation quartile averages $+1.0644$ test net Sharpe against $+0.6678$ for the bottom.
+[^o8]: Every figure behind this verdict is report-only and pooled across arms, so none reads the sealed comparison. The Spearman validation-to-test transfer is $+0.2559$ against the Pearson $+0.5627$. On training progress the study reports what it measured and declines the inference the measurement does not carry. The critic loss falls from a median 2.7043 to 0.0032 and is still easing at the registered cap in about three quarters of trainings, at two depths that agree: 76.0 per cent over 5,610 sealed-test trainings at the banked depth and 75.5 per cent over 4,785 at the 87-seed prefix. A soft-actor-critic temporal-difference loss is measured against a moving bootstrapped target, so it descends for as long as the target moves and its slope is not a convergence test. The quantity that would settle the question is the training return curve, and `metrics.train_curve["return"]` is NaN in every archived record, so this study does not claim convergence and does not assert its absence either. The budget itself was set by a registered rule reading a measured knee, and that rule doubled it from 200,000 steps against this project's own standing recommendation before the design was frozen.
 
-![**Figure 5.7 — The mechanism, measured: what a reward design changes is how heavily it trades.** One point per authoring line, at the mean paired change with 95 per cent percentile bootstrap intervals on both axes over 102 paired seeds. Spearman $\rho = -0.982$ at $p = 8.4\times10^{-8}$ over the eleven lines. **What to conclude:** turnover accounts for almost all of the between-line variation in outcome, so a reward design acts on performance predominantly through the cost of trading rather than through any tail-aware behaviour it was intended to induce. The fitted slope printed here is $-1.583$, the ordinary least-squares slope on the eleven line means, while Table 5.8 reports $-1.616$ from the analysis pipeline's own resampled estimate of the same relation. The figure's value sits inside the table's interval of $[-2.068, -1.456]$, and a third estimator over all 55 cells in levels gives $-1.670$. Nothing in this chapter rests on the third digit of any of them.
-](../outputs/figures/F5_turnover_mechanism.png)
+![**Figure 5.7 — The mechanism, measured: what a reward design changes is how heavily it trades.** One point per authoring line, at the mean paired change with 95 per cent bootstrap intervals on both axes over 102 paired seeds, Spearman $\rho = -0.982$. **What to conclude:** a reward design acts on performance through the cost of trading, not through the tail-aware behaviour it was meant to induce.
+](../outputs/figures/F5_turnover_mechanism.pdf)
 
 ![**Figure 5.8 — Seed-to-seed instability by model, ordered.** The lines differ widely in how far a reward design's outcome moves when only the seed changes, which is why no mean is quoted anywhere in this chapter without its dispersion beside it. **What to conclude:** the left-to-right rise is arithmetic, because the axis is sorted by the quantity plotted; what the ordering licenses is the capability reading argued in the text.
-](../outputs/figures/F5_capability_gradient.png)
+](../outputs/figures/F5_capability_gradient.pdf)
 
 ### 5.5.1 A specification-gaming mechanism the pre-registration named in advance
 

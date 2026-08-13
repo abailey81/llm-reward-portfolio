@@ -897,7 +897,7 @@ data-licensing safeguard and as a sandbox-security control on the untrusted mode
      asset and because the anonymisation it describes is load-bearing for Chapter 4's sandbox argument.
      Only the heading and its page break are gone. -->
 
-**Word count.** The main text measures 10,992 words, within the 11,000-word limit approved for this
+**Word count.** The main text measures 10,990 words, within the 11,000-word limit approved for this
 dissertation, being the programme's 10,000 plus a 1,000-word extension granted through the route the
 guidelines name. Mathematics, code, figures, tables, captions, footnotes, the reference list and the
 appendices are excluded, as the guidelines provide. The figure is produced by
@@ -967,27 +967,28 @@ appendices are excluded, as the guidelines provide. The figure is produced by
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Figure 1.1 | The experiment on one page | Chapter 1 | 0 |
-| Figure 1.2 | The three outcomes, and the reading each was | Chapter 1 | 0 |
-| Figure 3.1 | Stylised tail facts of the training window | Chapter 3 | 0 |
-| Figure 3.2 | The Split-C timeline: training (2005–2016), | Chapter 3 | 0 |
-| Figure 4.1 | The experimental loop and the off-critic | Chapter 4 | 0 |
-| Figure 4.2 | The two nested decision problems, and the one | Chapter 4 | 0 |
-| Figure 5.1 | The treatment-minus-control contrast, one row | Chapter 5 | 0 |
-| Figure 5.2 | The estimator, not just the estimate: how the | Chapter 5 | 0 |
-| Figure 5.3 | The random object behind the mean: every | Chapter 5 | 0 |
-| Figure 5.4 | The same clouds for all eleven lines, so the | Chapter 5 | 0 |
-| Figure 5.5 | The reward programs the models wrote, | Chapter 5 | 0 |
-| Figure 5.6 | The path, not only the endpoint | Chapter 5 | 0 |
-| Figure 5.7 | The mechanism, measured: what a reward design | Chapter 5 | 0 |
-| Figure 5.8 | Seed-to-seed instability by model, ordered | Chapter 5 | 0 |
-| Figure 6.1 | The same arms, priced twice: gross of | Chapter 6 | 0 |
-| Figure 6.2 | What trading costs, in two views that share | Chapter 6 | 0 |
-| Figure 6.3 | The whole ladder on one axis: eleven | Chapter 6 | 0 |
-| Figure 6.4 | The path, not the endpoint: what one pound | Chapter 6 | 0 |
-| Figure 7.1 | Where the outcome variance comes from, and | Chapter 7 | 0 |
-| Listing 1.1 | The entire manipulation | Chapter 1 | 0 |
-| Algorithm 4.1 | The reward-design loop, as executed | Chapter 4 | 0 |
+| \hyperlink{page.15}{Figure 1.1} | \hyperlink{page.15}{The experiment on one page} | Chapter 1 | \hyperlink{page.15}{15} |
+| \hyperlink{page.20}{Figure 1.2} | \hyperlink{page.20}{The three outcomes, and the reading each was} | Chapter 1 | \hyperlink{page.20}{20} |
+| \hyperlink{page.31}{Figure 3.1} | \hyperlink{page.31}{Stylised tail facts of the training window} | Chapter 3 | \hyperlink{page.31}{31} |
+| \hyperlink{page.32}{Figure 3.2} | \hyperlink{page.32}{The Split-C timeline: training (2005–2016),} | Chapter 3 | \hyperlink{page.32}{32} |
+| \hyperlink{page.33}{Figure 4.1} | \hyperlink{page.33}{The experimental loop and the off-critic} | Chapter 4 | \hyperlink{page.33}{33} |
+| \hyperlink{page.34}{Figure 4.2} | \hyperlink{page.34}{The two nested decision problems, and the one} | Chapter 4 | \hyperlink{page.34}{34} |
+| \hyperlink{page.50}{Figure 5.1} | \hyperlink{page.50}{The treatment-minus-control contrast, one row} | Chapter 5 | \hyperlink{page.50}{50} |
+| \hyperlink{page.51}{Figure 5.2} | \hyperlink{page.51}{The estimator, not just the estimate: how the} | Chapter 5 | \hyperlink{page.51}{51} |
+| \hyperlink{page.52}{Figure 5.3} | \hyperlink{page.52}{The random object behind the mean: every} | Chapter 5 | \hyperlink{page.52}{52} |
+| \hyperlink{page.53}{Figure 5.4} | \hyperlink{page.53}{The same clouds for all eleven lines, so the} | Chapter 5 | \hyperlink{page.53}{53} |
+| \hyperlink{page.55}{Figure 5.5} | \hyperlink{page.55}{The reward programs the models wrote,} | Chapter 5 | \hyperlink{page.55}{55} |
+| \hyperlink{page.56}{Figure 5.6} | \hyperlink{page.56}{The path, not only the endpoint} | Chapter 5 | \hyperlink{page.56}{56} |
+| \hyperlink{page.57}{Figure 5.7} | \hyperlink{page.57}{The mechanism, measured: what a reward design} | Chapter 5 | \hyperlink{page.57}{57} |
+| \hyperlink{page.58}{Figure 5.8} | \hyperlink{page.58}{Seed-to-seed instability by model, ordered} | Chapter 5 | \hyperlink{page.58}{58} |
+| \hyperlink{page.70}{Figure 6.1} | \hyperlink{page.70}{The same arms, priced twice: gross of} | Chapter 6 | \hyperlink{page.70}{70} |
+| \hyperlink{page.71}{Figure 6.2} | \hyperlink{page.71}{What trading costs, in two views that share} | Chapter 6 | \hyperlink{page.71}{71} |
+| \hyperlink{page.72}{Figure 6.3} | \hyperlink{page.72}{The whole ladder on one axis: eleven} | Chapter 6 | \hyperlink{page.72}{72} |
+| \hyperlink{page.73}{Figure 6.4} | \hyperlink{page.73}{The path, not the endpoint: what one pound} | Chapter 6 | \hyperlink{page.73}{73} |
+| \hyperlink{page.78}{Figure 7.1} | \hyperlink{page.78}{Where the outcome variance comes from, and} | Chapter 7 | \hyperlink{page.78}{78} |
+| \hyperlink{page.79}{Figure 7.2} | \hyperlink{page.79}{What trading costs, as one exact surface,} | Chapter 7 | \hyperlink{page.79}{79} |
+| \hyperlink{page.14}{Listing 1.1} | \hyperlink{page.14}{The entire manipulation} | Chapter 1 | \hyperlink{page.14}{14} |
+| \hyperlink{page.37}{Algorithm 4.1} | \hyperlink{page.37}{The reward-design loop, as executed} | Chapter 4 | \hyperlink{page.37}{37} |
 
 <!-- THE LISTING AND THE ALGORITHM SIT HERE RATHER THAN IN A LIST OF THEIR OWN (2026-08-11). They
      previously had a third front-matter list, "List of Listings and Algorithms", carrying these two
@@ -1053,49 +1054,49 @@ executed archive.*
 
 | # | Title | Section | Page |
 |---|---|---|---|
-| Table 1.1 | The scale of the executed system | Chapter 1 | 0 |
-| Table 1.2 | The four pre-registered hypotheses | Chapter 1 | 0 |
-| Table 1.3 | The seven contributions, the evidence for | Chapter 1 | 0 |
-| Table 2.1 | Literature positioning matrix: the nearest | Chapter 2 | 0 |
-| Table 3.1 | The panel, the action space and the splits | Chapter 3 | 0 |
-| Table 4.1 | The four lines that carry the identification | Chapter 4 | 0 |
-| Table 4.2 | The nine arms (`config/arms.yaml`) | Chapter 4 | 0 |
-| Table 4.3 | Each arm's fed block, and the contrast it | Chapter 4 | 0 |
-| Table 4.4 | The confirmatory decision rules, fixed in | Chapter 4 | 0 |
-| Table 4.5 | The eleven-reward canon: the human bar | Chapter 4 | 0 |
-| Table 4.6 | The inference plan as registered | Chapter 4 | 0 |
-| Table 4.7 | Each threat to the headline inference, and | Chapter 4 | 0 |
-| Table 4.8 | The ten load-bearing design decisions | Chapter 4 | 0 |
-| Table 5.1 | The pre-committed reporting rules | Chapter 5 | 0 |
-| Table 5.2 | The execution ledger, read from the archive | Chapter 5 | 0 |
-| Table 5.3 | The two co-primary verdicts, sealed until the | Chapter 5 | 0 |
-| Table 5.4 | The mechanism instruments, and the limit each | Chapter 5 | 0 |
-| Table 5.5 | The chain measured link by link, by executing | Chapter 5 | 0 |
-| Table 5.6 | Realised results against the §C.7 | Chapter 5 | 0 |
-| Table 5.7 | Authoring reliability by model: the share of | Chapter 5 | 0 |
-| Table 5.8 | The eleven-line descriptive reading, at 102 | Chapter 5 | 0 |
-| Table 5.9 | Nine published allocators, one costed | Chapter 5 | 0 |
-| Table 5.9b | The estimation-error test behind `min_cvar`'s | Chapter 5 | 0 |
-| Table 6.1 | The pre-registered questions, their | Chapter 6 | 0 |
-| Table 6.2 | Four accounts of a negative sign, and what | Chapter 6 | 0 |
-| Table 6.3 | The five foregrounded limitations, and the | Chapter 6 | 0 |
-| Table 6.4 | Three further attacks on the cost account, | Chapter 6 | 0 |
-| Table 7.1 | What to do next, ordered by how directly it | Chapter 7 | 0 |
-| Table 7.2 | A practitioner's checklist for | Chapter 7 | 0 |
-| Table A.1 | The candidate-population denominators, | Appendix A | 0 |
-| Table A.2 | The execution record in counts | Appendix A | 0 |
-| Table A.3 | Selection re-read on the depth-matched pool, | Appendix A | 0 |
-| Table A.4 | The Table 5.3 equivalence instrument, | Appendix A | 0 |
-| Table B.1 | The design register: what each limitation is, | Appendix B | 0 |
-| Table C.1 | Pre-registered mapping of mechanism | Appendix C | 0 |
-| Table E.1 | Off the shelf against written for this study | Appendix E | 0 |
-| Table E.2 | The fixed learner | Appendix E | 0 |
-| Table E.3 | Environment specification | Appendix E | 0 |
-| Table E.4 | The report-only exhibits, and what each guards | Appendix E | 0 |
-| Table E.5 | The inference machinery, and where each piece | Appendix E | 0 |
-| Table E.6 | The eleven reward-authoring models, with | Appendix E | 0 |
-| Table E.7 | The three-layer reproducibility statement | Appendix E | 0 |
-| Table E.8 | The four axes the lineage innovates on, and | Appendix E | 0 |
+| \hyperlink{page.18}{Table 1.1} | \hyperlink{page.18}{The scale of the executed system} | Chapter 1 | \hyperlink{page.18}{18} |
+| \hyperlink{page.18}{Table 1.2} | \hyperlink{page.18}{The four pre-registered hypotheses} | Chapter 1 | \hyperlink{page.18}{18} |
+| \hyperlink{page.19}{Table 1.3} | \hyperlink{page.19}{The seven contributions, the evidence for} | Chapter 1 | \hyperlink{page.19}{19} |
+| \hyperlink{page.26}{Table 2.1} | \hyperlink{page.26}{Literature positioning matrix: the nearest} | Chapter 2 | \hyperlink{page.26}{26} |
+| \hyperlink{page.29}{Table 3.1} | \hyperlink{page.29}{The panel, the action space and the splits} | Chapter 3 | \hyperlink{page.29}{29} |
+| \hyperlink{page.37}{Table 4.1} | \hyperlink{page.37}{The four lines that carry the identification} | Chapter 4 | \hyperlink{page.37}{37} |
+| \hyperlink{page.38}{Table 4.2} | The nine arms (`config/arms.yaml`) | Chapter 4 | \hyperlink{page.38}{38} |
+| \hyperlink{page.39}{Table 4.3} | \hyperlink{page.39}{Each arm's fed block, and the contrast it} | Chapter 4 | \hyperlink{page.39}{39} |
+| \hyperlink{page.40}{Table 4.4} | \hyperlink{page.40}{The confirmatory decision rules, fixed in} | Chapter 4 | \hyperlink{page.40}{40} |
+| \hyperlink{page.41}{Table 4.5} | \hyperlink{page.41}{The eleven-reward canon: the human bar} | Chapter 4 | \hyperlink{page.41}{41} |
+| \hyperlink{page.42}{Table 4.6} | \hyperlink{page.42}{The inference plan as registered} | Chapter 4 | \hyperlink{page.42}{42} |
+| \hyperlink{page.43}{Table 4.7} | \hyperlink{page.43}{Each threat to the headline inference, and} | Chapter 4 | \hyperlink{page.43}{43} |
+| \hyperlink{page.44}{Table 4.8} | \hyperlink{page.44}{The ten load-bearing design decisions} | Chapter 4 | \hyperlink{page.44}{44} |
+| \hyperlink{page.47}{Table 5.1} | \hyperlink{page.47}{The pre-committed reporting rules} | Chapter 5 | \hyperlink{page.47}{47} |
+| \hyperlink{page.48}{Table 5.2} | \hyperlink{page.48}{The execution ledger, read from the archive} | Chapter 5 | \hyperlink{page.48}{48} |
+| \hyperlink{page.49}{Table 5.3} | \hyperlink{page.49}{The two co-primary verdicts, sealed until the} | Chapter 5 | \hyperlink{page.49}{49} |
+| \hyperlink{page.54}{Table 5.4} | \hyperlink{page.54}{The mechanism instruments, and the limit each} | Chapter 5 | \hyperlink{page.54}{54} |
+| \hyperlink{page.54}{Table 5.5} | \hyperlink{page.54}{The chain measured link by link, by executing} | Chapter 5 | \hyperlink{page.54}{54} |
+| \hyperlink{page.58}{Table 5.6} | \hyperlink{page.58}{Realised results against the §C.7} | Chapter 5 | \hyperlink{page.58}{58} |
+| \hyperlink{page.60}{Table 5.7} | \hyperlink{page.60}{Authoring reliability by model: the share of} | Chapter 5 | \hyperlink{page.60}{60} |
+| \hyperlink{page.61}{Table 5.8} | \hyperlink{page.61}{The eleven-line descriptive reading, at 102} | Chapter 5 | \hyperlink{page.61}{61} |
+| \hyperlink{page.63}{Table 5.9} | \hyperlink{page.63}{Nine published allocators, one costed} | Chapter 5 | \hyperlink{page.63}{63} |
+| \hyperlink{page.64}{Table 5.9b} | The estimation-error test behind `min_cvar`'s | Chapter 5 | \hyperlink{page.64}{64} |
+| \hyperlink{page.65}{Table 6.1} | \hyperlink{page.65}{The pre-registered questions, their} | Chapter 6 | \hyperlink{page.65}{65} |
+| \hyperlink{page.74}{Table 6.2} | \hyperlink{page.74}{Four accounts of a negative sign, and what} | Chapter 6 | \hyperlink{page.74}{74} |
+| \hyperlink{page.75}{Table 6.3} | \hyperlink{page.75}{The five foregrounded limitations, and the} | Chapter 6 | \hyperlink{page.75}{75} |
+| \hyperlink{page.76}{Table 6.4} | \hyperlink{page.76}{Three further attacks on the cost account,} | Chapter 6 | \hyperlink{page.76}{76} |
+| \hyperlink{page.79}{Table 7.1} | \hyperlink{page.79}{What to do next, ordered by how directly it} | Chapter 7 | \hyperlink{page.79}{79} |
+| \hyperlink{page.80}{Table 7.2} | \hyperlink{page.80}{A practitioner's checklist for} | Chapter 7 | \hyperlink{page.80}{80} |
+| \hyperlink{page.91}{Table A.1} | \hyperlink{page.91}{The candidate-population denominators,} | Appendix A | \hyperlink{page.91}{91} |
+| \hyperlink{page.92}{Table A.2} | \hyperlink{page.92}{The execution record in counts} | Appendix A | \hyperlink{page.92}{92} |
+| \hyperlink{page.97}{Table A.3} | \hyperlink{page.97}{Selection re-read on the depth-matched pool,} | Appendix A | \hyperlink{page.97}{97} |
+| \hyperlink{page.98}{Table A.4} | \hyperlink{page.98}{The Table 5.3 equivalence instrument,} | Appendix A | \hyperlink{page.98}{98} |
+| \hyperlink{page.99}{Table B.1} | \hyperlink{page.99}{The design register: what each limitation is,} | Appendix B | \hyperlink{page.99}{99} |
+| \hyperlink{page.116}{Table C.1} | \hyperlink{page.116}{Pre-registered mapping of mechanism} | Appendix C | \hyperlink{page.116}{116} |
+| \hyperlink{page.119}{Table E.1} | \hyperlink{page.119}{Off the shelf against written for this study} | Appendix E | \hyperlink{page.119}{119} |
+| \hyperlink{page.120}{Table E.2} | \hyperlink{page.120}{The fixed learner} | Appendix E | \hyperlink{page.120}{120} |
+| \hyperlink{page.120}{Table E.3} | \hyperlink{page.120}{Environment specification} | Appendix E | \hyperlink{page.120}{120} |
+| \hyperlink{page.121}{Table E.4} | \hyperlink{page.121}{The report-only exhibits, and what each guards} | Appendix E | \hyperlink{page.121}{121} |
+| \hyperlink{page.121}{Table E.5} | \hyperlink{page.121}{The inference machinery, and where each piece} | Appendix E | \hyperlink{page.121}{121} |
+| \hyperlink{page.122}{Table E.6} | \hyperlink{page.122}{The eleven reward-authoring models, with} | Appendix E | \hyperlink{page.122}{122} |
+| \hyperlink{page.123}{Table E.7} | \hyperlink{page.123}{The three-layer reproducibility statement} | Appendix E | \hyperlink{page.123}{123} |
+| \hyperlink{page.124}{Table E.8} | \hyperlink{page.124}{The four axes the lineage innovates on, and} | Appendix E | \hyperlink{page.124}{124} |
 
 <!-- TABLE C.1 WAS THE ONE REAL EXHIBIT MISSING FROM THIS LIST until 2026-08-10, and it could not have
      been added: `docs/analysis/exhibit_pages.py` matched a caption label only when a DIGIT followed

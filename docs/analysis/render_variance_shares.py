@@ -135,7 +135,13 @@ def build(out: Path = FIG_DIR) -> Path:
     # block and LaTeX gave it a page of its own, 142 words on page 80. Losing half an inch off the
     # interval panel costs nothing legible, because every value is also printed as text beside its
     # bar, and it is what lets the exhibit sit under the paragraph that cites it.
-    fig, axes = plt.subplots(2, 1, figsize=(TEXT_WIDTH_IN, 2.85),
+    # ⚠ 3.05 in, RAISED FROM 2.85, AND THE FOURTEEN POINTS BUY AN AXIS NAME. The composition strip
+    # printed a ruler reading 0, 25, 50, 75, 100% with nothing anywhere saying what was being divided.
+    # Tamer named that defect class on Figure 6.2 and it is the same one here: a reader met a
+    # percentage scale and had to infer its subject. Naming it costs one line and closes it. The
+    # 3.35 in version measured below still overflowed and is still out of reach, so the caption stays
+    # on the same page. The build is re-checked rather than assumed.
+    fig, axes = plt.subplots(2, 1, figsize=(TEXT_WIDTH_IN, 3.05),
                              height_ratios=(1.0, 2.6))
 
     # ---- the composition strip: one bar, four segments, so the whole adds to 100 visibly ----------
@@ -175,6 +181,11 @@ def build(out: Path = FIG_DIR) -> Path:
     top.set_yticks([])
     top.set_xticks([0, 25, 50, 75, 100])
     top.set_xticklabels(["0", "25", "50", "75", "100%"])
+    # ⭐ THE STRIP NOW SAYS WHAT ITS PERCENTAGES ARE PERCENTAGES OF. It carried a 0 to 100% ruler and
+    # named nothing, so a reader met a scale and had to work out its subject from the panel below.
+    # The name is deliberately the SAME phrase the interval panel uses, because C1 says one object
+    # takes one name: these are two views of a single quantity, not two quantities.
+    top.set_xlabel("Share of the variance in terminal net Sharpe (%)", labelpad=2)
     top.grid(False)
     for side in ("left", "right", "top"):
         top.spines[side].set_visible(False)

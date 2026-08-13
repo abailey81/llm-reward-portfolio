@@ -260,9 +260,18 @@ def build(out: Path = FIG_DIR) -> Path:
     price_edge = {0.0: "0.30", 5.0: "0.35", 10.0: "white", 25.0: "white", 50.0: "white"}
 
     from matplotlib import gridspec
-    fig = plt.figure(figsize=(FIG_WIDTH_IN, 6.95))
-    gs = gridspec.GridSpec(2, 1, height_ratios=(1.32, 1.00), hspace=0.16,
-                           left=0.125, right=0.985, top=0.915, bottom=0.115)
+    # ⭐ hspace 0.30, NOT 0.16, AND THE EXTRA GAP IS AN AXIS NAME RATHER THAN WHITE SPACE. Tamer read
+    # the compiled exhibit and reported that one of its panels had no x axis label, and he was right:
+    # the upper panel drew neither tick labels nor a name, on the theory that the panel below shares
+    # the axis and names it for both. That reasoning holds only when two panels read as ONE object.
+    # Here a second panel title sits between them, so the upper panel presented a horizontal spread
+    # of 55 spines with no ruler and no name anywhere near it, and a reader had to travel past a
+    # title and a whole second panel to discover what the horizontal position meant. Each panel now
+    # carries its own complete axis. The five repeated tick values are a cheap price for a panel that
+    # can be read where it sits.
+    fig = plt.figure(figsize=(FIG_WIDTH_IN, 7.30))
+    gs = gridspec.GridSpec(2, 1, height_ratios=(1.32, 1.00), hspace=0.30,
+                           left=0.125, right=0.985, top=0.920, bottom=0.108)
     ax = fig.add_subplot(gs[0])
     bx = fig.add_subplot(gs[1], sharex=ax)
 
@@ -307,7 +316,7 @@ def build(out: Path = FIG_DIR) -> Path:
     ax.set_ylim(-6.5, 1.62)
     ax.set_ylabel("Sharpe, net of the price charged\n(annualised)")
     ax.set_title("Every cell priced five times over, one spine per cell", fontsize=10.5, pad=4)
-    ax.tick_params(labelbottom=False)
+    ax.set_xlabel("Turnover: share of the book traded per session (%), logarithmic")
 
     # ---------------------------------------------------------------- lower panel: the threshold
     # ⭐ EXACT, NOT FITTED. Sharpe is linear in the price, so the price at which a cell breaks even
@@ -360,14 +369,19 @@ def build(out: Path = FIG_DIR) -> Path:
 
     # ⚠ TICKS AT ROUND NUMBERS, NOT AT ROUND LOGARITHMS. A log locator left to itself prints
     # "3.16228" and "31.6228", which are decade roots rather than quantities anyone reads.
+    # ⚠ AND THEY ARE SET ON BOTH AXES EXPLICITLY. `add_subplot(..., sharex=ax)` shares the limits and
+    # the scale, but each Axis keeps its OWN locator and formatter, so setting fixed ticks on the
+    # lower panel alone would have left the upper panel printing decade roots beneath the axis name
+    # that was just added to it. Shared limits are not shared labels.
     bx.set_xscale("log")
     bx.set_xlim(*xs)
-    bx.set_xticks([0.5, 1, 3, 10, 30, 90])
-    bx.set_xticklabels(["0.5", "1", "3", "10", "30", "90"])
-    bx.minorticks_off()
     bx.set_xlabel("Turnover: share of the book traded per session (%), logarithmic")
 
     for a in (ax, bx):
+        a.set_xscale("log")
+        a.set_xticks([0.5, 1, 3, 10, 30, 90])
+        a.set_xticklabels(["0.5", "1", "3", "10", "30", "90"])
+        a.minorticks_off()
         a.grid(True, which="major", color="0.92", lw=0.6)
         a.set_axisbelow(True)
         for side in ("top", "right"):

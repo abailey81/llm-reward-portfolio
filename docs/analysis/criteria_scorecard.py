@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import math
 import os
 import re
 import sys
@@ -479,22 +480,48 @@ def main() -> int:
             # ⚠ GROUP BY VERTICAL BAND, NOT BY PyMuPDF's LINE OBJECT. A table row is many separate
             # line objects, one per cell, so a per-line scan cannot see a cell colliding with its
             # NEIGHBOUR, which is exactly the defect. Banding by rounded baseline finds it.
-            band: dict[int, list] = {}
+            # ⚠ EVERY SPAN IS TESTED IN ITS OWN READING FRAME, AND THIS WAS A LIVE FALSE POSITIVE.
+            # The check banded by baseline y and compared x extents, which is correct only for
+            # HORIZONTAL text. A rotated axis label reads bottom-to-top, so its successive LINES are
+            # offset along x by the leading while each line's bounding box is a full glyph-height
+            # wide, and two neighbouring lines therefore overlap in x by two or three points as a
+            # matter of ordinary typography. Measured on Figure 3.1's panel (d): 'names below their
+            # own' at x 296.4-310.7 and '5% quantile (mean %)' at x 308.4-322.7, both at
+            # dir = (0, -1), an overlap of 2.3 pt and nothing wrong on the page at all.
+            # ⚠ IT ONLY SURFACED WHEN THE RESULTS FIGURES WENT FROM RASTER TO VECTOR, because a PNG
+            # carries no text and this detector could not see inside one. Going vector did not create
+            # the defect, it created the COVERAGE, and the right response is to make the detector
+            # correct rather than to give the coverage back.
+            # Banding by x and comparing y for rotated spans keeps the gate's power: a rotated label
+            # that genuinely runs into another one still collides ALONG ITS OWN READING DIRECTION,
+            # which is exactly what is now measured.
+            def _frame(bbox, dirv):
+                """Return (start, end, band) for a span, measured along ITS OWN reading direction."""
+                dx, dy = dirv
+                n = math.hypot(dx, dy) or 1.0
+                dx, dy = dx / n, dy / n
+                corners = [(x, y) for x in (bbox[0], bbox[2]) for y in (bbox[1], bbox[3])]
+                along = [x * dx + y * dy for x, y in corners]
+                across = [-x * dy + y * dx for x, y in corners]
+                return min(along), max(along), (min(across) + max(across)) / 2.0
+
+            band: dict[tuple, list] = {}
             for blk in doc[i].get_text("dict")["blocks"]:
                 for ln in blk.get("lines", []):
                     for sp in ln.get("spans", []):
                         if len(sp["text"].strip()) > 1:
-                            band.setdefault(round(sp["bbox"][3] / 3.0), []).append(sp)
+                            a0, a1, c = _frame(sp["bbox"], ln["dir"])
+                            key = (round(ln["dir"][0], 2), round(ln["dir"][1], 2), round(c / 3.0))
+                            band.setdefault(key, []).append((a0, a1, sp["text"].strip()))
             for key in sorted(band):
-                spans = sorted(band[key], key=lambda sp: sp["bbox"][0])
+                spans = sorted(band[key])
                 for a_sp, b_sp in zip(spans, spans[1:]):
                     # > 2pt of genuine overlap. A smaller tolerance fires on composed accents (a
                     # circumflex drawn over a letter is two spans at one x) and on kerning, and
                     # neither is a defect. Reporting a non-defect trains a reader to ignore the
                     # check, which is worse than the check not existing.
-                    if a_sp["bbox"][2] - b_sp["bbox"][0] > 2.0:
-                        overlap.append(f"p{i+1}: {a_sp['text'].strip()[:22]!r} over "
-                                       f"{b_sp['text'].strip()[:22]!r}")
+                    if a_sp[1] - b_sp[0] > 2.0:
+                        overlap.append(f"p{i+1}: {a_sp[2][:22]!r} over {b_sp[2][:22]!r}")
         doc.close()
     s.add("CRITERION 4 -- 'faultless presentation of data'",
           "no rendered text OVERPRINTS other text", checked and not overlap,

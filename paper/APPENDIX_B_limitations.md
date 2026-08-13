@@ -155,9 +155,14 @@ independently on 394, because the vectorised environment was built without the w
 episodic returns. Nothing scored depends on it, since every scored quantity comes from the sealed test
 leg. Over 4,785 sealed-test trainings the median first-to-last fall is 1.8 to 3.3 orders of magnitude for
 the critic loss, 1.7 to 2.7 for the entropy coefficient and 0.7 to 1.6 for the actor loss. An earlier
-draft said three to five, and the measurement supersedes it downward. The critic loss is still descending
-at the 400,000-step cap in 75.5% of trainings, which is this study's answer to whether its agent is
-undertrained: it is, and the budget is a stated scope condition rather than a claim of convergence.
+draft said three to five, and the measurement supersedes it downward. The critic loss is still easing at
+the 400,000-step cap in 75.5% of trainings. An earlier draft read that as an answer to whether the agent
+had been trained enough, and it is not one: a soft-actor-critic temporal-difference loss is measured
+against a moving bootstrapped target, so it keeps descending for as long as the target moves, and its
+slope is a property of the algorithm rather than a convergence test. The series that would settle the
+question is the one this entry reports missing. The registered budget is therefore a stated scope
+condition, and the study neither claims convergence nor concedes its absence. What the budget is not is
+a source of bias: it bound every training in every arm identically, so it cannot move a contrast.
 
 **B.8.13 The reward guard substitutes zero where clipping would have preserved the sign.** It rejects a
 step whose reward magnitude exceeds $10^{6}$ and substitutes 0.0. An extreme step then tells the agent
@@ -213,18 +218,16 @@ $\alpha$ is printed beside its verdict.
 
 **B.8.15 The extractor for N2 did not implement the test N2 registers, and the repair runs against us.**
 N2 is registered as a disjunction and the registered graph recycles $\alpha$ on any rejection, superiority
-or equivalence. The executed extractor read the one-sided superiority statistic alone. The consequence was
-not cosmetic: under the predicted branch a superiority test does not reject, so no node could reject, no
-$\alpha$ could propagate, and four of the six confirmatory nodes had no decision path at all. It was not
-found by a test. The propagation test exercised the rule directly and bypassed the extractor, so the
-defect sat in the one seam no test crossed, and it surfaced from a line-by-line comparison of the
-registered node table against the extractor's source. N2's $p$-value is now the one-sided non-inferiority
-intersection-union test at the registered margin $\delta = 0.0756$, with $\delta = 0.0502$ and the
-superiority-only rule both carried as pre-specified sensitivities. The direction is stated against
-ourselves: the repair enables a rejection the as-executed code could not produce, and the registered
-margin is the more permissive of the two, so it is the opposite of conservative and calling it
-conservative would be the easy and wrong thing to write. It is defensible on three grounds and no others.
-The rule it restores was ratified pre-data, the decision was timestamped while effect-blind with no H2
-contrast formed, and all three verdicts are reported so which margin rejects cannot select the claim. The
-resulting claim is non-inferiority at the SESOI, strictly weaker than "superior or equivalent", and it
-never appears as the latter.
+or equivalence. The executed extractor read the one-sided superiority statistic alone. The consequence
+was not cosmetic: under the predicted branch a superiority test does not reject, so four of the six
+confirmatory nodes had no decision path at all. No test found it, because the propagation test
+exercised the rule directly and bypassed the extractor, so the defect sat in the one seam no test
+crossed. A line-by-line comparison of the registered node table against the extractor's source
+surfaced it. N2's $p$-value is now the one-sided non-inferiority test at the registered margin
+$\delta = 0.0756$, with $\delta = 0.0502$ and the superiority-only rule carried as sensitivities.
+The direction is stated against ourselves: the repair enables a rejection the as-executed code could
+not produce, and the registered margin is the more permissive of the two, so it is the opposite of
+conservative. It is defensible on three grounds and no others. The rule it restores was ratified
+pre-data, the decision was timestamped while effect-blind with no H2 contrast formed, and all three
+verdicts are reported, so which margin rejects cannot select the claim. The resulting claim is
+non-inferiority at the SESOI, weaker than superiority and never written as it.

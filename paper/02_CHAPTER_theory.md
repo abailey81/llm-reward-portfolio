@@ -190,7 +190,7 @@ confers no *between-arm* advantage, which is the weaker property the inference a
 tail content, which is an empirical rather than an assumed property.
 
 **3. Agent attainability.** Even a tail-aware reward helps only if the bounded agent converts it into
-tail-protective behaviour. **A structural obstruction operates here beyond mere undertraining.** A
+tail-protective behaviour. **A structural obstruction operates here, whatever the training depth.** A
 mean-critic agent maximises the entropy-regularised *expectation* of whatever reward it is given, and CVaR
 is not a linear functional of the return distribution, so a static CVaR penalty embedded in a per-step
 reward does not represent the tail objective. This is a *representation* failure rather than a

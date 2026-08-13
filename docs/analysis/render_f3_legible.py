@@ -61,7 +61,13 @@ OUT = REPO / "outputs" / "figures" / "F3_stylised_facts.png"
 #: at 12 pt / 1.5 spacing = 126-144 pt, plus ~10 pt of caption skip. A figure of 536 pt therefore leaves
 #: 10-28 pt of slack on a float page, where the previous 322 pt-tall rendering left ~230 pt of it empty.
 #: Going to the full ~565 pt would overrun the page by about a point once the caption is counted.
-FIG_HEIGHT_IN = 7.45
+# 8.30 in, up from 7.45. The caption above this figure was cut from 243 words to 110 on Tamer's
+# instruction that captions not run so long, which freed close to an inch on the page it shares. He
+# also reported that all four panels read squeezed, and they did: at 7.45 in each panel had about
+# 2.5 x 2.5 in to hold a two-line title, an axis name on each side and its own callouts. The freed
+# inch goes to the panels rather than back to the margin. Type sizes are fixed in POINTS, so every
+# millimetre of it reaches the data.
+FIG_HEIGHT_IN = 8.30
 SUPTITLE_PT = 11.0
 BODY_PT = MIN_PT
 #: Fraction of an axes' width a panel title may claim. Titles are left-aligned at the axes edge and the
@@ -170,13 +176,94 @@ _LABEL_FIXES = {
     "CVaR$_\\alpha$": "CVaR-α",
     "cvar_25": "CVaR 25%", "cvar_10": "CVaR 10%", "cvar_05": "CVaR 5%", "cvar_01": "CVaR 1%",
     "observed (EW daily)": "observed, equal-weighted",
-    "EW portfolio daily return": "Equal-weighted portfolio, daily return",
+    "EW portfolio daily return": "Equal-weighted portfolio, daily return (%)",
     "realised vol (annualised %)": "realised volatility (annualised %)",
 }
 
 #: The text every panel-(b) marker callout now begins with. Kept beside :data:`_LABEL_FIXES` because
 #: the two must change together.
 _CALLOUT_PREFIX = "CVaR "
+
+
+#: Axis names the fenced source never set, keyed by panel tag and axis.
+#:
+#: Panel (c) drew a horizontal ruler reading 2008, 2012, 2016 and named nothing, while (a), (b) and
+#: (d) all name their horizontal axis. That is an INCONSISTENCY as much as an omission: a reader who
+#: has learned from three panels that the horizontal axis is named arrives at the fourth and finds it
+#: is not. The name is deliberately plain, because the panel's subject is already stated by the
+#: figure's own title and repeating it here would crowd the only panel with no room to spare.
+_AXIS_NAMES = {("c", "x"): "Year, within the training panel"}
+
+
+#: Panels whose axis carries a FRACTION and should print a PER CENT, keyed by panel tag and axis.
+#:
+#: Panel (a) plotted daily returns as -0.1, 0.0, 0.1 while (b) reads "daily %, signed", (c) reads
+#: "annualised %" and (d) "mean %". One figure was therefore asking a reader to hold two unit systems
+#: at once and to convert between them by eye, on the panel that carries the figure's opening claim.
+#: The conversion is exact and presentational: the underlying data are untouched and only the printed
+#: tick text and the axis name change.
+_PERCENT_AXES = {("a", "x")}
+
+
+def percent_axes(fig: Any) -> int:
+    """Print the fraction-valued axes in :data:`_PERCENT_AXES` as per cent."""
+    from matplotlib.ticker import FuncFormatter
+
+    def _tick(v: float, _pos: int) -> str:
+        pct = v * 100.0
+        return f"{pct:.0f}" if abs(pct - round(pct)) < 5e-3 else f"{pct:.1f}"
+
+    done = 0
+    for ax in fig.axes:
+        tag = _panel_tag(ax)
+        for which in ("x", "y"):
+            if (tag, which) not in _PERCENT_AXES:
+                continue
+            axis = ax.xaxis if which == "x" else ax.yaxis
+            lo, hi = (ax.get_xlim() if which == "x" else ax.get_ylim())
+            # FAIL LOUD IF THE DATA ARE ALREADY IN PER CENT. Multiplying a per-cent axis by a hundred
+            # again would print "-1000" beside a label reading "(%)", which is worse than the defect
+            # this repair exists to fix. A daily equity return does not reach +/-1.
+            if max(abs(lo), abs(hi)) > 1.0:
+                raise RuntimeError(
+                    f"[F3] panel ({tag}) {which} axis spans {lo:.3f} to {hi:.3f}, which is already "
+                    f"per cent rather than a fraction; drop this entry from _PERCENT_AXES.")
+            axis.set_major_formatter(FuncFormatter(_tick))
+            done += 1
+    if done != len(_PERCENT_AXES):
+        raise RuntimeError(
+            f"[F3] expected to rescale {len(_PERCENT_AXES)} axes and rescaled {done}; a panel tag in "
+            f"_PERCENT_AXES no longer matches any panel.")
+    return done
+
+
+def name_unnamed_axes(fig: Any) -> int:
+    """Give :data:`_AXIS_NAMES` to the panels that lack them; fail loudly if one is already named.
+
+    A pre-existing name would mean the fenced source has started labelling the axis itself, in which
+    case overwriting it would silently replace the author's wording with ours. Refusing is correct:
+    the repair exists to fill a gap, not to win an argument with the module it repairs.
+    """
+    written = 0
+    for ax in fig.axes:
+        tag = _panel_tag(ax)
+        for which in ("x", "y"):
+            name = _AXIS_NAMES.get((tag, which))
+            if name is None:
+                continue
+            current = (ax.get_xlabel() if which == "x" else ax.get_ylabel()).strip()
+            if current:
+                raise RuntimeError(
+                    f"[F3] panel ({tag}) already names its {which} axis {current!r}; the fenced "
+                    f"source now labels it, so remove this entry from _AXIS_NAMES rather than "
+                    f"overwriting the author's wording.")
+            (ax.set_xlabel if which == "x" else ax.set_ylabel)(name)
+            written += 1
+    if written != len(_AXIS_NAMES):
+        raise RuntimeError(
+            f"[F3] expected to name {len(_AXIS_NAMES)} axes and named {written}; a panel tag in "
+            f"_AXIS_NAMES no longer matches any panel on the figure.")
+    return written
 
 
 def correct_labels(fig: Any) -> dict[str, int]:
@@ -558,8 +645,15 @@ def main() -> int:
     # Each carries its own loud guard against the fenced source drifting underneath it.
     print(f"[F3] panel titles shortened: {shorten_titles(fig)}")
     print(f"[F3] fact boxes removed from the canvas: {strip_fact_boxes(fig)}")
+    # Also before the snapshot, and for the same reason: this ADDS words, and the guard below forbids
+    # the word bag changing across the re-flow, not across the repair.
+    print(f"[F3] unnamed axes given names: {name_unnamed_axes(fig)}")
     before = figure_words(fig)      # snapshot BEFORE the re-flow: only line breaks may change
     enlarge(fig)
+    # AFTER the re-flow, and that ordering is deliberate: `enlarge` installs a MaxNLocator on every
+    # non-log axis, and a locator chosen for one unit system would otherwise pick tick POSITIONS for
+    # fractions and then print them as per cent, giving values like 12.5 where 10 and 20 belong.
+    print(f"[F3] axes rescaled from fractions to per cent: {percent_axes(fig)}")
     after = figure_words(fig)
     if before != after:
         raise RuntimeError(
