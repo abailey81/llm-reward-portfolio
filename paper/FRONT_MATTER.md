@@ -897,7 +897,7 @@ data-licensing safeguard and as a sandbox-security control on the untrusted mode
      asset and because the anonymisation it describes is load-bearing for Chapter 4's sandbox argument.
      Only the heading and its page break are gone. -->
 
-**Word count.** The main text measures 10,995 words, within the 11,000-word limit approved for this
+**Word count.** The main text measures 10,992 words, within the 11,000-word limit approved for this
 dissertation, being the programme's 10,000 plus a 1,000-word extension granted through the route the
 guidelines name. Mathematics, code, figures, tables, captions, footnotes, the reference list and the
 appendices are excluded, as the guidelines provide. The figure is produced by

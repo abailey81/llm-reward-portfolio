@@ -11,7 +11,7 @@ objective failures. The specification-gaming catalogue collects dozens of cases 
 optimiser faithfully satisfied an *incorrect* objective [`krakovna2020specification`], and two of the
 safety agenda's five canonical accident risks are a wrong objective rather than a failure of learning
 [`amodei2016concrete`; `strathern1997improving`; `manheim2018categorizing`]. The difficulty is formal
-as well as practical: there is an *optimal reward problem* [`sorg2010orp`], Markov reward provably
+as well as practical. There is an *optimal reward problem* [`sorg2010orp`], Markov reward provably
 cannot express whole classes of task [`abel2021expressivity`], and the gap between the objective
 written and the objective intended sustains an inverse-reward-design literature
 [`hadfieldmenell2017ird`].
@@ -29,7 +29,7 @@ Eureka established the stronger proposition that it can instead author the rewar
 train an agent on it and revise it from feedback, matching or beating human-engineered rewards on
 most of twenty-nine control tasks [`ma2024eureka`]. The line has since broadened enough[^broadened]
 that a 2024 taxonomy treats "reward designer" as a standard role [`cao2024survey`]. These systems
-instantiate a faster agenda: the automated discovery of objective functions and
+instantiate a faster agenda, the automated discovery of objective functions and
 algorithms[^discovery2] by evolving code against an evaluator.
 
 [^broadened]: To dense reward shaping from task descriptions [`xie2024text2reward`], sim-to-real transfer [`ma2024dreureka`], trajectory-analysing critics [`li2024automc`], and human-preference evolution [`hazra2025revolve`].
@@ -38,8 +38,8 @@ algorithms[^discovery2] by evolving code against an evaluator.
 
 This capability does not dissolve the design problem. **It relocates it.** The lever moves from writing the
 objective to designing the designer's evidence, the last human-controlled input to an otherwise
-automated loop. That relocation is this dissertation's premise, and it carries a claim about the field:
-innovation has been vigorous on every element of that loop except the evidence flowing through it.
+automated loop. That relocation is our premise, and it carries a claim about the field.
+Innovation has been vigorous on every element of that loop except the evidence flowing through it.
 
 Table 2.1 records what these systems actually feed back, work by work, and the pattern is scalar.
 Eureka and its descendants feed per-component scalar time-series with aggregate task fitness
@@ -81,7 +81,7 @@ placebo-controlled experiment[^variance] holding agent, environment, prompts and
 
 [^nbrs]: Every weight-bearing cell of Table 2.1 is sourced from the work itself: 36 verbatim quotations with page and section, 3 page locators, and 15 counted full-text searches, over 54 cells with none unsourced.
 
-The strongest *counter*-claim deserves naming, because an informed reader will raise it: scalar reward
+The strongest *counter*-claim deserves naming, because an informed reader will raise it. Scalar reward
 suffices for in-context self-improvement [`song2025reward`]. That result concerns short-horizon reasoning
 with accumulated multi-round reward, not the authoring of reward *code* from a single fed distribution. Even
 there it argues only that scalar reward is *enough to improve*, not that it is *as good as* richer feedback,
@@ -103,10 +103,10 @@ why the fed vector is built from CVaR at several levels and carries no quantiles
 
 A natural objection is that risk-sensitive reinforcement learning already exists, and that one should
 simply use a distributional critic. That literature obtains tail-aware behaviour by putting risk
-inside the agent.[^inside] This contribution sits on a complementary axis: the risk signal is
+inside the agent.[^inside] This contribution sits on a complementary axis. The risk signal is
 measured off the critic and fed to the *reward-designer*, while the agent's critic stays
 risk-neutral and fixed across arms. That isolates the feedback content as the manipulated variable,
-which a distributional-critic comparison cannot. It is also licensed: a scalar reward can carry CVaR
+which a distributional-critic comparison cannot. It is also licensed. A scalar reward can carry CVaR
 sensitivity without a distributional critic [`prashanth2018risk`], and a native CVaR optimiser is
 sample-inefficient and can stall at a local optimum *blind to success*
 [`greenberg2022efficientriskaverse`].
@@ -121,7 +121,7 @@ not estimation error.[^naive]
 
 [^naive]: DeMiguel, Garlappi and Uppal find that a sample-based mean-variance rule on 25 assets needs an estimation window beyond 3,000 months to beat the naive benchmark, against the 120 months practitioners use [`demiguel2009naive`].
 
-The arena supplies one more thing no other does: the strictest available standards for *believing*
+The arena supplies one more thing no other does, the strictest available standards for *believing*
 the answer. The field names overfitting, survivorship bias and multiple testing as the dominant
 failure modes of a backtest [`bailey2014pseudomath`; `liu2022finrlmeta`], the corrective machinery is
 well developed,[^machinery] and this study adopts it in full (Table E.5). All of it attacks the
@@ -153,14 +153,14 @@ this design's control condition rather than its treatment [`zeng2025elfolio`].[^
 The claim this chapter licenses is therefore about the field rather than about a seven-column cell.
 No prior study found here has a language model write the reward function for a risk-sensitive
 portfolio agent, and the domain's own survey draws the same boundary from the other side
-[`batra2025review`]. What the design delivers is narrower: *(a language model authors reward code) ×
+[`batra2025review`]. The design delivers something narrower: *(a language model authors reward code) ×
 (a multi-level realised-return tail fed as off-critic feedback) × (a fixed risk-sensitive portfolio
-agent) × (pre-registered comparative inference)*. Every weight-bearing cell of Table 2.1 is sourced
+agent) × (pre-registered comparative inference)*. We source every weight-bearing cell of Table 2.1
 inside this document, so a reader disputing either claim has a cell to dispute.
 
 Two neighbours narrow it further. A pre-registered study of frontier-model agent economies exists
 [`qian2026infolimits`], so pre-registration is absent from automated reward design rather than from
 language-model research at large. A placebo-controlled study of risk-feedback alignment in trading
 agents [`xue2026riskfeedback`] is the nearest control design, and it differs on the axis that
-matters: there the model *is* the agent. No copy of either is retained, so both distinctions rest on
+matters. There the model *is* the agent. No copy of either is retained, so both distinctions rest on
 the reading record.

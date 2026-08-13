@@ -77,7 +77,7 @@ same shape. The other carries the same six numbers with the mapping from value t
 The reward function encodes what a trading agent is told to want, and specifying it badly is not a peripheral
 risk. A safety literature
 documents that the gap between what we reward and what we want is where learning systems fail.[^specification]
-It is the optimisation form of an older observation: a measure adopted as a target stops being a good measure
+An older observation takes this optimisation form. A measure adopted as a target stops being a good measure
 [`strathern1997improving`; `manheim2018categorizing`].
 
 Risk-sensitive rewards are harder, because what matters lives in the shape of the outcome distribution and
@@ -96,14 +96,14 @@ agenda[^discovery] in which models evolve code against an evaluator. Those syste
 demonstration rather than by controlled inference [`gridach2025agentic`], which shows discovery is
 possible without showing what caused it.
 
-One question inside the loop has never been the manipulated variable: what should the designer be shown? That
-it matters is established from two directions: an ablation inside the lineage, and an independent line on
+One question inside the loop has never been the manipulated variable. What should the designer be shown? Two
+directions establish that it matters, an ablation inside the lineage and an independent line on
 language-model optimisers.[^feedbackmatters]
 
 Whether a richer signal reaches this reader is a different question, and the reason is architectural.
 A language model never receives a number. It receives characters, at whatever precision the numbers
 were rendered into text, and its risk behaviour moves with conditioning as slight as a persona
-[`hartley2025personality`]. The question generalises: wherever an automated designer is improved
+[`hartley2025personality`]. The question generalises. Wherever an automated designer is improved
 against a summary of its own output, whether widening that summary changes what it writes is a
 property of the designer rather than of the summary.
 
@@ -160,7 +160,7 @@ Difficulty is stated in counts, not adjectives (Table 1.1).[^scale]
 | Registered pre-analysis amendments | 105 |
 | Model-written programs executed in the training loop | every one |
 
-Seven contributions follow, and they are facets of one: this study makes the feedback channel of automated
+Seven contributions follow, and they are facets of one. We make the feedback channel of automated
 reward design measurable. Table 1.2 states the hypotheses, Table 1.3 the contributions.
 
 ```{=latex}
@@ -219,7 +219,7 @@ the mechanism, not a verdict that one condition won.
 ![**Figure 1.2 — The three outcomes, and the reading each was given before the data were seen.** No outcome of the test can be reinterpreted after the fact, because each branch already carries its reading, including the one that favours the study least.
 ](outputs/figures/F2_prediction_branch.pdf)
 
-One reporting standard governs the whole document: every conclusion is a statement about the eleven
+One reporting standard governs the whole document. Every conclusion is a statement about the eleven
 authoring models together, and no single model carries one.[^openweights]
 
 ## 1.5 What this study does not claim

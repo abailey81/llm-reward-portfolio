@@ -24,10 +24,10 @@ Table 5.1 governs every statement below.
 Two marks below are disclosures.[^marks] Figures 5.1 and 5.2 are descriptive and neither gives a
 decision.[^adds]
 
-Printing those contrasts does not spend the single look. Look-inflation works one way: the sample
-size becomes a function of the data. Here it cannot. Stopping is a calendar date fixed in advance, and
-every analytic degree of freedom was bound into the hash before any sealed number existed. What would
-break this is acting on a look, and no rung, leg, seed or stop moved. A reader cannot verify that
+Printing those contrasts does not spend the single look. Look-inflation needs the sample
+size to become a function of the data, and here it cannot. Stopping is a calendar date fixed in advance, and
+every analytic degree of freedom was bound into the hash before any sealed number existed. We would
+break this by acting on a look, and no rung, leg, seed or stop moved. A reader cannot verify that
 abstention. The hash, the date and the deviations log are verifiable.
 
 <!-- COMPRESSED 2026-08-11, 213 counted words to 108, with nothing conceded. What went was
@@ -94,8 +94,8 @@ model, would both have removed open-weight evidence, so the overrun is its autho
 
 ## 5.2 Both co-primary tests, read by a rule fixed in advance
 
-The headline is the pair of co-primary tests: the TOST bound against
-the ±0.05-DSR SESOI, then the one-sided IUT *p* per leg. H2-RA (deflated net Sharpe at the
+The headline is the pair of co-primary tests, the TOST bound against
+the ±0.05-DSR SESOI and then the one-sided IUT *p* per leg. H2-RA (deflated net Sharpe at the
 headline 10 bps) and H2-Tail (CVaR-5%) are each an IUT over the same three legs, distributional
 against *scalar*, *placebo* and *scalar_cvar5*, one-sided at $\alpha=0.05$. Table 5.3 carries each
 co-primary, and Figures 5.1 and 5.2 the per-leg statistics by line and against seed count.
@@ -104,7 +104,7 @@ The interval below is a difference between two selected programs, the unit §4.7
 
 [^unit]: The confirmatory unit is the (program, seed) pair, so the paired bootstrap resamples the training seed alone and authoring variance sits outside the interval by construction.
 
-The instrument's power is stated before the verdict, not after it. Table A.4 fires it on generated
+We state the instrument's power before the verdict, not after it. Table A.4 fires it on generated
 data whose answer is known, at the banked 102 paired seeds: on a true zero it returns EQUIVALENT in
 74.8 per cent of replications, and 43.0 in the algebraic worst pairing case, and never the opposite
 verdict.[^powerread] The predicted branch is available at this depth rather than assured, and
@@ -156,8 +156,8 @@ The depth-matched pool is the better estimate of the selection step. Table A.3 r
 its line's shallowest depth, and the winner changes in 5 of the 55 cells. Repairing our own allowlist gap
 returns twelve wrongly rejected candidates to the confirmatory line, whose depths become 29, 30, 29, 28
 and 28, moving the deepest pool from the treatment arm to its comparator. Both corrections run against
-this study's own hypothesis. Neither becomes the headline outcome pool, and the reason is the archive:
-only the winners that actually froze were re-run on the sealed leg, so no depth-matched or repaired winner
+our own hypothesis. Neither becomes the headline outcome pool, and the archive is the reason. Only
+the winners that actually froze were re-run on the sealed leg, so no depth-matched or repaired winner
 has a test record at all.[^equalk]
 
 
@@ -170,7 +170,7 @@ has a test record at all.[^equalk]
 ## 5.3 Nine controls, each answering a threat named before the data were seen
 
 Nine registered controls defend the primary result, all specified in Chapter 4 rather than restated
-here: five in Table 4.7, four in Table E.4. The placebo and scrambled controls are overlaid on the
+here, five in Table 4.7 and four in Table E.4. The placebo and scrambled controls are overlaid on the
 manipulated arm's own axes under rule 3, the scrambled one entering outside the conjunction.
 Figures 5.3 and 5.4 draw the seed clouds beneath.
 
@@ -192,8 +192,8 @@ since Eureka, Text2Reward and REvolve each contest a single hand-written reward 
 
 One asymmetry remains and it favours us. The designed reward is the survivor of a thirty-candidate
 search. Each hand-designed reward is a single un-tuned specification, and no deflation counterweight
-corrects for that (§B.6.5). Dominating an un-tuned bar is the weaker claim, and only the weaker one is
-made.
+corrects for that (§B.6.5). Dominating an un-tuned bar is the weaker claim, and we make only the
+weaker one.
 
 Two reporting rules follow, both about power. H1 carries $\alpha$ only on upstream rejection, so the
 local $\alpha$ it inherits at node N6 is printed beside its verdict, and at zero it is reported as
@@ -286,12 +286,12 @@ temperature sets one anyway, by choosing units.
 ![**Figure 5.6 — The path, not only the endpoint.** A terminal Sharpe is a path functional, and the number the tables report is a late reading of a curve that moved by more than a full Sharpe unit inside the window. The horizontal axis is the end of the expanding window over the sealed test span 2020-03-30 to 2026-06-30, 1,571 sessions; the window opens at 126 sessions, about six months, so the variance estimate exists.
 ](../outputs/figures/F5_sharpe_trajectory.png)
 
-The agent is undertrained rather than overfit at this budget. Three measurements decide it. The critic
+We find the agent undertrained rather than overfit at this budget. Three measurements decide it. The critic
 loss is still descending at the 400,000-step cap in three quarters of trainings. Validation fitness
 transfers positively to the sealed window. And 53 of the 55 frozen cells are profitable out of sample.
 Two things would overturn the verdict: a flat or rising critic-loss tail in most trainings, or a negative
 validation-to-test correlation, which is the signature of selection overfitting.[^o8] Undertraining is
-common-mode across arms, so it bounds the claim and cannot tilt a contrast. Figure 5.7 is what does.
+common-mode across arms, so it bounds the claim and cannot tilt a contrast. Figure 5.7 shows what does.
 
 [^o8]: Every figure behind this verdict is report-only and pooled across arms, so none reads the sealed comparison. The critic loss falls from a median 2.7043 to 0.0032 over training. Two depths agree on the descending share: 76.0 per cent over 5,610 sealed-test trainings at the banked depth, and 75.5 per cent over 4,785 at the 87-seed prefix. The Spearman validation-to-test transfer is $+0.2559$ against the Pearson $+0.5627$. The top validation quartile averages $+1.0644$ test net Sharpe against $+0.6678$ for the bottom.
 
@@ -320,7 +320,7 @@ produces was confirmed nine independent times.
 
 Counterfactual. Substitution runs from 4.6% to 6.3% across the five arms, and every Wilson interval
 overlaps every other.[^wilson] The guard cannot produce a between-arm effect. The mechanism is a property
-of automated reward authorship, not of this study's instrumentation.
+of automated reward authorship, not of our instrumentation.
 
 The *phenomenon* is pre-registered, and the *threshold* at which the guard fires is not.[^guard]
 
@@ -376,7 +376,7 @@ issues no verdict, which is why the adjudicated split is the measure and the fla
 ### 5.8.1 Authoring reliability — the one capability measure that needs no sealed outcome
 
 Every other quantity in this section waits on the sealed test. Table 5.7 does not, because it asks a prior
-question: can the model write executable objective code at all? It is read from the complete failure ledger,
+question. Can the model write executable objective code at all? It is read from the complete failure ledger,
 which records only whether an authored program cleared static screening and executed, never how it performed.
 
 
@@ -412,12 +412,12 @@ These rates supersede an earlier measurement that counted only node-side rejecti
 understatement was non-uniform, so it re-ordered the gradient rather than shifting it.[^superseded]
 The load-bearing contrast survives the correction. The Qwen pair is a within-family comparison with
 the reasoning configuration pinned identically across both members, and 86.0% against 10.7% isolates
-capacity from vendor, prompt and harness.[^astsplit] The bottom anchor stands: a model that fails
+capacity from vendor, prompt and harness.[^astsplit] The bottom anchor stands. A model failing
 most of its attempts leaves the reflection loop nothing to reflect on, which §6.1 develops as a
 threshold rather than a slope.
 
 The legs share the market panel and the common-random-number seed set *by design*, so they are not independent
-replications and are never counted as if they were. The synthesis therefore has two tiers. The seven cross-model instruments below set
+replications and we never count them as if they were. The synthesis therefore has two tiers. The seven cross-model instruments below set
 them beside the two registered capability instruments and the stability ordering of Figure 5.8, which is a
 display choice.[^gradient] The
 hand-reward canon runs after the headline at the lowest execution priority.[^canonhist]
@@ -465,12 +465,12 @@ Table 5.8 is the descriptive eleven-line reading the abstract quotes.[^desc]
 | Fed statistics named in code, treatment | 4 of 277 | [0.6, 3.7]% |
 | Fed statistics named in code, scrambled control | 12 of 280 | [2.5, 7.3]% |
 
-Four readings travel with that table. No condition wins everywhere: the per-line best arm is `placebo` on
+We read four things off that table. No condition wins everywhere. The per-line best arm is `placebo` on
 five lines, `scalar_cvar5` on four, `scalar` on one, the scrambled control on one, and the treatment on none.
 The fit against turnover is similar before and after costs but the magnitude is not, so four fifths of the
 damage is what trading costs.[^twoest] The four variance shares overlap, so the interaction's exclusion of
 small values is established and the ordering is not. And the shortfall-construct counts are not separated
-from parity: treatment against the two uninformed controls pooled is +2.6 points on a 95 per cent Newcombe
+from parity. Treatment against the two uninformed controls pooled is +2.6 points on a 95 per cent Newcombe
 interval of [−0.3, +6.2], with the scrambled control level or a little above.[^denoms]
 
 [^denoms]: Every denominator is that arm's own eleven-line program count.
@@ -482,8 +482,8 @@ interval of [−0.3, +6.2], with the scrambled control level or a little above.[
 
 Seven cross-model instruments are named and directed before any of them can be read, so the synthesis is a
 procedure fixed in advance, and all seven stay sealed until the single confirmatory look.[^sevenins] Every
-$p$-value is Benjamini-Hochberg-corrected across the ten-leg report-only family. What the suite traces is
-the envelope-to-realisation gap along the capability axis: the Blackwell envelope of Appendix C binds an
+$p$-value is Benjamini-Hochberg-corrected across the ten-leg report-only family. The suite traces
+the envelope-to-realisation gap along the capability axis. The Blackwell envelope of Appendix C binds an
 optimal author, and the legs measure the gap a bounded one realises.
 
 [^sevenins]: Two are inferential, the descriptive replication count on the CVaR leg and a per-seed joint-flip permutation test at 10,000 replications. One is the bounded-effect interval on the pooled mean CVaR-5% difference. The remaining four read the capability axis: the three-signature gradient adjudication, whose registered prediction is flat-at-zero, a family-pair difference-in-differences over the open, closed and same-vendor pairs, a capability regression against the pre-declared external anchor, and generation-indexed responsiveness across the loop's six generations.[^unwired]

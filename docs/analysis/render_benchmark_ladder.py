@@ -100,6 +100,8 @@ def build(out: Path = FIG_DIR) -> Path:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
     from docs.analysis.figure_typeface import use_document_typeface
     from src.viz.style import OKABE_ITO, apply_house_style
 
@@ -149,17 +151,24 @@ def build(out: Path = FIG_DIR) -> Path:
     # language-model" with "arm" cut off. This module saves at exactly the text width, so a title
     # wider than the canvas is not scaled down, it is cropped.
     ax.set_title("The whole ladder: people, optimisers and machines", fontsize=11)
-    # ⛔ THE BAND CARRIES NO LABEL ON THE CANVAS, AND THREE PLACEMENTS WERE TRIED BEFORE GIVING UP ON
-    # IT. At the foot of the axes it printed across the worst row's interval, at the top across the
-    # best row's stripe, and above the frame it collided with the title. There is no empty place for
-    # it, because the band is a full-height region and the rows fill the frame. The caption says
-    # "The shaded band is loss" in the first two lines, which is where a reader looks anyway, and a
-    # label that has to be squeezed somewhere is worse than one sentence of caption.
+    # ⚠ THE BAND IS LABELLED IN THE LEGEND, NOT ON THE CANVAS, AND THAT IS THE FIX AFTER THREE
+    # PLACEMENTS FAILED. An earlier pass tried the label at the foot of the axes (it printed across
+    # the worst row's interval), at the top (across the best row's stripe) and above the frame (it
+    # collided with the title), then concluded there was "no empty place for it" and left the shading
+    # unexplained on the canvas. That conclusion was wrong: the legend is OUTSIDE the axes, it already
+    # has a whole figure width, and a fourth key costs nothing. Shading a region and never saying what
+    # it means is exactly the defect a reader cannot repair from the exhibit alone, and a caption
+    # sentence does not repair it either because the orphan-exhibit test assumes the caption is unread.
 
     short = ("hand-written objective", "numerical optimiser", "language-model arm")
     handles = [plt.Line2D([], [], ls="-", marker=mk, ms=5.5, color=col, mec="white", mew=0.6,
                           label=lab) for lab, (_l, _mem, col, mk) in zip(short, groups)]
-    fig.legend(handles=handles, loc="outside lower center", ncol=3, frameon=False, fontsize=10)
+    # The band is drawn at alpha 0.06, which is right on the canvas (it must not compete with the
+    # intervals) and far too faint to read in a 10 pt legend swatch, so the key is drawn at 0.35.
+    # The swatch identifies the region; it is not a colour sample.
+    handles.append(Patch(facecolor=OKABE_ITO["vermillion"], alpha=0.35, edgecolor="none",
+                         label="shaded: lost money out of sample"))
+    fig.legend(handles=handles, loc="outside lower center", ncol=2, frameon=False, fontsize=10)
 
     out.mkdir(parents=True, exist_ok=True)
     png = out / "F5_benchmark_ladder.png"

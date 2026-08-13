@@ -1111,25 +1111,101 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     xf = np.linspace(xs.min() - 0.05, xs.max() + 0.05, 50)
     ax.plot(xf, slope * xf + intercept, color="0.45", lw=1.0, ls="--", zorder=2,
             label=f"least-squares fit (slope {slope:+.2f} Sharpe per unit turnover)")
-    # A quadrant gloss, in the two corners the data never occupies, so the reader gets the reading of
-    # the plane before they read a single point. Both are statements about the AXES, not the data.
-    ax.text(0.985, 0.975, "trades more,\nearns more", transform=ax.transAxes, ha="right", va="top",
-            fontsize=10, color="0.55", linespacing=1.35)
-    ax.text(0.015, 0.03, "trades less,\nearns less", transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=10, color="0.55", linespacing=1.35)
+    # ⛔ THE TWO QUADRANT GLOSSES ARE GONE, AND THE CORNERS THEY HELD ARE THE FIX FOR THIS FIGURE.
+    # They read "trades more, earns more" and "trades less, earns less", placed in the two corners the
+    # data never occupies. As orientation they were redundant with the x-label, which already says
+    # "right = the treatment trades MORE", and they were occupying the only two regions of the panel
+    # with room to spare. What they cost was severe: eight of the eleven lines sit inside a fifth of
+    # the x-range, `_place_labels` had nowhere to send them, and the compiled figure carried seven
+    # names fanned across the middle on long crossing leaders. Which name belonged to which point was
+    # not recoverable by eye. The upper-right corner now holds a zoom of that cluster instead.
 
-    for label, tm, tlo, thi, sm, slo, shi in pts:
-        is_core = label == CORE_LINE
-        colour = OKABE_ITO["blue"]
-        ax.errorbar([tm], [sm], xerr=[[tm - tlo], [thi - tm]], yerr=[[sm - slo], [shi - sm]],
-                    fmt="o", ms=5, color=colour,
-                    ecolor=colour, elinewidth=0.9, capsize=1.8, mec="white", mew=0.6, zorder=3)
-        if is_core:
-            ax.plot([tm], [sm], marker="o", ms=10, mfc="none", mec="0.20", mew=1.1, zorder=4)
-    pad_x = 0.16 * (xs.max() - xs.min())
-    pad_y = 0.12 * (ys.max() - ys.min())
+    def _draw_points(target: Any, subset: Sequence[Any], *, ms: float, ring: float) -> None:
+        for label, tm, tlo, thi, sm, slo, shi in subset:
+            target.errorbar([tm], [sm], xerr=[[tm - tlo], [thi - tm]],
+                            yerr=[[sm - slo], [shi - sm]], fmt="o", ms=ms, color=OKABE_ITO["blue"],
+                            ecolor=OKABE_ITO["blue"], elinewidth=0.9, capsize=1.8, mec="white",
+                            mew=0.6, zorder=3)
+            if label == CORE_LINE:
+                target.plot([tm], [sm], marker="o", ms=ring, mfc="none", mec="0.20", mew=1.1,
+                            zorder=4)
+
+    _draw_points(ax, pts, ms=5, ring=10)
+    # pad 0.05, not 0.16. At 0.16 the axes ran a seventh of the x-range past the data on BOTH sides,
+    # so a panel already too crowded in its middle was spending a third of its width on margin.
+    pad_x = 0.05 * (xs.max() - xs.min())
+    pad_y = 0.08 * (ys.max() - ys.min())
     ax.set_xlim(xs.min() - pad_x, xs.max() + pad_x)
     ax.set_ylim(ys.min() - pad_y, ys.max() + pad_y)
+
+    # ★ THE ZOOM. The claim this exhibit carries is a slope across the whole range, and the whole
+    # range is set by three lines that trade very differently from the other eight. Those eight are
+    # not noise to be cropped away: they are the lines on which the treatment barely moved turnover,
+    # and whether they sit on the same slope is precisely what decides whether the mechanism is one
+    # relationship or two populations. So the panel keeps every point and the corner shows the
+    # crowded part at a readable scale. The window is taken from the data rather than hard-coded, so
+    # it cannot go stale if a line's contrast moves.
+    # ⚠ 0.05, AND THE WIDER 0.12 WAS TRIED FIRST AND FAILED FOR A REASON WORTH RECORDING. At 0.12 the
+    # inset held eight lines, which sounds better and reads worse: five of those eight sit inside
+    # 0.06 of turnover and 0.09 of Sharpe of one another, so at a zoom wide enough to also hold
+    # haiku-4.5 and gpt-5.6-luna the five were still coincident and their names still needed leaders
+    # across the panel. Three successive placement fixes each moved the collision somewhere else
+    # rather than removing it, which is the signal that the window was wrong rather than the placer.
+    # A zoom must be tight enough that the points it magnifies actually separate. At 0.05 the inset
+    # holds exactly the five that overlap, they spread across its full width, and the three lines it
+    # sheds have room to be labelled on the main panel, where nothing else competes for their corner.
+    CLUSTER_HALF_WIDTH = 0.05
+    cluster = [p for p in pts if abs(p[1]) <= CLUSTER_HALF_WIDTH]
+    outer = [p for p in pts if abs(p[1]) > CLUSTER_HALF_WIDTH]
+    cx = np.array([p[1] for p in cluster])
+    cy = np.array([p[4] for p in cluster])
+    # The inset takes the whole upper-right quadrant, which the fit line leaves empty: the line falls
+    # from +0.31 at the left edge to -1.05 at the right, so everything above y = 0.3 and right of
+    # x = 0.2 is free. A smaller inset was tried first at 0.44 x 0.42 and it merely relocated the
+    # crowding, because four of the eight lines sit inside 0.04 of turnover of each other and need
+    # real width before their names separate.
+    axins = ax.inset_axes([0.455, 0.495, 0.545, 0.475])
+    axins.axhline(0.0, color="0.55", lw=0.8, ls=":", zorder=1)
+    axins.axvline(0.0, color="0.55", lw=0.8, ls=":", zorder=1)
+    axins.plot(xf, slope * xf + intercept, color="0.45", lw=1.0, ls="--", zorder=2)
+    _draw_points(axins, cluster, ms=4.5, ring=9)
+    # ⚠ THE HEADROOM IS ASYMMETRIC, AND EVERY SIDE OF IT WAS SET BY A RENDERED FAILURE.
+    # Right: the rightmost point is gpt-5.6-luna, the longest name in the cluster, and without extra
+    # width its label ran off the inset's own edge and was clipped mid-word.
+    # Bottom: the note sits down there (see below) and needs a clear band, or `_place_labels` fills
+    # it and the two print through each other.
+    # Top: kept small. The indicator rectangle on the main panel is drawn from the INSET'S LIMITS, so
+    # any headroom also inflates the rectangle. At 0.52 the rectangle claimed to magnify a region
+    # reaching y = 0.42 when the highest cluster point is 0.20, and it collided with the title.
+    ins_rx = cx.max() - cx.min()
+    ins_ry = cy.max() - cy.min()
+    axins.set_xlim(cx.min() - 0.10 * ins_rx, cx.max() + 0.34 * ins_rx)
+    # The bottom band is 0.55 of the range, not 0.34, because the note has to clear the ERROR BARS
+    # and not merely the markers: sonnet-5's lower whisker reaches 0.03 below its point and grazed
+    # the note text. `cy` holds point estimates, so any clearance computed from it under-reserves.
+    axins.set_ylim(cy.min() - 0.55 * ins_ry, cy.max() + 0.16 * ins_ry)
+    axins.tick_params(labelsize=10, length=2.5, pad=1.5)
+    axins.grid(alpha=0.20)
+    axins.set_facecolor("white")
+    axins.patch.set_alpha(0.94)
+    # The note goes INSIDE the inset, not in a title. As an axes title it printed immediately under
+    # the figure's own title and read as a subtitle of the whole exhibit rather than a label on the
+    # corner panel, which inverted its meaning: it appeared to say the FIGURE showed eight lines.
+    # ⚠ BOTTOM-LEFT, NOT TOP-LEFT, AND THE MOVE IS WHAT FREED THE HARDEST LABEL. At the top the note
+    # sat directly over the only isolated point in the cluster, haiku-4.5 at (-0.072, +0.196). Its
+    # three upward slots were blocked by the note and its two sideways slots by its neighbours, so the
+    # greedy placer pushed it to the bottom of the panel on a leader that crossed the entire inset --
+    # the exact defect the inset was built to remove, reproduced inside the inset. The cluster's
+    # bottom-left corner holds no point at all, so the note costs nothing there.
+    ins_note = axins.text(0.02, 0.04, f"zoom: the crowded middle, {len(cluster)} of {len(pts)} lines",
+                          transform=axins.transAxes, ha="left", va="bottom", fontsize=10,
+                          color="0.35")
+    for side in ("top", "right"):
+        axins.spines[side].set_visible(False)
+    # The rectangle and its two connectors are what make the inset a zoom rather than a second,
+    # unexplained scatter. Without them a reader has no way to know the corner panel is a magnified
+    # region of the panel it sits inside.
+    ax.indicate_inset_zoom(axins, edgecolor="0.45", lw=0.8, alpha=0.9)
 
     _note_xlabel(
         ax,
@@ -1161,11 +1237,27 @@ def fig_turnover_mechanism(store: dict[str, np.ndarray]) -> Any:
     # already carries. Direct labels remove both. `_place_labels` searches eight directions at five
     # radii per point and draws a leader, so a name never lands on a marker, on another name or on
     # the fit. The Spearman statistic belongs in the caption, which is word-excluded and read anyway.
-    label_colours = ["0.25"] * len(pts)
+    # ⭐ EACH NAME IS PLACED ON THE PANEL THAT CAN HOLD IT. All eleven used to be placed on the main
+    # axes, where eight of them competed for the same tenth of the canvas. Now the three lines that
+    # set the range are named where they sit, with short offsets and room around them, and the other
+    # eight are named inside the zoom, which has the same eight points spread over the full width of
+    # a corner panel. No name travels more than a few millimetres from its point in either panel, so
+    # the reader never has to trace a leader across the figure to answer "which model is that".
     xline = np.linspace(*ax.get_xlim(), 200)
-    _place_labels(ax, [(p[1], p[4], p[0]) for p in pts],
-                  avoid_curves=[(xline, slope * xline + intercept)], colors=label_colours,
-                  fontsize=10)
+    _place_labels(ax, [(p[1], p[4], p[0]) for p in outer],
+                  avoid=[axins], avoid_curves=[(xline, slope * xline + intercept)],
+                  colors=["0.25"] * len(outer), fontsize=10)
+    # ⚠ TOP-DOWN ORDER, NOT ROSTER ORDER, AND IT IS NOT COSMETIC. `_place_labels` is greedy: it takes
+    # the first non-colliding slot per point, in the order it is handed them. Handed the cluster in
+    # roster order it reached haiku-4.5 last, by which time its neighbours had taken every near slot
+    # around it, and pushed the name to the foot of the inset on a leader crossing the whole panel.
+    # Sorting by descending y hands the topmost point its own top slot first, and each subsequent
+    # point is placed against a frontier that is already above it rather than around it. Deterministic
+    # either way; this order is simply the one that leaves no long leaders.
+    xins = np.linspace(*axins.get_xlim(), 200)
+    _place_labels(axins, [(p[1], p[4], p[0]) for p in sorted(cluster, key=lambda p: -p[4])],
+                  avoid=[ins_note], avoid_curves=[(xins, slope * xins + intercept)],
+                  colors=["0.25"] * len(cluster), fontsize=10)
     _LOG.info("turnover mechanism: Spearman rho=%+.3f p=%.2e slope=%+.3f", rho, pval, slope)
     return fig
 
@@ -1214,12 +1306,25 @@ def fig_gross_vs_net(store: dict[str, np.ndarray]) -> Any:
     for y, line in enumerate(order):
         if y % 2 == 0:
             ax.axhspan(y - 0.5, y + 0.5, color="0.955", zorder=0)
-        for field, off, colour, size in (("sharpe_gross", +dy, "0.62", 4.6),
-                                         ("sharpe_net", -dy, "0.30", 5.8)):
+        # ⛔⛔ THE OFFSETS WERE INVERTED AND THE LEGEND THEREFORE NAMED THE WRONG CONDITION.
+        # `set_ylim(len-0.5, -0.5)` puts the origin at the TOP and makes y increase DOWNWARD, so the
+        # old `sharpe_gross` at `+dy` rendered BELOW its row and `sharpe_net` at `-dy` rendered ABOVE
+        # it, while the legend read "upper bar: spread GROSS / lower bar: spread NET". Every one of
+        # the eleven rows was labelled backwards, in the one exhibit whose whole job is to separate
+        # before-cost from after-cost. It is visible in the rendered figure once you know to look:
+        # qwen3.5-9b's UPPER bar runs from -0.28 to 1.23, and a spread that wide is what costs DO to
+        # a line, not what it looked like before them. Signs against an inverted axis are exactly the
+        # silent error a code read misses and a rendered read catches.
+        # The offsets are now negative-for-gross, so the row reads top-to-bottom as before, then
+        # after, which is also the order the caption and the sentence in the body use.
+        for field, off, colour, lw, size in (("sharpe_gross", -dy, "0.55", 1.8, 4.6),
+                                             ("sharpe_net", +dy, "0.15", 3.6, 5.8)):
             vals = [med[(line, a, field)] for a in ARMS]
-            ax.plot([min(vals), max(vals)], [y + off] * 2, color=colour,
-                    lw=3.4 if field == "sharpe_net" else 1.6,
-                    solid_capstyle="round", alpha=0.55, zorder=1)
+            # alpha 0.80, not 0.55. The two bars are distinguished by lightness and by weight, and at
+            # 0.55 both washed towards the same mid grey against the 0.955 row stripe, which is what
+            # made them read as one repeated object rather than two conditions.
+            ax.plot([min(vals), max(vals)], [y + off] * 2, color=colour, lw=lw,
+                    solid_capstyle="round", alpha=0.80, zorder=1)
             for a in ARMS:
                 st = arm_style(a)
                 ax.plot([med[(line, a, field)]], [y + off], marker=st["marker"], ms=size,
@@ -1252,10 +1357,10 @@ def fig_gross_vs_net(store: dict[str, np.ndarray]) -> Any:
     # numbers safely, so the figure keeps only what has to be seen next to the marks.
     handles = [plt.Line2D([], [], ls="", marker=arm_style(a)["marker"], ms=5.5,
                           color=arm_style(a)["color"], label=_arm_label(a)) for a in ARMS]
-    handles += [plt.Line2D([], [], color="0.62", lw=1.6, alpha=0.55, solid_capstyle="round",
-                           label="upper bar: spread GROSS"),
-                plt.Line2D([], [], color="0.30", lw=3.4, alpha=0.55, solid_capstyle="round",
-                           label="lower bar: spread NET")]
+    handles += [plt.Line2D([], [], color="0.55", lw=1.8, alpha=0.80, solid_capstyle="round",
+                           label="upper, thin bar: GROSS of costs"),
+                plt.Line2D([], [], color="0.15", lw=3.6, alpha=0.80, solid_capstyle="round",
+                           label="lower, thick bar: NET of costs")]
     fig.legend(handles=handles, loc="outside lower center", ncol=3, fontsize=10, frameon=False)
     return fig
 
@@ -1333,6 +1438,16 @@ def fig_wealth_and_drawdown(store: dict[str, np.ndarray]) -> Any:
     axes[1].set_xlabel("Sealed test window, 2020-03-30 to 2026-06-30")
 
     handles, labels = axes[0].get_legend_handles_labels()
+    # ⛔ THE FAINT PATHS WERE UNEXPLAINED, AND THEY ARE MOST OF THE INK. Each panel carries 55 pale
+    # lines (eleven authoring lines x five arms) behind five heavy ones, and the legend named only the
+    # five. So the single most striking feature of the exhibit -- a wide haze reaching down to 0.72
+    # and to -48 per cent while the heavy lines sit in a tight band -- had no key anywhere, and a
+    # reader could not tell whether the pale lines were seeds, lines, arms or a confidence band. Two
+    # keys fix it. They are drawn at alpha 1.0 rather than the canvas 0.20 because a 10 pt swatch at
+    # 0.20 is invisible: the key identifies the object, it does not sample its colour.
+    handles += [plt.Line2D([], [], color="0.35", lw=0.9, label="one authoring line, 11 per arm"),
+                plt.Line2D([], [], color="0.15", lw=1.7, label="the median across those 11")]
+    labels = [h.get_label() for h in handles]
     _outside_legend(fig, handles, labels, ncol=3)
     worst = {a: float(np.min([get(store, lb, a, "drawdown").min() for lb in LINE_LABELS]))
              for a in ARMS}

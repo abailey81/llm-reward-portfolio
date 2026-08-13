@@ -3,9 +3,10 @@
 ## 6.1 A null that locates where the chain breaks is a boundary condition, not an absence
 
 The dominance envelope of §1.3 bounds what an *optimal* user of the fuller feedback block could extract. This
-chapter reports what a bounded one attained, and where the chain between them gave way. The three
-pre-registered sub-questions each interrogate one link, so a break locates the failure (Table 5.4), and Table 6.1 grades every registered question against its own prediction. The
-performance equivalence is the backdrop against which the break is read, not the discovery itself.
+chapter reports what a bounded one attained, and where the chain between them gave way. We registered
+three sub-questions, one for each link, so a break locates the failure (Table 5.4), and Table 6.1 grades
+every registered question against its own prediction. The performance equivalence is the backdrop we
+read the break against, not the discovery itself.
 
 <!-- COMPRESSED 2026-08-11: 145 counted words to 75. What went was a restatement of the research
      question and of the Blackwell dominance result, both of which Chapter 1 s1.3 already states, with
@@ -46,28 +47,28 @@ anything, *less* responsive to larger movements in the fed tail.
 
 The distinction rests on the severity requirement of error statistics [`mayo2018severetesting`;
 `altman1995absence`]. A non-rejection is evidence of absence, and not mere absence of evidence, precisely
-when the design would have detected a genuine effect with high probability. That probability decomposes
-into three legs and the design instruments each: responsiveness power, search adequacy and equivalence
-power.[^severity] A reviewer's "you did not search hard enough" lands on one instrumented leg, never on
+when the design would have detected a genuine effect with high probability. That probability has
+three legs, and we instrument all three, measuring responsiveness power, search adequacy and
+equivalence power.[^severity] A reviewer's "you did not search hard enough" lands on one instrumented leg, never on
 the null itself.
 
 [^envelope]: This is not a lower bound on the Le Cam deficiency.
 
 [^severity]: Responsiveness power comes from the dose-response sub-experiment and its positive control, which sit upstream of the candidate search.
 
-Three readings make this a positive scientific result. The first is a corroborated prediction about the
-gap between the envelope and its realisation, which the theory predicts from a tail-blind selector and a
-non-responsive designer. On the designer's own decision problem the risk gap
+We read this as a positive scientific result for three reasons. The theory predicts a gap between the
+envelope and its realisation whenever the selector is tail-blind and the designer unresponsive, and the
+data corroborate it. On the designer's own decision problem the risk gap
 between seeing the score alone and seeing it with the six lower-tail statistics is $-0.0037$, inside its
-own permutation null. A bounded predictor realises no gap, so nothing of the envelope is demonstrated
-here (§C.4.1).[^envelope] The second is about robustness. By the duality of §C.6 the lower tail is a
+own permutation null. A bounded predictor realises no gap, so we demonstrate nothing of the
+envelope here (§C.4.1).[^envelope] Robustness is the second reason. By the duality of §C.6 the lower tail is a
 distributional-robustness signal, and the null says this designer does not convert it into more robust
 reward code at this budget. The third is a boundary condition for the automated-discovery agenda.
-Language models can discover objectives. Which information they are shown did not, here, change what they
-discovered.
+Language models can discover objectives. Which information we showed them did not, here, change what
+they discovered.
 
-Two mechanism analyses sharpen that interpretation. One asks whether the arms authored genuinely
-different objectives, or near-policy-invariant re-shapings of a single one.[^probe] The other decomposes
+We ran two mechanism analyses to sharpen that interpretation. The first asks whether the arms authored genuinely
+different objectives, or near-policy-invariant re-shapings of a single one.[^probe] The second decomposes
 the arm's effect into an indirect path through the authored code, under a sequential-ignorability
 assumption that is strong and untestable [`imai2010identification`].[^suppression] Two findings from the
 literature agree with what they return. Models' risk attitudes are real but steered by surface
@@ -79,7 +80,7 @@ authorship of tail-risk information, not in its consumption. Richer feedback is 
 
 [^suppression]: An indirect effect reliably non-zero yet opposite in sign to the direct effect is inconsistent mediation, or suppression, a recognised identifiable quantity rather than a failed manipulation [`mackinnon2000equivalence`; `orourke2018suppression`].
 
-The mechanism layer has several legs, so its multiplicity stance is stated explicitly. No mechanism
+The mechanism layer has several legs, so we state its multiplicity stance explicitly. No mechanism
 statistic gates H2 or can convert the pre-registered null into a performance claim, and the reading is the
 Benjamini-Hochberg-corrected picture rather than a single uncorrected leg.
 
@@ -93,7 +94,7 @@ metrics disambiguate, which is the informational case this study tests.
 model-synthesised code. We widen the same channel and find the effect bounded against its own scrambled
 twin. Either the object differs, theirs being policy code and ours a fixed agent's reward, or the
 enrichment was real and something downstream discarded it. Our own formatter did exactly that, so their
-result is not refuted here. What this study adds is the layer at which it can be undone.
+result is not refuted here. What we add is the layer at which it can be undone.
 
 A second layer of aliasing exists that enrichment alone does not fix. Gallego's aliasing is a property of
 the *statistic*, in that the scalar genuinely lacks the distinguishing information. Ours was a property of
@@ -106,24 +107,25 @@ collapsed values reached the tokeniser already identical.[^numeracy]
 
 [^numeracy]: Magnitude is broadly recoverable from embeddings, with the exception that sub-word models struggle because two numbers similar in value can divide very differently [`wallace2019numbers`]. The rest of the family shows the value-to-token map is causal rather than incidental [`zhang2024counting`; `baeumel2025digitwise`; `zausinger2025ntl`; `dutulescu2026valueaware`]. And the same literature reports that comparison of distinctly printed numbers is effectively solved in frontier models [`kreitner2026bittokens`].
 
-The generalisation transfers. Enriching a feedback channel does not defeat aliasing if the
+We expect this to generalise. Enriching a feedback channel does not defeat aliasing if the
 presentation layer re-aliases it downstream, and because the enrichment is visible in the design while the
 quantisation is not, this failure is *invisible in exactly the systems that have tried hardest to avoid it*.
-The danger has a direction. A study whose channel is silently re-aliased observes no effect of channel
-content and concludes that richer feedback does not help, when it has measured its own formatter. Rendering
-precision was therefore promoted to a registered design parameter before any confirmatory datum existed,
+The danger runs one way. A study whose channel is silently re-aliased observes no effect of channel
+content and concludes that richer feedback does not help, when it has measured its own formatter. So we
+promoted rendering precision to a registered design parameter before any confirmatory datum existed,
 which is why a null here reads as a statement about the designer, not the renderer.
 
 ### Beyond portfolios: three findings that constrain any automated design loop
 
-Three of this study's findings are not about asset allocation. Each constrains automated design loops
+Three of our findings are not about asset allocation. Each constrains automated design loops
 generally.
 
-The first concerns how generated artefacts should be scored. The danger is not the artefact that fails. A
+The first concerns how generated artefacts should be scored. The artefact that fails outright is not the
+problem. A
 candidate that fell back to the harness default on 99.98% of its 400,000 calls scored $7.8	imes10^{-6}$
 and eliminated itself, because total failure is self-limiting. A candidate that fell back on 49.98% held
-the highest fitness in its arm, at $+0.2336$ against a best eligible $+0.000124$, and was removed only by
-the execution floor. The fallback had silently supplied what the authored code did not. Outcome quality
+the highest fitness in its arm, at $+0.2336$ against a best eligible $+0.000124$, and only the execution floor
+removed it. The fallback had silently supplied what the authored code did not. Outcome quality
 cannot separate those cases, because the blend optimises exactly the quantity being scored. Any pipeline
 that accepts machine-generated code on the strength of its results, and that has a fallback path, is blind
 where contamination pays best. It needs an execution audit.

@@ -77,15 +77,24 @@ def tint(hex_colour: str, keep: float = 0.16) -> str:
 # F1 -- the system diagram (Figure 1.1 and Figure 4.1)                                                #
 # ------------------------------------------------------------------------------------------------- #
 #: Row-1 labels, re-wrapped for a 453.5 pt column. Same words as the fenced schematic, new line breaks.
+# ⛔ THREE ABBREVIATIONS EXPANDED AND TWO SHOUTS REMOVED. The guide states that the second marker
+# "may come from any discipline", so an unglossed PIT and OOS inside the one exhibit that introduces
+# the whole apparatus are exactly the stalls C8's cold-reader test counts as defects: a reader who
+# does not know the term cannot look it up from a box on a diagram. SAC keeps its acronym because the
+# box beside it says "agent" and Chapter 4 expands it on the page that first uses it, and expanding
+# it here would widen the row past the column. Separately, "FEEDBACK CHANNEL" and "reward CODE" were
+# set in capitals to mark them as important, which is the emphasis-by-formatting the register rule
+# forbids; the feedback box is already the only coloured box on the row, so the capitals added
+# nothing a reader was not already being shown.
 _F1_TOP = [
-    "Gold panel\n(survivorship-\nfree PIT)",
+    "Gold panel\n(survivorship-free,\npoint-in-time)",
     "Portfolio env\n+ fixed SAC\nagent",
-    "Realised\nreturns\n(OOS)",
+    "Realised\nreturns\n(out of sample)",
     "Tail measurement\n(CVaR 1/5/10/25%,\nmass, skew)",
 ]
-_F1_FEEDBACK = "FEEDBACK CHANNEL\n(the contribution)\nvector tail  vs  scalar"
+_F1_FEEDBACK = "Feedback channel\n(the contribution)\nvector tail vs scalar"
 _F1_DESIGNER = "LLM reward designer\n(Eureka reflection)"
-_F1_CODE = "Authored\nreward CODE"
+_F1_CODE = "Authored\nreward code"
 #: ⛔ THE THREE-LINE GREY BLOCK THAT SAT UNDER THIS DIAGRAM IS GONE, AND ITS WORDS ARE IN THE CAPTION.
 #: It said what the LaTeX caption already says, in smaller grey type, inside the figure, where a
 #: reader cannot tell a caption from an axis note. Every schematic carried one and each cost a fifth
@@ -324,7 +333,11 @@ def splits_timeline() -> Canvas:
         y = y_key - i * (line_h + 5.0)
         c.ax.add_patch(Rectangle((MARGIN, y - line_h + 1.5), 9.0, 9.0, facecolor=pal[colour],
                                  edgecolor="black", linewidth=0.8, alpha=0.9, zorder=2))
-        c.text(MARGIN + 14.0, y, f"{name} {years} — {sub}", size=BODY_PT, ha="left", va="top",
+        # A colon, not an em dash. The register rule is zero em dashes in prose, and its two
+        # exemptions are numeric ranges and a heading's label-from-gloss separator. A legend row is
+        # neither: it is a sentence naming a band and saying what happens on it, so it reads as
+        # prose, and three of them printed inside the exhibit on the compiled page.
+        c.text(MARGIN + 14.0, y, f"{name} {years}: {sub}", size=BODY_PT, ha="left", va="top",
                color="0.20")
 
     c.text(MARGIN, y_title, _F4_TITLE, size=TITLE_PT, ha="left", va="top", fontweight="bold")

@@ -266,7 +266,12 @@ def build(out: Path = FIG_DIR) -> Path:
     # across the panel and lands on whatever is behind it; the units live in the caption instead.
     ax.set_xlabel("turnover per session (% of book)", labelpad=8)
     ax.set_ylabel("cost (bps each way)", labelpad=6)
-    ax.set_zlabel("Sharpe", labelpad=-2)
+    # ⛔ NOT A BARE "Sharpe". R4 is explicit that every Sharpe in the document states whether it is
+    # gross or net, and this axis is the one place where the answer is neither constant nor obvious:
+    # the surface is the SAME cell repriced along the cost axis, so its z is gross at the 0 bps edge
+    # and net of a different charge at every other point. "Sharpe" alone invites the reader to take
+    # the whole surface as one condition, which is the exact error R4 was written to stop.
+    ax.set_zlabel("Sharpe, net of that cost (annualised)", labelpad=-2)
     # ⚠ TICKS AT ROUND NUMBERS, NOT AT ROUND LOGARITHMS. Spacing the ticks evenly in log space
     # printed "3.16228" and "31.6228", which is a decade root and not a quantity anyone reads.
     # The positions are the logarithms of 1, 3, 10, 30 and 90 instead.

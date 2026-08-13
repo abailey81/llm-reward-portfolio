@@ -28,7 +28,7 @@ Survivorship-free, point-in-time construction is what stops the panel fabricatin
 is not a data-quality nicety. Truncating a sample to surviving names induces spurious predictability
 strong enough to manufacture a result [`brown1992survivorship`; `kothari1995another`], and
 point-in-time membership keeps a security out of the tradable set until it was actually a
-constituent. One row of Table 3.1 is a trade-off: holding the top-thirty cohort fixed from the
+constituent. One row of Table 3.1 records a trade-off. Holding the top-thirty cohort fixed from the
 development date guarantees a consistent action space, but the sealed leg then trades a
 development-era cohort, a composition bias reported rather than inherited (Chapter 6).
 
@@ -88,7 +88,7 @@ This chapter specifies the experiment that answers one question. *Does showing a
 reward-designer the lower tail of the realised outcome distribution, instead of a single score, change
 the reward code it writes, and does that change propagate to the trained agent's realised tail
 behaviour?* Three commitments answer it, and Figure 4.1 draws them together. Only the feedback block
-varies, and everything else in the loop is byte-identical across the language-model arms (§4.5). The
+varies, and we hold everything else in the loop byte-identical across the language-model arms (§4.5). The
 feeding, the selecting and the testing are done by three different estimators on three different splits,
 so a between-arm tail effect cannot be an artefact of a tail-favouring selector or a self-grading metric
 (§4.6). And the plan is hash-frozen before the sealed leg is touched (§4.8).
@@ -119,7 +119,7 @@ field by field. Two choices are argued here rather than listed, because they are
 broken the identification.
 
 Two nested decision problems sit inside this study, and naming both is what identifies the effect.
-The inner one is the trading agent, held fixed. The outer one searches over reward programs. Figure 4.2
+We hold the inner one, the trading agent, fixed. The outer one searches over reward programs. Figure 4.2
 draws them.
 
 ![**Figure 4.2** — The two nested decision problems. **What to conclude:** every edge in this figure is common to all nine arms except one.
@@ -139,7 +139,7 @@ tail-blind validation fitness of §4.6, and whose budget is thirty pulls per arm
 $$\varphi\sim q\big(\cdot\mid u\oplus b_a\big),\qquad
 b_{\mathrm{scalar}}=\Pi\circ b_{\mathrm{dist}},\qquad \hat{\mathbf c}\in\mathbb R^{6}$$
 
-That identity is the whole manipulation: the scalar block is the tail block with six coordinates deleted,
+That identity is the whole manipulation. The scalar block is the tail block with six coordinates deleted,
 which is why §1.3's dominance argument applies to these two prompts and to no others.
 
 <!-- S3 CLOSED HERE ON 2026-08-11. Stefan's highest-leverage ask was that states, actions and rewards be
@@ -171,7 +171,7 @@ recommendation was 200,000, and the rule carried an explicit keep-200,000 branch
 confirmed us. It did not. It doubled the compute budget of every training in the study, before the
 design was frozen. Exhibits 1 and 2 of Appendix A carry the ladder and the limit of that evidence.
 
-One positioning note prevents a misreading: this is simulated-online, not offline, reinforcement
+One positioning note prevents a misreading. This is simulated-online, not offline, reinforcement
 learning, despite the fixed historical panel. The agent collects its *own* transitions
 off-policy against a replay simulator, so there is no behaviour dataset logged by an unknown policy, and the
 distributional-shift pathology that offline methods [`levine2020offline`; `kumar2020cql`;
@@ -321,7 +321,7 @@ which is what makes "did the designer help?" answerable at all.
 There are two placebos because they isolate different things, and Table 4.8 row 10 says which.
 
 That optimiser side is a portfolio rather than an opponent, because no single black-box method
-dominates across evaluation budgets: Bayesian methods lead at small budgets and evolution strategies
+dominates across evaluation budgets. Bayesian methods lead at small budgets and evolution strategies
 overtake them only after hundreds [`raponi2024lowbudget`; `shahriari2016bo`], so naming one would be
 a cherry-pick. All four principal paradigms search the identical family at the same budget and
 shared seed [`bergstra2012randomsearch`; `snoek2012practical`; `hansen2001cmaes`; `bergstra2011tpe`;
@@ -360,7 +360,7 @@ identification contrasts in the live prompts, never in configuration.
 Because the reward code is authored by an untrusted model it is treated as untrusted input, gated at
 line 9 and then executed in-process on anonymised, read-only arrays. That same construction disposes
 of the profit-mirage threat.[^mirage] A date-blind function over anonymised indices has no route to
-era knowledge. What survives is an era-nonspecific prior about which reward *shapes* work, which is
+era knowledge. An era-nonspecific prior about which reward *shapes* work survives, and it is
 arm-identical and cancels in the contrast. Absolute performance levels remain prior-laden and are
 disclosed as such (Chapter 6).
 
@@ -376,13 +376,13 @@ Candidates are selected on a validation Deflated Sharpe ratio at risk-aversion w
 [`bailey2014deflated`], a net-of-cost criterion with no explicit tail term, applied identically to
 every arm. It therefore gives no *between-arm* advantage to tail-aware rewards, and any tail effect
 downstream must arise from the designer's *use* of the fed signal rather than from selection
-pressure. Calling it tail-blind is a shorthand: its one tail sensitivity, the Deflated net Sharpe's
+pressure. Calling it tail-blind is a shorthand. Its one tail sensitivity, the Deflated net Sharpe's
 second-order skew and kurtosis correction (§C.4), is common-mode, so the selector is arm-invariant
 rather than literally tail-insensitive (§C.7)[^dsrform].
 
 [^dsrform]: During the search the deflation is evaluated in its within-series form, the only dispersion available before an arm's candidate population is complete.
 
-The three-way decoupling that results is the methodological core: the extreme-value estimator feeds on
+The three-way decoupling that results is the methodological core. The extreme-value estimator feeds on
 *training*, the Deflated net Sharpe selects on *validation*, and the empirical CVaR tests on the *sealed*
 split. Because the object fed is neither the object selected on nor the estimator graded by, a tail effect
 is attributable to the feedback channel and cannot be a self-grading artefact. The decoupling is unit-tested
@@ -452,7 +452,7 @@ here.[^conventions]
 
 [^conventions]: Every Sharpe is the raw annualised ratio, `sharpe_ratio(returns, periods_per_year=252)`, which takes no risk-free argument, and each is labelled gross or net. And the evaluation window is the archive's own 1,571 traded sessions: the 60-session lookback purge means it is *not* every session after 2020-01-01, and conflating the two understates every benchmark by roughly 0.47 net Sharpe.
 
-Three of the four share one construction that carries the whole inference plan: H1, H2 and H4 are
+Three of the four share one construction that carries the whole inference plan. H1, H2 and H4 are
 each an intersection-union test [`berger1982iut`]. Naming a champion by its sealed-leg performance
 would data-snoop the comparator, so the claim must instead hold against *every* member of the
 comparator set at once, which is exactly "beats the best" and selects nothing. The headline contrast
@@ -470,7 +470,7 @@ authoring step.[^unitb]
 The contest against numerical search is hard, and its verdict is asymmetric. The designer authors
 free-form code, a strict superset of the family the optimisers search, so at matched budget it
 navigates a far larger space with a semantic prior as its only advantage. The registered node carries
-a one-sided superiority test, which certifies one reading: it either rejects, licensing "the designer
+a one-sided superiority test, which certifies one reading. It either rejects, licensing "the designer
 beats the pointwise maximum", or it does not, which licenses nothing. "Matches to within the SESOI"
 and "is beaten by" are *descriptions* placed on a non-rejection, never conclusions.
 
@@ -662,8 +662,8 @@ decision.[^standards] Table E.7 states what each of the three layers claims and 
 
 ## 4.9 What the richer signal could buy, and the assumption under which it bounds this designer
 
-The design rests on a claim about information rather than about performance. The two feedback blocks
-are *nested*: the scalar block is the coordinate projection of the tail block, so the tail-fed designer
+Our design rests on a claim about information rather than about performance. The two feedback blocks
+are *nested*. The scalar block is the coordinate projection of the tail block, so the tail-fed designer
 sees everything the scalar-fed one sees and six coordinates more. That identity is a property of how the
 prompts are assembled and can be checked by reading the block renderer.[^nested] Because the projection is
 a Markov kernel, the Blackwell comparison of experiments applies in one direction

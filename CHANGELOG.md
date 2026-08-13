@@ -3,6 +3,135 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-13c] EVERY EXHIBIT INSPECTED AS AN IMAGE, AND THE REGISTER MEASURED AGAINST ITS TARGET
+
+**Two instructions from Tamer: make every visualisation clear, clean and accurate, and make the prose
+read like *Attention Is All You Need* rather than like a machine, without losing marks anywhere.**
+
+### 1. THE FIGURES: ONE WAS FACTUALLY WRONG, AND ITS OWN CAPTION SAID SO
+
+Sixteen of the nineteen exhibits were inspected AS RENDERED IMAGES rather than as code, which is the
+only way most of what follows is visible at all.
+
+⛔⛔ **FIGURE 6.1 LABELLED GROSS AND NET THE WRONG WAY ROUND, ON ALL ELEVEN ROWS.** The axis is
+inverted (`set_ylim(len-0.5, -0.5)`), so `sharpe_gross` at `+dy` rendered BELOW its row and
+`sharpe_net` at `-dy` rendered ABOVE it, while the legend read *"upper bar: spread GROSS / lower bar:
+spread NET"*. ⭐ **The caption was already correct** and said *"the upper, thin bar is the spread
+across the five arms before costs"* and *"the net bar is the longer one on every one of the eleven
+lines"* -- so the figure CONTRADICTED its own caption, and a reader who checked one against the other
+would have found the disagreement. Visible once you know to look: qwen3.5-9b's upper bar ran from
+-0.28 to 1.23, and a spread that wide is what costs DO to a line, not what it looked like before them.
+Fixed by reversing the offsets, and the two bars are now separated by weight AND lightness at alpha
+0.80 rather than washing together at 0.55. **Signs against an inverted axis are exactly the silent
+error a code read misses and a rendered read catches.**
+
+★ **FIGURE 5.7, THE MECHANISM FIGURE, REBUILT AROUND A ZOOM INSET.** Eight of eleven lines sat inside
+a fifth of the x-range with their names fanned across the middle on crossing leaders, and 60 per cent
+of the canvas was empty. Four attempts were needed and the first three are instructive: enlarging the
+inset, re-ordering the label placer and moving its note each MOVED the collision rather than removing
+it, which is the signal that the WINDOW was wrong rather than the placer. At a half-width of 0.12 the
+inset held eight lines, five of which are still coincident at that zoom. At 0.05 it holds exactly the
+five that overlap, they spread across its full width, and the three it sheds have room on the main
+panel. Every one of the eleven names now sits beside its own point with no leader crossing a panel.
+
+**Five further defects, each a thing a reader could not repair from the exhibit alone:**
+* **6.3** shaded a full-height region for "lost money out of sample" with NO key anywhere. An earlier
+  pass had tried three on-canvas placements and concluded there was "no empty place for it". That was
+  wrong: the legend sits OUTSIDE the axes and had a whole figure width spare. Added as a fourth key.
+* **6.4** drew 55 pale paths per panel (eleven lines x five arms) behind five heavy ones and named
+  only the five. The most striking feature of the exhibit, a haze reaching to 0.72 and to -48 per
+  cent, had no key at all. Two added.
+* **4.1** shouted `FEEDBACK CHANNEL` and `reward CODE` in capitals, which is emphasis-by-formatting,
+  and used unglossed `OOS` and `PIT` in the one exhibit that introduces the whole apparatus to a
+  second marker who "may come from any discipline". Expanded; `SAC` kept, because the row cannot take
+  the width and Chapter 4 expands it on the page that first uses it.
+* **3.2** carried three em dashes inside the figure, in legend rows that read as prose rather than as
+  a heading's label-from-gloss separator. Now colons.
+* **6.2** labelled its z-axis a bare "Sharpe" when the surface is the SAME cell repriced along the
+  cost axis, so it is gross at the 0 bps edge and net of a different charge everywhere else. R4 is
+  explicit that every Sharpe states which it is.
+
+⚠ **FOUR SUSPECTED DEFECTS VERIFIED AS NOT DEFECTS, AND ACTING ON ANY OF THEM WOULD HAVE DONE HARM.**
+Figure 1.1's text says *"the doubled box"*; read at 200 dpi it looked like a single box, and at 560
+dpi it is a genuine double rule (an orange stroke at 2.29 pt with a white stroke at 1.10 pt inside
+it). The `return_minus_turnover`-style identifiers match how Table 4.5 prints them, so prettifying
+them would have broken the cross-reference. Figure 5.4's unshared y-axes are a documented, measured
+trade-off. Figure 3.1's `cvar_25` callouts name the registered fed-vector variables.
+
+⚠ **AND ONE REAL GAP THAT IS NOT A DEFECT IN THE FIGURE:** `docs/figures/F_ch1_design.pdf`, which is
+Figure 1.1 and the FIRST exhibit a marker meets, **has no generator anywhere in the repository.** It
+is an orphan binary. Nothing in it is wrong; it simply cannot be regenerated, which sits badly against
+Priority 5. Recorded, not fixed.
+
+### 2. THE REGISTER: MEASURED AGAINST THE TARGET, NOT AGAINST AN IMPRESSION
+
+*Attention Is All You Need* was downloaded (arXiv:1706.03762v7) and PROFILED, because "sounds like X"
+is not checkable and a comparison between a measurement of one text and a memory of another is not a
+comparison. Two instruments were built: a punctuation/rhythm profile and a multidimensional one
+covering lexis, verb class, sentence openings and claim framing.
+
+⚠⚠ **THREE OF THE FIRST FINDINGS WERE MY OWN INSTRUMENT, AND EACH WOULD HAVE SENT A REWRITE AFTER A
+DEFECT THAT DOES NOT EXIST.** (a) "20 em dashes in CH4" -- all in caption and heading label
+positions, the two documented exemptions; real count zero. (b) "63 semicolons per 10k in CH2" -- all
+inside citation groups of the form [`a`; `b`]; real count zero. (c) "colons at 141 per 10k in CH6"
+and "a 188-word sentence" -- both inflated by counting `[^severity]:` footnote MARKERS as prose; the
+real figures are 84.5 and 51. The repo's own scorecard was right and the new instrument was wrong,
+three times, which is the standing trap in 7d exactly as written.
+
+**What survived measurement, and it is not what the anti-AI advice predicts:**
+
+| dimension | Attention | our body | reading |
+|---|---:|---:|---|
+| first-person `we` /10k | 166.5 | 0-14 | **nobody in our prose does anything** |
+| sentences opening on an agent | 18.8% | 1.9% | same finding at sentence level |
+| doing-verbs : being-verbs | 1.1 | 0.4 | ours describe states, theirs describe acts |
+| clefts /10k | 0.0 | 5.0 | "What X is...", "The reason is..." |
+| colons /10k | 24.1 | 43-85 | our em-dash procedure traded one tell for another |
+| **boosters /10k** | **34.5** | **2.5** | see below |
+| causal markers /10k | 23.9 | 122.8 | we justify five times as often |
+| nominalisations /10k | 871 | 501 | **they use MORE than us** |
+| hedges /10k | 15.9 | 9.2 | **they hedge MORE than us** |
+
+⭐⭐ **THE BOOSTER GAP IS 39x AND IT MUST NOT BE CLOSED. This was tested rather than assumed.** The
+obvious reading is that our prose is unnaturally flat. The actual reading, measured: Attention makes
+74.4 magnitude claims per 10,000 words carried by INTENSIFIERS ("much faster", "significantly");
+we make **106.1**, carried by NUMBERS and COMPARATIVES. 46 per cent of Attention's booster sentences
+carry a number; ours carry one essentially always. **We make MORE magnitude claims than they do and
+carry them more precisely**, which is what W5 prescribes ("difficulty in numbers, not adjectives;
+adjectives are discounted"). Adding intensifiers would have made the document worse and would have
+breached the never-overstate-the-result rule. **Recorded so no future pass re-opens it.**
+
+**Fifty-nine edits across all five body chapters, word-neutral by construction**, each printed with
+its word delta and each requiring its target string to match EXACTLY ONCE or the script aborts before
+writing. Colons fell from 48.7 to 7.0 in CH1, 52.9 to 10.6 in CH2, 56.1 to 29.6 in CH4 and 84.5 to
+49.9 in CH6. First-person rose from 0 to 23.0 in the Results chapter and 2.9 to 34.6 in the
+Discussion. The enumerated abstraction Attention never uses ("Three readings make this a positive
+scientific result. The first is... The second is about robustness...") is gone from both.
+
+⚠ **A SELF-AUDIT OF MY OWN DIFF CAUGHT FOUR PRECISION LOSSES AND ALL FOUR WERE RESTORED**, on Tamer's
+instruction that no section may lose marks: a dropped "then" that carried the ORDER of the two
+co-primary tests; "carries" weakening "is" in the identification claim; a dropped "to sharpen that
+interpretation" that was Criterion-1 framing; and one ungrammatical construction of my own making
+("what would break this is us acting"). **The author's own diff is the last place to look and the
+first place a weakened claim hides.**
+
+### 3. STATE AT CLOSE
+
+130 pages | body **10,992 / 11,000** | scorecard **28/28, 0 FAIL** | cross-references CLEAN (0
+dangling, 0 duplicates, 0 orphans) | citations clean | freeze **MATCHES** | reproducibility
+**8 pass / 0 warn / 0 fail** | rendered page CLEAN (0 margin overflows, 0 stray asterisks, 0
+run-together words) | glyph audit CLEAN | 19 exhibits.
+
+⚠ The printed word count went stale THREE times during this pass and the gate caught it every time.
+It is the cheapest possible Criterion-4 forfeit and the only reason it did not ship is that a machine
+checks it.
+
+**Backup taken BEFORE any prose was touched**, at Tamer's instruction:
+`_backup_pre_register_rewrite/` holds the compiled PDF and every paper source, 12 MB.
+
+**STILL OPEN, and still the one thing the author must not do himself:** a fresh-eyes adversarial
+re-mark of the compiled PDF against the four criteria, section by section.
+
 ## [2026-08-13b] PASS 9 CONTINUED — the skills sweep I had skipped, and the exhibit the headline number never had
 
 **Tamer asked whether pass 9 had missed anything. It had, and the answer was worth the asking.**
